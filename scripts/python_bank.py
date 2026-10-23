@@ -186,6 +186,10 @@ def check_item(cid, item):
     """Returns (item, errors)."""
     errs = []
     where = "%s#%s" % (cid, item["id"])
+    # Mirrors internal/pytrack/bank.go: the server refuses to start on a bank
+    # whose non-recall item has no explanation, so catch it here instead.
+    if item["kind"] not in ("recall", "math") and not item.get("explain", "").strip():
+        errs.append("%s: explain is required" % where)
     if item["kind"] == "output":
         res = run("run", item["code"])
         if res["error"]:
