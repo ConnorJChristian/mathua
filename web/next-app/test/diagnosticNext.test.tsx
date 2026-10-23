@@ -238,6 +238,26 @@ describe('DiagnosticStep Next button', () => {  it('shows no Next button before 
     expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
+  it('retries a failed submission as the kind of answer it was', () => {
+    // A failed "I don't know" retried as a graded answer posts an empty answer
+    // and records a miss the learner never made, so the page passes a retry that
+    // remembers which kind of submission failed.
+    const onSubmit = vi.fn()
+    const onRetrySubmit = vi.fn()
+    render(
+      <DiagnosticStep
+        {...stepProps}
+        lastResult={null}
+        submitError={{ message: 'boom', status: 503 }}
+        onSubmit={onSubmit}
+        onRetrySubmit={onRetrySubmit}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(onRetrySubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
   it('shows only Restart on a 404 expired session', () => {    render(
       <DiagnosticStep
         {...stepProps}

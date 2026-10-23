@@ -84,6 +84,10 @@ function OnboardContent() {
   // Next question staged from the submit response — revealed by goNext(),
   // never fetched. Cleared on advance, so double-press is a no-op.
   const pendingNext = useRef<{ question: string; conceptId: string; conceptName: string; gradingType: string } | null>(null)
+  // Whether the last attempt was an admitted unknown. A retry that forgets this
+  // posts an empty graded answer, so the learner is marked wrong for a question
+  // they said they could not answer.
+  const lastAttemptDontKnow = useRef(false)
   const questionShownAt = useRef<number | null>(null)
   const [conceptName, setConceptName] = useState('')
   const [questionCount, setQuestionCount] = useState(0)
@@ -331,6 +335,7 @@ function OnboardContent() {
     if (!dontKnow && !answerInput.trim()) return
     setLoading(true)
     setSubmitError(null)
+    lastAttemptDontKnow.current = dontKnow
     try {
       const answer = dontKnow ? '' : answerInput.trim()
       const elapsed = Math.max(0.5, (Date.now() - (questionShownAt.current ?? Date.now())) / 1000)
@@ -347,12 +352,21 @@ function OnboardContent() {
 
       if (data.done) {
         setFinished(true)
+        // The plan request can take its whole timeout, and leaving the loading
+        // flag set makes every control look dead once the last answer is in.
+        setLoading(false)
         setTimeout(() => {
           void fetchPlan()
         }, 800)
         return
       }
 
+      // The server promises a question whenever done is false, so an absent one
+      // is a broken response. Throwing reaches the error block, which offers a
+      // retry, instead of staging '' and leaving Next looking inert.
+      if (!data.question) {
+        throw new Error('The diagnostic returned no next question. Try again.')
+      }
       // Manual advance: stage the prefetched next question, reveal on Next.
       // The staged question stays hidden, so answer timing starts at reveal.
       pendingNext.current = {
@@ -363,6 +377,28 @@ function OnboardContent() {
       }
       setLoading(false)
     } catch (e) {
+      // A 404 means no session under this id any more, which is what happens when
+      // the final answer committed but its response was lost: the server deleted
+      // the finished session and the retry has nothing to answer. Ask for the
+      // plan before calling a completed run a failure.
+      if ((e as { status?: number } | null)?.status === 404) {
+        try {
+          const planRes = await getGoalPlan(sessionId.current)
+          if (!planRes) throw new Error('no plan to recover')
+          setPlan(planRes)
+          setFinished(true)
+          setStep('results')
+          try {
+            sessionStorage.removeItem(DIAG_KEY)
+          } catch { /* ignore */ }
+          setHasPaused(false)
+          setLoading(false)
+          return
+        } catch {
+          // No plan either, so the run really is gone and the error block below
+          // offers the restart, which is the only honest option left.
+        }
+      }
       setSubmitError(toSubmitError(e, 'Failed to submit answer.'))
       setLoading(false)
     }
@@ -617,6 +653,7 @@ function OnboardContent() {
               onInputChange={setAnswerInput}
               onSubmit={() => { void submitAnswer(false) }}
               onDontKnow={() => { void submitAnswer(true) }}
+              onRetrySubmit={() => { void submitAnswer(lastAttemptDontKnow.current) }}
               onNext={goNext}
               done={finished}
               answerFormat={answerFormat}
