@@ -204,29 +204,33 @@ func (g *placeValueGen) Generate(ctx generator.GeneratorContext) generator.Probl
 		max = 2
 	}
 	n := rand.Intn(max) + 1
-	var placeUnit int
+	// The zero-value generator carries no label, and an empty label means the
+	// tens place, so the default has to be usable rather than zero.
+	placeUnit := 10
 	switch g.label {
-	case "tens":
-		placeUnit = 10
 	case "hundreds":
 		placeUnit = 100
 	case "thousands":
 		placeUnit = 1000
 	}
-	var digit, value int
-	switch g.label {
-	case "tens":
-		digit = (n / 10) % 10
-		value = digit * 10
-	case "hundreds":
-		digit = (n / 100) % 10
-		value = digit * 100
-	case "thousands":
-		digit = (n / 1000) % 10
-		value = digit * 1000
+	// A number below the place unit has no digit there: "the digit 0 is in the
+	// tens place of 7" is not a question, so lift it into the place.
+	if n < placeUnit {
+		n += placeUnit
 	}
+	// A zero in the place makes the answer zero, which teaches nothing. Shift
+	// to the next number whose digit there is nonzero: 7308 becomes 7310 for
+	// tens, 7400 for hundreds.
+	if (n/placeUnit)%10 == 0 {
+		n += placeUnit - n%placeUnit
+	}
+	digit := (n / placeUnit) % 10
+	value := digit * placeUnit
+	// The stem names the digit and asks for its value. Asking for "the value of
+	// the digit in the tens place" of 87 let a learner answer 8, which is the
+	// digit, and be marked wrong for a question the stem did not settle.
 	return generator.Problem{
-		Question:    fmt.Sprintf("In the number %d, what is the value of the digit in the %s place?", n, g.label),
+		Question:    fmt.Sprintf("In the number %d, the digit %d is in the %s place. What is the value of that digit?", n, digit, g.label),
 		Answer:      fmt.Sprintf("%d", value),
 		Explanation: fmt.Sprintf("The %s digit is %d, value = %d x %d = %d", g.label, digit, digit, placeUnit, value),
 		Facts:       map[string]string{"n": strconv.Itoa(n), "digit": strconv.Itoa(digit), "place_unit": strconv.Itoa(placeUnit), "value": strconv.Itoa(value), "label": g.label},

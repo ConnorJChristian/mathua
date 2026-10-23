@@ -3,6 +3,7 @@ package arithmetic
 import (
 	"math/rand"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/chuma-beep/mathua/internal/generator"
@@ -19,12 +20,40 @@ func fuzzGen(t *testing.T, gen generator.Generator) {
 	}
 }
 
-func TestAddGen(t *testing.T)             { fuzzGen(t, &addGen{}) }
-func TestAddWordGen(t *testing.T)         { fuzzGen(t, &addWordGen{}) }
-func TestSubGen(t *testing.T)             { fuzzGen(t, &subGen{}) }
-func TestSubBorrowGen(t *testing.T)       { fuzzGen(t, &subBorrowGen{}) }
-func TestSubWordGen(t *testing.T)         { fuzzGen(t, &subWordGen{}) }
-func TestPlaceValueGen(t *testing.T)      { fuzzGen(t, &placeValueGen{}) }
+func TestAddGen(t *testing.T)        { fuzzGen(t, &addGen{}) }
+func TestAddWordGen(t *testing.T)    { fuzzGen(t, &addWordGen{}) }
+func TestSubGen(t *testing.T)        { fuzzGen(t, &subGen{}) }
+func TestSubBorrowGen(t *testing.T)  { fuzzGen(t, &subBorrowGen{}) }
+func TestSubWordGen(t *testing.T)    { fuzzGen(t, &subWordGen{}) }
+func TestPlaceValueGen(t *testing.T) { fuzzGen(t, &placeValueGen{}) }
+
+// The stem used to ask for "the value of the digit in the tens place" of 87,
+// which reads as 8 and expected 80. It now names the digit and asks for its
+// value, so the question has one reading. It also never names a digit that the
+// number does not have, which the old draw could do: "the digit 0 is in the
+// tens place of 7".
+func TestPlaceValueNamesTheDigitItAsksAbout(t *testing.T) {
+	for _, label := range []string{"tens", "hundreds", "thousands"} {
+		gen := &placeValueGen{max: 9999, label: label}
+		for i := 0; i < 200; i++ {
+			p := gen.Generate(generator.GeneratorContext{Difficulty: 0.5})
+			digit := p.Facts["digit"]
+			if digit == "0" {
+				t.Fatalf("%s: named digit 0 in %q", label, p.Question)
+			}
+			want := "the digit " + digit + " is in the " + label + " place"
+			if !strings.Contains(p.Question, want) {
+				t.Fatalf("%s: question %q does not contain %q", label, p.Question, want)
+			}
+			if p.Answer != p.Facts["value"] {
+				t.Fatalf("%s: answer %q is not the value %q", label, p.Answer, p.Facts["value"])
+			}
+			if !strings.HasSuffix(p.Question, "?") {
+				t.Fatalf("%s: question %q lost its question mark", label, p.Question)
+			}
+		}
+	}
+}
 func TestRoundGen(t *testing.T)           { fuzzGen(t, &roundGen{}) }
 func TestMultConceptGen(t *testing.T)     { fuzzGen(t, &multConceptGen{}) }
 func TestMultByGen(t *testing.T)          { fuzzGen(t, &multByGen{}) }
