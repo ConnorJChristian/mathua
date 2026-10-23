@@ -33,6 +33,7 @@ import type { MathFocusHandle } from '@/components/math/MathInput'
 import { domainOrder, type DomainInfo } from './domains'
 import { DiagnosticStep, ResultsStep, WelcomeStep } from './steps'
 import { isModuleDomain } from '../../lib/track'
+import { isPythonGrading } from '../../lib/pythonQuestion'
 
 type Step = 'welcome' | 'diagnostic' | 'results'
 
@@ -97,7 +98,9 @@ export default function OnboardPage() {
     for (const c of conceptsData) {
       // The placement diagnostic is a math-track tool. Module tracks (Python,
       // your own modules) have no placement: their first topics open directly.
-      if (isModuleDomain(c.domain)) continue
+      // Question-bank concepts a module adds to a math domain (imported
+      // flashcards, say) are practice sets, not placement material.
+      if (isModuleDomain(c.domain) || isPythonGrading(c.grading_type)) continue
       const list = map.get(c.domain) || []
       list.push(c.id)
       map.set(c.domain, list)

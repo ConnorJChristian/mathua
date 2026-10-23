@@ -61,10 +61,12 @@ RUN cd web/next-app && npm run build
 FROM debian:bookworm-slim AS pybankcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-venv && rm -rf /var/lib/apt/lists/*
-COPY grading/requirements-python.txt /check/grading/requirements-python.txt
+COPY grading/requirements-python.txt grading/requirements-python-nodeps.txt /check/grading/
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check \
-        -r /check/grading/requirements-python.txt
+        -r /check/grading/requirements-python.txt \
+    && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check --no-deps \
+        -r /check/grading/requirements-python-nodeps.txt
 COPY grading/pyrunner.py /check/grading/pyrunner.py
 COPY scripts/python_bank.py /check/scripts/python_bank.py
 COPY modules/ /check/modules/
@@ -82,11 +84,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # SymPy grading runtime. findSymPyService resolves ./grading/sympy_service.py
 # from WORKDIR /app, and execs `python3`, so the venv must be first on PATH.
 COPY grading/requirements.txt /app/grading/requirements.txt
-COPY grading/requirements-python.txt /app/grading/requirements-python.txt
+COPY grading/requirements-python.txt grading/requirements-python-nodeps.txt /app/grading/
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check \
         -r /app/grading/requirements.txt \
-        -r /app/grading/requirements-python.txt
+        -r /app/grading/requirements-python.txt \
+    && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check --no-deps \
+        -r /app/grading/requirements-python-nodeps.txt
 ENV PATH=/opt/venv/bin:$PATH
 
 # Python track: Matplotlib builds its font cache on first import, which takes
@@ -99,7 +103,7 @@ RUN mkdir -p /opt/mplconfig \
     && MPLBACKEND=Agg python3 -c "import matplotlib.pyplot" \
     && chmod -R a+rX /opt/mplconfig /opt/venv \
     && runuser -u nobody -- env MPLCONFIGDIR=/opt/mplconfig MPLBACKEND=Agg \
-        /opt/venv/bin/python3 -c "import numpy, pandas, sklearn, matplotlib.pyplot"
+        /opt/venv/bin/python3 -c "import numpy, pandas, sklearn, matplotlib.pyplot, statsmodels.formula.api, wooldridge, ISLP.models; wooldridge.data('wage1'); ISLP.load_data('Boston')"
 
 COPY --from=builder /mathua /mathua
 COPY data/concepts/ /app/data/concepts/

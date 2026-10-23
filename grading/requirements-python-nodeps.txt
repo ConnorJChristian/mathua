@@ -1,0 +1,5 @@
+# Installed with --no-deps (see the Dockerfile). ISLP's declared dependencies
+# include PyTorch and CUDA, several gigabytes the learner code never uses:
+# its data sets (ISLP.load_data) and model helpers (ISLP.models) need only
+# numpy, pandas, scikit-learn and statsmodels, which the main list pins.
+ISLP==0.5.2

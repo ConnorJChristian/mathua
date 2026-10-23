@@ -144,6 +144,24 @@ pip install zstandard sympy "antlr4-python3-runtime==4.11.*"
 python3 scripts/import_anki.py collection.colpkg --config modules-local/anki/anki.json
 ```
 
+**Sort by subject.** By default each deck becomes a domain. A config can
+name a `subjects_file` instead. The file maps your cards to subjects, and
+each subject to a Mathua domain and the concepts it follows:
+
+```json
+{"id": "derivative_rules", "domain": "calculus", "subdomain": "calculus.derivatives",
+ "label": "Derivative rules", "after": ["calc.deriv.chain_rule"],
+ "topics": ["derivative_and_the_rules_of_differentiation"],
+ "decks": ["Module 2: One Variable Calculus (basic)"]}
+```
+
+A card goes to the subject that lists its `topic::` tag. A card without a
+tag goes by its deck folder. A `routes` list can re-sort cards by their
+text. The practice sets then appear in Mathua's own domains, after the
+concepts named in `after`. Use a new domain only where Mathua has none.
+Placement tests skip these sets: they are practice, not placement
+material.
+
 The typed-answer check needs Node with the web app's packages, Go and SymPy.
 Use `--no-typed` to import flip cards only. Use `--report rejects.json` to
 see which typed answers failed the check, and why.
@@ -155,6 +173,15 @@ tags. Card images are copied into the module's `files/media/`. Your Anki
 schedule is not imported: Mathua schedules the cards from your answers here.
 Re-run the import after you export again; it replaces the cards and keeps
 the rest of the module.
+
+### Code tasks from your own material
+
+A local module can author code tasks the same way the Python track does:
+`modules-local/<id>/src/NN_*.py`, built with
+`python3 scripts/python_bank.py build <id>`. Use `topic()` instead of
+`concept()` to name your own source. The runner image includes
+`statsmodels`, the `wooldridge` data sets and `ISLP` (data and model helpers
+only), so tasks can use real econometrics data with no network.
 
 ## Python for Data Science track
 

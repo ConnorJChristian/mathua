@@ -332,6 +332,90 @@ def topic_tag(tags):
     return ""
 
 
+class Subjects:
+    """Sorting cards by subject rather than by deck (the "subjects" file).
+
+    Each subject names the Mathua domain and subdomain its cards join, and the
+    concepts they come after, so a set of cards sits in the graph next to the
+    concept it practises:
+
+        {"id": "derivative_rules", "domain": "calculus",
+         "subdomain": "calculus.derivatives", "label": "Derivative rules",
+         "after": ["calc.deriv.chain_rule", "@limits_continuity"],
+         "topics": ["derivative_and_the_rules_of_differentiation"],
+         "decks": ["Module 2: One Variable Calculus (basic)"]}
+
+    "@id" in "after" is another subject. A card goes to the subject that lists
+    its topic:: tag. A card without one goes by its deck: the subject whose
+    "decks" entry matches deepest in the deck path, unless a "routes" entry
+    for the same or a deeper part of the path matches the card's text:
+
+        {"decks": ["Module 2: One Variable Calculus (basic)"],
+         "match": "\\\\int|[Ii]ntegra", "subject": "integration"}
+
+    A route with "topics" instead of "decks" re-sorts tagged cards: a card
+    with that topic tag whose text matches goes to the route's subject.
+    """
+
+    def __init__(self, cfg):
+        self.subjects = OrderedDict((x["id"], x) for x in cfg["subjects"])
+        self.by_topic = {}
+        for x in cfg["subjects"]:
+            for t in x.get("topics", []):
+                if t in self.by_topic:
+                    sys.exit("topic %r is listed by subjects %r and %r" % (t, self.by_topic[t], x["id"]))
+                self.by_topic[t] = x["id"]
+        self.routes = [dict(r, _re=re.compile(r["match"])) for r in cfg.get("routes", [])]
+        for r in self.routes:
+            if r["subject"] not in self.subjects:
+                sys.exit("route to unknown subject %r" % r["subject"])
+
+    @staticmethod
+    def _where(deck, pattern):
+        """How deep a pattern sits in a deck path: (end, length), or None."""
+        i = deck.rfind(pattern)
+        return None if i < 0 else (i + len(pattern), len(pattern))
+
+    def of(self, tags, deck, text):
+        # A topic tag may nest (topic::calculus::partial_derivatives); the
+        # subject is named by its first part.
+        t = topic_tag(tags).split("::")[0]
+        for r in self.routes:
+            if t and t in r.get("topics", ()) and r["_re"].search(text):
+                return r["subject"]
+        if t in self.by_topic:
+            return self.by_topic[t]
+        best, best_at = None, None
+        for sid, x in self.subjects.items():
+            for d in x.get("decks", []):
+                at = self._where(deck, d)
+                if at and (best_at is None or at > best_at):
+                    best, best_at = sid, at
+        for r in self.routes:
+            for d in r.get("decks", ()):
+                at = self._where(deck, d)
+                if at and (best_at is None or at >= best_at) and r["_re"].search(text):
+                    return r["subject"]
+        return best
+
+
+def known_concepts(module_id):
+    """Every concept id outside this module, to check "after" against."""
+    import glob
+    ids = set()
+    paths = glob.glob(os.path.join(ROOT, "data", "concepts", "*.json"))
+    for area in ("modules", "modules-local"):
+        for d in glob.glob(os.path.join(ROOT, area, "*")):
+            if os.path.basename(d) != module_id:
+                paths += glob.glob(os.path.join(d, "concepts", "*.json"))
+    for p in paths:
+        data = json.load(open(p, encoding="utf-8"))
+        for c in data if isinstance(data, list) else data.get("concepts", []):
+            if isinstance(c, dict) and "id" in c:
+                ids.add(c["id"])
+    return ids
+
+
 def build(args):
     cfg = json.load(open(args.config, encoding="utf-8"))
     mod = cfg["module"]
@@ -339,6 +423,9 @@ def build(args):
     out = os.path.join(ROOT, "modules-local", module_id)
     max_per = int(cfg.get("max_cards_per_topic", 60))
     groups = cfg["groups"]
+    subjects = None
+    if cfg.get("subjects_file"):
+        subjects = Subjects(json.load(open(os.path.join(os.path.dirname(args.config), cfg["subjects_file"]), encoding="utf-8")))
 
     with tempfile.TemporaryDirectory() as work:
         db, media_map, z = open_export(args.export, work)
@@ -375,8 +462,15 @@ def build(args):
                 media_used.update(referenced_media(t))
             rel = deck[len(g["deck"]):].lstrip(":") or g.get("label", g["deck"])
             key = (g["domain"], rel)
+            if subjects:
+                sid = subjects.of(tags, deck, front + "\n" + back)
+                if sid is None:
+                    skipped["no subject for deck " + rel.split("::")[0][:50]] += 1
+                    continue
+                key = ("@", sid)
             card = {"id": "n%dc%d" % (nid, ord_), "front": clean(front, module_id), "back": clean(back, module_id),
-                    "tags": tags, "answer": answer, "solution": clean(solution, module_id)}
+                    "tags": tags, "answer": answer, "solution": clean(solution, module_id),
+                    "book": g.get("book", g.get("label", ""))}
             by_topic.setdefault(key, {"group": g, "rel": rel, "cards": []})["cards"].append(card)
 
         # Cards Mathua can ask in its own way: a typed answer graded by the
@@ -404,8 +498,17 @@ def build(args):
             size = -(-len(cards) // k)
             return [cards[i:i + size] for i in range(0, len(cards), size)]
 
+        if subjects:
+            # Subject order, so concepts and banks read in the order the
+            # subjects file gives them.
+            order = {sid: i for i, sid in enumerate(subjects.subjects)}
+            by_topic = OrderedDict(sorted(by_topic.items(), key=lambda kv: order[kv[0][1]]))
+            made = {}  # subject -> its first concept id
         for (domain, rel), t in by_topic.items():
             g = t["group"]
+            sub_cfg = subjects.subjects[rel] if domain == "@" else None
+            if sub_cfg:
+                domain = sub_cfg["domain"]
             sets = []  # (cards, tags in it)
             if len(t["cards"]) <= max_per:
                 sets.append((t["cards"], []))
@@ -430,6 +533,39 @@ def build(args):
                         cur_tags.append(tag)
                 if cur:
                     sets.append((cur, cur_tags))
+            if sub_cfg:
+                sources = []
+                for c in t["cards"]:
+                    b = c.get("book", "")
+                    if b and b not in sources:
+                        sources.append(b)
+                for k, (chunk, _) in enumerate(sets):
+                    cid = "anki." + sub_cfg["id"] + ("" if k == 0 else ".%d" % (k + 1))
+                    if k == 0:
+                        made[sub_cfg["id"]] = cid
+                    label = "Practice · " + sub_cfg["label"]
+                    if len(sets) > 1:
+                        label += " (%d of %d)" % (k + 1, len(sets))
+                    concepts[domain].append({
+                        "id": cid, "label": label, "domain": domain,
+                        "subdomain": sub_cfg["subdomain"], "grading_type": "bank",
+                        "prerequisites": list(sub_cfg.get("after", [])),
+                        "mastery_threshold": {"streak": 3, "avg_time_seconds": 90.0},
+                    })
+                    seen = set()
+                    items = []
+                    for c in chunk:
+                        if c["id"] in seen or not c["front"] or not c["back"]:
+                            continue
+                        seen.add(c["id"])
+                        items.append(item_for(c))
+                    banks[domain].append({
+                        "id": cid,
+                        "book": {"name": "; ".join(sources) or "Anki", "section": "",
+                                 "title": sub_cfg["label"], "url": ""},
+                        "intro": "", "items": items,
+                    })
+                continue
             leaf = rel.split("::")[-1]
             counts = defaultdict(int)
             for _, tags in sets:
@@ -474,6 +610,28 @@ def build(args):
                     "intro": "", "items": items,
                 })
 
+        if subjects:
+            # "@subject" means that subject's first set. A subject with no
+            # cards drops out, and so does any "after" that points at it.
+            known = known_concepts(module_id) | {c["id"] for cs in concepts.values() for c in cs}
+            missing = set()
+            for cs in concepts.values():
+                for c in cs:
+                    pre = []
+                    for p in c["prerequisites"]:
+                        if p.startswith("@"):
+                            if p[1:] not in subjects.subjects:
+                                sys.exit("%s: unknown subject %s" % (c["id"], p))
+                            p = made.get(p[1:])
+                            if p is None:
+                                continue
+                        if p not in known:
+                            missing.add(p)
+                        pre.append(p)
+                    c["prerequisites"] = pre
+            if missing:
+                sys.exit("subjects come after concepts that do not exist: %s" % ", ".join(sorted(missing)))
+
         # Write: replace only what this importer owns.
         for sub in ("concepts", "bank", os.path.join("files", "media")):
             p = os.path.join(out, sub)
@@ -482,19 +640,21 @@ def build(args):
             os.makedirs(p, exist_ok=True)
         manifest = dict(mod)
         labels = dict(manifest.get("domain_labels", {}))
-        for g in groups:
-            labels.setdefault(g["domain"], g.get("label", g["domain"]))
+        if not subjects:
+            for g in groups:
+                labels.setdefault(g["domain"], g.get("label", g["domain"]))
         manifest["domain_labels"] = labels
         manifest.setdefault("name", module_id)
         json.dump(manifest, open(os.path.join(out, "module.json"), "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         n_items = 0
         for domain in concepts:
-            json.dump(concepts[domain], open(os.path.join(out, "concepts", domain + ".json"), "w", encoding="utf-8"),
+            fname = domain if domain.startswith("anki_") else "anki_" + domain
+            json.dump(concepts[domain], open(os.path.join(out, "concepts", fname + ".json"), "w", encoding="utf-8"),
                       indent=1, ensure_ascii=False)
             bank = {"chapter": domain, "title": labels.get(domain, domain),
                     "concepts": [b for b in banks[domain] if b["items"]]}
             n_items += sum(len(b["items"]) for b in bank["concepts"])
-            json.dump(bank, open(os.path.join(out, "bank", domain + ".json"), "w", encoding="utf-8"),
+            json.dump(bank, open(os.path.join(out, "bank", fname + ".json"), "w", encoding="utf-8"),
                       indent=1, ensure_ascii=False)
         copied = 0
         mdir = os.path.join(out, "files", "media")

@@ -62,6 +62,26 @@ def concept(id, label, prereqs, section, title, page, intro, items):
     }
 
 
+def topic(id, label, prereqs, subdomain, source, intro, items):
+    """One concept from any source, for modules other than the handbook.
+
+    `subdomain` is the graph subdomain (e.g. "econometrics_python.regression");
+    `source` names what the concept follows: a dict with "name" (the book or
+    deck), "title" and optionally "section" and "url". It is shown with the
+    note; quote nothing from a book here, link or name it.
+    """
+    return {
+        "id": id,
+        "_label": label,
+        "_prereqs": list(prereqs),
+        "_subdomain": subdomain,
+        "book": {"name": source.get("name", ""), "section": source.get("section", ""),
+                 "title": source["title"], "url": source.get("url", "")},
+        "intro": reflow(dedent(intro)),
+        "items": items,
+    }
+
+
 def mc(id, prompt, correct, wrong, explain, level=2):
     return {"id": id, "kind": "mc", "level": level, "prompt": reflow(dedent(prompt)),
             "correct": correct, "wrong": list(wrong), "explain": reflow(dedent(explain))}
@@ -135,7 +155,7 @@ def reflow(md):
     return "\n".join(out)
 
 
-HELPERS = {"concept": concept, "mc": mc, "out": out, "task": task, "check": check}
+HELPERS = {"concept": concept, "topic": topic, "mc": mc, "out": out, "task": task, "check": check}
 
 
 # ---------------------------------------------------------------- running
@@ -242,10 +262,10 @@ def render_graph(chapter):
             "id": c["id"],
             "label": c["_label"],
             "domain": chapter["domain"],
-            "subdomain": chapter["domain"] + "." + c["book"]["url"].rsplit("/", 1)[-1][:-5].replace("-", "_").replace(".", "_"),
+            "subdomain": c.get("_subdomain") or chapter["domain"] + "." + c["book"]["url"].rsplit("/", 1)[-1][:-5].replace("-", "_").replace(".", "_"),
             "grading_type": "bank",
             "prerequisites": c["_prereqs"],
-            "mastery_threshold": {"streak": 4, "avg_time_seconds": chapter.get("avg_time_seconds", 120.0)},
+            "mastery_threshold": {"streak": chapter.get("streak", 4), "avg_time_seconds": chapter.get("avg_time_seconds", 120.0)},
         })
     return json.dumps(nodes, indent=2, ensure_ascii=False) + "\n"
 

@@ -11,3 +11,10 @@ pandas==3.1.0
 matplotlib==3.11.2
 scikit-learn==1.9.1
 scipy==1.17.1
+# Econometrics: regressions by formula, and the data sets of Wooldridge's
+# Introductory Econometrics, bundled with the package so learner code never
+# needs the network.
+statsmodels==0.15.0
+patsy==1.0.3
+formulaic==1.2.2
+wooldridge==0.5.0
