@@ -62,16 +62,14 @@ func (g *readTableGen) Generate(ctx generator.GeneratorContext) generator.Proble
 	scale := int(1 + ctx.Difficulty*5)
 	numRows := rand.Intn(max(1, scale/2)) + 3
 	numCols := rand.Intn(max(1, scale/2)) + 2
-	rowLabels := make([]string, numRows)
-	for i := 0; i < numRows; i++ {
-		items := []string{"Apples", "Oranges", "Bananas", "Grapes", "Mangoes", "Cherries", "Pears", "Plums"}
-		rowLabels[i] = items[rand.Intn(len(items))]
-	}
-	colLabels := make([]string, numCols)
-	for i := 0; i < numCols; i++ {
-		units := []string{"Week 1", "Week 2", "Week 3", "Jan", "Feb", "Mar", "Mon", "Tue", "Wed"}
-		colLabels[i] = units[rand.Intn(len(units))]
-	}
+	// Labels are drawn without replacement: two rows both called Mangoes makes
+	// the table unanswerable, because the question asks for one row's total.
+	items := []string{"Apples", "Oranges", "Bananas", "Grapes", "Mangoes", "Cherries", "Pears", "Plums"}
+	rand.Shuffle(len(items), func(i, j int) { items[i], items[j] = items[j], items[i] })
+	rowLabels := append([]string(nil), items[:numRows]...)
+	units := []string{"Week 1", "Week 2", "Week 3", "Jan", "Feb", "Mar", "Mon", "Tue", "Wed"}
+	rand.Shuffle(len(units), func(i, j int) { units[i], units[j] = units[j], units[i] })
+	colLabels := append([]string(nil), units[:numCols]...)
 	table := make([][]int, numRows)
 	for i := 0; i < numRows; i++ {
 		table[i] = make([]int, numCols)
@@ -84,16 +82,26 @@ func (g *readTableGen) Generate(ctx generator.GeneratorContext) generator.Proble
 	for j := 0; j < numCols; j++ {
 		sum += table[pickRow][j]
 	}
+	// A pipe table, not padded columns. The question is markdown rendered through
+	// remark-gfm, which collapses the runs of spaces that made the grid line up,
+	// so a padded table arrived as one line of run-together words: the report of
+	// "Feb Mar Mangoes 8" under an unanswerable question.
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%-12s", ""))
-	for j := 0; j < numCols; j++ {
-		sb.WriteString(fmt.Sprintf("%-10s", colLabels[j]))
+	// The corner cell stays empty: the first column holds row labels, and a
+	// header that starts with a label shifts every column one cell left.
+	sb.WriteString("|  |")
+	for _, label := range colLabels {
+		sb.WriteString(" " + label + " |")
+	}
+	sb.WriteString("\n| --- |")
+	for range colLabels {
+		sb.WriteString(" --- |")
 	}
 	sb.WriteString("\n")
 	for i := 0; i < numRows; i++ {
-		sb.WriteString(fmt.Sprintf("%-12s", rowLabels[i]))
+		sb.WriteString("| " + rowLabels[i] + " |")
 		for j := 0; j < numCols; j++ {
-			sb.WriteString(fmt.Sprintf("%-10d", table[i][j]))
+			sb.WriteString(" " + strconv.Itoa(table[i][j]) + " |")
 		}
 		sb.WriteString("\n")
 	}

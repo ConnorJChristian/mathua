@@ -2,6 +2,7 @@ package statistics
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/chuma-beep/mathua/internal/generator"
@@ -72,3 +73,30 @@ func TestFuzz(t *testing.T) {
 	}
 }
 func TestGaussianFuncGen(t *testing.T) { fuzzGen(t, &gaussianFuncGen{}) }
+
+// The question is markdown, so a table padded into columns with spaces arrived
+// as one line of run-together words. It has to be a pipe table, with every row
+// carrying the same number of cells as the header.
+func TestReadTableEmitsAPipeTable(t *testing.T) {
+	g := &readTableGen{}
+	for i := 0; i < 60; i++ {
+		p := g.Generate(generator.GeneratorContext{Difficulty: rand.Float64(), Seed: rand.Int63()})
+		q := p.Question
+		if !strings.Contains(q, "\n\n|  |") {
+			t.Fatalf("no pipe header: %q", q)
+		}
+		lines := strings.Split(q, "\n")
+		cells := strings.Count(lines[2], "|") - 1
+		if sep := strings.Count(lines[3], "|") - 1; sep != cells {
+			t.Fatalf("header %d cells, separator %d: %q", cells, sep, q)
+		}
+		for _, row := range lines[4:] {
+			if row == "" {
+				continue
+			}
+			if got := strings.Count(row, "|") - 1; got != cells {
+				t.Fatalf("row has %d cells, header %d: %q", got, cells, q)
+			}
+		}
+	}
+}
