@@ -33,6 +33,8 @@ export const REVIEW_LINKS: NavLink[] = [{ label: 'Review', href: '/review' }]
 // DISPLAY_LINKS is the orientation group: where things sit in the curriculum and where the
 // learner stands in it. None of these grade an answer.
 export const DISPLAY_LINKS: NavLink[] = [
+  // Fork change: the topic library, every topic a click from its lesson and practice.
+  { label: 'Topics', href: '/topics' },
   { label: 'Graph', href: '/graph' },
   // Not a bottom tab on every surface — the tab bar stays at five — so /domains reaches mobile
   // through the tab bar and the compass overflow, derived from this list minus TAB_HREFS.
@@ -70,7 +72,7 @@ export const ADMIN_LINKS: NavLink[] = [{ label: 'Admin', href: '/admin' }]
 export const TAB_HREFS: ReadonlySet<string> = new Set([
   '/',
   '/learn',
-  '/domains',
+  '/topics',
   '/profile',
   '/graph',
 ])

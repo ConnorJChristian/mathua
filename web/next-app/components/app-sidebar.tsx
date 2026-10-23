@@ -64,6 +64,7 @@ interface SidebarNavItem {
 
 const NAV_ITEMS: SidebarNavItem[] = [
   { label: 'Learn', href: '/learn', icon: Play },
+  { label: 'Topics', href: '/topics', icon: BookOpen },
   { label: 'Graph', href: '/graph', icon: Network },
   { label: 'Domains', href: '/domains', icon: Layers },
   { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },

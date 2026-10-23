@@ -16,7 +16,7 @@ describe('navigation order', () => {
     // Learn was previously logged-in-only, which meant a signed-out visitor
     // had no route to anything they could actually do.
     expect(desktopLinks(false).map(l => l.href)).toContain('/learn')
-    expect(order(desktopLinks(false))).toEqual(['/learn', '/graph', '/domains', '/leaderboard', '/glossary', '/contact', '/login'])
+    expect(order(desktopLinks(false))).toEqual(['/learn', '/topics', '/graph', '/domains', '/leaderboard', '/glossary', '/contact', '/login'])
   })
 
   it('leads every surface with Learn', () => {
@@ -63,10 +63,9 @@ describe('navigation order', () => {
   })
 
   it('keeps the orientation surfaces in the tab bar, since Learn has no browse', () => {
-    // Domains took the slot Study held here. It is the honest replacement: it orients a learner
-    // across the curriculum and links every row onward into /learn, where it is orientation
-    // rather than a second curriculum.
-    expect(TAB_HREFS.has('/domains')).toBe(true)
+    // Fork: Topics holds the slot Study held here. It orients a learner across the curriculum
+    // and links every row onward into its lesson and into /learn. Domains moves to the overflow.
+    expect(TAB_HREFS.has('/topics')).toBe(true)
     expect(TAB_HREFS.has('/learn')).toBe(true)
   })
 

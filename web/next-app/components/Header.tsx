@@ -20,6 +20,12 @@ interface HeaderProps {
   links?: HeaderLink[]
 }
 
+// Fork change: with Topics added and a track menu for several modules, the full
+// desktop row no longer fits the 1100px header and slid under the right-hand
+// controls. These secondary links show only on very wide screens; the footer
+// and the sidebar still carry them.
+const WIDE_ONLY = new Set(['/leaderboard', '/glossary', '/contact'])
+
 export default function Header({ links }: HeaderProps) {
   const { mounted, toggleTheme } = useTheme()
   const { loggedIn, user } = useAuthState()
@@ -180,7 +186,7 @@ export default function Header({ links }: HeaderProps) {
 
             <nav className="hidden md:flex items-center gap-2">
               {displayLinks.map((link, i) => (
-                <span key={link.href} className="flex items-center gap-2">
+                <span key={link.href} className={`${WIDE_ONLY.has(link.href) ? 'hidden 2xl:flex' : 'flex'} items-center gap-2`}>
                   {i > 0 && (
                     <span className="font-mono text-xs text-mathua-blue select-none">|</span>
                   )}
@@ -194,7 +200,7 @@ export default function Header({ links }: HeaderProps) {
               ))}
               {/* Wide screens only: with the Math | Python switch in the row, the
                   link no longer fits beside it below 1280px. The footer carries it too. */}
-              <span className="hidden xl:flex items-center gap-2">
+              <span className="hidden 2xl:flex items-center gap-2">
                 <span className="font-mono text-xs text-mathua-blue select-none">|</span>
                 <a
                   href="https://discord.gg/qXPeQ2jys"

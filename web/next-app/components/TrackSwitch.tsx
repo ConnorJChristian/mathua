@@ -32,6 +32,23 @@ export default function TrackSwitch() {
     }
   }
 
+  // Fork change: with more than three tracks the button row is wider than the
+  // header has room for and slides under the nav links, so it becomes a menu.
+  if (TRACKS.length > 3) {
+    return (
+      <select
+        aria-label="Track"
+        value={track}
+        onChange={(e) => choose(e.target.value)}
+        className="min-h-[32px] max-w-[6.5rem] sm:max-w-[11rem] border border-mathua-border-strong bg-mathua-surface text-mathua-primary font-mono text-[11px] px-1.5"
+      >
+        {TRACKS.map((t) => (
+          <option key={t.id} value={t.id}>{t.label}</option>
+        ))}
+      </select>
+    )
+  }
+
   return (
     <div role="group" aria-label="Track" className="flex items-stretch border border-mathua-border-strong">
       {TRACKS.map((t, i) => (

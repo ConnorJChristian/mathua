@@ -2552,7 +2552,15 @@ func (s *Server) handleCourses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	courses := s.eng.PlannerCourses()
-	writeJSON(w, map[string]interface{}{"courses": courses})
+	// Fork change: name the learner's active course, so the topic library can
+	// show which study plan the shelf is following.
+	active := ""
+	if sid, _ := r.Context().Value(authStudentKey{}).(string); sid != "" {
+		if st, err := s.repo.GetStudent(sid); err == nil && st != nil {
+			active = st.CourseID
+		}
+	}
+	writeJSON(w, map[string]interface{}{"courses": courses, "active": active})
 }
 
 // GET /api/courses/{id} | POST /api/courses/{id}/diagnostic

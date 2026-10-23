@@ -17,4 +17,4 @@ import { MATH_DOMAIN_ORDER } from './graphDomains'
 export const DOMAIN_COUNT = MATH_DOMAIN_ORDER.length
 
 /** Sum of `data/concepts/*.json` for the domains in `MATH_DOMAIN_ORDER`. */
-export const CONCEPT_COUNT = 1250
+export const CONCEPT_COUNT = 1248

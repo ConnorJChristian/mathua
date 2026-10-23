@@ -477,7 +477,28 @@ export interface CourseStatus {
   grade: string
   description: string
   targets: string[]
+  /** Fork: a study plan, the course's topics in teaching order. */
+  plan?: string[]
   progress?: CourseProgress
+}
+
+// Fork: the course catalog with the learner's active course (the study plan
+// the shelf follows). Progress comes from the transcript when signed in.
+export async function getCourseCatalog(): Promise<{ courses: CourseStatus[]; active: string }> {
+  const res = await authedFetch(`${API_BASE}/api/courses`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })
+  if (!res.ok) return { courses: [], active: '' }
+  const data = await res.json()
+  return { courses: data.courses ?? [], active: data.active ?? '' }
+}
+
+// Fork: make a course the active one. The server plans the course's path and
+// orders the recommendation shelf by its study plan.
+export async function setActiveCourse(courseId: string): Promise<void> {
+  const res = await authedFetch(`${API_BASE}/api/courses/${encodeURIComponent(courseId)}/diagnostic`, {
+    method: 'POST',
+    headers: { ...getAuthHeaders() },
+  })
+  if (!res.ok) await throwWithResponse(res, `Set course failed: ${res.status}`)
 }
 
 export async function getTranscript(): Promise<CourseStatus[]> {

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { House, Layers, Network, Play, User, type IconComponent } from './icons'
+import { BookOpen, House, Network, Play, User, type IconComponent } from './icons'
 import { useChrome } from '../hooks/useChrome'
 import { useInertWhen } from '../hooks/useInertWhen'
 import { registerChromePart } from '../lib/chrome'
@@ -13,12 +13,13 @@ import { getSettings } from '../lib/api'
 import Avatar from './Avatar'
 
 // The tab bar is the mobile primary nav. Learn is the only tab that asks a
-// question, so it leads; Domains holds the orientation slot that the closed
-// Study route used to occupy. Order is mirrored in lib/nav.ts.
+// question, so it leads. Fork change: Topics (the searchable library, with
+// each topic's lesson and practice a tap away) holds the orientation slot;
+// Domains moves to the overflow menu. Order is mirrored in lib/nav.ts.
 const TABS: { label: string; href: string; icon: IconComponent }[] = [
   { label: 'Home', href: '/', icon: House },
   { label: 'Learn', href: '/learn', icon: Play },
-  { label: 'Domains', href: '/domains', icon: Layers },
+  { label: 'Topics', href: '/topics', icon: BookOpen },
   { label: 'Profile', href: '/profile', icon: User },
   { label: 'Graph', href: '/graph', icon: Network },
 ]

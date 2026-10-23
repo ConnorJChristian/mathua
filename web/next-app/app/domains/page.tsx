@@ -294,6 +294,13 @@ export default function DomainsPage() {
                             {stateLabel(topic.state)}
                           </div>
                         </div>
+                        {/* Fork change: every topic's lesson is one click away, whatever its state. */}
+                        <Link
+                          href={studyConceptPath(topic.conceptId)}
+                          className="w-full sm:w-auto shrink-0 border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue px-4 py-2 font-mono text-[11px] min-h-[36px] inline-flex items-center justify-center"
+                        >
+                          Read
+                        </Link>
                         {learnable && (
                           <button
                             type="button"
