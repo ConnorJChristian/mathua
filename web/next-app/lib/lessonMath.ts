@@ -35,7 +35,29 @@ function escapeHtmlMath(s: string): string {
     .replace(/[\n\r]/g, '&#10;')
 }
 
+// Fenced program code is code. Python-track questions put real programs in
+// fences tagged `python` (or `text` for printed output), and a program
+// legitimately contains `$`, `\(` and `&lt;`, every one of which the passes
+// below would read as LaTeX or an entity. Those fences are lifted out before
+// any pass runs and put back untouched at the end.
+//
+// Only tagged fences: the lesson corpus has untagged fences that hold display
+// math, and those must keep going through the passes as they always have.
+const CODE_FENCE_RE = /^([ \t]*)```[ \t]*(?:python|py|text)\b([^\n`]*)\n([\s\S]*?)\n[ \t]*```[ \t]*$/gm
+const codeToken = (i: number) => `\u0000MU-CODE-${i}\u0000`
+
 export function prepareLessonMath(input: string): string {
+  const fences: string[] = []
+  const restored = prepareLessonMathInner(
+    input.replace(CODE_FENCE_RE, (block: string) => {
+      fences.push(block)
+      return codeToken(fences.length - 1)
+    }),
+  )
+  return fences.length === 0 ? restored : fences.reduce((acc, block, i) => acc.split(codeToken(i)).join(block), restored)
+}
+
+function prepareLessonMathInner(input: string): string {
   let content = input
 
   // Decode common HTML entities before any LaTeX processing

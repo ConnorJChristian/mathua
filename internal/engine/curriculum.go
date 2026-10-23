@@ -37,16 +37,22 @@ type DomainCurriculum struct {
 // CurriculumDomains lists every domain with per-state counts. Order is the DAG's
 // (alphabetical); the client applies its own pedagogical ordering for display.
 func (e *Engine) CurriculumDomains(studentID string) ([]DomainSummary, error) {
+	return e.CurriculumDomainsTrack(studentID, "")
+}
+
+// CurriculumDomainsTrack lists the domains of one track ("" is the Math track).
+func (e *Engine) CurriculumDomainsTrack(studentID, track string) ([]DomainSummary, error) {
 	snapshots, err := e.learnerSnapshots(studentID)
 	if err != nil {
 		return nil, err
 	}
+	dag := e.TrackDAG(track)
 	now := time.Now()
-	byID := make(map[string]*DomainSummary, len(e.dag.Domains()))
-	for _, id := range e.dag.Domains() {
+	byID := make(map[string]*DomainSummary, len(dag.Domains()))
+	for _, id := range dag.Domains() {
 		byID[id] = &DomainSummary{ID: id}
 	}
-	for _, c := range e.dag.Order() {
+	for _, c := range dag.Order() {
 		d := byID[c.Domain]
 		if d == nil {
 			continue
@@ -62,7 +68,7 @@ func (e *Engine) CurriculumDomains(studentID string) ([]DomainSummary, error) {
 		}
 	}
 	out := make([]DomainSummary, 0, len(byID))
-	for _, id := range e.dag.Domains() {
+	for _, id := range dag.Domains() {
 		out = append(out, *byID[id])
 	}
 	return out, nil

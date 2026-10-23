@@ -36,9 +36,25 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 		return r.tuple.grade(expected, answer)
 	case GradingComplex:
 		return r.complex.grade(expected, answer)
+	case GradingPython:
+		return gradePython(expected, answer)
 	default:
 		return r.tuple.grade(expected, answer)
 	}
 }
 
 func (r *Router) Close() {}
+
+// pythonGrader is installed by internal/pytrack at startup. It is a hook rather
+// than an import because pytrack depends on this package for Result.
+var pythonGrader func(expected, answer string) Result
+
+// SetPythonGrader installs the Python-track grader. Call it once at startup.
+func SetPythonGrader(fn func(expected, answer string) Result) { pythonGrader = fn }
+
+func gradePython(expected, answer string) Result {
+	if pythonGrader == nil {
+		return Result{Feedback: "Python grading is not configured", Unavailable: true}
+	}
+	return pythonGrader(expected, answer)
+}

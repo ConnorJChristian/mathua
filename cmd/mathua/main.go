@@ -22,6 +22,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/generator/all"
 	"github.com/chuma-beep/mathua/internal/lessons"
 	"github.com/chuma-beep/mathua/internal/planning"
+	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/repair"
 	"github.com/chuma-beep/mathua/internal/server"
 	"github.com/chuma-beep/mathua/internal/solutions"
@@ -209,6 +210,7 @@ func main() {
 	}
 
 	reg := all.Registry()
+	configurePythonRunner(dbPath)
 
 	ll, err := lessons.Load("data/lessons")
 	if err != nil {
@@ -410,4 +412,31 @@ func nextStaticFS(root string) http.Handler {
 		}
 		fs.ServeHTTP(w, r)
 	})
+}
+
+// configurePythonRunner keeps learner code away from the server's secrets. In
+// the Docker image the runner also drops to an unprivileged account; these
+// paths are refused by the runner's own guard on every platform.
+func configurePythonRunner(dbPath string) {
+	t, err := pytrack.Default()
+	if err != nil {
+		log.Printf("warning: python track unavailable: %v", err)
+		return
+	}
+	var deny []string
+	if dbPath != "" && dbPath != ":memory:" && !strings.HasPrefix(dbPath, "postgres") {
+		if abs, err := filepath.Abs(dbPath); err == nil {
+			deny = append(deny, abs, abs+"-wal", abs+"-shm", abs+"-journal",
+				filepath.Join(filepath.Dir(abs), ".jwt_secret"))
+		}
+	}
+	if wd, err := os.Getwd(); err == nil {
+		deny = append(deny, filepath.Join(wd, ".env"))
+	}
+	t.Runner.DenyPaths = deny
+	if err := t.Runner.Available(); err != nil {
+		log.Printf("python track: code tasks cannot be graded here: %v", err)
+	} else {
+		fmt.Println("python track: code runner ready")
+	}
 }

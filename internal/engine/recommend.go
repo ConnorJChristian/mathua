@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/chuma-beep/mathua/internal/mastery"
+	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
@@ -64,6 +65,11 @@ func (e *Engine) conceptSnapshots(studentID string) (map[string]*scheduler.Conce
 // ReviewsDue counts concepts whose SM-2 interval has elapsed. Moved here from the server,
 // which computed it inline and which the recommender needs it from.
 func (e *Engine) ReviewsDue(studentID string) (int, error) {
+	return e.ReviewsDueTrack(studentID, "")
+}
+
+// ReviewsDueTrack counts due reviews in one track ("" is the Math track).
+func (e *Engine) ReviewsDueTrack(studentID, track string) (int, error) {
 	progress, err := e.repo.GetAllProgress(studentID)
 	if err != nil {
 		return 0, fmt.Errorf("load progress: %w", err)
@@ -71,6 +77,9 @@ func (e *Engine) ReviewsDue(studentID string) (int, error) {
 	now := time.Now()
 	count := 0
 	for _, p := range progress {
+		if !e.InTrack(p.ConceptID, track) {
+			continue
+		}
 		if p.NextReviewDue == nil {
 			continue
 		}
@@ -92,9 +101,19 @@ func (e *Engine) ReviewsDue(studentID string) (int, error) {
 // should I do now?", and it is answered once, here, rather than recomputed in the browser from
 // five API calls and a bundled copy of the corpus.
 func (e *Engine) RecommendNext(studentID string, exclude []string) (scheduler.RecommendationResponse, error) {
+	return e.RecommendNextTrack(studentID, exclude, "")
+}
+
+// RecommendNextTrack recommends within one track ("" is the Math track). The
+// Python track has no placement diagnostic, so it is never offered one: its
+// first concepts have no prerequisites and are open from the start.
+func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track string) (scheduler.RecommendationResponse, error) {
+	track = pytrack.NormalizeTrack(track)
+	sched := e.trackScheduler(track)
 	if studentID == "" {
-		return scheduler.New(e.dag).Recommend(scheduler.RecommendInput{
+		return sched.Recommend(scheduler.RecommendInput{
 			Now: time.Now(), Weakness: map[string]float64{},
+			DiagnosticCompleted: track == pytrack.TrackPython,
 		}), nil
 	}
 	progress, err := e.repo.GetAllProgress(studentID)
@@ -103,7 +122,7 @@ func (e *Engine) RecommendNext(studentID string, exclude []string) (scheduler.Re
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
 	weakness := e.weaknessMapFromProgress(progress)
-	due, err := e.ReviewsDue(studentID)
+	due, err := e.ReviewsDueTrack(studentID, track)
 	if err != nil {
 		return scheduler.RecommendationResponse{Alternatives: []scheduler.Recommendation{}}, err
 	}
@@ -118,6 +137,9 @@ func (e *Engine) RecommendNext(studentID string, exclude []string) (scheduler.Re
 	// reading the comment.
 	mastered, attemptedDays := 0, map[string]bool{}
 	for _, p := range progress {
+		if !e.InTrack(p.ConceptID, track) {
+			continue
+		}
 		if mastery.EffectiveStatus(mastery.Status(p.Status), daysSinceReview(p.LastReviewed), mastery.DecayDays) == mastery.StatusMastered {
 			mastered++
 		}
@@ -140,12 +162,12 @@ func (e *Engine) RecommendNext(studentID string, exclude []string) (scheduler.Re
 	// guard against offering the diagnostic back as an active task; the
 	// AttemptedDays check alone is not enough, because placement deliberately
 	// seeds reachability without mastery.
-	diagnosticCompleted := false
-	if st, err := e.repo.GetStudent(studentID); err == nil && st != nil {
-		diagnosticCompleted = st.DiagnosticCompleted
+	diagnosticCompleted := track == pytrack.TrackPython
+	if st, err := e.repo.GetStudent(studentID); err == nil && st != nil && st.DiagnosticCompleted {
+		diagnosticCompleted = true
 	}
 
-	return scheduler.New(e.dag).Recommend(scheduler.RecommendInput{
+	return sched.Recommend(scheduler.RecommendInput{
 		Snapshots:           snapshots,
 		Now:                 time.Now(),
 		Weakness:            weakness,

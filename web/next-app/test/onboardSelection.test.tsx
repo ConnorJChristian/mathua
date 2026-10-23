@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import OnboardPage from '../app/onboard/page'
 import { concepts } from '../lib/conceptData'
 import { scopeSize } from '../lib/diagnosticScope'
-import { DOMAIN_ORDER, domainLabel } from '../lib/graphDomains'
+import { MATH_DOMAIN_ORDER, domainLabel } from '../lib/graphDomains'
 import * as api from '../lib/api'
 
 const push = vi.fn()
@@ -49,10 +49,15 @@ beforeEach(() => {
 })
 
 describe('/onboard domain selection', () => {
+  // The placement diagnostic is the Math track's. Python-track domains are not
+  // offered: the Python track has no placement (lib/track.ts).
+  const mathConcepts = concepts.filter(c => !c.domain.startsWith('python_'))
+
   it('renders every domain and starts with nothing selected', async () => {
     render(<OnboardPage />)
     await waitFor(() => expect(screen.getByText(domainLabel('arithmetic'))).toBeTruthy())
-    for (const id of DOMAIN_ORDER) expect(screen.getByText(domainLabel(id))).toBeTruthy()
+    for (const id of MATH_DOMAIN_ORDER) expect(screen.getByText(domainLabel(id))).toBeTruthy()
+    expect(screen.queryByText(domainLabel('python_numpy'))).toBeNull()
     expect(startButton().disabled).toBe(true)
   })
 
@@ -83,7 +88,7 @@ describe('/onboard domain selection', () => {
     render(<OnboardPage />)
     await waitFor(() => expect(screen.getByText('Select everything')).toBeTruthy())
     fireEvent.click(screen.getByText('Select everything'))
-    expect(Number(scopeShown())).toBe(concepts.length)
+    expect(Number(scopeShown())).toBe(mathConcepts.length)
     expect(startButton().disabled).toBe(false)
   })
 
@@ -161,7 +166,7 @@ describe('/onboard domain selection', () => {
     // screens drifted apart in the first place.
     render(<OnboardPage />)
     await waitFor(() => expect(screen.getByText(domainLabel('arithmetic'))).toBeTruthy())
-    for (const id of DOMAIN_ORDER) {
+    for (const id of MATH_DOMAIN_ORDER) {
       expect(screen.getByText(domainLabel(id))).toBeTruthy()
       expect(screen.queryByText(id)).toBeNull()
     }

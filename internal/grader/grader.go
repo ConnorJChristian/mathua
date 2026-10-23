@@ -12,6 +12,11 @@ const (
 	GradingOrdering       GradingType = "ordering"
 	GradingTuple          GradingType = "tuple"
 	GradingComplex        GradingType = "complex"
+	// GradingPython covers every Python-track question: multiple choice,
+	// "what does this print" and code tasks checked by hidden tests. The
+	// grading itself lives in internal/pytrack, which installs it with
+	// SetPythonGrader; this package only routes to it.
+	GradingPython GradingType = "python"
 )
 
 type Result struct {

@@ -23,7 +23,7 @@
 
 ---
 
-Mathua is a local-first adaptive math learning engine inspired by the mastery-gating philosophy of Math Academy. It guides a learner from arithmetic through university math through a dependency graph of 1250 atomic concepts and 28 courses — never advancing until speed and accuracy thresholds are both met. Knowledge is scaffolded into 3750 worked examples (1250 KP shard files × 3 subgoals each) with subgoal labels and 183 dual-coded diagrams. It runs as a single Go binary with a web server delivery mode and React + Next.js for leagues, parent/teacher share links and graph visualisation. Transcripts export as CSV via the API.
+Mathua is a local-first adaptive math learning engine inspired by the mastery-gating philosophy of Math Academy. It guides a learner from arithmetic through university math through a dependency graph of 1250 atomic concepts and 30 courses — never advancing until speed and accuracy thresholds are both met. Knowledge is scaffolded into 3750 worked examples (1250 KP shard files × 3 subgoals each) with subgoal labels and 183 dual-coded diagrams. It runs as a single Go binary with a web server delivery mode and React + Next.js for leagues, parent/teacher share links and graph visualisation. Transcripts export as CSV via the API.
 
 ---
 
@@ -164,7 +164,7 @@ The five-layer architecture — UI, API, Core Engine, Grading, Storage — is fu
 
 ## Courses and transcripts
 
-28 courses from 4th grade to university are wired through the DAG — including Calculus I/II, Linear Algebra, Discrete Math I/II, Probability & Statistics, Differential Equations, Abstract Algebra I/II, Topology and Machine Learning. Each course shows mastered/total, percent and an estimate of days remaining at your daily XP goal. Transcripts export as CSV via `GET /api/transcript?format=csv` and the read-only share link (Settings → Share) lets a parent or teacher follow along.
+30 courses from 4th grade to university are wired through the DAG — including Calculus I/II, Linear Algebra, Discrete Math I/II, Probability & Statistics, Differential Equations, Abstract Algebra I/II, Topology and Machine Learning. Each course shows mastered/total, percent and an estimate of days remaining at your daily XP goal. Transcripts export as CSV via `GET /api/transcript?format=csv` and the read-only share link (Settings → Share) lets a parent or teacher follow along.
 
 ## Contributing
 

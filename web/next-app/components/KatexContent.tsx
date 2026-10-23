@@ -155,7 +155,17 @@ function rehypeKatexFallback() {
   }
 }
 
-export default function KatexContent({ children, className = '' }: { children: string; className?: string }) {
+export default function KatexContent({ children, className = '', externalLinks = false }: {
+  children: string
+  className?: string
+  /**
+   * Render https links as real links that open in a new tab. Off by default:
+   * lesson text links to its scraped source pages, which are not where a
+   * learner should go mid-question. The Python track turns it on for its links
+   * to the Python Data Science Handbook, which are the point of those links.
+   */
+  externalLinks?: boolean
+}) {
   const content = prepareLessonMath(children)
   // In production KaTeX errors are still non-throwing (labeled fallback via
   // rehypeKatexFallback below) but we emit a console warning for telemetry —
@@ -191,7 +201,21 @@ export default function KatexContent({ children, className = '' }: { children: s
           // react-markdown passes its hast `node` as a prop to every component
           // override: spreading it would render node="[object Object]" on each
           // heading, so it is destructured out and dropped here.
-          a: ({ children }) => <>{children}</>,
+          a: ({ children, href }) =>
+            externalLinks && typeof href === 'string' && href.startsWith('https://') ? (
+              <a href={href} target="_blank" rel="noopener noreferrer" className="text-mathua-blue underline underline-offset-2">
+                {children}
+              </a>
+            ) : (
+              <>{children}</>
+            ),
+          // Fenced code (Python-track questions and notes) reads as a block,
+          // scrolls sideways rather than wrapping, and keeps its indentation.
+          pre: ({ children }) => (
+            <pre className="my-3 max-w-full overflow-x-auto bg-mathua-code border border-mathua-border px-3 py-2 font-mono text-[12.5px] leading-5 whitespace-pre [&_code]:bg-transparent [&_code]:p-0">
+              {children}
+            </pre>
+          ),
           code: ({ children }) => (
             <code className="bg-mathua-code px-1 rounded-none text-mathua-secondary">
               {children}

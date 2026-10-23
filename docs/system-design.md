@@ -370,7 +370,7 @@ The web server exposes a REST API through Go's standard `net/http` package. No e
 | `logRequest` | Logs method and path |
 | `authMiddleware` | Reads `Authorization: Bearer <token>`, validates `HS256` JWT (`auth.go:98`), injects `studentID` into context |
 | `authLimiter` | Token-bucket rate limiter (5 rate, 10 burst, 1 min window) on auth endpoints `server.go:224` |
-| `writeLimiter` | 20 burst, 3s window on write endpoints (`/api/study/answer`, `/api/quiz/*`, `/api/goal/*`, `/api/reviews/*`) `server.go:208` |
+| `writeLimiter` | 20 burst, 3s window on write endpoints (`/api/study/answer`, `/api/quiz/*`, `/api/goal/*`, `/api/reviews/*`) `server.go:209` |
 | `shareLimiter` | 10 burst, 6s window on `GET /api/share/*` `server.go:209` |
 
 ### All Routes

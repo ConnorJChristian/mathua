@@ -13,6 +13,8 @@ import { formatForGradingType, type AnswerFormat } from '../../lib/answerFormat'
 import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../components/SubmitErrorBlock'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
+import PythonAnswer from '../../components/python/PythonAnswer'
+import { displayQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
 
 type Phase = 'loading' | 'intro' | 'run' | 'done'
 
@@ -226,6 +228,8 @@ export default function ReviewHost() {
     )
   }
 
+  const isPy = isPythonGrading(reviewGradingType.current)
+  const pyKind = isPy ? pythonKind(reviewQuestion) : null
   return (
     <>
       <SectionHeader label={`Review question ${reviewCount}`} title={reviewConceptName} />
@@ -235,12 +239,32 @@ export default function ReviewHost() {
           {reviewXp > 0 ? <span className="text-yellow-400">+{reviewXp} XP</span> : null}
         </div>
         <div className={`bg-mathua-surface border rounded-none p-4 sm:p-6 mb-6 transition-colors w-full max-w-full min-w-0 overflow-hidden ${reviewLastResult ? (reviewLastResult.correct ? 'border-mathua-green-faint' : 'border-mathua-red-faint') : 'border-mathua-border'}`}>
+          {isPy ? (
+            <div className="border border-mathua-border rounded-none p-4 sm:p-6 mb-4">
+              <KatexContent className="text-mathua-primary text-sm font-mono whitespace-pre-wrap break-words">{displayQuestion(reviewQuestion)}</KatexContent>
+            </div>
+          ) : (
           <div className="bg-mathua-code border border-mathua-border rounded-none p-4 sm:p-6 text-center mb-4">
             <KatexContent className="text-mathua-primary text-lg font-mono font-light whitespace-pre-wrap break-words">{reviewQuestion}</KatexContent>
           </div>
+          )}
           <ChoiceOptions question={reviewQuestion} value={reviewAnswerInput} onPick={setReviewAnswerInput} disabled={loading} />
           {!reviewLastResult ? (
             <>
+              {isPy ? (
+              <form onSubmit={e => { e.preventDefault(); void submitReviewFn() }} className="flex flex-col gap-3 min-w-0">
+                <label htmlFor="review-answer" className="sr-only">Your answer</label>
+                <PythonAnswer
+                  id="review-answer"
+                  question={reviewQuestion}
+                  value={reviewAnswerInput}
+                  onChange={setReviewAnswerInput}
+                  onSubmit={() => void submitReviewFn()}
+                  disabled={loading}
+                />
+                <button type="submit" disabled={!reviewAnswerInput.trim() || loading} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-6 font-medium text-sm disabled:opacity-50 shrink-0 w-auto self-end">Check Answer</button>
+              </form>
+              ) : (
               <form onSubmit={e => { e.preventDefault(); void submitReviewFn() }} className="flex flex-col sm:flex-row gap-3 min-w-0">
                 <label htmlFor="review-answer" className="sr-only">Your answer</label>
                 <MathAnswerInput
@@ -259,8 +283,9 @@ export default function ReviewHost() {
                 />
                 <button type="submit" disabled={!reviewAnswerInput.trim() || loading} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-6 font-medium text-sm disabled:opacity-50 shrink-0 w-auto self-end sm:self-auto">Check Answer</button>
               </form>
+              )}
               <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="font-mono text-[11px] text-mathua-muted">{answerFormat.hint}</p>
+                <p className="font-mono text-[11px] text-mathua-muted">{pyKind ? pythonHint(pyKind) : answerFormat.hint}</p>
               </div>
               <div className="mt-2 flex justify-end">
                 <ReportButton
@@ -285,13 +310,16 @@ export default function ReviewHost() {
                   ("Incorrect"), so showing it above the working is noise. Fall
                   back to it only when there is no explanation at all. */}
               {reviewLastResult.explanation ? (
-                <KatexContent className="text-mathua-secondary text-sm text-left whitespace-pre-wrap">{reviewLastResult.explanation}</KatexContent>
+                <KatexContent externalLinks={isPy} className="text-mathua-secondary text-sm text-left whitespace-pre-wrap">{reviewLastResult.explanation}</KatexContent>
               ) : (
                 <KatexContent className="text-mathua-secondary text-sm">{reviewLastResult.feedback}</KatexContent>
               )}
               {/* Names the mistake when it is certain; empty otherwise. */}
-              {reviewLastResult.diagnosis && (
+              {reviewLastResult.diagnosis && !(pyKind === 'code' && !reviewLastResult.correct) && (
                 <p className="mt-2 text-center font-mono text-[11px] text-mathua-muted">{reviewLastResult.diagnosis}</p>
+              )}
+              {pyKind === 'code' && !reviewLastResult.correct && reviewLastResult.feedback && (
+                <pre className="mt-2 max-h-64 overflow-auto border border-mathua-red-faint px-3 py-2 text-left font-mono text-[11px] text-red-400 whitespace-pre-wrap">{plainAnswer(reviewLastResult.feedback)}</pre>
               )}
             </div>
           )}

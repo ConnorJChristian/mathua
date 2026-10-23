@@ -102,7 +102,7 @@ A new figure matches by following these, read off the vendored set and the local
 There are two paths, and a figure needs the one that matches where it appears.
 
 1. **A concept diagram** (the dual-coding card shown while a learner practices) is keyed by concept
-   in the `conceptDiagrams` map at `internal/engine/engine.go:743`, which
+   in the `conceptDiagrams` map at `internal/engine/engine.go:762`, which
    `diagramForConcept` reads. Add the concept id and the asset path to that map, place the asset,
    and add a `data/diagrams/meta.json` entry.
 2. **A lesson figure** is a markdown image in the lesson body whose target is an absolute

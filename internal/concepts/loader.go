@@ -298,6 +298,7 @@ func validate(raw []Concept) error {
 		allowedGrading := map[string]bool{
 			"multiple_choice": true, "numeric": true, "symbolic": true, "complex": true,
 			"expression": true, "ordering": true, "tuple": true, "polynomial": true, "comparison": true,
+			"python": true,
 		}
 		if c.GradingType != "" && !allowedGrading[c.GradingType] {
 			return fmt.Errorf("concept %q has invalid grading_type %q", c.ID, c.GradingType)

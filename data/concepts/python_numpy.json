@@ -1,0 +1,290 @@
+[
+  {
+    "id": "py.np.dtypes",
+    "label": "Fixed-type arrays and dtypes",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_01_understanding_data_types",
+    "grading_type": "python",
+    "prerequisites": [],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.create",
+    "label": "Creating arrays from scratch",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_01_understanding_data_types",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.dtypes"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.attributes",
+    "label": "Array attributes: ndim, shape, size",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_02_the_basics_of_numpy_arrays",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.create"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.indexing",
+    "label": "Indexing single elements",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_02_the_basics_of_numpy_arrays",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.attributes"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.slicing",
+    "label": "Slicing subarrays",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_02_the_basics_of_numpy_arrays",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.indexing"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.views",
+    "label": "Views versus copies",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_02_the_basics_of_numpy_arrays",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.slicing"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.reshape",
+    "label": "Reshaping and new axes",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_02_the_basics_of_numpy_arrays",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.attributes"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.concat_split",
+    "label": "Joining and splitting arrays",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_02_the_basics_of_numpy_arrays",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.reshape"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.ufuncs",
+    "label": "Vectorized arithmetic with ufuncs",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_03_computation_on_arrays_ufuncs",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.create"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.ufunc_methods",
+    "label": "Ufunc methods: out, reduce, accumulate, outer",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_03_computation_on_arrays_ufuncs",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.ufuncs",
+      "py.np.reshape"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.aggregates",
+    "label": "Aggregations and the axis argument",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_04_computation_on_arrays_aggregates",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.ufuncs",
+      "py.np.attributes"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.broadcast_rules",
+    "label": "Broadcasting rules",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_05_computation_on_arrays_broadcasting",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.ufuncs",
+      "py.np.reshape"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.broadcast_practice",
+    "label": "Broadcasting in practice",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_05_computation_on_arrays_broadcasting",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.broadcast_rules",
+      "py.np.aggregates"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.comparisons",
+    "label": "Comparisons and counting with booleans",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_06_boolean_arrays_and_masks",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.aggregates"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.masks",
+    "label": "Boolean masks for selection",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_06_boolean_arrays_and_masks",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.comparisons",
+      "py.np.indexing"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.fancy",
+    "label": "Fancy indexing with index arrays",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_07_fancy_indexing",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.slicing",
+      "py.np.reshape"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.fancy_modify",
+    "label": "Modifying values with fancy indexing",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_07_fancy_indexing",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.fancy",
+      "py.np.ufunc_methods"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.sorting",
+    "label": "Sorting and argsort",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_08_sorting",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.fancy",
+      "py.np.aggregates"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.partition",
+    "label": "Partial sorts and nearest neighbours",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_08_sorting",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.sorting",
+      "py.np.broadcast_practice"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.np.structured",
+    "label": "Structured arrays",
+    "domain": "python_numpy",
+    "subdomain": "python_numpy.02_09_structured_data_numpy",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.dtypes",
+      "py.np.masks"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  }
+]

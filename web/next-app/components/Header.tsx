@@ -12,6 +12,7 @@ import { registerChromePart } from '../lib/chrome'
 import { signOut, isStaffRole } from '../lib/auth'
 import { resolveAvatar } from '../lib/dicebear'
 import Avatar from './Avatar'
+import TrackSwitch from './TrackSwitch'
 import { getSettings } from '../lib/api'
 import { desktopLinks, overflowLinks, type HeaderLink } from '../lib/nav'
 
@@ -168,8 +169,9 @@ export default function Header({ links }: HeaderProps) {
               {/* The sign says where the app is, not what the learner is. It is small, next to
                   the wordmark on every page, and it will come down when it stops being true —
                   rather than being a decoration nobody can date. */}
+              {/* Hidden on phones, where the Math | Python switch needs the room. */}
               <span
-                className="border border-mathua-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-mathua-muted leading-none"
+                className="hidden sm:inline border border-mathua-border px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-mathua-muted leading-none"
                 title="Mathua is in beta: the curriculum, the app and its fixes are still moving."
               >
                 beta
@@ -190,7 +192,9 @@ export default function Header({ links }: HeaderProps) {
                   </Link>
                 </span>
               ))}
-              <span className="flex items-center gap-2">
+              {/* Wide screens only: with the Math | Python switch in the row, the
+                  link no longer fits beside it below 1280px. The footer carries it too. */}
+              <span className="hidden xl:flex items-center gap-2">
                 <span className="font-mono text-xs text-mathua-blue select-none">|</span>
                 <a
                   href="https://discord.gg/qXPeQ2jys"
@@ -205,6 +209,8 @@ export default function Header({ links }: HeaderProps) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Math | Python: which track the site is showing (lib/track.ts). */}
+            {mounted && !links && <TrackSwitch />}
             {mounted && (
               <button
                 type="button"

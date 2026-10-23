@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useTheme } from '../../hooks/useTheme'
 import { getUserInfo, ensureGuestId, ensureGuestToken, getGuestId, isLoggedIn, isStaffRole, type UserInfo } from '../../lib/auth'
@@ -19,6 +19,7 @@ import RecommendedTaskList from '../../components/RecommendedTaskList'
 import DailyGoalControl, { getGuestGoal } from '../../components/DailyGoalControl'
 import { isNewUser, type Shelf } from '../../lib/nextUp'
 import { fetchShelf } from '../../lib/recommendations'
+import { useTrack } from '../../lib/track'
 import { concepts as conceptCatalog } from '../../lib/conceptData'
 import { HourglassIcon, PauseIcon } from '@animateicons/react/lucide'
 
@@ -225,6 +226,30 @@ export default function ProfilePage() {
 
     fetchData()
   }, [mounted])
+
+  // The next task and the due-review count belong to the active track, so the
+  // header's Math | Python switch refreshes them. Everything else on this page
+  // (XP, activity, the report) is the learner's, whichever track it came from.
+  const track = useTrack()
+  const trackLoaded = useRef(false)
+  useEffect(() => {
+    if (!mounted) return
+    if (!trackLoaded.current) {
+      trackLoaded.current = true
+      return
+    }
+    if (!getUserInfo()) return
+    getDueReviews().then(r => setDueReviews(r.count)).catch(() => {})
+    fetchShelf()
+      .then(next => {
+        setShelf(next)
+        setShelfFailed(false)
+      })
+      .catch(() => {
+        setShelf(null)
+        setShelfFailed(true)
+      })
+  }, [mounted, track])
 
   const monoFont = "var(--font-jetbrains-mono), 'JetBrains Mono', monospace"
 

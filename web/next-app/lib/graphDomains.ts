@@ -24,6 +24,12 @@ const DOMAIN_COLORS = {
   probability_theory:   '#5eead4',
   numerical_analysis:   '#fbbf24',
   real_analysis:        '#a78bfa',
+  // Python track (one domain per chapter of the Python Data Science Handbook)
+  python_ipython:       '#fcd34d',
+  python_numpy:         '#60a5fa',
+  python_pandas:        '#c084fc',
+  python_matplotlib:    '#fb923c',
+  python_ml:            '#34d399',
 } satisfies Record<string, string>
 
 const DOMAIN_COLORS_LIGHT = {
@@ -48,9 +54,14 @@ const DOMAIN_COLORS_LIGHT = {
   probability_theory:   '#199e8c',
   numerical_analysis:   '#b07d0a',
   real_analysis:        '#6d46c9',
+  python_ipython:       '#a16207',
+  python_numpy:         '#2563eb',
+  python_pandas:        '#7e22ce',
+  python_matplotlib:    '#c2410c',
+  python_ml:            '#047857',
 } satisfies Record<string, string>
 
-export const DOMAIN_ORDER = [
+export const MATH_DOMAIN_ORDER = [
   'arithmetic',
   'fractions',
   'prealgebra',
@@ -74,6 +85,15 @@ export const DOMAIN_ORDER = [
   'real_analysis',
 ] as const
 
+// The Python track's domains, one per chapter of the Python Data Science
+// Handbook, in book order. A chapter is listed here once its concepts are in
+// data/concepts, so this list always equals the Python domains on disk.
+export const PYTHON_DOMAIN_ORDER = [
+  'python_numpy',
+] as const
+
+export const DOMAIN_ORDER = [...MATH_DOMAIN_ORDER, ...PYTHON_DOMAIN_ORDER] as const
+
 export const DOMAIN_LABELS = {
   arithmetic: 'Arithmetic',
   fractions: 'Fractions',
@@ -96,6 +116,11 @@ export const DOMAIN_LABELS = {
   probability_theory: 'Probability Theory',
   numerical_analysis: 'Numerical Analysis',
   real_analysis: 'Real Analysis',
+  python_ipython: 'Ch 1 · IPython',
+  python_numpy: 'Ch 2 · NumPy',
+  python_pandas: 'Ch 3 · Pandas',
+  python_matplotlib: 'Ch 4 · Matplotlib',
+  python_ml: 'Ch 5 · Machine Learning',
 } satisfies Record<string, string>
 
 const FALLBACK_COLOR = '#5a6577'

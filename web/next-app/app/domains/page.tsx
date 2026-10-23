@@ -21,6 +21,7 @@ import {
   type EligibilityPrereq,
 } from '../../lib/api'
 import { DOMAIN_ORDER, domainLabel } from '../../lib/graphDomains'
+import { useTrack } from '../../lib/track'
 
 /**
  * The curriculum browser: domain -> topic, driven entirely by the server's
@@ -74,15 +75,20 @@ export default function DomainsPage() {
   // Element to return focus to when the dialog closes.
   const triggerRef = useRef<HTMLButtonElement | null>(null)
 
+  // The topic browser lists the active track's domains (Math or Python).
+  const track = useTrack()
   useEffect(() => {
     if (!mounted) return
+    setDomains(null)
+    setSelected(null)
+    setDetail(null)
     getCurriculumDomains()
       .then(setDomains)
       .catch(() => {
         setDomains([])
         setError("Couldn't load the curriculum.")
       })
-  }, [mounted])
+  }, [mounted, track])
 
   const ordered = useMemo(() => {
     if (!domains) return []

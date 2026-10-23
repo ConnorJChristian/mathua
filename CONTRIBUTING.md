@@ -193,10 +193,10 @@ Every lesson is broken into exactly 3 **knowledge points** (KPs), each a subgoal
 
 A validator runs on every pull request. It checks invariants before any merge can happen:
 
-1. **No cycles** — including `prerequisites` + `encompasses` edges (`loader.go:335` Kahn’s)
+1. **No cycles** — including `prerequisites` + `encompasses` edges (`loader.go:336` Kahn’s)
 2. **No orphans** — every `prerequisites`/`encompasses`/`key_prerequisites` must exist (`loader.go:254`)
 3. **No dup IDs, no empty label/domain, valid `mastery_threshold`** (`loader.go:303`)
-4. **No singleton `interference_group`** (`loader.go:322`), valid `grading_type` enum (9 values `loader.go:297`), `variants` `0.1–1.0` difficulty
+4. **No singleton `interference_group`** (`loader.go:323`), valid `grading_type` enum (9 values `loader.go:297`), `variants` `0.1–1.0` difficulty
 
 A second audit guards the lesson corpus (`python3 scripts/audit_lessons.py:191`). It fails on these conditions:
 
@@ -205,7 +205,7 @@ A second audit guards the lesson corpus (`python3 scripts/audit_lessons.py:191`)
 - a lesson file that is missing on disk
 - an orphaned source
 - a KP shard section that does not resolve (all 1250 shard files × 3 = 3750 KPs)
-- a diagram mapping that points at a missing asset or a non-existent concept (`engine.go:743`, 183 diagrams)
+- a diagram mapping that points at a missing asset or a non-existent concept (`engine.go:762`, 183 diagrams)
 - a stale course target
 - a `grading_type` or `threshold` that fails its sanity check
 - incorrect `enrichment.json` wiring

@@ -18,6 +18,9 @@ import { formatForGradingType, type AnswerFormat } from '../lib/answerFormat'
 import { countsAsMastered } from '../lib/progress'
 import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
+import PythonAnswer from './python/PythonAnswer'
+import { displayAnswer, displayQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../lib/pythonQuestion'
+import { setTrack, trackOfDomain } from '../lib/track'
 
 // Append-only learning feed: intro once, then each submit locks its card and
 // the next question opens below. Scrollback IS the performance history —
@@ -31,7 +34,7 @@ interface QEntry {
   answer: string
   checking: boolean
   servedAt: number
-  feedback: { correct: boolean; text: string; diagnosis?: string; xp: number } | null
+  feedback: { correct: boolean; text: string; diagnosis?: string; detail?: string; xp: number } | null
 }
 
 type Entry =
@@ -131,6 +134,15 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const reduceMotion = useRef(false)
   const conceptGradingType = concepts.find(c => c.id === conceptId)?.grading_type
+  // Python-track concepts mix three question kinds and grade code server-side;
+  // each question picks its own input (components/python/PythonAnswer).
+  const isPy = isPythonGrading(conceptGradingType)
+  // Opening a topic puts the header switch on that topic's track, so the shelf,
+  // reviews and topic list that follow are the ones this topic belongs to.
+  useEffect(() => {
+    const domain = concepts.find(c => c.id === conceptId)?.domain
+    if (domain) setTrack(trackOfDomain(domain))
+  }, [conceptId])
   // The served question carries the format its answer actually needs. The
   // concept record only names the grading type, which is why a numeric concept
   // whose answer is "5 R 2" used to get a digits-only keypad.
@@ -405,6 +417,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             correct: true,
             text: res.explanation ?? entry.q.explanation,
             diagnosis: res.diagnosis,
+            detail: res.feedback,
             xp: res.xp ?? 0,
           },
         })
@@ -435,6 +448,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             correct: false,
             text: res.explanation || entry.q.explanation,
             diagnosis: res.diagnosis,
+            detail: res.feedback,
             xp: 0,
           },
         })
@@ -607,7 +621,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             return (
               <div key={e.key} className="border border-mathua-border bg-mathua-surface p-6">
                 <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">{ikp?.label || 'Learn'}</p>
-                <KatexContent className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || 'Worked example unavailable — start practicing instead.'}</KatexContent>
+                <KatexContent externalLinks={isPy} className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || 'Worked example unavailable — start practicing instead.'}</KatexContent>
                 {/* Figures for this knowledge point, plus the concept's own diagram. The
                     worked example is text lifted out of the lesson body, so its figures do
                     not come with it; selecting them per knowledge point is what keeps the
@@ -736,11 +750,27 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           }
           const qe = e as QEntry
           const locked = qe.feedback !== null
+          const pyKind = isPy ? pythonKind(qe.q.question) : null
+          const shownAnswer = isPy ? displayAnswer(qe.q.answer) : qe.q.answer
           return (
             <div key={qe.key} className={`border bg-mathua-surface p-6 ${qe.feedback?.correct ? 'border-mathua-green-faint' : qe.feedback ? 'border-mathua-red-faint' : 'border-mathua-border'}`}>
-              <KatexContent className="text-sm text-mathua-primary font-mono whitespace-pre-wrap">{qe.q.question}</KatexContent>
+              <KatexContent className="text-sm text-mathua-primary font-mono whitespace-pre-wrap">{isPy ? displayQuestion(qe.q.question) : qe.q.question}</KatexContent>
               <ChoiceOptions question={qe.q.question} value={qe.answer} onPick={v => setEntry(qe.key, { answer: v })} disabled={locked || qe.checking} />
-              {!locked && (
+              {!locked && isPy && (
+                <form onSubmit={ev => { ev.preventDefault(); handleCheck(qe.key) }} className="mt-3 flex flex-col gap-2">
+                  <label htmlFor={`learn-answer-${qe.key}`} className="sr-only">Your answer</label>
+                  <PythonAnswer
+                    id={`learn-answer-${qe.key}`}
+                    question={qe.q.question}
+                    value={qe.answer}
+                    onChange={v => setEntry(qe.key, { answer: v })}
+                    onSubmit={() => handleCheck(qe.key)}
+                    disabled={qe.checking}
+                  />
+                  <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 self-end">{qe.checking && pyKind === 'code' ? 'Checking…' : 'Check'}</button>
+                </form>
+              )}
+              {!locked && !isPy && (
                 <form onSubmit={ev => { ev.preventDefault(); handleCheck(qe.key) }} className="mt-3 flex flex-col sm:flex-row gap-2">
                   <label htmlFor={`learn-answer-${qe.key}`} className="sr-only">Your answer</label>
                   <MathAnswerInput
@@ -759,16 +789,24 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 w-auto self-end sm:self-auto shrink-0">Check</button>
                 </form>
               )}
-              {!locked && <p className="mt-2 font-mono text-[11px] text-mathua-muted">{format.hint}</p>}
+              {!locked && <p className="mt-2 font-mono text-[11px] text-mathua-muted">{pyKind ? pythonHint(pyKind) : format.hint}</p>}
               {locked && qe.feedback && (
                 <div className="mt-3">
                   <p className={`font-mono text-xs ${qe.feedback.correct ? 'text-green-400' : 'text-red-400'}`}>
                     {qe.feedback.correct ? `✓ ${qe.feedback.xp ? `+${qe.feedback.xp} XP` : 'Correct'}` : '✗ Not quite.'}{' '}
-                    <span className="text-mathua-muted">you answered “{qe.answer}”</span>
+                    <span className="text-mathua-muted">{pyKind === 'code' ? 'checked against the hidden tests' : `you answered “${isPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
                   </p>
-                  <p className="mt-1.5 font-mono text-xs text-mathua-primary">
-                    Answer: <KatexContent>{qe.q.answer}</KatexContent>
-                  </p>
+                  {pyKind === 'code' && (
+                    <details className="mt-1.5" open={!qe.feedback.correct}>
+                      <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Your code</summary>
+                      <pre className="mt-1 max-h-72 overflow-auto bg-mathua-code px-3 py-2 font-mono text-[12px] text-mathua-primary whitespace-pre">{qe.answer}</pre>
+                    </details>
+                  )}
+                  {shownAnswer && (
+                    <p className="mt-1.5 font-mono text-xs text-mathua-primary">
+                      Answer: {pyKind === 'output' ? <code className="whitespace-pre-wrap">{shownAnswer}</code> : <KatexContent>{shownAnswer}</KatexContent>}
+                    </p>
+                  )}
                   {/* The explanation is the solution for *this* instance, shown
                       on both verdicts: a correct answer still needs the
                       reasoning that made it right. Guarded on a non-empty
@@ -777,15 +815,20 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   {/* The mistake, when it can be named with certainty. It is
                       a description of what happened, never a hint about what
                       to do, and it is empty far more often than not. */}
-                  {qe.feedback.diagnosis && (
+                  {qe.feedback.diagnosis && !(pyKind === 'code' && qe.feedback.detail) && (
                     <p data-diagnosis className="mt-2 font-mono text-[11px] text-mathua-muted">{qe.feedback.diagnosis}</p>
+                  )}
+                  {/* A code task's miss lists every hidden check that failed, or the
+                      error the code raised, which is what the learner needs to fix it. */}
+                  {pyKind === 'code' && !qe.feedback.correct && qe.feedback.detail && (
+                    <pre data-diagnosis className="mt-2 max-h-64 overflow-auto border border-mathua-red-faint bg-mathua-bg px-3 py-2 font-mono text-[11px] text-red-400 whitespace-pre-wrap">{plainAnswer(qe.feedback.detail)}</pre>
                   )}
                   {qe.feedback.text && (
                     <div className="mt-1.5">
                       <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">
                         {qe.feedback.correct ? 'Why' : 'How'}
                       </p>
-                      <KatexContent className="mt-1 text-xs font-mono text-mathua-secondary whitespace-pre-wrap">{qe.feedback.text}</KatexContent>
+                      <KatexContent externalLinks={isPy} className="mt-1 text-xs font-mono text-mathua-secondary whitespace-pre-wrap">{qe.feedback.text}</KatexContent>
                     </div>
                   )}
                 </div>

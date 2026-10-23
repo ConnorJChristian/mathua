@@ -121,13 +121,35 @@ func (r *Registry) GenerateContext(conceptID string, ctx GeneratorContext) (Prob
 		r.randMu.Unlock()
 	}
 	p := gen.Generate(ctx)
-	p.Question = latex.Canonicalize(p.Question, latex.Generators)
-	p.Explanation = r.explain(conceptID, p)
-	p.Difficulty = difficultyOf(ctx.Difficulty)
-	for _, w := range latex.Validate(p.Question+"\n"+p.Explanation, latex.Generators) {
-		fmt.Printf("latex warning in generator %q: %s\n", conceptID, w)
-	}
+	r.finish(conceptID, gen, &p, ctx, "")
 	return p, nil
+}
+
+// PlainTextGenerator marks a generator whose question and explanation are
+// Markdown with code, not mathematics. The LaTeX canonicaliser would rewrite
+// `$`, `^` and backslashes inside code blocks, so these problems skip it and
+// the corpus solution schemas, and are served exactly as generated.
+type PlainTextGenerator interface {
+	Generator
+	PlainText() bool
+}
+
+func isPlainText(gen Generator) bool {
+	pt, ok := gen.(PlainTextGenerator)
+	return ok && pt.PlainText()
+}
+
+// finish applies the registry's post-processing to one generated problem.
+func (r *Registry) finish(conceptID string, gen Generator, p *Problem, ctx GeneratorContext, where string) {
+	p.Difficulty = difficultyOf(ctx.Difficulty)
+	if isPlainText(gen) {
+		return
+	}
+	p.Question = latex.Canonicalize(p.Question, latex.Generators)
+	p.Explanation = r.explain(conceptID, *p)
+	for _, w := range latex.Validate(p.Question+"\n"+p.Explanation, latex.Generators) {
+		fmt.Printf("latex warning in generator %q%s: %s\n", conceptID, where, w)
+	}
 }
 
 // difficultyOf normalises a generator difficulty into the pointer form Problem carries.
@@ -174,12 +196,7 @@ func (r *Registry) BatchGenerateContext(conceptID string, count int, ctx Generat
 	}
 	for i := 0; i < maxAttempts && len(problems) < count; i++ {
 		p := gen.Generate(ctx)
-		p.Question = latex.Canonicalize(p.Question, latex.Generators)
-		p.Explanation = r.explain(conceptID, p)
-		p.Difficulty = difficultyOf(ctx.Difficulty)
-		for _, w := range latex.Validate(p.Question+"\n"+p.Explanation, latex.Generators) {
-			fmt.Printf("latex warning in generator %q (batch): %s\n", conceptID, w)
-		}
+		r.finish(conceptID, gen, &p, ctx, " (batch)")
 		if !seen[p.Question] {
 			seen[p.Question] = true
 			problems = append(problems, p)

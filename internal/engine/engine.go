@@ -170,6 +170,9 @@ type AnswerResult struct {
 }
 
 type Engine struct {
+	// tracks holds the per-track views of dag (track.go), built on first use.
+	tracks trackViews
+
 	dag      *concepts.DAG
 	repo     storage.Repository
 	sched    *scheduler.Scheduler
@@ -684,6 +687,12 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 
 // NextReviewQuestion only serves concepts due for spaced-repetition review.
 func (e *Engine) NextReviewQuestion(sessionID, studentID string) (*Question, error) {
+	return e.NextReviewQuestionTrack(sessionID, studentID, "")
+}
+
+// NextReviewQuestionTrack serves the next due review from one track only, so a
+// learner reviewing Python is never handed an integral, and the reverse.
+func (e *Engine) NextReviewQuestionTrack(sessionID, studentID, track string) (*Question, error) {
 	progress, err := e.repo.GetAllProgress(studentID)
 	if err != nil {
 		return nil, fmt.Errorf("load progress: %w", err)
@@ -697,7 +706,7 @@ func (e *Engine) NextReviewQuestion(sessionID, studentID string) (*Question, err
 	if as == nil {
 		as = &activeSession{studentID: studentID}
 	}
-	next := e.sched.NextReview(snapshots, as.lastConceptID)
+	next := e.trackScheduler(track).NextReview(snapshots, as.lastConceptID)
 	if next == nil {
 		return nil, nil
 	}
@@ -1013,7 +1022,9 @@ func (e *Engine) gradeAnswer(conceptID string, expectedAnswer, userAnswer string
 	// custom GradedGenerator as well as the type router. It never touches
 	// Correct: it describes a miss after the fact, and is empty whenever the
 	// mistake cannot be named with certainty.
-	if !res.Correct && !res.Unavailable {
+	if !res.Correct && !res.Unavailable && res.Diagnosis == "" {
+		// A grader that already named the mistake (the Python track reports
+		// the hidden check that failed) keeps its own diagnosis.
 		res.Diagnosis = grader.Diagnose(gradingType, expectedAnswer, userAnswer)
 	}
 	return res

@@ -202,6 +202,9 @@ describe('domain labels agree across the app and the README', () => {
       }
     }
     for (const domain of Object.keys(web)) {
+      // The README's domain table is the mathematics corpus. The Python track's
+      // chapter domains are documented in FORK.md, and counts.py skips them.
+      if (domain.startsWith('python_')) continue
       if (!(domain in py)) problems.push(`${domain}: in graphDomains.ts, missing from counts.py`)
     }
     expect(problems).toEqual([])

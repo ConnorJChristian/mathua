@@ -30,10 +30,15 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: grading/requirements.txt
-      - run: pip install -r grading/requirements.txt latex2sympy2 antlr4-python3-runtime==4.7.2
+      - run: pip install -r grading/requirements.txt -r grading/requirements-python.txt latex2sympy2 antlr4-python3-runtime==4.7.2
       - run: go mod tidy
       - run: go build ./...
+      # The Python track's runner tests skip on a machine without the data
+      # stack; CI has it, so a skip here would hide a broken runner.
       - run: go test ./...
+        env:
+          PYTRACK_REQUIRE_RUNNER: '1'
+      - run: python3 scripts/python_bank.py check
       - run: make lint-go
       - run: go run scripts/validate_graph.go
       # These two run in `make validate` and were absent here, which is how a

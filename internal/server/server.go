@@ -30,6 +30,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/leaderboard"
 	"github.com/chuma-beep/mathua/internal/lessons"
 	"github.com/chuma-beep/mathua/internal/mastery"
+	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/quiz"
 	"github.com/chuma-beep/mathua/internal/scoring"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -499,6 +500,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/lessons", logRequest(cors(s.optionalAuthMiddleware(s.handleLessons))))
 	mux.HandleFunc("/api/lessons/body", logRequest(cors(s.optionalAuthMiddleware(s.handleLessonBody))))
 	mux.HandleFunc("/api/lessons/", logRequest(cors(s.optionalAuthMiddleware(s.handleLessonConcept))))
+	mux.HandleFunc("/api/python/run", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handlePythonRun))))))
 	mux.HandleFunc("/api/study/answer", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handleStudyAnswer))))))
 	// Report creation only. Listing and resolving reports is administration now and lives under
 	// /api/admin/reports behind the role boundary; the old shared-password triage endpoints were
@@ -675,7 +677,7 @@ func (s *Server) handleCurriculumDomains(w http.ResponseWriter, r *http.Request)
 		http.Error(w, `{"error":"method not allowed"}`, 405)
 		return
 	}
-	domains, err := s.eng.CurriculumDomains(s.lessonStudentID(r))
+	domains, err := s.eng.CurriculumDomainsTrack(s.lessonStudentID(r), trackOf(r))
 	if err != nil {
 		writeError(w, "failed to load curriculum", 500)
 		return
@@ -1858,6 +1860,16 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		kps := ll.KPs(conceptID)
+		if len(kps) == 0 {
+			if c := s.eng.GetDAG().Concept(conceptID); c != nil && pytrack.IsPythonDomain(c.Domain) {
+				writeJSON(w, map[string]interface{}{
+					"concept_id": conceptID,
+					"kps":        pythonKPs(conceptID, c.Label),
+					"diagram":    "",
+				})
+				return
+			}
+		}
 		type kpInfo struct {
 			Label         string          `json:"label"`
 			Section       string          `json:"section"`
@@ -2323,7 +2335,7 @@ func (s *Server) handleNext(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	resp, err := s.eng.RecommendNext(studentID, exclude)
+	resp, err := s.eng.RecommendNextTrack(studentID, exclude, trackOf(r))
 	if err != nil {
 		writeJSON(w, map[string]interface{}{
 			"primary":      nil,
@@ -2353,7 +2365,7 @@ func (s *Server) handleDueReviews(w http.ResponseWriter, r *http.Request) {
 	}
 	// The count lives on the engine now: the recommender needs the same number, and having it
 	// written twice is how the two could disagree about what "due" means.
-	count, err := s.eng.ReviewsDue(studentID)
+	count, err := s.eng.ReviewsDueTrack(studentID, trackOf(r))
 	if err != nil {
 		writeJSON(w, map[string]interface{}{"count": 0})
 		return
@@ -2471,7 +2483,7 @@ func (s *Server) handleReviewsSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "failed to create session", 500)
 		return
 	}
-	q, err := s.eng.NextReviewQuestion(sess.ID, studentID)
+	q, err := s.eng.NextReviewQuestionTrack(sess.ID, studentID, trackOf(r))
 	if err != nil {
 		writeError(w, "failed to get review question", 500)
 		return
@@ -2513,7 +2525,7 @@ func (s *Server) handleReviewsAnswer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "failed to submit answer", 500)
 		return
 	}
-	next, err := s.eng.NextReviewQuestion(req.SessionID, studentID)
+	next, err := s.eng.NextReviewQuestionTrack(req.SessionID, studentID, trackOf(r))
 	if err != nil {
 		log.Printf("handleReviewsAnswer: NextReviewQuestion failed for session %s: %v (returning result without next question)", req.SessionID, err)
 		writeJSON(w, answerRes{Result: result, NextQuestion: nil, Done: true})
@@ -3243,10 +3255,12 @@ func (s *Server) handleQuizSession(w http.ResponseWriter, r *http.Request) {
 	if studentID != "" {
 		weak := s.eng.WeaknessMap(studentID)
 		if weak != nil {
-			quizConcepts = quiz.PickQuizConcepts(s.eng.GetDAG(), weak)
+			quizConcepts = quiz.PickQuizConcepts(s.eng.TrackDAG(trackOf(r)), weak)
 		}
 	}
-	qEng := quiz.NewEngine(s.eng.GetDAG(), s.eng.GetGeneratorRegistry())
+	// The quiz draws from the track the learner is on, so its fallback (the
+	// first concepts in curriculum order) is also the right track's.
+	qEng := quiz.NewEngine(s.eng.TrackDAG(trackOf(r)), s.eng.GetGeneratorRegistry())
 	sess := qEng.Start(quizConcepts)
 	// PR 1.4: per-concept 80% difficulty target from weakness map.
 	if studentID != "" {

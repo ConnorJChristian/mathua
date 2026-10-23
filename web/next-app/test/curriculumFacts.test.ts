@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { CONCEPT_COUNT, DOMAIN_COUNT } from '../lib/curriculumFacts'
-import { DOMAIN_ORDER } from '../lib/graphDomains'
+import { MATH_DOMAIN_ORDER, PYTHON_DOMAIN_ORDER } from '../lib/graphDomains'
 
 // The corpus is the owner of these numbers. The page copy used to say
 // "1250 concepts spanning 17 domains" long after the corpus held 21, and no
@@ -29,9 +29,11 @@ function conceptsPerFile(): Map<string, number> {
 describe('curriculum facts in the copy', () => {
   const perFile = conceptsPerFile()
 
+  // The copy describes the mathematics curriculum. The Python track is its own
+  // side of the site (lib/track.ts) and is counted separately below.
   it('counts the same concepts as the corpus', () => {
     let total = 0
-    for (const domain of DOMAIN_ORDER) {
+    for (const domain of MATH_DOMAIN_ORDER) {
       const n = perFile.get(domain)
       expect(n, `${domain}.json is missing from data/concepts`).toBeTypeOf('number')
       total += n ?? 0
@@ -40,9 +42,14 @@ describe('curriculum facts in the copy', () => {
   })
 
   it('counts the same domains as the corpus', () => {
-    expect(DOMAIN_COUNT).toBe(DOMAIN_ORDER.length)
-    const domains = [...perFile.keys()].filter((d) => !UNDOMAINED.has(d))
-    expect(domains.sort()).toEqual([...DOMAIN_ORDER].sort())
+    expect(DOMAIN_COUNT).toBe(MATH_DOMAIN_ORDER.length)
+    const domains = [...perFile.keys()].filter((d) => !UNDOMAINED.has(d) && !d.startsWith('python_'))
+    expect(domains.sort()).toEqual([...MATH_DOMAIN_ORDER].sort())
+  })
+
+  it('lists every Python chapter domain on disk, and only those', () => {
+    const python = [...perFile.keys()].filter((d) => d.startsWith('python_'))
+    expect(python.sort()).toEqual([...PYTHON_DOMAIN_ORDER].sort())
   })
 
   it('does not hardcode a concept count in the page copy', () => {

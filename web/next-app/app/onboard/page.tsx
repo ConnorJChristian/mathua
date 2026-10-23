@@ -32,6 +32,7 @@ import { scopeSize } from '../../lib/diagnosticScope'
 import type { MathFocusHandle } from '@/components/math/MathInput'
 import { domainOrder, type DomainInfo } from './domains'
 import { DiagnosticStep, ResultsStep, WelcomeStep } from './steps'
+import { isPythonDomain } from '../../lib/track'
 
 type Step = 'welcome' | 'diagnostic' | 'results'
 
@@ -94,6 +95,9 @@ export default function OnboardPage() {
     if (!mounted) return
     const map = new Map<string, string[]>()
     for (const c of conceptsData) {
+      // The placement diagnostic is a Math-track tool. The Python track has no
+      // placement: its first topics have no prerequisites and open directly.
+      if (isPythonDomain(c.domain)) continue
       const list = map.get(c.domain) || []
       list.push(c.id)
       map.set(c.domain, list)

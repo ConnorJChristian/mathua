@@ -1,0 +1,13 @@
+# Python track runtime: the libraries learner code imports. Pinned so the
+# printed outputs stored in the question bank (internal/pytrack/bank) match
+# what the image computes; the image build runs `scripts/python_bank.py check`
+# and fails if they drift. Bump deliberately, then run
+#   python3 scripts/python_bank.py build
+# with these versions installed and commit the regenerated bank.
+#
+# Versions are the newest with wheels for Debian bookworm's Python 3.11.
+numpy==2.4.6
+pandas==3.1.0
+matplotlib==3.11.2
+scikit-learn==1.9.1
+scipy==1.17.1

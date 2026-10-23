@@ -86,6 +86,13 @@ const DOMAIN_MODES: Record<string, MathKeyboardMode> = {
   probability_theory: 'arithmetic',
   numerical_analysis: 'arithmetic',
   real_analysis: 'arithmetic',
+  // Python-track answers are typed into PythonAnswer, never the math keypad;
+  // these entries only keep this table total over the corpus's domains.
+  python_ipython: 'algebra',
+  python_numpy: 'algebra',
+  python_pandas: 'algebra',
+  python_matplotlib: 'algebra',
+  python_ml: 'algebra',
 }
 
 export const DEFAULT_KEYBOARD_MODE: MathKeyboardMode = 'algebra'

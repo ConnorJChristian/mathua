@@ -18,6 +18,8 @@ import SubmitErrorBlock, {
 } from '../../components/SubmitErrorBlock'
 import { concepts as conceptsData } from '../../lib/conceptData'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
+import PythonAnswer from '../../components/python/PythonAnswer'
+import { displayQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
 
 // 'failed' exists because 'done' used to carry two meanings. Any thrown request
 // set phase to 'done', and the done screen reads "No questions available" while
@@ -324,6 +326,8 @@ export default function QuizHost() {
     )
   }
 
+  const isPy = isPythonGrading(quizGradingType.current)
+  const pyKind = isPy ? pythonKind(quizQuestion) : null
   return (
     <>
       <SectionHeader label={`Quiz question ${quizCount}${quizQuestionsTotal > 0 ? ` of ${quizQuestionsTotal}` : ''}`} title={quizConceptName} />
@@ -334,12 +338,32 @@ export default function QuizHost() {
           {quizClosedBook ? <span className="text-mathua-muted">Closed book</span> : null}
         </div>
         <div className={`bg-mathua-surface border rounded-none p-4 sm:p-6 mb-6 transition-colors w-full max-w-full min-w-0 overflow-hidden ${quizLastResult ? (quizLastResult.correct ? 'border-mathua-green-faint' : 'border-mathua-red-faint') : 'border-mathua-border'}`}>
+          {isPy ? (
+            <div className="border border-mathua-border rounded-none p-4 sm:p-6 mb-4">
+              <KatexContent className="text-mathua-primary text-sm font-mono whitespace-pre-wrap break-words">{displayQuestion(quizQuestion)}</KatexContent>
+            </div>
+          ) : (
           <div className="bg-mathua-code border border-mathua-border rounded-none p-4 sm:p-6 text-center mb-4">
             <KatexContent className="text-mathua-primary text-lg font-mono font-light whitespace-pre-wrap break-words">{quizQuestion}</KatexContent>
           </div>
+          )}
           <ChoiceOptions question={quizQuestion} value={quizAnswerInput} onPick={setQuizAnswerInput} disabled={loading} />
           {!quizLastResult ? (
             <>
+              {isPy ? (
+              <form onSubmit={e => { e.preventDefault(); void submitQuizAnswerFn(false) }} className="flex flex-col gap-3 min-w-0">
+                <label htmlFor="quiz-answer" className="sr-only">Your answer</label>
+                <PythonAnswer
+                  id="quiz-answer"
+                  question={quizQuestion}
+                  value={quizAnswerInput}
+                  onChange={setQuizAnswerInput}
+                  onSubmit={() => void submitQuizAnswerFn(false)}
+                  disabled={loading}
+                />
+                <button type="submit" disabled={!quizAnswerInput.trim() || loading} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-6 font-medium text-sm disabled:opacity-50 shrink-0 w-auto self-end">Check Answer</button>
+              </form>
+              ) : (
               <form onSubmit={e => { e.preventDefault(); void submitQuizAnswerFn(false) }} className="flex flex-col sm:flex-row gap-3 min-w-0">
                 <label htmlFor="quiz-answer" className="sr-only">Your answer</label>
                 <MathAnswerInput
@@ -358,8 +382,9 @@ export default function QuizHost() {
                 />
                 <button type="submit" disabled={!quizAnswerInput.trim() || loading} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-6 font-medium text-sm disabled:opacity-50 shrink-0 w-auto self-end sm:self-auto">Check Answer</button>
               </form>
+              )}
               <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="font-mono text-[11px] text-mathua-muted">{answerFormat.hint}</p>
+                <p className="font-mono text-[11px] text-mathua-muted">{pyKind ? pythonHint(pyKind) : answerFormat.hint}</p>
                 <button
                   type="button"
                   onClick={() => { void submitQuizAnswerFn(true) }}
@@ -393,7 +418,11 @@ export default function QuizHost() {
                   handed over the answer mid-test, so the remaining questions measured whether
                   the learner had read it rather than what they knew. Instruction lives in Learn,
                   reached deliberately, one concept at a time. */}
-              <KatexContent className="text-mathua-secondary text-sm">{quizLastResult.feedback}</KatexContent>
+              {isPy ? (
+                <pre className="text-mathua-secondary text-xs font-mono whitespace-pre-wrap">{plainAnswer(quizLastResult.feedback)}</pre>
+              ) : (
+                <KatexContent className="text-mathua-secondary text-sm">{quizLastResult.feedback}</KatexContent>
+              )}
               {!quizLastResult.correct && quizLastResult.conceptId && (
                 <Link
                   href={`/learn?concept=${encodeURIComponent(quizLastResult.conceptId)}`}

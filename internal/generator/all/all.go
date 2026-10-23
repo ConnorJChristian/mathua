@@ -27,8 +27,8 @@ import (
 	"github.com/chuma-beep/mathua/internal/generator/graphtheory"
 	"github.com/chuma-beep/mathua/internal/generator/linalg"
 	"github.com/chuma-beep/mathua/internal/generator/machinelearning"
-	"github.com/chuma-beep/mathua/internal/generator/numtheory"
 	"github.com/chuma-beep/mathua/internal/generator/numerical"
+	"github.com/chuma-beep/mathua/internal/generator/numtheory"
 	"github.com/chuma-beep/mathua/internal/generator/odes"
 	"github.com/chuma-beep/mathua/internal/generator/prealgebra"
 	"github.com/chuma-beep/mathua/internal/generator/precalculus"
@@ -37,6 +37,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/generator/statistics"
 	"github.com/chuma-beep/mathua/internal/generator/topology"
 	"github.com/chuma-beep/mathua/internal/generator/trigonometry"
+	"github.com/chuma-beep/mathua/internal/pytrack"
 )
 
 // Register adds every generator in the corpus to reg.
@@ -66,6 +67,20 @@ func Register(reg *generator.Registry) {
 	probability.Register(reg)
 	numerical.Register(reg)
 	realanalysis.Register(reg)
+	registerPython(reg)
+}
+
+// registerPython adds the Python track's question bank. The bank is embedded
+// in the binary and validated by its own tests, so a load failure here is a
+// build defect and panics like any other registration conflict would.
+func registerPython(reg *generator.Registry) {
+	t, err := pytrack.Default()
+	if err != nil {
+		panic("python question bank: " + err.Error())
+	}
+	if err := t.Register(reg); err != nil {
+		panic("python question bank: " + err.Error())
+	}
 }
 
 // Registry returns a registry with every generator registered.

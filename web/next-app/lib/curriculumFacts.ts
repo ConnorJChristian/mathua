@@ -1,4 +1,4 @@
-import { DOMAIN_ORDER } from './graphDomains'
+import { MATH_DOMAIN_ORDER } from './graphDomains'
 
 /**
  * The two corpus facts the marketing copy states, in one place.
@@ -12,7 +12,9 @@ import { DOMAIN_ORDER } from './graphDomains'
  * `test/curriculumFacts.test.ts` re-derives both from `data/concepts` and fails
  * if they disagree, which is the half that makes this more than tidier markup.
  */
-export const DOMAIN_COUNT = DOMAIN_ORDER.length
+// The copy describes the mathematics curriculum; the Python track is a separate
+// side of the site and is not counted here.
+export const DOMAIN_COUNT = MATH_DOMAIN_ORDER.length
 
-/** Sum of `data/concepts/*.json` for the domains in `DOMAIN_ORDER`. */
+/** Sum of `data/concepts/*.json` for the domains in `MATH_DOMAIN_ORDER`. */
 export const CONCEPT_COUNT = 1250

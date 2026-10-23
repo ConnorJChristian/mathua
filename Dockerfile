@@ -38,6 +38,23 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=1 go build -o /mathua ./cmd/mathua
 
+# Python track bank check, on the same base and pins as the runtime image.
+FROM debian:bookworm-slim AS pybankcheck
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-venv && rm -rf /var/lib/apt/lists/*
+COPY grading/requirements-python.txt /check/grading/requirements-python.txt
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check \
+        -r /check/grading/requirements-python.txt
+COPY grading/pyrunner.py /check/grading/pyrunner.py
+COPY scripts/python_bank.py /check/scripts/python_bank.py
+COPY data/python/ /check/data/python/
+COPY data/concepts/ /check/data/concepts/
+COPY internal/pytrack/bank/ /check/internal/pytrack/bank/
+RUN mkdir -p /tmp/mpl && MPLCONFIGDIR=/tmp/mpl /opt/venv/bin/python3 -c "import matplotlib.pyplot" \
+    && cd /check && MPLCONFIGDIR=/tmp/mpl /opt/venv/bin/python3 scripts/python_bank.py check \
+    && touch /bankcheck.ok
+
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -46,10 +63,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # SymPy grading runtime. findSymPyService resolves ./grading/sympy_service.py
 # from WORKDIR /app, and execs `python3`, so the venv must be first on PATH.
 COPY grading/requirements.txt /app/grading/requirements.txt
+COPY grading/requirements-python.txt /app/grading/requirements-python.txt
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check \
-        -r /app/grading/requirements.txt
+        -r /app/grading/requirements.txt \
+        -r /app/grading/requirements-python.txt
 ENV PATH=/opt/venv/bin:$PATH
+
+# Python track: Matplotlib builds its font cache on first import, which takes
+# seconds and needs a writable folder. Learner code runs as `nobody` and may
+# only write in its own temporary folder, so the cache is built here once and
+# shared read-only. The import check runs as `nobody` because that is who
+# imports these libraries at run time (internal/pytrack/sandbox_unix.go).
+ENV MPLCONFIGDIR=/opt/mplconfig
+RUN mkdir -p /opt/mplconfig \
+    && MPLBACKEND=Agg python3 -c "import matplotlib.pyplot" \
+    && chmod -R a+rX /opt/mplconfig /opt/venv \
+    && runuser -u nobody -- env MPLCONFIGDIR=/opt/mplconfig MPLBACKEND=Agg \
+        /opt/venv/bin/python3 -c "import numpy, pandas, sklearn, matplotlib.pyplot"
 
 COPY --from=builder /mathua /mathua
 COPY data/concepts/ /app/data/concepts/
@@ -58,6 +89,7 @@ COPY data/courses.json /app/data/courses.json
 COPY data/destinations.json /app/data/destinations.json
 COPY --from=webbuilder /app/web/next-app/out /app/web/next-app/out
 COPY grading/sympy_service.py /app/grading/sympy_service.py
+COPY grading/pyrunner.py /app/grading/pyrunner.py
 
 # Build-time grading self-test: if SymPy cannot grade, the image does not build,
 # so a broken grading runtime can never be deployed. `5^4` and `625` are
@@ -65,6 +97,13 @@ COPY grading/sympy_service.py /app/grading/sympy_service.py
 RUN printf '%s\n' '{"id":"1","expected":"5^4","answer":"625"}' \
       | python3 /app/grading/sympy_service.py \
       | grep -q '"correct": true'
+
+# Build-time Python track self-test: every printed output stored in the
+# question bank is recomputed with the libraries this image pins, every
+# reference solution must pass its hidden tests and every starter must fail.
+# It runs in a throwaway stage (below) so the authoring sources stay out of
+# the image; the final stage copies its marker, which forces it to run.
+COPY --from=pybankcheck /bankcheck.ok /app/grading/bankcheck.ok
 
 WORKDIR /app
 ENV PORT=8080
