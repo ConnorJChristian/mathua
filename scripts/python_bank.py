@@ -251,7 +251,10 @@ def module_dir(src):
 
 
 def graph_path(src, chapter):
-    return os.path.join(module_dir(src), "concepts", chapter["domain"] + ".json")
+    """concepts/<domain>.json, or concepts/<graph_file>.json when the chapter
+    names one: two chapters in one domain need separate files, or the second
+    build overwrites the first's concepts."""
+    return os.path.join(module_dir(src), "concepts", chapter.get("graph_file", chapter["domain"]) + ".json")
 
 
 def render_graph(chapter):
