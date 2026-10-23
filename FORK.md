@@ -93,7 +93,7 @@ notes are original: the book's text is CC-BY-NC-ND, so nothing here adapts it.
 
 | Chapter | Domain | Status |
 |---|---|---|
-| 1. IPython | `python_ipython` | planned |
+| 1. IPython | `python_ipython` | 9 topics, 60 questions |
 | 2. NumPy | `python_numpy` | 20 topics, 127 questions |
 | 3. Pandas | `python_pandas` | planned |
 | 4. Matplotlib | `python_matplotlib` | planned |

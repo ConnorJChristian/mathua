@@ -1,0 +1,928 @@
+{
+ "chapter": "ipython",
+ "title": "IPython: Beyond Normal Python",
+ "concepts": [
+  {
+   "id": "py.ipy.help",
+   "book": {
+    "section": "1.01",
+    "title": "Help and Documentation in IPython",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.01-help-and-documentation.html"
+   },
+   "intro": "In IPython you rarely leave the prompt to look something up. Put a `?` after any name to see its signature and **docstring**, the string literal written as the first statement of a function, class or module. Put `??` after it to see the **source code** as well, when that source is Python.\n\n```python\nIn [1]: def cpi_adjust(price, cpi, base=100):\n   ...:     \"Express a nominal price in base-period terms.\"\n   ...:     return price * base / cpi\n\nIn [2]: cpi_adjust?     # signature and docstring\nIn [3]: cpi_adjust??    # the three lines above\n```\n\nUnderneath, these are ordinary Python: the docstring lives in `cpi_adjust.__doc__`, `help(cpi_adjust)` formats it, and the `inspect` module gives you `inspect.signature` and `inspect.getsource`. Writing a one-line docstring for your own functions means `?` will explain them to you a month later.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "In IPython, what does typing `round?` and pressing Enter do?",
+     "correct": "Shows the signature and docstring of `round` without calling it",
+     "wrong": [
+      "Calls `round()` with no arguments and shows the error",
+      "Searches the web for documentation on `round`",
+      "Prints the C source code that implements `round`"
+     ],
+     "explain": "A trailing `?` asks IPython to describe the object. Nothing is called; you get its type, signature and docstring."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why does `len??` show no more than `len?` does?",
+     "correct": "`len` is implemented in C, so there is no Python source for IPython to display",
+     "wrong": [
+      "`??` only works on functions you defined yourself in this session",
+      "`??` is an alias for `?` in IPython 8",
+      "Built-in names are hidden from introspection for security"
+     ],
+     "explain": "`??` shows source when the object was written in Python. Built-ins such as `len` are compiled C, so IPython falls back to the same information `?` gives."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Where does the text that `?` shows for your own function come from?",
+     "correct": "The string literal written as the first statement in the function body",
+     "wrong": [
+      "A comment on the line above the `def`",
+      "The function's name and argument names only",
+      "A separate .txt file IPython looks up by function name"
+     ],
+     "explain": "That first string becomes the function's `__doc__` attribute. Comments are discarded by the compiler and never reach `?`."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import inspect\n\ndef growth(old, new, periods=1):\n    \"\"\"Average growth rate per period.\"\"\"\n    return (new / old) ** (1 / periods) - 1\n\nprint(inspect.signature(growth))\nprint(growth.__doc__)",
+     "explain": "`inspect.signature` gives the parameter list exactly as IPython shows it on the first line of `growth?`, and `__doc__` is the docstring.",
+     "expected": "(old, new, periods=1)\nAverage growth rate per period."
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "def tariff(price, rate):\n    # applies an import tariff\n    return price * (1 + rate)\n\nprint(tariff.__doc__)",
+     "explain": "A comment is not a docstring. With no string literal as the first statement, `__doc__` is `None`, so `tariff?` would show no documentation at all.",
+     "expected": "None"
+    },
+    {
+     "id": "o3",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import inspect\n\ndef spread(bid, ask):\n    return ask - bid\n\nprint(inspect.getsource(spread).splitlines()[1].strip())",
+     "explain": "`inspect.getsource` returns the function's source text, which is what `spread??` displays. Line 1 of that text (counting from 0) is the body.",
+     "expected": "return ask - bid"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Write a function `real_wage(nominal, cpi, base=100)` that returns `nominal * base / cpi`, and give it a docstring that mentions \"CPI\", so that `real_wage?` in IPython would explain it.",
+     "starter": "def real_wage(nominal, cpi, base=100):\n    ...",
+     "setup": "",
+     "solution": "def real_wage(nominal, cpi, base=100):\n    \"\"\"Convert a nominal wage to base-period terms using the CPI.\"\"\"\n    return nominal * base / cpi",
+     "tests": [
+      {
+       "name": "signature",
+       "code": "import inspect\ncheck(callable(get(\"real_wage\")), \"`real_wage` should be a function.\")\ncheck(str(inspect.signature(real_wage)) == \"(nominal, cpi, base=100)\",\n      \"The parameters should be (nominal, cpi, base=100), in that order.\")"
+      },
+      {
+       "name": "docstring",
+       "code": "check(real_wage.__doc__ is not None and \"CPI\" in real_wage.__doc__,\n      \"Add a docstring (a string literal as the first line of the body) that mentions CPI.\")"
+      },
+      {
+       "name": "value",
+       "code": "check(close(real_wage(25.0, 125.0), 20.0) and close(real_wage(30, 150, base=50), 10.0),\n      \"real_wage should return nominal * base / cpi.\")"
+      }
+     ],
+     "explain": "The docstring is the first statement of the body. `inspect` and IPython's `?` both read it from `__doc__`."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "A function `deflate` is already defined (you cannot see its code). Using `inspect` and `__doc__`, set `params` to a list of its parameter names, in order, and `summary` to the first line of its docstring.",
+     "starter": "import inspect\nparams = ...\nsummary = ...",
+     "setup": "def deflate(series, index, base_year=2015):\n    \"\"\"Divide a nominal series by a price index.\n\n    The index is rescaled so that base_year equals 100.\n    \"\"\"\n    return [s / i * 100 for s, i in zip(series, index)]",
+     "solution": "import inspect\nparams = list(inspect.signature(deflate).parameters)\nsummary = deflate.__doc__.splitlines()[0]",
+     "tests": [
+      {
+       "name": "params",
+       "code": "check(list(get(\"params\")) == [\"series\", \"index\", \"base_year\"],\n      \"`params` should list the parameter names in order. Look at inspect.signature(...).parameters.\")"
+      },
+      {
+       "name": "summary",
+       "code": "check(get(\"summary\") == \"Divide a nominal series by a price index.\",\n      \"`summary` should be only the first line of the docstring.\")"
+      }
+     ],
+     "explain": "`inspect.signature(f).parameters` is an ordered mapping keyed by parameter name, so `list(...)` gives the names. The docstring is a plain string; split it into lines and keep the first."
+    }
+   ]
+  },
+  {
+   "id": "py.ipy.completion",
+   "book": {
+    "section": "1.01",
+    "title": "Help and Documentation in IPython",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.01-help-and-documentation.html"
+   },
+   "intro": "Typing `prices.` and pressing **Tab** lists the attributes and methods of `prices`. Type a few letters first (`prices.so` then Tab) and IPython narrows the list or finishes the name for you. The same works for module names after `import` and for file paths inside strings. Names that start with an underscore stay hidden until you type the underscore yourself.\n\nWhen you know part of a name but not where it sits, use a `*` wildcard with `?`:\n\n```python\nIn [1]: str.*strip*?     # lstrip, rstrip, strip\nIn [2]: *Error?          # every name in scope ending in Error\n```\n\nIn plain Python, `dir(obj)` returns the names Tab draws on, and the standard `fnmatch` module matches the same shell-style patterns: `fnmatch.filter(dir(str), \"*strip*\")`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You have a list `rates` and type `rates.` then press Tab in IPython. What appears?",
+     "correct": "The list's public methods, such as `append`, `count` and `sort`",
+     "wrong": [
+      "Every name defined in the session",
+      "The values stored in `rates`",
+      "Only the dunder methods such as `__len__`"
+     ],
+     "explain": "Tab after a dot completes attribute names of that object. Names beginning with `_` are left out until you type an underscore."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which IPython command lists every `str` method whose name contains `find`?",
+     "correct": "`str.*find*?`",
+     "wrong": [
+      "`str.find??`",
+      "`find*(str)?`",
+      "`dir(str, 'find')`"
+     ],
+     "explain": "`*` matches any run of characters, including none, so `*find*` catches both `find` and `rfind`. The trailing `?` asks IPython to list the matches."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "In the pattern `*Warning`, what does `*` match?",
+     "correct": "Any sequence of characters, including an empty one",
+     "wrong": [
+      "Exactly one character",
+      "Only letters, not digits",
+      "Only names defined by the user"
+     ],
+     "explain": "These are shell-style wildcards: `*` is any run of characters and `?` inside a pattern (not at the end) is exactly one character."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import fnmatch\nprint(fnmatch.filter(dir(str), \"*find*\"))",
+     "explain": "`dir(str)` is alphabetical, and two methods contain `find`. This is the list `str.*find*?` shows in IPython.",
+     "expected": "['find', 'rfind']"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "public = [n for n in dir(list) if not n.startswith(\"_\")]\nprint(public)",
+     "explain": "These are the names IPython offers after `some_list.` and Tab. The many underscore names in `dir(list)` are hidden by default.",
+     "expected": "['append', 'clear', 'copy', 'count', 'extend', 'index', 'insert', 'pop', 'remove', 'reverse', 'sort']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Using `dir` and `fnmatch`, set `strip_methods` to the `str` method names that end in `strip`, and `dict_public` to the names in `dir(dict)` that do not start with an underscore.",
+     "starter": "import fnmatch\nstrip_methods = ...\ndict_public = ...",
+     "setup": "",
+     "solution": "import fnmatch\nstrip_methods = fnmatch.filter(dir(str), \"*strip\")\ndict_public = [n for n in dir(dict) if not n.startswith(\"_\")]",
+     "tests": [
+      {
+       "name": "strip",
+       "code": "check(sorted(get(\"strip_methods\")) == [\"lstrip\", \"rstrip\", \"strip\"],\n      \"`strip_methods` should be the three str methods ending in 'strip'.\")"
+      },
+      {
+       "name": "public",
+       "code": "ref = [n for n in dir(dict) if not n.startswith(\"_\")]\ncheck(sorted(get(\"dict_public\")) == sorted(ref),\n      \"`dict_public` should hold every dict attribute name that does not begin with an underscore.\")"
+      }
+     ],
+     "explain": "The pattern `*strip` anchors at the end of the name. Filtering out leading underscores mimics what Tab shows after `d.`."
+    }
+   ]
+  },
+  {
+   "id": "py.ipy.shortcuts",
+   "book": {
+    "section": "1.02",
+    "title": "Keyboard Shortcuts in the IPython Shell",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.02-shell-keyboard-shortcuts.html"
+   },
+   "intro": "The IPython terminal borrows Emacs-style key bindings, so you can edit a long line without reaching for the mouse. A few earn their keep fast:\n\n| keys | effect |\n|---|---|\n| Ctrl-a / Ctrl-e | jump to start / end of the line |\n| Ctrl-k | cut from the cursor to the end of the line |\n| Up arrow | previous command (repeat to go further back) |\n| Ctrl-r | search backwards through past commands |\n| Ctrl-l | clear the screen |\n| Ctrl-c | interrupt the running command |\n\nCtrl-r is the most useful: type a fragment such as `read_csv` and IPython shows the most recent command containing it. Press Ctrl-r again for older matches. In plain Python terms it is a backwards scan of a list of strings:\n\n```python\nmatch = next(c for c in reversed(history) if \"read_csv\" in c)\n```",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "A regression has been running for ten minutes and you want to stop it without closing IPython. Which keys?",
+     "correct": "Ctrl-c",
+     "wrong": [
+      "Ctrl-d",
+      "Ctrl-l",
+      "Ctrl-k"
+     ],
+     "explain": "Ctrl-c sends an interrupt, which raises `KeyboardInterrupt` in the running code and returns you to the prompt. Ctrl-d on an empty line asks to exit IPython altogether."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Your cursor is in the middle of a long line and you want to delete everything after it. Which keys?",
+     "correct": "Ctrl-k",
+     "wrong": [
+      "Ctrl-a",
+      "Ctrl-e",
+      "Ctrl-r"
+     ],
+     "explain": "Ctrl-k cuts from the cursor to the end of the line. Ctrl-a and Ctrl-e only move the cursor; Ctrl-r searches history."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "You typed a long `pd.read_csv(...)` call about forty commands ago. What is the quickest way to get it back?",
+     "correct": "Press Ctrl-r and type `read_csv`",
+     "wrong": [
+      "Press the Up arrow forty times",
+      "Press Ctrl-a, then type `read_csv`",
+      "Press Ctrl-l and scroll up"
+     ],
+     "explain": "Ctrl-r searches backwards for the most recent command containing what you type. The Up arrow works too, but one step at a time."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "In the IPython terminal, what does typing `df.gr` and then pressing the Up arrow do?",
+     "correct": "Steps back to the previous command that starts with `df.gr`",
+     "wrong": [
+      "Moves the cursor to the line above",
+      "Deletes the characters `df.gr`",
+      "Completes `df.gr` to `df.groupby`"
+     ],
+     "explain": "With text already on the line, Up only recalls history entries that begin with that text. Completing names is Tab's job."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "This loop mimics Ctrl-r: it scans the history from the newest command backwards. What does it print?",
+     "code": "history = [\n    \"import pandas as pd\",\n    \"wages = pd.read_csv('wages.csv')\",\n    \"wages.mean()\",\n    \"wages.median()\",\n    \"wages['hourly'].mean()\",\n]\nquery = \"mean\"\nprint(next(cmd for cmd in reversed(history) if query in cmd))",
+     "explain": "`reversed` starts from the last entry, and the first one that contains `mean` wins, just as Ctrl-r shows the most recent match first.",
+     "expected": "wages['hourly'].mean()"
+    }
+   ]
+  },
+  {
+   "id": "py.ipy.magics",
+   "book": {
+    "section": "1.03",
+    "title": "IPython Magic Commands",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.03-magic-commands.html"
+   },
+   "intro": "**Magic commands** are IPython's own additions to Python syntax. A *line magic* starts with one `%` and applies to the rest of that line; a *cell magic* starts with `%%` and applies to the whole cell below it.\n\n```python\nIn [1]: %run simulate.py          # run a script, keep its variables\nIn [2]: %timeit sorted(prices)    # time one line\nIn [3]: %lsmagic                  # list every available magic\nIn [4]: %timeit?                  # magics have docstrings too\n```\n\n`%run` executes a file as if it were the main program, then leaves its top-level names (functions, data, results) in your session so you can keep exploring them. The standard library has the same idea in `runpy.run_path`, which runs a file and returns its namespace as a dictionary:\n\n```python\nimport runpy\nns = runpy.run_path(\"simulate.py\", run_name=\"__main__\")\nns[\"results\"]\n```",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What is the difference between `%timeit` and `%%timeit`?",
+     "correct": "`%timeit` times one line; `%%timeit` times the whole cell it starts",
+     "wrong": [
+      "`%%timeit` runs twice as many loops",
+      "`%%timeit` works only in Jupyter, `%timeit` only in the terminal",
+      "There is no difference; the extra `%` is optional"
+     ],
+     "explain": "One `%` makes a line magic, two make a cell magic. The cell form is handy when the code to time needs several lines."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "After `%run model.py` finishes, where are the variables that `model.py` defined at top level?",
+     "correct": "In your interactive namespace, so you can use them at the next prompt",
+     "wrong": [
+      "Nowhere; they disappear when the script ends",
+      "Only in a dictionary called `Out`",
+      "In a new module object you must import first"
+     ],
+     "explain": "`%run` executes the file and then copies its globals into your session, which is what makes it handy for inspecting a script's results."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which command lists all the magic commands available in your IPython session?",
+     "correct": "`%lsmagic`",
+     "wrong": [
+      "`%magic?`",
+      "`dir(%)`",
+      "`help(magic)`"
+     ],
+     "explain": "`%lsmagic` prints every line and cell magic. `%magic` prints a long general description of the magic system."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "When IPython runs a script with `%run report.py`, what is `__name__` inside the script?",
+     "correct": "`'__main__'`, so an `if __name__ == '__main__':` block runs",
+     "wrong": [
+      "`'report'`",
+      "`'__ipython__'`",
+      "`None`"
+     ],
+     "explain": "By default `%run` executes the file as the main program, exactly as `python report.py` would."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import runpy\n\nwith open(\"demo.py\", \"w\") as f:\n    f.write(\"rate = 0.05\\n\")\n    f.write(\"years = 3\\n\")\n    f.write(\"growth = round((1 + rate) ** years, 4)\\n\")\n\nns = runpy.run_path(\"demo.py\")\nprint(ns[\"growth\"], \"years\" in ns)",
+     "explain": "`run_path` executes the file and returns its top-level names, the same names `%run demo.py` would leave in your IPython session. 1.05 cubed is 1.157625, rounded to four places.",
+     "expected": "1.1576 True"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "A script `elasticity.py` is already in the working folder. Run it with `runpy.run_path` as the main program (`run_name=\"__main__\"`), keep the returned namespace in `ns`, and set `elasticity` to the value the script computed under that same name.",
+     "starter": "import runpy\nns = ...\nelasticity = ...",
+     "setup": "with open(\"elasticity.py\", \"w\") as f:\n    f.write(\n        \"q0, q1 = 100.0, 95.0\\n\"\n        \"p0, p1 = 10.0, 11.0\\n\"\n        \"elasticity = ((q1 - q0) / q0) / ((p1 - p0) / p0)\\n\"\n        \"ran_as_main = False\\n\"\n        \"if __name__ == '__main__':\\n\"\n        \"    ran_as_main = True\\n\"\n    )",
+     "solution": "import runpy\nns = runpy.run_path(\"elasticity.py\", run_name=\"__main__\")\nelasticity = ns[\"elasticity\"]",
+     "tests": [
+      {
+       "name": "ns",
+       "code": "check(isinstance(get(\"ns\"), dict) and \"elasticity\" in ns,\n      \"`ns` should be the dictionary returned by runpy.run_path.\")"
+      },
+      {
+       "name": "value",
+       "code": "check(close(get(\"elasticity\"), -0.5),\n      \"`elasticity` should be the value the script computed.\")"
+      },
+      {
+       "name": "main",
+       "code": "check(ns.get(\"ran_as_main\") is True,\n      \"Run the script as the main program by passing run_name='__main__'.\")"
+      }
+     ],
+     "explain": "`runpy.run_path` is the plain-Python version of `%run`: it executes the file and hands back its globals. With `run_name=\"__main__\"` the script's main block runs too."
+    }
+   ]
+  },
+  {
+   "id": "py.ipy.history",
+   "book": {
+    "section": "1.04",
+    "title": "Input and Output History",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.04-input-output-history.html"
+   },
+   "intro": "IPython numbers every prompt and records two objects as you work:\n\n- `In` is a list of the code you typed, so `In[3]` is the third input.\n- `Out` is a dict from prompt number to the value that prompt displayed.\n\nShortcuts save typing: `_` is the last output, `__` the one before, `___` the one before that, and `_7` is `Out[7]`. A cell whose value is `None`, such as a `print` call, puts nothing in `Out`. Ending a line with `;` hides the value and keeps it out of `Out` too. `%history -n 1-5` lists inputs 1 to 5 with their numbers.\n\n```python\nIn [1]: 120 * 1.08\nOut[1]: 129.6\nIn [2]: _ / 12        # uses Out[1]\nOut[2]: 10.8\n```\n\nA script has none of this: an expression on its own line is computed and thrown away. The display step is `sys.displayhook`, which the interactive shells call with each value.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Three cells in a row displayed `5`, `12` and `40`. What is `__` (two underscores) now?",
+     "correct": "`12`",
+     "wrong": [
+      "`5`",
+      "`40`",
+      "`52`"
+     ],
+     "explain": "`_` is the latest output (40), `__` the one before it (12), and `___` the one before that (5)."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Prompt 4 was `print(total)`. What is `Out[4]`?",
+     "correct": "There is no `Out[4]`: `print` returns `None`, so nothing was stored",
+     "wrong": [
+      "The printed text, as a string",
+      "`None`",
+      "The value of `total`"
+     ],
+     "explain": "`print` writes text but its value is `None`, and IPython stores only values it displays. Looking up `Out[4]` raises `KeyError`."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Why end a line such as `fig = make_plot(data);` with a semicolon in IPython?",
+     "correct": "To stop the value being displayed and stored in `Out`",
+     "wrong": [
+      "Python requires it at the end of an assignment",
+      "To run the line in the background",
+      "To make the line a cell magic"
+     ],
+     "explain": "The trailing semicolon suppresses the display. The code still runs and any assignment still happens."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What is `_3` in IPython?",
+     "correct": "The output of prompt 3, the same as `Out[3]`",
+     "wrong": [
+      "The input of prompt 3, the same as `In[3]`",
+      "The third most recent output",
+      "A syntax error"
+     ],
+     "explain": "`_N` is shorthand for `Out[N]`. Inputs are reached through `In[N]` (or `_iN`)."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "This runs as a script, not in IPython. What does it print?",
+     "code": "price = 80\nprice * 1.25\nprint(\"done\")",
+     "explain": "In a script, a bare expression is computed and discarded; only an interactive shell shows its value. The only output is from `print`.",
+     "expected": "done"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import sys, builtins\nsys.displayhook(6 * 7)\nsys.displayhook(None)\nprint(builtins._ + 1)",
+     "explain": "`sys.displayhook` is what interactive Python calls with each expression's value. It prints the repr and saves the value as `_`, but it skips `None` entirely, which is why `print` calls never become `_`.",
+     "expected": "42\n43"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 3,
+     "prompt": "Build a tiny version of IPython's history. Write `run_cells(cells)` that takes a list of expression strings and returns `(In, Out)`: `In` starts as `[\"\"]` and gets every cell appended; `Out` is a dict from cell number (starting at 1) to the cell's value, evaluated with `eval`. Leave a cell out of `Out` if its value is `None` or if its text ends with `;` (strip the `;` before evaluating).",
+     "starter": "def run_cells(cells):\n    In, Out = [\"\"], {}\n    ...\n    return In, Out",
+     "setup": "",
+     "solution": "def run_cells(cells):\n    In, Out = [\"\"], {}\n    for n, src in enumerate(cells, start=1):\n        In.append(src)\n        text = src.rstrip()\n        quiet = text.endswith(\";\")\n        value = eval(text.rstrip(\";\"))\n        if value is not None and not quiet:\n            Out[n] = value\n    return In, Out",
+     "tests": [
+      {
+       "name": "in",
+       "code": "In_, Out_ = run_cells([\"2 + 3\", \"None\", \"7 * 6;\", \"len('abc')\"])\ncheck(In_ == [\"\", \"2 + 3\", \"None\", \"7 * 6;\", \"len('abc')\"],\n      \"`In` should start with an empty string and hold every cell's text.\")"
+      },
+      {
+       "name": "out",
+       "code": "In_, Out_ = run_cells([\"2 + 3\", \"None\", \"7 * 6;\", \"len('abc')\"])\ncheck(Out_ == {1: 5, 4: 3},\n      \"`Out` should map cell numbers to values, skipping None and cells ending in ';'.\")"
+      }
+     ],
+     "explain": "Numbering from 1 matches IPython's prompts, and `In[0]` is an empty placeholder for the same reason. The semicolon and `None` rules are the two ways a value stays out of `Out`."
+    }
+   ]
+  },
+  {
+   "id": "py.ipy.shell",
+   "book": {
+    "section": "1.05",
+    "title": "IPython and Shell Commands",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.05-ipython-and-shell-commands.html"
+   },
+   "intro": "Any line that starts with `!` goes to the operating system's shell instead of Python:\n\n```python\nIn [1]: !ls data\nIn [2]: files = !ls data          # capture the output as a list of lines\nIn [3]: year = 2023\nIn [4]: !echo {year}              # {name} inserts a Python value\n```\n\nThe captured result is a list-like object with one string per line of output, so ordinary Python can filter it.\n\nEach `!` command runs in a fresh subshell, so `!cd reports` changes directory only for that throwaway shell. To move IPython itself, use the `%cd` magic. Common ones such as `cd`, `pwd` and `ls` also work without the `%` (this is called *automagic*). In plain Python the same jobs belong to `os.getcwd`, `os.chdir`, `os.listdir` and `os.makedirs`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "You run `!cd output` and then `!pwd`. Why is the directory unchanged?",
+     "correct": "Each `!` command runs in its own subshell, which exits when the command ends",
+     "wrong": [
+      "`!cd` needs an absolute path",
+      "`pwd` reports the directory IPython was installed in",
+      "Shell commands are queued and run only when IPython exits"
+     ],
+     "explain": "The `cd` happened inside a short-lived child shell. Use `%cd output` (or plain `cd output`, through automagic) to change IPython's own working directory."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "After `lines = !wc -l survey.csv`, what kind of object is `lines`?",
+     "correct": "A list-like object holding the command's output, one string per line",
+     "wrong": [
+      "The command's exit code as an int",
+      "A single string with the whole output",
+      "`None`, because shell output is only printed"
+     ],
+     "explain": "Assigning a `!` command captures its standard output as a list of lines (IPython's `SList`), which you can index, loop over and filter."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "With `region = 'north'` defined, which line passes the value to a shell command?",
+     "correct": "`!echo {region}`",
+     "wrong": [
+      "`!echo region`",
+      "`!echo %region`",
+      "`%echo region`"
+     ],
+     "explain": "Braces around a Python name expand it before the line goes to the shell. Without them the shell sees the literal word."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import os\nstart = os.getcwd()\nos.makedirs(\"reports/2024\", exist_ok=True)\nos.chdir(\"reports/2024\")\nprint(os.path.relpath(os.getcwd(), start))",
+     "explain": "`os.chdir` changes the current process's directory and it stays changed, which is what `%cd` does for IPython. `relpath` shows the new location relative to where we started.",
+     "expected": "reports/2024"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "listing = \"wages.csv\\nprices.csv\\nnotes.txt\\n\"   # what `!ls` might return\nlines = listing.splitlines()\nprint(len(lines), [n for n in lines if n.endswith(\".csv\")])",
+     "explain": "Captured shell output is split into one string per line, so filtering it is ordinary list work.",
+     "expected": "3 ['wages.csv', 'prices.csv']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "A folder `data` in the working directory holds several files. Set `csvs` to the sorted list of the file names in `data` that end in `.csv`, using the `os` module (the plain-Python version of `files = !ls data` followed by a filter).",
+     "starter": "import os\ncsvs = ...",
+     "setup": "import os\nos.makedirs(\"data\", exist_ok=True)\nfor name in [\"wages.csv\", \"notes.txt\", \"prices.csv\", \"rents.csv\", \"readme.md\"]:\n    with open(os.path.join(\"data\", name), \"w\") as f:\n        f.write(\"x\\n\")",
+     "solution": "import os\ncsvs = sorted(n for n in os.listdir(\"data\") if n.endswith(\".csv\"))",
+     "tests": [
+      {
+       "name": "csvs",
+       "code": "check(list(get(\"csvs\")) == [\"prices.csv\", \"rents.csv\", \"wages.csv\"],\n      \"`csvs` should be the sorted names in data/ that end with .csv.\")"
+      }
+     ],
+     "explain": "`os.listdir` returns the names in a folder in arbitrary order, so sort after filtering."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Make a folder `results/q1` (creating `results` too), change into it with `os.chdir`, and set `here` to the name of the folder you are now in (just the last part of the path).",
+     "starter": "import os\nhere = ...",
+     "setup": "",
+     "solution": "import os\nos.makedirs(\"results/q1\", exist_ok=True)\nos.chdir(\"results/q1\")\nhere = os.path.basename(os.getcwd())",
+     "tests": [
+      {
+       "name": "cwd",
+       "code": "import os\ncheck(os.getcwd().endswith(os.path.join(\"results\", \"q1\")),\n      \"The working directory should now be results/q1. Did you call os.chdir?\")"
+      },
+      {
+       "name": "here",
+       "code": "check(get(\"here\") == \"q1\", \"`here` should be the last part of the current path.\")"
+      }
+     ],
+     "explain": "`os.makedirs` creates intermediate folders. After `os.chdir`, every later relative path starts from the new folder, as after `%cd`."
+    }
+   ]
+  },
+  {
+   "id": "py.ipy.errors",
+   "book": {
+    "section": "1.06",
+    "title": "Errors and Debugging",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.06-errors-and-debugging.html"
+   },
+   "intro": "When code fails, Python shows a **traceback**: the chain of calls that led to the error, outermost first, ending with the exception type and message. IPython lets you choose how much detail you see with `%xmode`: `Minimal` (just the error line), `Plain` (classic Python), `Context` (the default, with surrounding lines of code) and `Verbose` (also the values of variables).\n\n```python\nIn [5]: %xmode Verbose\nIn [6]: %debug        # open the debugger at the last exception\nipdb> up              # move to the calling frame\nipdb> p wage          # print a variable there\nipdb> q               # quit\n```\n\n`%pdb on` makes the debugger open by itself after every exception. The same information is available to programs: an exception object carries its traceback in `e.__traceback__`, and the `traceback` module turns it into frames and text.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which `%xmode` setting also shows the values of local variables in each frame?",
+     "correct": "`Verbose`",
+     "wrong": [
+      "`Context`",
+      "`Plain`",
+      "`Minimal`"
+     ],
+     "explain": "`Verbose` adds variable values, which helps when the error depends on data. `Context` (the default) shows code around each line; `Minimal` shows only the exception."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "A function call just raised an exception. What does typing `%debug` do?",
+     "correct": "Opens the debugger in the frame where the exception happened, so you can inspect its variables",
+     "wrong": [
+      "Reruns the last cell line by line",
+      "Turns on verbose tracebacks for future errors",
+      "Deletes the variables involved in the error"
+     ],
+     "explain": "`%debug` is post-mortem debugging: you land in the failing frame with all its local state intact."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Inside the debugger, the error is in a helper but the bad argument came from its caller. Which command moves to the caller's frame?",
+     "correct": "`up` (or `u`)",
+     "wrong": [
+      "`next` (or `n`)",
+      "`continue` (or `c`)",
+      "`step` (or `s`)"
+     ],
+     "explain": "`up` and `down` move through the call stack without running any code. `next` and `step` execute lines, and `continue` resumes."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does `%pdb on` do?",
+     "correct": "Starts the debugger automatically whenever an exception is raised",
+     "wrong": [
+      "Prevents exceptions from being raised",
+      "Prints a traceback for every successful cell",
+      "Installs the pdb module"
+     ],
+     "explain": "With automatic debugging on, you skip typing `%debug` after each failure; `%pdb off` turns it back off."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import traceback\n\ndef share(part, total):\n    return part / total\n\ntry:\n    share(3, 0)\nexcept ZeroDivisionError as e:\n    print(type(e).__name__)\n    print(traceback.format_exception_only(e)[-1].strip())",
+     "explain": "`format_exception_only` gives the final line of a traceback, which is all `%xmode Minimal` shows.",
+     "expected": "ZeroDivisionError\nZeroDivisionError: division by zero"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import traceback\n\ndef unit_cost(total, units):\n    return total / units\n\ndef report(rows):\n    out = []\n    for t, u in rows:\n        out.append(unit_cost(t, u))\n    return out\n\ntry:\n    report([(100, 4), (50, 0)])\nexcept ZeroDivisionError as e:\n    frames = traceback.extract_tb(e.__traceback__)\n    print([f.name for f in frames])",
+     "explain": "The traceback lists frames from the outermost call inward: the module itself, then `report`, then `unit_cost`, where the division failed. `up` in the debugger walks this list backwards.",
+     "expected": "['<module>', 'report', 'unit_cost']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Write `parse_wages(rows)` that converts each string in `rows` to a float. Strings that cannot be converted raise `ValueError`; catch that, skip the entry, and record its position. Return a tuple `(values, bad)` where `bad` is the list of failing indexes.",
+     "starter": "def parse_wages(rows):\n    values, bad = [], []\n    ...\n    return values, bad",
+     "setup": "",
+     "solution": "def parse_wages(rows):\n    values, bad = [], []\n    for i, r in enumerate(rows):\n        try:\n            values.append(float(r))\n        except ValueError:\n            bad.append(i)\n    return values, bad",
+     "tests": [
+      {
+       "name": "good",
+       "code": "vals, bad = parse_wages([\"15.5\", \"n/a\", \"22\", \"\", \"18.25\"])\ncheck(close(vals, [15.5, 22.0, 18.25]), \"`values` should hold only the strings that converted.\")"
+      },
+      {
+       "name": "bad",
+       "code": "vals, bad = parse_wages([\"15.5\", \"n/a\", \"22\", \"\", \"18.25\"])\ncheck(list(bad) == [1, 3], \"`bad` should list the positions (from 0) of the strings that failed.\")"
+      }
+     ],
+     "explain": "Wrap just the conversion in `try`, and catch only `ValueError` so that a real bug of another kind still surfaces with its traceback."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 3,
+     "prompt": "Calling `run_model()` (already defined) raises an exception deep inside some helper. Call it inside `try/except Exception as e`, then set `err_type` to the exception's class name and `failed_in` to the name of the function where it was raised (the last frame of its traceback).",
+     "starter": "import traceback\nerr_type = ...\nfailed_in = ...",
+     "setup": "RATES = {\"north\": 0.03, \"south\": 0.025}\n\ndef lookup_rate(region):\n    return RATES[region]\n\ndef project(region, base):\n    return base * (1 + lookup_rate(region))\n\ndef run_model():\n    out = []\n    for r in [\"north\", \"west\"]:\n        out.append(project(r, 100))\n    return out",
+     "solution": "import traceback\ntry:\n    run_model()\nexcept Exception as e:\n    err_type = type(e).__name__\n    failed_in = traceback.extract_tb(e.__traceback__)[-1].name",
+     "tests": [
+      {
+       "name": "type",
+       "code": "check(get(\"err_type\") == \"KeyError\", \"`err_type` should be the exception's class name, as a string.\")"
+      },
+      {
+       "name": "frame",
+       "code": "check(get(\"failed_in\") == \"lookup_rate\",\n      \"`failed_in` should be the function name in the last frame of traceback.extract_tb(e.__traceback__).\")"
+      }
+     ],
+     "explain": "The innermost frame is where the exception was raised; that is where `%debug` would drop you."
+    }
+   ]
+  },
+  {
+   "id": "py.ipy.timing",
+   "book": {
+    "section": "1.07",
+    "title": "Profiling and Timing Code",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.07-timing-and-profiling.html"
+   },
+   "intro": "`%timeit stmt` runs a statement many times, picks the loop count for you, and reports a mean and standard deviation per run. That is the right tool for fast code, where one run is too short to measure. `%time stmt` runs it once and reports wall and CPU time, which suits slow code or code that should not be repeated. `%%timeit` times a whole cell.\n\nBoth are wrappers around tools you can call from plain Python:\n\n```python\nimport timeit, time\ntimeit.timeit(\"sum(range(1000))\", number=500)   # total seconds for 500 runs\ntimeit.repeat(\"sum(range(1000))\", number=500, repeat=5)  # 5 such totals\n\nt0 = time.perf_counter()\nresult = sum(range(10**6))\nelapsed = time.perf_counter() - t0\n```\n\nCompare timings only on the same machine, and look for large gaps (ten times, a hundred times), not small ones that noise can explain.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You want to know how long one call to a function that takes 20 seconds needs. Which is the sensible choice?",
+     "correct": "`%time`, which runs it once",
+     "wrong": [
+      "`%timeit`, which will repeat it many times",
+      "`%lsmagic`",
+      "`%run`"
+     ],
+     "explain": "`%timeit` repeats the statement to average out noise, which costs minutes for a 20-second call. A single `%time` run is plenty when the code is that slow."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `timeit.timeit(stmt, number=1000)` return?",
+     "correct": "The total time in seconds, as a float, for 1000 executions",
+     "wrong": [
+      "The average time per execution in microseconds",
+      "A list of 1000 timings",
+      "The value of the last execution of `stmt`"
+     ],
+     "explain": "Divide by `number` for the time per run. `timeit.repeat` returns a list of such totals, one per repeat."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Why does `%timeit` report the spread of several runs rather than a single number?",
+     "correct": "Run times vary with whatever else the machine is doing, so one measurement can mislead",
+     "wrong": [
+      "Python code runs at a different speed every second by design",
+      "The first run is always skipped",
+      "To estimate how much memory the statement uses"
+     ],
+     "explain": "Other processes, caches and the CPU's clock speed all add noise. Several runs show how stable the estimate is."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import timeit\ntimes = timeit.repeat(\"sorted(range(200))\", number=50, repeat=4)\nprint(len(times), type(times[0]).__name__, all(t > 0 for t in times))",
+     "explain": "`repeat` gives one total per repeat, each a float number of seconds. The values themselves change from run to run, which is why the question asks only about their shape.",
+     "expected": "4 float True"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`data_list` (a list) and `data_set` (a set) both hold the integers 0 to 199,999. Use `timeit.timeit` with `number=200` and `globals=globals()` to time the statement `199_999 in data_list`, storing the total in `t_list`, and the same test on `data_set` in `t_set`.",
+     "starter": "import timeit\nt_list = ...\nt_set = ...",
+     "setup": "data_list = list(range(200_000))\ndata_set = set(data_list)",
+     "solution": "import timeit\nt_list = timeit.timeit(\"199_999 in data_list\", number=200, globals=globals())\nt_set = timeit.timeit(\"199_999 in data_set\", number=200, globals=globals())",
+     "tests": [
+      {
+       "name": "floats",
+       "code": "check(isinstance(get(\"t_list\"), float) and isinstance(get(\"t_set\"), float),\n      \"`t_list` and `t_set` should be the floats that timeit.timeit returns.\")\ncheck(t_list > 0 and t_set > 0, \"Both timings should be positive.\")"
+      },
+      {
+       "name": "order",
+       "code": "check(t_list > 20 * t_set,\n      \"Searching the list should be far slower than the set. Did you time `199_999 in data_list` for t_list?\")"
+      },
+      {
+       "name": "timeit",
+       "code": "check(uses(\"timeit\"), \"Use timeit.timeit for the measurements.\")"
+      }
+     ],
+     "explain": "A list membership test scans every element; a set looks the value up by hash. The gap is in the hundreds or thousands, so it shows up clearly however noisy the machine is."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Write `elapsed(func)` that calls `func()` once and returns how many seconds it took, measured with `time.perf_counter` (a tiny `%time`).",
+     "starter": "import time\n\ndef elapsed(func):\n    ...",
+     "setup": "",
+     "solution": "import time\n\ndef elapsed(func):\n    t0 = time.perf_counter()\n    func()\n    return time.perf_counter() - t0",
+     "tests": [
+      {
+       "name": "float",
+       "code": "t = elapsed(lambda: None)\ncheck(isinstance(t, float) and t >= 0, \"elapsed should return a non-negative float number of seconds.\")"
+      },
+      {
+       "name": "calls",
+       "code": "calls = []\nelapsed(lambda: calls.append(1))\ncheck(calls == [1], \"elapsed should call func exactly once.\")"
+      },
+      {
+       "name": "order",
+       "code": "slow = elapsed(lambda: sum(range(2_000_000)))\nfast = elapsed(lambda: None)\ncheck(slow > 20 * fast and slow > 0, \"A slow function should take much longer than an empty one.\")"
+      }
+     ],
+     "explain": "Read `perf_counter` before and after the call and subtract. It is a high-resolution clock meant for exactly this; its absolute value means nothing on its own."
+    }
+   ]
+  },
+  {
+   "id": "py.ipy.profiling",
+   "book": {
+    "section": "1.07",
+    "title": "Profiling and Timing Code",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/01.07-timing-and-profiling.html"
+   },
+   "intro": "Timing says *how long*; profiling says *where*. `%prun stmt` runs the statement under Python's built-in `cProfile` and prints, for every function called, how many times it ran and how long it took, sorted by the time spent inside each function itself.\n\nTwo popular extensions go further. After `%load_ext line_profiler`, `%lprun -f func stmt` shows the time spent on each *line* of `func`. After `%load_ext memory_profiler`, `%memit stmt` reports peak memory and `%mprun` gives line-by-line memory use.\n\n```python\nimport cProfile, pstats\nprof = cProfile.Profile()\nprof.enable()\nsimulate_economy(1000)\nprof.disable()\npstats.Stats(prof).sort_stats(\"tottime\").print_stats(5)\n```\n\nThe standard library's `tracemalloc` covers the `%memit` idea: `tracemalloc.get_traced_memory()` returns the current and peak bytes.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which tool tells you which *function* in a long pipeline uses the most time?",
+     "correct": "`%prun`",
+     "wrong": [
+      "`%timeit`",
+      "`%time`",
+      "`%memit`"
+     ],
+     "explain": "`%prun` breaks the run down by function. The timing magics give one number for the whole statement."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What must you do before `%lprun` works in a fresh IPython session?",
+     "correct": "Install the line_profiler package and run `%load_ext line_profiler`",
+     "wrong": [
+      "Nothing; it is built into IPython",
+      "Run `%prun` first to collect data",
+      "Restart IPython in debug mode"
+     ],
+     "explain": "`%lprun` and `%memit` come from third-party extensions. Once installed, `%load_ext` registers their magics."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "In `%prun` output, `tottime` is the time inside a function excluding calls to other functions. What does `cumtime` include?",
+     "correct": "The function's own time plus the time of every function it called",
+     "wrong": [
+      "Only the time of the first call",
+      "The time since IPython started",
+      "The time spent in the profiler itself"
+     ],
+     "explain": "A thin wrapper that calls something slow has a small `tottime` but a large `cumtime`. Look at `tottime` to find where work really happens."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "You run `%lprun -f clean_data pipeline(df)`. What do you get?",
+     "correct": "Time spent on each line of `clean_data` while `pipeline(df)` runs",
+     "wrong": [
+      "Time spent on each line of `pipeline`",
+      "Memory used by each line of `clean_data`",
+      "A count of how often `pipeline` is called"
+     ],
+     "explain": "`-f` names the function to inspect line by line, and the rest of the line is the statement that exercises it."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import cProfile, pstats\n\ndef tax(income):\n    return 0.2 * income\n\ndef payroll(n):\n    return sum(tax(w) for w in range(n))\n\nprof = cProfile.Profile()\nprof.enable()\npayroll(25)\nprof.disable()\n\nstats = pstats.Stats(prof).stats\nfor (filename, line, func), (cc, ncalls, tt, ct, callers) in stats.items():\n    if func == \"tax\":\n        print(ncalls)",
+     "explain": "The profiler counts every call. `tax` runs once per worker, the same number `%prun payroll(25)` shows in its `ncalls` column.",
+     "expected": "25"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 3,
+     "prompt": "`simulate(n)` is already defined and calls a helper `draw_shock`. Profile one call of `simulate(300)` with `cProfile.Profile`, build `stats = pstats.Stats(prof)`, and set `shock_calls` to the number of times `draw_shock` was called, read from `stats.stats`.",
+     "starter": "import cProfile, pstats\nprof = ...\nstats = ...\nshock_calls = ...",
+     "setup": "def draw_shock(t):\n    return ((t * 7919) % 101) / 100 - 0.5\n\ndef simulate(n):\n    path = [0.0]\n    for t in range(n):\n        for k in range(3):\n            path.append(path[-1] * 0.9 + draw_shock(t + k))\n    return path",
+     "solution": "import cProfile, pstats\nprof = cProfile.Profile()\nprof.enable()\nsimulate(300)\nprof.disable()\nstats = pstats.Stats(prof)\nshock_calls = next(v[1] for k, v in stats.stats.items() if k[2] == \"draw_shock\")",
+     "tests": [
+      {
+       "name": "stats",
+       "code": "import pstats\ncheck(isinstance(get(\"stats\"), pstats.Stats), \"`stats` should be a pstats.Stats built from your profiler.\")"
+      },
+      {
+       "name": "calls",
+       "code": "check(get(\"shock_calls\") == 900,\n      \"`shock_calls` should be the call count recorded for draw_shock. Keys of stats.stats are (file, line, name) and each value starts with (primitive calls, total calls, ...).\")"
+      }
+     ],
+     "explain": "Each key in `stats.stats` is `(filename, line, function name)` and each value starts with the primitive and total call counts. Reading the profile directly is what `%prun` formats into a table."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Measure peak memory the way `%memit` would, using `tracemalloc`. Set `peak_small` to the peak traced bytes while building `[float(i) for i in range(1_000)]`, and `peak_big` to the peak for `range(200_000)`. Start tracing before each build and stop it after reading `tracemalloc.get_traced_memory()`.",
+     "starter": "import tracemalloc\npeak_small = ...\npeak_big = ...",
+     "setup": "",
+     "solution": "import tracemalloc\n\ntracemalloc.start()\nsmall = [float(i) for i in range(1_000)]\npeak_small = tracemalloc.get_traced_memory()[1]\ntracemalloc.stop()\ndel small\n\ntracemalloc.start()\nbig = [float(i) for i in range(200_000)]\npeak_big = tracemalloc.get_traced_memory()[1]\ntracemalloc.stop()",
+     "tests": [
+      {
+       "name": "ints",
+       "code": "check(isinstance(get(\"peak_small\"), int) and isinstance(get(\"peak_big\"), int),\n      \"Both peaks should be the int byte counts from get_traced_memory().\")\ncheck(peak_small > 0, \"`peak_small` should be positive: start tracing before building the list.\")"
+      },
+      {
+       "name": "order",
+       "code": "check(peak_big > 20 * peak_small,\n      \"`peak_big` should be far larger than `peak_small`. Trace each build separately.\")"
+      }
+     ],
+     "explain": "`get_traced_memory()` returns `(current, peak)` in bytes since tracing started. Restarting between the two builds keeps the small measurement from leaking into the big one."
+    }
+   ]
+  }
+ ]
+}

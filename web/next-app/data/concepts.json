@@ -14884,6 +14884,131 @@
     "subdomain": "probability_theory.processes"
   },
   {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.help",
+    "label": "Help, docstrings and source with ? and ??",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [],
+    "subdomain": "python_ipython.01_01_help_and_documentation"
+  },
+  {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.completion",
+    "label": "Tab completion and wildcard search",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ipy.help"
+    ],
+    "subdomain": "python_ipython.01_01_help_and_documentation"
+  },
+  {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.shortcuts",
+    "label": "Keyboard shortcuts and history search",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ipy.help"
+    ],
+    "subdomain": "python_ipython.01_02_shell_keyboard_shortcuts"
+  },
+  {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.magics",
+    "label": "Magic commands: %run, %timeit, %lsmagic",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ipy.help"
+    ],
+    "subdomain": "python_ipython.01_03_magic_commands"
+  },
+  {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.history",
+    "label": "Input and output history: In, Out and _",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ipy.magics"
+    ],
+    "subdomain": "python_ipython.01_04_input_output_history"
+  },
+  {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.shell",
+    "label": "Shell commands with ! and %cd",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ipy.magics"
+    ],
+    "subdomain": "python_ipython.01_05_ipython_and_shell_commands"
+  },
+  {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.errors",
+    "label": "Tracebacks, %xmode and %debug",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ipy.magics"
+    ],
+    "subdomain": "python_ipython.01_06_errors_and_debugging"
+  },
+  {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.timing",
+    "label": "Timing code with %timeit and %time",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ipy.magics"
+    ],
+    "subdomain": "python_ipython.01_07_timing_and_profiling"
+  },
+  {
+    "domain": "python_ipython",
+    "grading_type": "python",
+    "id": "py.ipy.profiling",
+    "label": "Profiling with %prun, %lprun and %memit",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ipy.timing",
+      "py.ipy.errors"
+    ],
+    "subdomain": "python_ipython.01_07_timing_and_profiling"
+  },
+  {
     "domain": "python_numpy",
     "grading_type": "python",
     "id": "py.np.dtypes",

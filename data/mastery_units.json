@@ -5,8 +5,8 @@
   "band_width": 3,
   "note": "DRAFT — ADR-046 D3. Band width is the open decision (how often a learner is assessed), not product policy. Unit prerequisite order is DERIVED from the concept DAG and deliberately not stored: authoring it would be a second hierarchy. Do not hand-edit concept_ids; regenerate with `go run ./cmd/masteryunits -band N`.",
   "source": "data/concepts",
-  "concept_count": 1270,
-  "unit_count": 125,
+  "concept_count": 1279,
+  "unit_count": 127,
   "units": [
     {
       "id": "abstract_algebra.b6",
@@ -2687,6 +2687,49 @@
         "prob.process.transition_matrix"
       ],
       "concept_count": 14
+    },
+    {
+      "id": "python_ipython.b0",
+      "title": "Python Ipython · Stage 1",
+      "domain": "python_ipython",
+      "band": 0,
+      "depth_min": 0,
+      "depth_max": 2,
+      "subdomains": [
+        "python_ipython.01_01_help_and_documentation",
+        "python_ipython.01_02_shell_keyboard_shortcuts",
+        "python_ipython.01_03_magic_commands",
+        "python_ipython.01_04_input_output_history",
+        "python_ipython.01_05_ipython_and_shell_commands",
+        "python_ipython.01_06_errors_and_debugging",
+        "python_ipython.01_07_timing_and_profiling"
+      ],
+      "concept_ids": [
+        "py.ipy.completion",
+        "py.ipy.errors",
+        "py.ipy.help",
+        "py.ipy.history",
+        "py.ipy.magics",
+        "py.ipy.shell",
+        "py.ipy.shortcuts",
+        "py.ipy.timing"
+      ],
+      "concept_count": 8
+    },
+    {
+      "id": "python_ipython.b1",
+      "title": "Python Ipython · Stage 2",
+      "domain": "python_ipython",
+      "band": 1,
+      "depth_min": 3,
+      "depth_max": 3,
+      "subdomains": [
+        "python_ipython.01_07_timing_and_profiling"
+      ],
+      "concept_ids": [
+        "py.ipy.profiling"
+      ],
+      "concept_count": 1
     },
     {
       "id": "python_numpy.b0",

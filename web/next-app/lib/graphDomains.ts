@@ -89,6 +89,7 @@ export const MATH_DOMAIN_ORDER = [
 // Handbook, in book order. A chapter is listed here once its concepts are in
 // data/concepts, so this list always equals the Python domains on disk.
 export const PYTHON_DOMAIN_ORDER = [
+  'python_ipython',
   'python_numpy',
 ] as const
 
