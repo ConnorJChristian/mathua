@@ -362,7 +362,7 @@
     "label": "Solve quadratics by factoring",
     "domain": "algebra",
     "subdomain": "algebra.quadratics",
-    "grading_type": "tuple",
+    "grading_type": "numeric",
     "prerequisites": [
       "alg.factor.trinomial"
     ],

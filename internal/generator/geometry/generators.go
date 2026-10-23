@@ -2,7 +2,6 @@ package geometry
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"strconv"
 
@@ -408,12 +407,15 @@ func (g *circumferenceGen) Generate(ctx generator.GeneratorContext) generator.Pr
 	scale := int(1 + ctx.Difficulty*5)
 	r := rand.Intn(max(1, scale*4)) + 5
 	pi := 3.14
-	circ := math.Round(2 * pi * float64(r))
+	// Two decimal places, because the learner computes 2 x 3.14 x r exactly and
+	// rounding the answer to a whole number rejected 69.08 for r = 11 (report
+	// 213, 23 October 2026).
+	circ := 2 * pi * float64(r)
 	return generator.Problem{
-		Question:    fmt.Sprintf("Circle radius = %d. Find the circumference (use pi = 3.14).", r),
-		Answer:      fmt.Sprintf("%.0f", circ),
-		Explanation: fmt.Sprintf("\\(C = 2 \\pi r = 2 \\times 3.14 \\times %d = %.0f\\).", r, 2*3.14*float64(r)),
-		Facts:       map[string]string{"r": strconv.Itoa(r), "circ": fmt.Sprintf("%.0f", circ), "twice_r": strconv.Itoa(2 * r)},
+		Question:    fmt.Sprintf("Circle radius = %d. Find the circumference to two decimal places (use pi = 3.14).", r),
+		Answer:      fmt.Sprintf("%.2f", circ),
+		Explanation: fmt.Sprintf("\\(C = 2 \\pi r = 2 \\times 3.14 \\times %d = %.2f\\).", r, circ),
+		Facts:       map[string]string{"r": strconv.Itoa(r), "circ": fmt.Sprintf("%.2f", circ), "twice_r": strconv.Itoa(2 * r)},
 	}
 }
 
@@ -422,12 +424,14 @@ type circleAreaGen struct{}
 func (g *circleAreaGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	scale := int(1 + ctx.Difficulty*5)
 	r := rand.Intn(max(1, scale*2)) + 3
-	area := math.Round(3.14 * float64(r*r))
+	// Same precision rule as the circumference: the learner computes
+	// 3.14 x r x r exactly, so the answer carries two decimal places.
+	area := 3.14 * float64(r*r)
 	return generator.Problem{
-		Question:    fmt.Sprintf("Circle radius = %d. Find the area (use pi = 3.14).", r),
-		Answer:      fmt.Sprintf("%.0f", area),
-		Explanation: fmt.Sprintf("\\(A = \\pi r^{2} = 3.14 \\times %d^{2} = 3.14 \\times %d = %.0f\\).", r, r*r, 3.14*float64(r*r)),
-		Facts:       map[string]string{"r": strconv.Itoa(r), "r_sq": strconv.Itoa(r * r), "area": fmt.Sprintf("%.0f", area)},
+		Question:    fmt.Sprintf("Circle radius = %d. Find the area to two decimal places (use pi = 3.14).", r),
+		Answer:      fmt.Sprintf("%.2f", area),
+		Explanation: fmt.Sprintf("\\(A = \\pi r^{2} = 3.14 \\times %d^{2} = 3.14 \\times %d = %.2f\\).", r, r*r, area),
+		Facts:       map[string]string{"r": strconv.Itoa(r), "r_sq": strconv.Itoa(r * r), "area": fmt.Sprintf("%.2f", area)},
 	}
 }
 
