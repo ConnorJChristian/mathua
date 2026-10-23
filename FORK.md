@@ -222,6 +222,27 @@ A local module can author code tasks the same way the Python track does:
 `statsmodels`, the `wooldridge` data sets and `ISLP` (data and model helpers
 only), so tasks can use real econometrics data with no network.
 
+## Learning reports
+
+`scripts/learning_report.py` reads a copy of the app's database and writes a
+report for one learner: activity and accuracy by week, study-plan pace
+against a deadline, stuck topics with the prerequisite most likely behind
+them, slow topics, the review backlog, and questions that look broken rather
+than hard (for example a rounded decimal rejected against a fraction key).
+
+The database lives in a Docker volume. To read it from outside Docker, copy
+`docker-compose.override.example.yml` to `docker-compose.override.yml`; it
+adds a small service that snapshots the database to `local-data/` every
+hour. Then:
+
+```bash
+python3 scripts/learning_report.py local-data/mathua-snapshot.db \
+  --config local-data/analytics.json --out local-data/reports/today.md
+```
+
+`analytics.json` is optional: `{"deadlines": {"<course id>": "2026-12-06"}}`
+turns a plan's pace into on track or behind. The report changes nothing.
+
 ## Python for Data Science track
 
 The `python-dsh` module adds the **Python** side of the header switch. Same

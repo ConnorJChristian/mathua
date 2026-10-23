@@ -1,0 +1,25 @@
+# Copy to docker-compose.override.yml (git-ignored) to keep an hourly snapshot
+# of the app's database in ./local-data/, where scripts/learning_report.py and
+# other tools outside Docker can read it. The live database stays in the
+# Docker volume; the snapshot is taken with SQLite's backup command, so it is
+# consistent even while you practise.
+services:
+  snapshot:
+    image: alpine:3.20
+    restart: unless-stopped
+    volumes:
+      - mathua_data:/data
+      - ./local-data:/out
+    command:
+      - sh
+      - -c
+      - >-
+        apk add --no-cache sqlite >/dev/null &&
+        while true; do
+        if [ -f /data/mathua.db ]; then
+        sqlite3 /data/mathua.db '.backup /tmp/s.db' &&
+        cp /tmp/s.db /out/mathua-snapshot.db.tmp &&
+        mv /out/mathua-snapshot.db.tmp /out/mathua-snapshot.db;
+        fi;
+        sleep 3600;
+        done
