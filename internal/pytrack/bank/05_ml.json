@@ -1,0 +1,1762 @@
+{
+ "chapter": "ml",
+ "title": "Machine Learning",
+ "concepts": [
+  {
+   "id": "py.ml.kinds",
+   "book": {
+    "section": "5.01",
+    "title": "What Is Machine Learning?",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.01-what-is-machine-learning.html"
+   },
+   "intro": "Machine learning fits a model with adjustable parameters to data, then uses the fitted model on data it has not seen. The tasks split two ways.\n\n**Supervised** learning has a label for every row. If the label is a category (defaulted or not, sector of a firm) it is **classification**; if it is a number (a wage, next quarter's sales) it is **regression**.\n\n**Unsupervised** learning has no labels. **Clustering** groups similar rows (counties with similar economies); **dimensionality reduction** compresses many columns into a few that keep most of the structure.\n\n```python\nimport numpy as np\nincome = np.array([28.0, 41.5, 63.0, 19.2])   # regression target\npoor = (income < 30).astype(int)              # classification target\n```\n\nAn economist already knows half of this: OLS is supervised regression. The new emphasis is on prediction out of sample rather than on interpreting coefficients.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "A bank wants to predict whether each loan applicant will default (yes or no) from past applicants whose outcomes are known. What kind of task is this?",
+     "correct": "Supervised classification",
+     "wrong": [
+      "Supervised regression",
+      "Clustering",
+      "Dimensionality reduction"
+     ],
+     "explain": "Past outcomes are known, so it is supervised; the outcome is a category, so it is classification."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You predict each household's monthly electricity spending in currency units from its size and region. What kind of task is this?",
+     "correct": "Supervised regression",
+     "wrong": [
+      "Supervised classification",
+      "Clustering",
+      "Unsupervised regression"
+     ],
+     "explain": "The target is a continuous number, which makes it regression."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You have 40 economic indicators for 3,000 counties and no labels, and you want to find groups of counties with similar profiles. What kind of task is this?",
+     "correct": "Clustering (unsupervised)",
+     "wrong": [
+      "Classification (supervised)",
+      "Regression (supervised)",
+      "Dimensionality reduction (supervised)"
+     ],
+     "explain": "With no labels to predict, the goal is to discover structure. Finding groups of similar rows is clustering."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What do dimensionality-reduction methods do?",
+     "correct": "Represent each row with fewer columns while keeping as much of the data's structure as possible",
+     "wrong": [
+      "Remove rows that look like outliers",
+      "Predict a label with fewer parameters",
+      "Drop every column that has missing values"
+     ],
+     "explain": "They map many features to a few new ones, which helps with plotting, compression and noise removal. No label is used."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nrent = np.array([900.0, 1450.0, 1200.0, 700.0, 1600.0])\npricey = (rent > 1000).astype(int)\nprint(pricey, pricey.sum())",
+     "explain": "Thresholding a continuous variable turns a regression target into a two-class classification target: 1 where rent exceeds 1000.",
+     "expected": "[0 1 1 0 1] 3"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "`income` (already defined) is an array of household incomes in thousands. Make `low`, an integer array that is 1 where income is below the median of `income` and 0 otherwise. This turns a regression target into a classification target.",
+     "starter": "import numpy as np\nlow = ...",
+     "setup": "import numpy as np\nincome = np.array([22.0, 58.5, 41.0, 30.2, 19.9, 75.0])",
+     "solution": "import numpy as np\nlow = (income < np.median(income)).astype(int)",
+     "tests": [
+      {
+       "name": "labels",
+       "code": "import numpy as np\ncheck(getattr(low, \"shape\", None) == income.shape, \"`low` should have one entry per household.\")\ncheck(same_array(low, [1, 0, 0, 1, 1, 0]), \"`low` should be 1 exactly where income is below the median.\")"
+      },
+      {
+       "name": "dtype",
+       "code": "check(low.dtype.kind == \"i\", \"`low` should be an integer array of 0s and 1s, not booleans.\")"
+      }
+     ],
+     "explain": "Compare against `np.median(income)` to get a boolean mask, then `.astype(int)` converts True and False to 1 and 0."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.estimator_api",
+   "book": {
+    "section": "5.02",
+    "title": "Introducing Scikit-Learn",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.02-introducing-scikit-learn.html"
+   },
+   "intro": "Scikit-Learn wants data in two pieces. The **features matrix** `X` is two-dimensional with shape `(n_samples, n_features)`: one row per observation, one column per variable. The **target** `y` is one-dimensional, one value per row. A DataFrame works as `X`.\n\nEvery model follows the same steps:\n\n```python\nfrom sklearn.linear_model import LinearRegression\nmodel = LinearRegression(fit_intercept=True)  # 1. class, 2. hyperparameters\nX = schooling[:, None]                         # 3. arrange X as 2-D\nmodel.fit(X, wage)                             # 4. fit\nmodel.coef_, model.intercept_                  # learned values end in _\nmodel.predict([[12], [16]])                    # 5. predict new rows\n```\n\nHyperparameters are chosen by you when you build the object; parameters are learned by `fit` and stored in attributes with a trailing underscore. Unsupervised models use `fit(X)` with no `y`, then `transform` or `predict`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`x` is a 1-D array of 50 years of schooling. Why does `LinearRegression().fit(x, wage)` raise an error?",
+     "correct": "`X` must be 2-D with shape (n_samples, n_features); `x[:, None]` or `x.reshape(-1, 1)` fixes it",
+     "wrong": [
+      "LinearRegression only accepts DataFrames",
+      "The target must be 2-D as well",
+      "Integer features are not allowed"
+     ],
+     "explain": "Scikit-Learn refuses to guess whether a 1-D array is one feature or one sample. Making it a single column removes the ambiguity."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which of these is a hyperparameter rather than a learned parameter?",
+     "correct": "`n_clusters` passed to `KMeans(...)`",
+     "wrong": [
+      "`coef_` of a fitted LinearRegression",
+      "`intercept_`",
+      "`cluster_centers_` of a fitted KMeans"
+     ],
+     "explain": "Hyperparameters are set before fitting, in the constructor. Names ending in an underscore are only created by `fit`."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "In what order does the Estimator API workflow go?",
+     "correct": "Choose a model class, set hyperparameters, arrange X and y, fit, then predict or transform",
+     "wrong": [
+      "Arrange X and y, predict, then fit",
+      "Fit, choose hyperparameters, then choose a class",
+      "Choose hyperparameters, predict, then arrange X and y"
+     ],
+     "explain": "You build the object first, fit it on data, then apply it."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\nx = np.array([8, 10, 12, 14, 16])\nwage = 3 + 1.5 * x\nmodel = LinearRegression().fit(x[:, None], wage)\nprint(round(model.coef_[0], 3), round(model.intercept_, 3))",
+     "explain": "The data lie exactly on wage = 3 + 1.5 x, so least squares recovers slope 1.5 and intercept 3.",
+     "expected": "1.5 3.0"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import load_wine\nfrom sklearn.decomposition import PCA\nX, y = load_wine(return_X_y=True)\nZ = PCA(n_components=2).fit_transform(X)\nprint(X.shape, y.shape, Z.shape)",
+     "explain": "The wine data has 178 rows and 13 features. PCA is unsupervised: it ignores `y` and maps every row to 2 new columns.",
+     "expected": "(178, 13) (178,) (178, 2)"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "`exper` (years of experience, 1-D) and `wage` are already defined. Fit a `LinearRegression` called `model` of wage on experience, then store in `pred` its predicted wages at 5, 10 and 20 years.",
+     "starter": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\nmodel = ...\npred = ...",
+     "setup": "import numpy as np\nexper = np.arange(0, 31, dtype=float)\nwage = 11.8 + 0.42 * exper",
+     "solution": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\nmodel = LinearRegression()\nmodel.fit(exper[:, None], wage)\npred = model.predict(np.array([[5], [10], [20]]))",
+     "tests": [
+      {
+       "name": "fitted",
+       "code": "check(hasattr(model, \"coef_\"), \"`model` should be a fitted LinearRegression.\")"
+      },
+      {
+       "name": "pred",
+       "code": "import numpy as np\nref = 11.8 + 0.42 * np.array([5, 10, 20])\ncheck(getattr(pred, \"shape\", None) == (3,), \"`pred` should hold three predictions.\")\ncheck(close(pred, ref, rtol=1e-3), \"`pred` should be the model's predictions at 5, 10 and 20 years.\")"
+      }
+     ],
+     "explain": "`exper[:, None]` turns the 1-D array into one column. New inputs must have the same layout: three rows, one column."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "The DataFrame `df` (already defined) has columns `hours`, `age` and `earnings`. Set `X` to a DataFrame of the two feature columns, `y` to the `earnings` column, and fit `model`, a `LinearRegression`, on them.",
+     "starter": "from sklearn.linear_model import LinearRegression\nX = ...\ny = ...\nmodel = ...",
+     "setup": "import numpy as np, pandas as pd\nrng = np.random.default_rng(3)\nhours = rng.integers(10, 50, 40).astype(float)\nage = rng.integers(20, 60, 40).astype(float)\ndf = pd.DataFrame({\"hours\": hours, \"age\": age, \"earnings\": 100 + 20 * hours + 3 * age})",
+     "solution": "from sklearn.linear_model import LinearRegression\nX = df[[\"hours\", \"age\"]]\ny = df[\"earnings\"]\nmodel = LinearRegression().fit(X, y)",
+     "tests": [
+      {
+       "name": "shapes",
+       "code": "check(getattr(X, \"shape\", None) == (40, 2), \"`X` should have 40 rows and the two feature columns.\")\ncheck(getattr(y, \"ndim\", None) == 1 and len(y) == 40, \"`y` should be the 1-D earnings column.\")"
+      },
+      {
+       "name": "coef",
+       "code": "check(hasattr(model, \"coef_\") and close(model.coef_, [20.0, 3.0], rtol=1e-3), \"`model` should be fitted on hours and age, in that order.\")"
+      }
+     ],
+     "explain": "Double brackets select a DataFrame of columns (2-D); single brackets select one Series (1-D), which is what a target should be."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.holdout_cv",
+   "book": {
+    "section": "5.03",
+    "title": "Hyperparameters and Model Validation",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.03-hyperparameters-and-model-validation.html"
+   },
+   "intro": "Scoring a model on the rows it was fitted on measures memory, not prediction. A one-nearest-neighbour classifier scores 100% on its own training data because each row's nearest neighbour is itself. The fix is the out-of-sample test an econometrician runs on a forecast: hold data back.\n\n```python\nfrom sklearn.model_selection import train_test_split, cross_val_score\nX_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.25, random_state=0)\nmodel.fit(X_tr, y_tr)\nmodel.score(X_te, y_te)          # accuracy (classifiers) or R^2 (regressors)\ncross_val_score(model, X, y, cv=5)   # five scores, one per fold\n```\n\nA single split wastes data and depends on luck. **k-fold cross-validation** splits the rows into k folds, fits k times, and tests on each fold once, so every row is used for testing exactly once.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Why is a model's score on its own training data a poor guide to how it will do on new data?",
+     "correct": "The model has already seen those rows, so the score rewards memorising noise as well as learning the pattern",
+     "wrong": [
+      "Training scores are always exactly 1.0",
+      "`score` cannot be called on training data",
+      "Training data are always smaller than test data"
+     ],
+     "explain": "Flexible models can fit the noise in the training rows. Only rows held out of the fit reveal whether that fit generalises."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "In 5-fold cross-validation on 200 rows, how often is each row used as a test row?",
+     "correct": "Exactly once",
+     "wrong": [
+      "Five times",
+      "Never; test rows are separate",
+      "About 40 times"
+     ],
+     "explain": "The 200 rows are split into 5 folds of 40. Each fit leaves out one fold, so each row is in the test fold of exactly one fit."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `model.score(X_te, y_te)` return for a `LinearRegression`?",
+     "correct": "The R-squared on the test rows",
+     "wrong": [
+      "The mean squared error",
+      "The share of exactly correct predictions",
+      "The adjusted R-squared"
+     ],
+     "explain": "Regressors score with R-squared and classifiers with accuracy by default. Out of sample, R-squared can even be negative."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import load_breast_cancer\nfrom sklearn.neighbors import KNeighborsClassifier\nX, y = load_breast_cancer(return_X_y=True)\nknn = KNeighborsClassifier(n_neighbors=1).fit(X, y)\nprint(knn.score(X, y))",
+     "explain": "With one neighbour, every training row is classified by itself, so in-sample accuracy is perfect. It says nothing about new patients.",
+     "expected": "1.0"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.model_selection import train_test_split\nX = np.zeros((120, 4))\ny = np.zeros(120)\nX_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.25, random_state=0)\nprint(X_tr.shape, X_te.shape, y_te.shape)",
+     "explain": "A quarter of 120 rows (30) goes to the test set and 90 stay for training.",
+     "expected": "(90, 4) (30, 4) (30,)"
+    },
+    {
+     "id": "o3",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import load_iris\nfrom sklearn.naive_bayes import GaussianNB\nfrom sklearn.model_selection import cross_val_score\nX, y = load_iris(return_X_y=True)\nscores = cross_val_score(GaussianNB(), X, y, cv=4)\nprint(len(scores), round(scores.mean(), 2))",
+     "explain": "`cv=4` gives one accuracy per fold, four in all; the mean is the usual summary.",
+     "expected": "4 0.95"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Using `load_diabetes(return_X_y=True)`, split the data with `train_test_split(..., test_size=0.3, random_state=0)`, fit a `LinearRegression` on the training part, and store its test-set R-squared in `test_r2` and its training R-squared in `train_r2`.",
+     "starter": "from sklearn.datasets import load_diabetes\nfrom sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import train_test_split\nX, y = load_diabetes(return_X_y=True)\ntrain_r2 = ...\ntest_r2 = ...",
+     "setup": "",
+     "solution": "from sklearn.datasets import load_diabetes\nfrom sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import train_test_split\nX, y = load_diabetes(return_X_y=True)\nX_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=0)\nmodel = LinearRegression().fit(X_tr, y_tr)\ntrain_r2 = model.score(X_tr, y_tr)\ntest_r2 = model.score(X_te, y_te)",
+     "tests": [
+      {
+       "name": "scores",
+       "code": "from sklearn.datasets import load_diabetes\nfrom sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import train_test_split\nX_, y_ = load_diabetes(return_X_y=True)\na, b, c, d = train_test_split(X_, y_, test_size=0.3, random_state=0)\nm = LinearRegression().fit(a, c)\ncheck(close(train_r2, m.score(a, c)), \"`train_r2` should be R-squared on the training rows.\")\ncheck(close(test_r2, m.score(b, d)), \"`test_r2` should be R-squared on the 30% test rows, with random_state=0.\")"
+      }
+     ],
+     "explain": "Fit only on the training rows. `score` on the test rows is the honest number; it is lower than the training R-squared, as expected."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` and `y` (a small classification data set) are already defined. Use `cross_val_score` with 5 folds to evaluate `KNeighborsClassifier(n_neighbors=5)`. Store the array of fold scores in `scores` and their mean in `cv_mean`.",
+     "starter": "from sklearn.neighbors import KNeighborsClassifier\nfrom sklearn.model_selection import cross_val_score\nscores = ...\ncv_mean = ...",
+     "setup": "from sklearn.datasets import make_classification\nX, y = make_classification(n_samples=150, n_features=5, random_state=1)",
+     "solution": "from sklearn.neighbors import KNeighborsClassifier\nfrom sklearn.model_selection import cross_val_score\nscores = cross_val_score(KNeighborsClassifier(n_neighbors=5), X, y, cv=5)\ncv_mean = scores.mean()",
+     "tests": [
+      {
+       "name": "scores",
+       "code": "check(len(scores) == 5, \"`scores` should hold one score per fold (5).\")"
+      },
+      {
+       "name": "mean",
+       "code": "from sklearn.neighbors import KNeighborsClassifier\nfrom sklearn.model_selection import cross_val_score\nref = cross_val_score(KNeighborsClassifier(n_neighbors=5), X, y, cv=5).mean()\ncheck(close(cv_mean, ref), \"`cv_mean` should be the mean of the five fold accuracies.\")"
+      }
+     ],
+     "explain": "`cross_val_score` does the splitting, fitting and scoring for you."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.model_selection",
+   "book": {
+    "section": "5.03",
+    "title": "Hyperparameters and Model Validation",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.03-hyperparameters-and-model-validation.html"
+   },
+   "intro": "A model that is too rigid **underfits** (high bias): it scores badly on training and test data alike. One that is too flexible **overfits** (high variance): it scores well on training data and badly on new data. Think of predicting GDP with a straight line versus a degree-15 polynomial.\n\nA **validation curve** plots training and validation scores against a complexity hyperparameter; the best setting is where the validation score peaks. A **learning curve** plots both against training-set size; once the curves meet, more data will not help that model.\n\n`GridSearchCV` automates the search with cross-validation:\n\n```python\nfrom sklearn.model_selection import GridSearchCV\npipe = make_pipeline(PolynomialFeatures(), LinearRegression())\ngrid = GridSearchCV(pipe, {\"polynomialfeatures__degree\": [1, 2, 3, 4]}, cv=5)\ngrid.fit(X, y)\ngrid.best_params_, grid.best_estimator_\n```\n\nParameters inside a pipeline are named `step__param`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "A model scores R-squared 0.31 on training data and 0.29 on validation data, and the target is known to be very predictable. What is the likely problem?",
+     "correct": "High bias: the model is too simple (underfitting)",
+     "wrong": [
+      "High variance: the model is overfitting",
+      "Data leakage from the test set",
+      "Nothing; close scores mean the model is ideal"
+     ],
+     "explain": "Training and validation scores are close but both low. A more flexible model is needed; overfitting would show a large gap."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "On a validation curve, model complexity rises from left to right. What shape does the validation score usually have?",
+     "correct": "It rises, peaks, then falls as the model starts to overfit",
+     "wrong": [
+      "It rises steadily, like the training score",
+      "It falls steadily",
+      "It is flat"
+     ],
+     "explain": "The training score keeps rising with complexity; the validation score peaks at the right balance of bias and variance."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 3,
+     "prompt": "A learning curve shows the training and validation scores have converged at a level you find too low. What will help?",
+     "correct": "A more flexible model; more data of the same kind will not raise the score",
+     "wrong": [
+      "Collecting many more rows",
+      "Using fewer cross-validation folds",
+      "Shuffling the rows again"
+     ],
+     "explain": "Once the curves meet, the model has learned all it can. Its bias, not the sample size, is the limit."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "In `GridSearchCV(make_pipeline(PolynomialFeatures(), Ridge()), param_grid, cv=5)`, what is the correct key for Ridge's `alpha`?",
+     "correct": "`'ridge__alpha'`",
+     "wrong": [
+      "`'alpha'`",
+      "`'Ridge.alpha'`",
+      "`'ridge_alpha'`"
+     ],
+     "explain": "`make_pipeline` names each step after its class in lowercase, and a step's parameter is reached with a double underscore."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.linear_model import Ridge\nfrom sklearn.model_selection import validation_curve\nrng = np.random.default_rng(0)\nX = rng.normal(size=(60, 3))\ny = X @ [1.0, -2.0, 0.5] + rng.normal(size=60)\ntrain, valid = validation_curve(Ridge(), X, y, param_name=\"alpha\",\n                                param_range=[0.1, 1, 10, 100], cv=3)\nprint(train.shape, valid.shape)",
+     "explain": "One row per hyperparameter value (4) and one column per fold (3), for both the training and the validation scores.",
+     "expected": "(4, 3) (4, 3)"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import PolynomialFeatures\nfrom sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import GridSearchCV\nrng = np.random.default_rng(1)\nx = rng.uniform(-3, 3, 80)\ny = 0.5 * x**3 - x + rng.normal(0, 1, 80)\npipe = make_pipeline(PolynomialFeatures(), LinearRegression())\ngrid = GridSearchCV(pipe, {\"polynomialfeatures__degree\": [1, 2, 3]}, cv=5)\ngrid.fit(x[:, None], y)\nprint(grid.best_params_)",
+     "explain": "The data come from a cubic, so degree 3 has the best cross-validated score among degrees 1 to 3.",
+     "expected": "{'polynomialfeatures__degree': 3}"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 3,
+     "prompt": "`x` (1-D) and `y` are already defined. Build a pipeline of `PolynomialFeatures` and `LinearRegression`, and run `GridSearchCV` with `cv=5` over degrees 1 through 6. Call the fitted search `grid` and store the chosen degree (an int) in `best_degree`.",
+     "starter": "from sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import PolynomialFeatures\nfrom sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import GridSearchCV\ngrid = ...\nbest_degree = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(5)\nx = rng.uniform(0, 10, 120)\ny = 2 + 3 * x - 0.4 * x**2 + rng.normal(0, 1.5, 120)",
+     "solution": "from sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import PolynomialFeatures\nfrom sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import GridSearchCV\npipe = make_pipeline(PolynomialFeatures(), LinearRegression())\ngrid = GridSearchCV(pipe, {\"polynomialfeatures__degree\": list(range(1, 7))}, cv=5)\ngrid.fit(x[:, None], y)\nbest_degree = grid.best_params_[\"polynomialfeatures__degree\"]",
+     "tests": [
+      {
+       "name": "grid",
+       "code": "check(hasattr(grid, \"best_params_\"), \"`grid` should be a fitted GridSearchCV.\")"
+      },
+      {
+       "name": "range",
+       "code": "degs = list(grid.param_grid[\"polynomialfeatures__degree\"]) if \"polynomialfeatures__degree\" in grid.param_grid else []\ncheck(sorted(degs) == [1, 2, 3, 4, 5, 6], \"Search the degrees 1 to 6 under the key 'polynomialfeatures__degree'.\")"
+      },
+      {
+       "name": "best",
+       "code": "check(best_degree == 2, \"`best_degree` should be the degree in `grid.best_params_`.\")"
+      }
+     ],
+     "explain": "The search fits each degree five times and keeps the one with the best mean validation score. The data are quadratic, so degree 2 wins."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` and `y` are already defined. Use `learning_curve` with a `LinearRegression`, `cv=5` and `train_sizes=[0.2, 0.5, 1.0]`. Store the three mean validation scores (one per size, averaged over folds) in `valid_mean`.",
+     "starter": "from sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import learning_curve\nvalid_mean = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(2)\nX = rng.normal(size=(200, 4))\ny = X @ [1.0, 0.5, -1.0, 2.0] + rng.normal(size=200)",
+     "solution": "from sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import learning_curve\nsizes, train, valid = learning_curve(LinearRegression(), X, y, cv=5, train_sizes=[0.2, 0.5, 1.0])\nvalid_mean = valid.mean(axis=1)",
+     "tests": [
+      {
+       "name": "shape",
+       "code": "check(getattr(valid_mean, \"shape\", None) == (3,), \"`valid_mean` should hold one mean per training size (3 values). Average across folds, axis=1.\")"
+      },
+      {
+       "name": "values",
+       "code": "from sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import learning_curve\n_, _, v = learning_curve(LinearRegression(), X, y, cv=5, train_sizes=[0.2, 0.5, 1.0])\ncheck(close(valid_mean, v.mean(axis=1)), \"`valid_mean` should be the validation scores averaged over the 5 folds.\")"
+      }
+     ],
+     "explain": "`learning_curve` returns the sizes used, then training and validation score arrays of shape (sizes, folds)."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.categorical_text",
+   "book": {
+    "section": "5.04",
+    "title": "Feature Engineering",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.04-feature-engineering.html"
+   },
+   "intro": "Models need numbers. A region column with values North, South and West should not become 1, 2, 3: that claims West is \"three times\" North. Use **one-hot encoding** instead, one 0/1 column per category, exactly the dummy variables of a regression.\n\n```python\nfrom sklearn.feature_extraction import DictVectorizer\nfrom sklearn.preprocessing import OneHotEncoder\nrows = [{\"region\": \"North\", \"size\": 3}, {\"region\": \"West\", \"size\": 1}]\nDictVectorizer(sparse=False).fit_transform(rows)\nOneHotEncoder(sparse_output=False).fit_transform([[\"North\"], [\"West\"]])\n```\n\nText becomes numbers by counting words. `CountVectorizer` builds a vocabulary and gives each document a row of word counts. `TfidfVectorizer` reweights those counts so that words appearing in almost every document (like \"the\") count for less.\n\nBoth return sparse matrices by default, since most entries are zero; call `.toarray()` to see a dense version.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Why is coding a `sector` column as Agriculture=1, Manufacturing=2, Services=3 a poor choice for a linear model?",
+     "correct": "It imposes an order and equal spacing between sectors that do not exist",
+     "wrong": [
+      "Linear models cannot use integers",
+      "The codes would be dropped as constants",
+      "It makes the features matrix sparse"
+     ],
+     "explain": "The model would treat Services as Agriculture plus two steps. One-hot dummies let each sector have its own effect."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "With its default settings, which tokens does `CountVectorizer` keep from the text `'A tax on X'`?",
+     "correct": "`'on'` and `'tax'`",
+     "wrong": [
+      "`'A'`, `'tax'`, `'on'`, `'X'`",
+      "`'a'`, `'tax'`, `'on'`, `'x'`",
+      "`'tax'` only"
+     ],
+     "explain": "It lowercases the text and its default token pattern keeps only tokens of two or more word characters, so 'a' and 'x' are dropped."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does TF-IDF do compared with raw word counts?",
+     "correct": "It down-weights words that appear in many documents, so distinctive words count for more",
+     "wrong": [
+      "It removes all words shorter than four letters",
+      "It counts each word at most once",
+      "It sorts words by frequency"
+     ],
+     "explain": "The inverse-document-frequency factor is small for words found in nearly every document and large for rare ones."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.feature_extraction import DictVectorizer\nrows = [{\"state\": \"NV\", \"beds\": 120}, {\"state\": \"UT\", \"beds\": 80}, {\"state\": \"NV\", \"beds\": 45}]\ndv = DictVectorizer(sparse=False)\nM = dv.fit_transform(rows)\nprint(dv.get_feature_names_out())\nprint(M.shape)",
+     "explain": "Numeric values pass through as one column; each string value becomes its own `key=value` column. Names are sorted alphabetically.",
+     "expected": "['beds' 'state=NV' 'state=UT']\n(3, 3)"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.feature_extraction.text import CountVectorizer\ndocs = [\"rates rise\", \"rates fall then rates rise\"]\ncv = CountVectorizer()\nM = cv.fit_transform(docs)\nprint(cv.get_feature_names_out())\nprint(M.toarray())",
+     "explain": "The vocabulary is sorted. The second document mentions 'rates' twice, so its count in that column is 2.",
+     "expected": "['fall' 'rates' 'rise' 'then']\n[[0 1 1 0]\n [1 2 1 1]]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`region` is a list of region names (already defined). Use `OneHotEncoder(sparse_output=False)` to make `R`, a dense array with one 0/1 column per region, and store the encoder (fitted) in `enc`. The encoder expects a 2-D input: one column.",
+     "starter": "import numpy as np\nfrom sklearn.preprocessing import OneHotEncoder\nenc = ...\nR = ...",
+     "setup": "region = [\"North\", \"East\", \"North\", \"West\", \"East\", \"North\"]",
+     "solution": "import numpy as np\nfrom sklearn.preprocessing import OneHotEncoder\nenc = OneHotEncoder(sparse_output=False)\nR = enc.fit_transform(np.array(region).reshape(-1, 1))",
+     "tests": [
+      {
+       "name": "shape",
+       "code": "check(getattr(R, \"shape\", None) == (6, 3), \"`R` should have 6 rows and one column per distinct region (3).\")"
+      },
+      {
+       "name": "values",
+       "code": "check(close(R.sum(axis=1), [1] * 6), \"Each row of `R` should have exactly one 1.\")\ncheck(close(R.sum(axis=0), [2, 3, 1]), \"Column sums should be the counts of each region, in sorted order (East, North, West).\")"
+      },
+      {
+       "name": "enc",
+       "code": "check(hasattr(enc, \"categories_\"), \"`enc` should be the fitted OneHotEncoder.\")"
+      }
+     ],
+     "explain": "Reshape the list to one column, then `fit_transform`. The categories are sorted, so the columns are East, North, West."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`notes` is a list of short survey answers (already defined). Use `TfidfVectorizer` to make `T`, a dense array of TF-IDF weights, and `vocab`, the array of feature names.",
+     "starter": "from sklearn.feature_extraction.text import TfidfVectorizer\nT = ...\nvocab = ...",
+     "setup": "notes = [\"rent too high\", \"wages too low\", \"high rent low wages\"]",
+     "solution": "from sklearn.feature_extraction.text import TfidfVectorizer\ntf = TfidfVectorizer()\nT = tf.fit_transform(notes).toarray()\nvocab = tf.get_feature_names_out()",
+     "tests": [
+      {
+       "name": "vocab",
+       "code": "check(list(vocab) == [\"high\", \"low\", \"rent\", \"too\", \"wages\"], \"`vocab` should be the sorted vocabulary from the vectorizer.\")"
+      },
+      {
+       "name": "T",
+       "code": "import numpy as np\ncheck(getattr(T, \"shape\", None) == (3, 5), \"`T` should be a dense array with one row per answer and one column per word. Use .toarray().\")\ncheck(close(np.linalg.norm(T, axis=1), [1, 1, 1]), \"Each row of `T` should be TF-IDF weights (unit length by default).\")"
+      }
+     ],
+     "explain": "`TfidfVectorizer` counts words and reweights them in one step; by default each row is scaled to unit length."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.pipelines",
+   "book": {
+    "section": "5.04",
+    "title": "Feature Engineering",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.04-feature-engineering.html"
+   },
+   "intro": "Some features are built from others. `PolynomialFeatures` adds powers and products, so a linear model can fit a curve, much like adding experience-squared to a wage equation. `SimpleImputer` fills missing values with a column's mean, median or most frequent value.\n\nChaining these steps by hand invites mistakes, so wrap them in a **pipeline**, which behaves like a single estimator:\n\n```python\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.impute import SimpleImputer\nfrom sklearn.preprocessing import PolynomialFeatures\nfrom sklearn.linear_model import LinearRegression\nmodel = make_pipeline(SimpleImputer(strategy=\"median\"),\n                      PolynomialFeatures(degree=2),\n                      LinearRegression())\nmodel.fit(X_train, y_train)\nmodel.predict(X_test)     # imputes and expands with training-set values\n```\n\nInside cross-validation, a pipeline refits the imputer on each training fold, so test-fold values never leak into the fill values.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why put a `SimpleImputer` inside the pipeline passed to `cross_val_score`, rather than imputing the whole data set first?",
+     "correct": "So each fold's fill values are computed from its training rows only, keeping test rows out of the fit",
+     "wrong": [
+      "Because SimpleImputer cannot run outside a pipeline",
+      "Because it makes imputation faster",
+      "So missing rows are dropped instead of filled"
+     ],
+     "explain": "Imputing first uses the test rows' values to compute the means, a mild form of leakage. The pipeline refits every step per fold."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`PolynomialFeatures(degree=2, include_bias=False)` is applied to a single column x. Which columns come out?",
+     "correct": "x and x squared",
+     "wrong": [
+      "1, x and x squared",
+      "x squared only",
+      "x, x squared and x cubed"
+     ],
+     "explain": "With `include_bias=False` the constant column of ones is left out."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 3,
+     "prompt": "How many output columns does `PolynomialFeatures(degree=2)` produce from 2 input columns a and b (bias included)?",
+     "correct": "6: 1, a, b, a squared, a times b, b squared",
+     "wrong": [
+      "4",
+      "5",
+      "3"
+     ],
+     "explain": "Degree 2 includes the interaction term a times b as well as the squares."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "from sklearn.preprocessing import PolynomialFeatures\nprint(PolynomialFeatures(degree=3).fit_transform([[2]]))",
+     "explain": "The bias column 1, then 2, 2 squared and 2 cubed.",
+     "expected": "[[1. 2. 4. 8.]]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.impute import SimpleImputer\nX = np.array([[1.0, 10.0], [np.nan, 20.0], [3.0, np.nan], [8.0, 30.0]])\nprint(SimpleImputer(strategy=\"median\").fit_transform(X))",
+     "explain": "Each NaN is replaced by its column's median of the observed values: 3 for the first column (of 1, 3, 8) and 20 for the second.",
+     "expected": "[[ 1. 10.]\n [ 3. 20.]\n [ 3. 20.]\n [ 8. 30.]]"
+    },
+    {
+     "id": "o3",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "from sklearn.pipeline import make_pipeline\nfrom sklearn.impute import SimpleImputer\nfrom sklearn.linear_model import LinearRegression\npipe = make_pipeline(SimpleImputer(), LinearRegression())\nprint([name for name, step in pipe.steps])",
+     "explain": "`make_pipeline` names each step after its class, in lowercase.",
+     "expected": "['simpleimputer', 'linearregression']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` (with some NaN entries) and `y` are already defined. Build `pipe`, a pipeline that fills missing values with the column median and then fits a `LinearRegression`, and fit it on `X` and `y`.",
+     "starter": "from sklearn.pipeline import make_pipeline\nfrom sklearn.impute import SimpleImputer\nfrom sklearn.linear_model import LinearRegression\npipe = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(4)\nX = rng.normal(size=(50, 3))\ny = X @ [2.0, -1.0, 0.5] + rng.normal(0, 0.1, 50)\nX[rng.random((50, 3)) < 0.1] = np.nan",
+     "solution": "from sklearn.pipeline import make_pipeline\nfrom sklearn.impute import SimpleImputer\nfrom sklearn.linear_model import LinearRegression\npipe = make_pipeline(SimpleImputer(strategy=\"median\"), LinearRegression())\npipe.fit(X, y)",
+     "tests": [
+      {
+       "name": "steps",
+       "code": "names = [n for n, s in getattr(pipe, \"steps\", [])]\ncheck(names == [\"simpleimputer\", \"linearregression\"], \"`pipe` should have an imputer followed by a linear regression.\")\ncheck(pipe.steps[0][1].strategy == \"median\", \"Fill missing values with the median.\")"
+      },
+      {
+       "name": "fitted",
+       "code": "check(hasattr(pipe.steps[-1][1], \"coef_\"), \"Fit the pipeline on X and y.\")"
+      }
+     ],
+     "explain": "A fitted pipeline fits each step in turn, passing transformed data forward."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`exper` (1-D, years of experience) and `logwage` are already defined. The relationship is concave. Fit `model`, a pipeline of `PolynomialFeatures(degree=2)` and `LinearRegression`, on experience, and store its predicted log wage at 30 years in `at30` (a float).",
+     "starter": "from sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import PolynomialFeatures\nfrom sklearn.linear_model import LinearRegression\nmodel = ...\nat30 = ...",
+     "setup": "import numpy as np\nexper = np.arange(0, 41, dtype=float)\nlogwage = 1.5 + 0.06 * exper - 0.001 * exper**2",
+     "solution": "from sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import PolynomialFeatures\nfrom sklearn.linear_model import LinearRegression\nmodel = make_pipeline(PolynomialFeatures(degree=2), LinearRegression())\nmodel.fit(exper[:, None], logwage)\nat30 = float(model.predict([[30]])[0])",
+     "tests": [
+      {
+       "name": "fitted",
+       "code": "check(hasattr(model, \"predict\") and hasattr(model.steps[-1][1], \"coef_\"), \"`model` should be a fitted pipeline.\")"
+      },
+      {
+       "name": "pred",
+       "code": "check(close(at30, 1.5 + 0.06 * 30 - 0.001 * 900, rtol=1e-4), \"`at30` should be the model's prediction at 30 years. Did you include the squared term?\")"
+      }
+     ],
+     "explain": "This is the experience profile of a Mincer wage equation: a positive linear term and a negative squared term."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.naive_bayes",
+   "book": {
+    "section": "5.05",
+    "title": "In Depth: Naive Bayes Classification",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.05-naive-bayes.html"
+   },
+   "intro": "Naive Bayes classifiers apply Bayes' rule with a bold simplification: given the class, every feature is assumed independent of the others. Each class then needs only a simple model per feature.\n\n**Gaussian naive Bayes** models each feature within each class as a normal distribution with its own mean and variance. **Multinomial naive Bayes** models counts, which suits word-count features from text.\n\n```python\nfrom sklearn.naive_bayes import GaussianNB, MultinomialNB\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.feature_extraction.text import CountVectorizer\ngnb = GaussianNB().fit(X_train, y_train)\ngnb.predict_proba(X_test)        # class probabilities per row\ntext_clf = make_pipeline(CountVectorizer(), MultinomialNB())\n```\n\nThey fit almost instantly and have few hyperparameters, so they make a good first baseline. Their probabilities are often poorly calibrated even when their predicted classes are good.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What is the 'naive' assumption in naive Bayes?",
+     "correct": "Features are independent of each other within each class",
+     "wrong": [
+      "Every class is equally likely",
+      "Features are normally distributed in every model",
+      "The classes do not overlap"
+     ],
+     "explain": "Independence given the class lets the model multiply one simple likelihood per feature. Equal priors are not assumed; they are estimated from class frequencies."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which naive Bayes variant suits word counts from `CountVectorizer`?",
+     "correct": "`MultinomialNB`",
+     "wrong": [
+      "`GaussianNB`",
+      "Neither; text cannot be classified with naive Bayes",
+      "`GaussianNB` after taking logs"
+     ],
+     "explain": "Multinomial NB models non-negative counts; Gaussian NB models continuous measurements."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why is naive Bayes a common first model?",
+     "correct": "It is very fast, has few hyperparameters, and gives a quick baseline to beat",
+     "wrong": [
+      "It is always the most accurate classifier",
+      "It needs no training data",
+      "It never overfits"
+     ],
+     "explain": "A baseline tells you whether a more complex model is worth the cost."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.naive_bayes import GaussianNB\nX = np.array([[1.0], [1.5], [2.0], [8.0], [8.5], [9.0]])\ny = np.array([0, 0, 0, 1, 1, 1])\ngnb = GaussianNB().fit(X, y)\nprint(gnb.predict([[1.2], [5.6], [10.0]]))",
+     "explain": "Class 0 is centred at 1.5 and class 1 at 8.5 with equal spread, so the boundary sits near 5: 5.6 goes to class 1.",
+     "expected": "[0 1 1]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.pipeline import make_pipeline\nfrom sklearn.feature_extraction.text import CountVectorizer\nfrom sklearn.naive_bayes import MultinomialNB\ndocs = [\"late payment fee\", \"fee for late rent\", \"great service fast\", \"fast friendly service\"]\nlabels = [\"complaint\", \"complaint\", \"praise\", \"praise\"]\nclf = make_pipeline(CountVectorizer(), MultinomialNB()).fit(docs, labels)\nprint(clf.predict([\"rent fee\", \"friendly and fast\"]))",
+     "explain": "'rent' and 'fee' were only seen in complaints; 'friendly' and 'fast' only in praise.",
+     "expected": "['complaint' 'praise']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Load `load_wine(return_X_y=True)`, split it with `train_test_split(..., test_size=0.3, random_state=1)`, fit a `GaussianNB` called `gnb` on the training part, and store its test accuracy in `acc`.",
+     "starter": "from sklearn.datasets import load_wine\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.naive_bayes import GaussianNB\ngnb = ...\nacc = ...",
+     "setup": "",
+     "solution": "from sklearn.datasets import load_wine\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.naive_bayes import GaussianNB\nX, y = load_wine(return_X_y=True)\nX_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=1)\ngnb = GaussianNB().fit(X_tr, y_tr)\nacc = gnb.score(X_te, y_te)",
+     "tests": [
+      {
+       "name": "model",
+       "code": "check(hasattr(gnb, \"theta_\"), \"`gnb` should be a fitted GaussianNB.\")"
+      },
+      {
+       "name": "acc",
+       "code": "from sklearn.datasets import load_wine\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.naive_bayes import GaussianNB\nX_, y_ = load_wine(return_X_y=True)\na, b, c, d = train_test_split(X_, y_, test_size=0.3, random_state=1)\ncheck(close(acc, GaussianNB().fit(a, c).score(b, d)), \"`acc` should be the accuracy on the 30% test split with random_state=1.\")"
+      }
+     ],
+     "explain": "For classifiers, `score` returns the share of correct predictions."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`texts` and `topics` (already defined) are short headlines and their topic labels. Build `clf`, a pipeline of `TfidfVectorizer` and `MultinomialNB`, fit it, and store its predictions for the two headlines in `new` in `guess`.",
+     "starter": "from sklearn.pipeline import make_pipeline\nfrom sklearn.feature_extraction.text import TfidfVectorizer\nfrom sklearn.naive_bayes import MultinomialNB\nclf = ...\nguess = ...",
+     "setup": "texts = [\"deficit grows as tax revenue falls\", \"council passes budget with tax rise\",\n         \"spending cuts close budget gap\", \"unemployment falls as hiring rises\",\n         \"factory hiring slows\", \"wages rise in tight labour market\"]\ntopics = [\"budget\", \"budget\", \"budget\", \"jobs\", \"jobs\", \"jobs\"]\nnew = [\"tax revenue and spending\", \"hiring and wages\"]",
+     "solution": "from sklearn.pipeline import make_pipeline\nfrom sklearn.feature_extraction.text import TfidfVectorizer\nfrom sklearn.naive_bayes import MultinomialNB\nclf = make_pipeline(TfidfVectorizer(), MultinomialNB()).fit(texts, topics)\nguess = clf.predict(new)",
+     "tests": [
+      {
+       "name": "steps",
+       "code": "check([n for n, s in getattr(clf, \"steps\", [])] == [\"tfidfvectorizer\", \"multinomialnb\"], \"`clf` should be TfidfVectorizer followed by MultinomialNB.\")"
+      },
+      {
+       "name": "guess",
+       "code": "check(list(guess) == [\"budget\", \"jobs\"], \"`guess` should be the predicted topics for the two headlines in `new`.\")"
+      }
+     ],
+     "explain": "A text pipeline takes raw strings, so you can call `predict` on new headlines directly."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.linear_regression",
+   "book": {
+    "section": "5.06",
+    "title": "In Depth: Linear Regression",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.06-linear-regression.html"
+   },
+   "intro": "`LinearRegression` is ordinary least squares. With several features it fits one coefficient per column in `coef_` plus `intercept_`. Unlike a statistics package it reports no standard errors: the focus is prediction.\n\n\"Linear\" refers to the coefficients, not the features. Transform `x` into **basis functions** first and a linear model can follow curves:\n\n```python\nmodel = make_pipeline(PolynomialFeatures(5), LinearRegression())\n```\n\nPolynomials are one basis. Another is a set of **Gaussian bumps** centred along the x range, each column measuring how close x is to one centre:\n\n```python\ncentres = np.linspace(0, 10, 8)\nB = np.exp(-((x[:, None] - centres) ** 2) / (2 * 1.0 ** 2))\nLinearRegression().fit(B, y)\n```\n\nMore basis functions mean more flexibility and more risk of overfitting, which is where regularization (next) comes in.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why is `make_pipeline(PolynomialFeatures(3), LinearRegression())` still called a linear model?",
+     "correct": "It is linear in its coefficients; only the inputs are transformed",
+     "wrong": [
+      "It only fits straight lines",
+      "PolynomialFeatures removes the curvature",
+      "Because the intercept is linear"
+     ],
+     "explain": "Least squares still solves for weights on fixed columns; the columns just happen to be powers of x."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "After fitting `LinearRegression` on `X` with columns `[educ, exper]`, what is `model.coef_[1]`?",
+     "correct": "The predicted change in the target for one more unit of exper, holding educ fixed",
+     "wrong": [
+      "The intercept",
+      "The correlation between exper and the target",
+      "The p-value for exper"
+     ],
+     "explain": "Coefficients are partial effects in column order. No p-values are computed."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does each Gaussian basis column measure?",
+     "correct": "How close x is to one centre: near 1 at the centre, falling towards 0 far away",
+     "wrong": [
+      "The share of rows below one centre",
+      "The squared distance from the mean of x",
+      "A random draw around x"
+     ],
+     "explain": "A weighted sum of bumps can trace almost any smooth curve."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\nrng = np.random.default_rng(0)\nX = rng.uniform(0, 10, size=(30, 3))\ny = 4 + X @ [2.0, -1.0, 0.5]\nmodel = LinearRegression().fit(X, y)\nprint(np.round(model.coef_, 2), round(model.intercept_, 2))",
+     "explain": "With no noise, least squares recovers the true coefficients and intercept exactly.",
+     "expected": "[ 2.  -1.   0.5] 4.0"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nx = np.array([0.0, 2.0, 5.0])\ncentres = np.array([0.0, 5.0])\nB = np.exp(-((x[:, None] - centres) ** 2) / 2)\nprint(B.shape, np.round(B[:, 1], 2))",
+     "explain": "One row per x value and one column per centre. The second column is 1 at x = 5, small at 2, and essentially 0 at 0.",
+     "expected": "(3, 2) [0.   0.01 1.  ]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "The DataFrame `df` has columns `educ`, `exper` and `logwage`. Fit a Mincer-style regression `model` of `logwage` on `educ`, `exper` and experience squared. Build `X` as a DataFrame with columns `educ`, `exper`, `exper2` (in that order), then store the return to a year of education (the `educ` coefficient) in `ret_educ`.",
+     "starter": "from sklearn.linear_model import LinearRegression\nX = ...\nmodel = ...\nret_educ = ...",
+     "setup": "import numpy as np, pandas as pd\nrng = np.random.default_rng(7)\neduc = rng.integers(8, 21, 200).astype(float)\nexper = rng.integers(0, 41, 200).astype(float)\ndf = pd.DataFrame({\"educ\": educ, \"exper\": exper,\n                   \"logwage\": 1.0 + 0.08 * educ + 0.04 * exper - 0.0007 * exper**2})",
+     "solution": "from sklearn.linear_model import LinearRegression\nX = df[[\"educ\", \"exper\"]].copy()\nX[\"exper2\"] = df[\"exper\"] ** 2\nmodel = LinearRegression().fit(X, df[\"logwage\"])\nret_educ = model.coef_[0]",
+     "tests": [
+      {
+       "name": "X",
+       "code": "check(list(getattr(X, \"columns\", [])) == [\"educ\", \"exper\", \"exper2\"], \"`X` should have columns educ, exper, exper2 in that order.\")"
+      },
+      {
+       "name": "coef",
+       "code": "check(hasattr(model, \"coef_\") and close(model.coef_, [0.08, 0.04, -0.0007], rtol=1e-3, atol=1e-6), \"`model` should be fitted on X and logwage.\")"
+      },
+      {
+       "name": "ret",
+       "code": "check(close(ret_educ, 0.08, rtol=1e-3), \"`ret_educ` should be the coefficient on educ.\")"
+      }
+     ],
+     "explain": "The squared term lets earnings rise with experience at a decreasing rate. The educ coefficient is the classic return to schooling."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 3,
+     "prompt": "`x` and `y` (1-D) are already defined. Build `B`, a Gaussian basis with 10 centres from `np.linspace(0, 10, 10)` and width 1, where column j is `exp(-(x - c_j)**2 / 2)`. Fit `LinearRegression` on `B` as `model` and store its in-sample R-squared in `r2`.",
+     "starter": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\nB = ...\nmodel = ...\nr2 = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(8)\nx = np.sort(rng.uniform(0, 10, 100))\ny = np.sin(x) + 0.1 * rng.normal(size=100)",
+     "solution": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\ncentres = np.linspace(0, 10, 10)\nB = np.exp(-((x[:, None] - centres) ** 2) / 2)\nmodel = LinearRegression().fit(B, y)\nr2 = model.score(B, y)",
+     "tests": [
+      {
+       "name": "B",
+       "code": "import numpy as np\nref = np.exp(-((x[:, None] - np.linspace(0, 10, 10)) ** 2) / 2)\ncheck(getattr(B, \"shape\", None) == (100, 10), \"`B` should have one row per x value and 10 columns.\")\ncheck(close(B, ref), \"Column j of `B` should be exp(-(x - c_j)**2 / 2). Broadcast x[:, None] against the centres.\")"
+      },
+      {
+       "name": "r2",
+       "code": "check(hasattr(model, \"coef_\") and close(r2, model.score(B, y)) and r2 > 0.9, \"`r2` should be the fitted model's R-squared on B and y.\")"
+      }
+     ],
+     "explain": "Broadcasting a column of x against a row of centres builds the whole basis in one step."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.regularization",
+   "book": {
+    "section": "5.06",
+    "title": "In Depth: Linear Regression",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.06-linear-regression.html"
+   },
+   "intro": "With many basis functions or many regressors, least squares can chase noise and produce huge, offsetting coefficients. **Regularization** adds a penalty on coefficient size to the least-squares loss.\n\n- **Ridge** penalises the sum of squared coefficients. It shrinks all of them towards zero but rarely makes any exactly zero.\n- **Lasso** penalises the sum of absolute values. It sets some coefficients exactly to zero, so it also selects variables.\n\n```python\nfrom sklearn.linear_model import Ridge, Lasso\nRidge(alpha=1.0).fit(X, y)\nLasso(alpha=0.1).fit(X, y).coef_     # some entries are 0.0\n```\n\n`alpha` sets the penalty strength: 0 is plain OLS, larger is more shrinkage. Choose it by cross-validation. Because the penalty treats all coefficients alike, put features on a common scale first (for example with `StandardScaler` in a pipeline).",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which penalty can set coefficients exactly to zero, acting as variable selection?",
+     "correct": "Lasso (absolute values)",
+     "wrong": [
+      "Ridge (squared values)",
+      "Both equally often",
+      "Neither"
+     ],
+     "explain": "The corner of the absolute-value penalty at zero makes exact zeros common. Ridge shrinks smoothly and almost never lands on zero."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What happens to ridge coefficients as `alpha` grows very large?",
+     "correct": "They shrink towards zero",
+     "wrong": [
+      "They approach the OLS estimates",
+      "They grow without bound",
+      "They become exactly equal to each other"
+     ],
+     "explain": "Large alpha makes the penalty dominate the fit; alpha near 0 gives OLS."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why standardise features before ridge or lasso?",
+     "correct": "The penalty depends on coefficient size, which depends on each feature's units",
+     "wrong": [
+      "Ridge cannot run on unscaled data",
+      "Standardising removes the need for an intercept",
+      "It makes the penalty smaller"
+     ],
+     "explain": "Income in currency units and in thousands would get very different penalties otherwise. Scaling puts them on equal footing."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "In econometric terms, what does regularization trade?",
+     "correct": "A little bias in the coefficients for a reduction in their variance",
+     "wrong": [
+      "Variance for consistency",
+      "Out-of-sample fit for in-sample fit",
+      "Nothing; it is unbiased"
+     ],
+     "explain": "Penalised estimates are biased towards zero, but they vary less from sample to sample, which often improves out-of-sample prediction."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.linear_model import Lasso\nrng = np.random.default_rng(0)\nX = rng.normal(size=(100, 8))\ny = 3 * X[:, 0] - 2 * X[:, 4] + rng.normal(size=100)\nlasso = Lasso(alpha=0.3).fit(X, y)\nprint(np.flatnonzero(lasso.coef_))",
+     "explain": "Only columns 0 and 4 carry signal. The lasso penalty zeroes the other six coefficients.",
+     "expected": "[0 4]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.linear_model import Ridge\nrng = np.random.default_rng(1)\nX = rng.normal(size=(50, 5))\ny = X @ [1.0, 2.0, -1.0, 0.5, 0.0] + rng.normal(size=50)\nsizes = [np.abs(Ridge(alpha=a).fit(X, y).coef_).sum() for a in [0.1, 10, 1000]]\nprint([round(float(s), 2) for s in sizes])",
+     "explain": "The total size of the coefficients falls as alpha grows.",
+     "expected": "[4.19, 3.49, 0.22]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` (20 candidate regressors) and `y` are already defined. Fit `lasso = Lasso(alpha=0.2)` and store in `kept` the array of column indices whose coefficient is not zero.",
+     "starter": "import numpy as np\nfrom sklearn.linear_model import Lasso\nlasso = ...\nkept = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(11)\nX = rng.normal(size=(150, 20))\ny = 2 * X[:, 1] - 1.5 * X[:, 7] + X[:, 12] + rng.normal(0, 0.5, 150)",
+     "solution": "import numpy as np\nfrom sklearn.linear_model import Lasso\nlasso = Lasso(alpha=0.2).fit(X, y)\nkept = np.flatnonzero(lasso.coef_)",
+     "tests": [
+      {
+       "name": "fitted",
+       "code": "check(hasattr(lasso, \"coef_\") and lasso.alpha == 0.2, \"`lasso` should be a Lasso with alpha=0.2, fitted on X and y.\")"
+      },
+      {
+       "name": "kept",
+       "code": "check(same_array(kept, [1, 7, 12]), \"`kept` should be the indices of the nonzero coefficients. np.flatnonzero helps.\")"
+      }
+     ],
+     "explain": "Lasso keeps the three columns that drive y and zeroes the other seventeen."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 3,
+     "prompt": "`X` and `y` are already defined. Make `pipe`, a pipeline of `StandardScaler` and `Ridge`, and use `GridSearchCV` with `cv=5` to choose `alpha` from `[0.01, 0.1, 1, 10, 100]`. Call the fitted search `grid` and store the chosen alpha in `best_alpha`.",
+     "starter": "from sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import Ridge\nfrom sklearn.model_selection import GridSearchCV\ngrid = ...\nbest_alpha = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(12)\nX = rng.normal(size=(60, 30)) * rng.uniform(1, 50, 30)\ny = X[:, :5] @ [0.1, 0.05, -0.02, 0.03, 0.01] + rng.normal(size=60)",
+     "solution": "from sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import Ridge\nfrom sklearn.model_selection import GridSearchCV\npipe = make_pipeline(StandardScaler(), Ridge())\ngrid = GridSearchCV(pipe, {\"ridge__alpha\": [0.01, 0.1, 1, 10, 100]}, cv=5).fit(X, y)\nbest_alpha = grid.best_params_[\"ridge__alpha\"]",
+     "tests": [
+      {
+       "name": "grid",
+       "code": "check(hasattr(grid, \"best_params_\"), \"`grid` should be a fitted GridSearchCV.\")\ncheck(sorted(grid.param_grid.get(\"ridge__alpha\", [])) == [0.01, 0.1, 1, 10, 100], \"Search alpha under the key 'ridge__alpha' over the five given values.\")"
+      },
+      {
+       "name": "best",
+       "code": "from sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.linear_model import Ridge\nfrom sklearn.model_selection import GridSearchCV\nref = GridSearchCV(make_pipeline(StandardScaler(), Ridge()), {\"ridge__alpha\": [0.01, 0.1, 1, 10, 100]}, cv=5).fit(X, y)\ncheck(best_alpha == ref.best_params_[\"ridge__alpha\"], \"`best_alpha` should be the alpha in `grid.best_params_`.\")"
+      }
+     ],
+     "explain": "Scaling inside the pipeline means each fold is scaled with its own training statistics."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.svm",
+   "book": {
+    "section": "5.07",
+    "title": "In Depth: Support Vector Machines",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.07-support-vector-machines.html"
+   },
+   "intro": "A support vector classifier draws the boundary between two classes that leaves the widest possible **margin** to the nearest points. Only those nearest points, the **support vectors**, decide where the boundary goes; moving any other point (without crossing the margin) changes nothing.\n\n```python\nfrom sklearn.svm import SVC\nclf = SVC(kernel=\"linear\", C=1.0).fit(X, y)\nclf.support_vectors_          # the points that pin the margin\nSVC(kernel=\"rbf\", C=10).fit(X, y)   # curved boundaries\n```\n\nThe **kernel** lets the boundary bend: an `\"rbf\"` kernel works as if each point were mapped into a much richer feature space, without building it. **`C`** controls softness. Small `C` tolerates points inside the margin (a wider, smoother boundary); large `C` punishes them (a tighter fit that can overfit). Scale features first, since distances drive everything.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which training points determine a fitted SVM's decision boundary?",
+     "correct": "Only the support vectors, the points on or inside the margin",
+     "wrong": [
+      "All training points equally",
+      "The points farthest from the boundary",
+      "The class means"
+     ],
+     "explain": "Points well clear of the margin have no effect on the fit."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does lowering `C` in `SVC` do?",
+     "correct": "Softens the margin: more points may sit inside it, giving a smoother boundary",
+     "wrong": [
+      "Hardens the margin so no point may violate it",
+      "Changes the kernel to linear",
+      "Removes the intercept"
+     ],
+     "explain": "C is the cost of a margin violation. Cheaper violations allow a wider margin and usually more support vectors."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Two classes form concentric rings. Which `SVC` setting can separate them?",
+     "correct": "`kernel='rbf'`",
+     "wrong": [
+      "`kernel='linear'` with a large C",
+      "`kernel='linear'` with a small C",
+      "None; SVMs need linearly separable data"
+     ],
+     "explain": "No straight line separates rings; a radial-basis kernel can draw a circle."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.svm import SVC\nX = np.array([[0, 0], [0, 1], [1, 0], [3, 3], [3, 4], [4, 3]], dtype=float)\ny = np.array([0, 0, 0, 1, 1, 1])\nclf = SVC(kernel=\"linear\", C=100).fit(X, y)\nprint(len(clf.support_vectors_), clf.predict([[1, 1], [3.5, 3.5]]))",
+     "explain": "Only the points nearest the gap between the groups become support vectors; the rest do not affect the boundary.",
+     "expected": "3 [0 1]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import make_circles\nfrom sklearn.svm import SVC\nX, y = make_circles(n_samples=200, factor=0.4, noise=0.05, random_state=0)\nlin = SVC(kernel=\"linear\").fit(X, y).score(X, y)\nrbf = SVC(kernel=\"rbf\").fit(X, y).score(X, y)\nprint(lin < 0.8, rbf > 0.95)",
+     "explain": "A line cannot separate an inner ring from an outer one; the RBF kernel can.",
+     "expected": "True True"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` and `y` (two interleaved half-moons) are already defined. Split them with `train_test_split(X, y, random_state=0)`, fit `clf`, an `SVC` with an RBF kernel and `C=10`, on the training part, and store its test accuracy in `acc`.",
+     "starter": "from sklearn.svm import SVC\nfrom sklearn.model_selection import train_test_split\nclf = ...\nacc = ...",
+     "setup": "from sklearn.datasets import make_moons\nX, y = make_moons(n_samples=200, noise=0.2, random_state=3)",
+     "solution": "from sklearn.svm import SVC\nfrom sklearn.model_selection import train_test_split\nX_tr, X_te, y_tr, y_te = train_test_split(X, y, random_state=0)\nclf = SVC(kernel=\"rbf\", C=10).fit(X_tr, y_tr)\nacc = clf.score(X_te, y_te)",
+     "tests": [
+      {
+       "name": "model",
+       "code": "check(getattr(clf, \"kernel\", None) == \"rbf\" and getattr(clf, \"C\", None) == 10 and hasattr(clf, \"support_vectors_\"), \"`clf` should be a fitted SVC with kernel='rbf' and C=10.\")"
+      },
+      {
+       "name": "acc",
+       "code": "from sklearn.svm import SVC\nfrom sklearn.model_selection import train_test_split\na, b, c, d = train_test_split(X, y, random_state=0)\ncheck(close(acc, SVC(kernel=\"rbf\", C=10).fit(a, c).score(b, d)), \"`acc` should be the test accuracy on the split with random_state=0.\")"
+      }
+     ],
+     "explain": "The curved RBF boundary follows the moons closely."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` and `y` are already defined. For each C in `[0.01, 1, 100]` fit `SVC(kernel=\"linear\", C=C)` on all the data and record its number of support vectors. Store the three counts, in that order, in a list `n_sv`.",
+     "starter": "from sklearn.svm import SVC\nn_sv = ...",
+     "setup": "from sklearn.datasets import make_blobs\nX, y = make_blobs(n_samples=100, centers=2, cluster_std=1.5, random_state=2)",
+     "solution": "from sklearn.svm import SVC\nn_sv = [len(SVC(kernel=\"linear\", C=C).fit(X, y).support_vectors_) for C in [0.01, 1, 100]]",
+     "tests": [
+      {
+       "name": "n_sv",
+       "code": "from sklearn.svm import SVC\nref = [len(SVC(kernel=\"linear\", C=C).fit(X, y).support_vectors_) for C in [0.01, 1, 100]]\ncheck(list(n_sv) == ref, \"`n_sv` should hold the support-vector counts for C = 0.01, 1, 100.\")"
+      }
+     ],
+     "explain": "A softer margin (small C) lets more points inside it, so more of them become support vectors."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.forests",
+   "book": {
+    "section": "5.08",
+    "title": "In Depth: Decision Trees and Random Forests",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.08-random-forests.html"
+   },
+   "intro": "A **decision tree** asks a sequence of yes/no questions about single features (\"income above 40?\") and predicts from the leaf a row lands in. Grown without limit, a tree keeps splitting until each leaf is pure, so it fits the training data perfectly and overfits badly.\n\nA **random forest** averages many trees, each grown on a bootstrap sample of rows and choosing among random subsets of features at each split. The individual trees overfit in different ways, and averaging cancels much of that variance, the same logic as averaging many noisy estimators.\n\n```python\nfrom sklearn.ensemble import RandomForestClassifier, RandomForestRegressor\nrf = RandomForestRegressor(n_estimators=200, random_state=0)\nrf.fit(X_train, y_train)\nrf.feature_importances_       # sums to 1\n```\n\nForests need little tuning, handle nonlinearity and interactions without you specifying them, and require no scaling.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "A `DecisionTreeClassifier()` with default settings scores 1.0 on its training data and 0.78 on test data. What is happening?",
+     "correct": "The unrestricted tree has overfit; limiting `max_depth` or using a forest would help",
+     "wrong": [
+      "The tree is underfitting",
+      "The test set is mislabelled",
+      "Trees always score 1.0 on test data when tuned"
+     ],
+     "explain": "Without a depth limit, the tree keeps splitting until it memorises the training rows."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why does a random forest generalise better than a single deep tree?",
+     "correct": "Averaging many differently-overfit trees cancels much of their variance",
+     "wrong": [
+      "Each tree in the forest is shallower than a single tree",
+      "Forests use linear models in the leaves",
+      "Forests never use bootstrap samples"
+     ],
+     "explain": "Bootstrap rows and random feature subsets make the trees differ; their errors partly offset when averaged."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which preprocessing step do random forests NOT need?",
+     "correct": "Scaling features to a common range",
+     "wrong": [
+      "Encoding text as numbers",
+      "Arranging data as a 2-D features matrix",
+      "Handling the target's format"
+     ],
+     "explain": "Splits compare one feature with a threshold, so a feature's units do not matter."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import load_breast_cancer\nfrom sklearn.tree import DecisionTreeClassifier\nX, y = load_breast_cancer(return_X_y=True)\nfor depth in [1, None]:\n    tree = DecisionTreeClassifier(max_depth=depth, random_state=0).fit(X, y)\n    print(depth, round(tree.score(X, y), 3))",
+     "explain": "A single split (a 'stump') gets most rows right; an unlimited tree fits every training row.",
+     "expected": "1 0.923\nNone 1.0"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import make_classification\nfrom sklearn.ensemble import RandomForestClassifier\nX, y = make_classification(n_samples=100, n_features=4, random_state=0)\nrf = RandomForestClassifier(n_estimators=25, random_state=0).fit(X, y)\nprint(len(rf.estimators_), round(rf.feature_importances_.sum(), 3))",
+     "explain": "The forest stores one fitted tree per estimator, and importances are normalised to sum to 1.",
+     "expected": "25 1.0"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X_tr`, `X_te`, `y_tr`, `y_te` are a train/test split of a nonlinear regression problem (already defined). Fit `rf`, a `RandomForestRegressor(n_estimators=100, random_state=0)`, and `ols`, a `LinearRegression`, on the training data. Store their test R-squared values in `rf_r2` and `ols_r2`.",
+     "starter": "from sklearn.ensemble import RandomForestRegressor\nfrom sklearn.linear_model import LinearRegression\nrf = ...\nols = ...\nrf_r2 = ...\nols_r2 = ...",
+     "setup": "import numpy as np\nfrom sklearn.model_selection import train_test_split\nrng = np.random.default_rng(9)\nX = rng.uniform(0, 10, size=(400, 2))\ny = 5 * (X[:, 0] > 6) + X[:, 0] * X[:, 1] / 5 + rng.normal(0, 0.5, 400)\nX_tr, X_te, y_tr, y_te = train_test_split(X, y, random_state=0)",
+     "solution": "from sklearn.ensemble import RandomForestRegressor\nfrom sklearn.linear_model import LinearRegression\nrf = RandomForestRegressor(n_estimators=100, random_state=0).fit(X_tr, y_tr)\nols = LinearRegression().fit(X_tr, y_tr)\nrf_r2 = rf.score(X_te, y_te)\nols_r2 = ols.score(X_te, y_te)",
+     "tests": [
+      {
+       "name": "models",
+       "code": "check(hasattr(rf, \"estimators_\") and hasattr(ols, \"coef_\"), \"Fit both `rf` and `ols` on the training data.\")"
+      },
+      {
+       "name": "scores",
+       "code": "check(close(rf_r2, rf.score(X_te, y_te)) and close(ols_r2, ols.score(X_te, y_te)), \"Store each model's R-squared on the test rows.\")\ncheck(rf_r2 > ols_r2, \"With this threshold-shaped data the forest should beat OLS out of sample. Check you scored on the test rows.\")"
+      }
+     ],
+     "explain": "The target jumps at a threshold and has an interaction. A forest finds both without being told; OLS needs you to specify them."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Using `load_wine(return_X_y=True)`, fit `rf`, a `RandomForestClassifier(n_estimators=100, random_state=0)`, on all the data. Store in `top` the index of the most important feature according to `feature_importances_`.",
+     "starter": "import numpy as np\nfrom sklearn.datasets import load_wine\nfrom sklearn.ensemble import RandomForestClassifier\nrf = ...\ntop = ...",
+     "setup": "",
+     "solution": "import numpy as np\nfrom sklearn.datasets import load_wine\nfrom sklearn.ensemble import RandomForestClassifier\nX, y = load_wine(return_X_y=True)\nrf = RandomForestClassifier(n_estimators=100, random_state=0).fit(X, y)\ntop = int(np.argmax(rf.feature_importances_))",
+     "tests": [
+      {
+       "name": "rf",
+       "code": "check(hasattr(rf, \"feature_importances_\") and rf.n_estimators == 100, \"`rf` should be a fitted RandomForestClassifier with 100 trees.\")"
+      },
+      {
+       "name": "top",
+       "code": "check(top == int(rf.feature_importances_.argmax()), \"`top` should be the index of the largest feature importance. Try np.argmax.\")"
+      }
+     ],
+     "explain": "`argmax` gives the position of the largest importance."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.pca",
+   "book": {
+    "section": "5.09",
+    "title": "In Depth: Principal Component Analysis",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.09-principal-component-analysis.html"
+   },
+   "intro": "PCA finds new axes for the data, ordered by how much variance each captures. The first **principal component** is the direction along which the rows spread out most; the second is the most spread-out direction perpendicular to it, and so on. Keeping only the first few compresses the data with little loss.\n\n```python\nfrom sklearn.decomposition import PCA\npca = PCA(n_components=3).fit(X)\npca.explained_variance_ratio_      # share of total variance per component\nZ = pca.transform(X)               # coordinates on the new axes\nX_hat = pca.inverse_transform(Z)   # back to the original columns\nPCA(n_components=0.90)             # keep enough components for 90%\n```\n\nProjecting onto a few components and back is a way to **filter noise**: the leading components carry the shared signal, and the many small ones are mostly noise. Many correlated price indices, for instance, collapse onto one or two common factors. Standardise first when columns have different units.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does the first principal component represent?",
+     "correct": "The direction in feature space along which the data vary the most",
+     "wrong": [
+      "The feature most correlated with the target",
+      "The column with the largest mean",
+      "The first column of X"
+     ],
+     "explain": "PCA is unsupervised; it looks only at the spread of X."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `PCA(n_components=0.95)` do?",
+     "correct": "Keeps the smallest number of components that together explain at least 95% of the variance",
+     "wrong": [
+      "Keeps 95 components",
+      "Drops 5% of the rows",
+      "Keeps components whose individual share exceeds 0.95"
+     ],
+     "explain": "A float between 0 and 1 is read as a target share of variance."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "One column is income in currency units (variance in the millions) and the rest are rates between 0 and 1. What happens if you run PCA without scaling?",
+     "correct": "The first component will point almost entirely along income, because it dominates the variance",
+     "wrong": [
+      "PCA scales the columns automatically",
+      "Income is dropped",
+      "The rates dominate because there are more of them"
+     ],
+     "explain": "PCA maximises raw variance, so units matter. Standardise first."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.decomposition import PCA\nrng = np.random.default_rng(0)\nt = rng.normal(size=200)\nX = np.column_stack([t, 2 * t, -t])\nprint(np.round(PCA().fit(X).explained_variance_ratio_, 3))",
+     "explain": "All three columns are multiples of one variable, so the data lie on a line: the first component explains everything.",
+     "expected": "[1. 0. 0.]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import load_digits\nfrom sklearn.decomposition import PCA\nX, _ = load_digits(return_X_y=True)\npca = PCA(n_components=0.9).fit(X)\nprint(X.shape[1], pca.n_components_)",
+     "explain": "The 64 pixel columns are highly correlated, so far fewer components cover 90% of the variance.",
+     "expected": "64 21"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Load `load_wine(return_X_y=True)` and standardise `X` with `StandardScaler`. Fit `pca = PCA()` on the scaled data and store in `k80` the smallest number of components whose cumulative explained variance ratio reaches 0.8.",
+     "starter": "import numpy as np\nfrom sklearn.datasets import load_wine\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.decomposition import PCA\npca = ...\nk80 = ...",
+     "setup": "",
+     "solution": "import numpy as np\nfrom sklearn.datasets import load_wine\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.decomposition import PCA\nX, y = load_wine(return_X_y=True)\nXs = StandardScaler().fit_transform(X)\npca = PCA().fit(Xs)\nk80 = int(np.argmax(np.cumsum(pca.explained_variance_ratio_) >= 0.8) + 1)",
+     "tests": [
+      {
+       "name": "pca",
+       "code": "check(hasattr(pca, \"explained_variance_ratio_\") and len(pca.explained_variance_ratio_) == 13, \"`pca` should be a PCA with all components, fitted on the 13 scaled wine features.\")"
+      },
+      {
+       "name": "scaled",
+       "code": "check(close(pca.mean_, [0] * 13, atol=1e-8), \"Fit PCA on the standardised data (each column mean 0).\")"
+      },
+      {
+       "name": "k80",
+       "code": "check(k80 == 5, \"`k80` should be the count of components needed for a cumulative share of at least 0.8. Use np.cumsum.\")"
+      }
+     ],
+     "explain": "`np.cumsum` of the ratios gives running totals; the first position reaching 0.8, plus one, is the count."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`noisy` (already defined) is a 100 x 12 panel of price indices: a low-dimensional common signal plus noise. Filter it by fitting `pca = PCA(n_components=2)`, projecting and mapping back. Store the reconstructed array (same shape as `noisy`) in `smooth`.",
+     "starter": "from sklearn.decomposition import PCA\npca = ...\nsmooth = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(10)\nfactors = rng.normal(size=(100, 2))\nloadings = rng.normal(size=(2, 12))\nclean = factors @ loadings\nnoisy = clean + rng.normal(0, 0.5, size=(100, 12))",
+     "solution": "from sklearn.decomposition import PCA\npca = PCA(n_components=2).fit(noisy)\nsmooth = pca.inverse_transform(pca.transform(noisy))",
+     "tests": [
+      {
+       "name": "shape",
+       "code": "check(getattr(smooth, \"shape\", None) == (100, 12), \"`smooth` should have the same shape as `noisy`. Use inverse_transform.\")"
+      },
+      {
+       "name": "closer",
+       "code": "import numpy as np\ncheck(getattr(pca, \"n_components_\", None) == 2, \"Use 2 components.\")\ncheck(np.abs(smooth - clean).mean() < np.abs(noisy - clean).mean(), \"`smooth` should be closer to the underlying signal than `noisy` is.\")"
+      }
+     ],
+     "explain": "Projecting onto two components keeps the common factors; mapping back drops the small, noisy directions."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.manifold",
+   "book": {
+    "section": "5.10",
+    "title": "In Depth: Manifold Learning",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.10-manifold-learning.html"
+   },
+   "intro": "PCA finds flat directions. When data lie on a curved surface, like a sheet of paper rolled up in three dimensions, no flat projection unrolls it. **Manifold learning** methods look for a low-dimensional layout that respects the data's own geometry.\n\n- **MDS** (multidimensional scaling) places points so that their distances match the original pairwise distances as well as possible.\n- **LLE** (locally linear embedding) keeps only each point's relationship to its nearest neighbours, so it can unroll curved sheets.\n- **Isomap** measures distance along the surface, through chains of neighbours, and then lays those distances out flat.\n\n```python\nfrom sklearn.manifold import Isomap\nZ = Isomap(n_neighbors=10, n_components=2).fit_transform(X)\n```\n\nThese methods are slower than PCA, sensitive to `n_neighbors` and noise, and their axes have no direct meaning. Use them mainly to explore and visualise.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does metric MDS try to preserve?",
+     "correct": "The pairwise distances between points",
+     "wrong": [
+      "The variance of each column",
+      "Each point's class label",
+      "The order of the rows"
+     ],
+     "explain": "MDS searches for a low-dimensional layout whose distances match the originals."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why can Isomap unroll a rolled-up sheet when PCA cannot?",
+     "correct": "It measures distance along the sheet through chains of neighbours, not straight through the roll",
+     "wrong": [
+      "It uses more components than PCA",
+      "It standardises the data first",
+      "It is supervised"
+     ],
+     "explain": "Two points on adjacent layers of the roll are close in a straight line but far apart along the surface; Isomap uses the latter."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 3,
+     "prompt": "In scikit-learn 1.9, which of these estimators has no `transform` method for embedding new points after fitting?",
+     "correct": "`MDS`",
+     "wrong": [
+      "`Isomap`",
+      "`LocallyLinearEmbedding`",
+      "`PCA`"
+     ],
+     "explain": "MDS only offers `fit_transform` on the data it was given. Isomap, LLE and PCA can map new rows with `transform`."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import make_s_curve\nfrom sklearn.manifold import Isomap\nX, t = make_s_curve(n_samples=300, random_state=0)\nZ = Isomap(n_neighbors=10, n_components=2).fit_transform(X)\nprint(X.shape, Z.shape)",
+     "explain": "Isomap maps each 3-D point to 2 coordinates on the unrolled sheet.",
+     "expected": "(300, 3) (300, 2)"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom scipy.spatial.distance import pdist\nfrom sklearn.manifold import MDS\nrng = np.random.default_rng(0)\nP = rng.normal(size=(8, 2)) @ np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 1.0]])\nZ = MDS(n_components=2, init=\"classical_mds\", random_state=0).fit_transform(P)\nprint(Z.shape, round(float(np.abs(pdist(Z) - pdist(P)).max()), 3))",
+     "explain": "These 3-D points lie exactly on a plane, so a 2-D layout can match every pairwise distance: the largest error is 0.",
+     "expected": "(8, 2) 0.0"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` (points on an S-shaped sheet) and `t` (each point's position along the sheet) are already defined. Embed `X` in 2 dimensions with `Isomap(n_neighbors=12, n_components=2)` and store the result in `Z`. Then store in `corr` the absolute correlation between `t` and the first column of `Z` (use `np.corrcoef`).",
+     "starter": "import numpy as np\nfrom sklearn.manifold import Isomap\nZ = ...\ncorr = ...",
+     "setup": "from sklearn.datasets import make_s_curve\nX, t = make_s_curve(n_samples=300, random_state=1)",
+     "solution": "import numpy as np\nfrom sklearn.manifold import Isomap\nZ = Isomap(n_neighbors=12, n_components=2).fit_transform(X)\ncorr = abs(np.corrcoef(t, Z[:, 0])[0, 1])",
+     "tests": [
+      {
+       "name": "Z",
+       "code": "check(getattr(Z, \"shape\", None) == (300, 2), \"`Z` should be the 2-D Isomap embedding (300 rows, 2 columns).\")"
+      },
+      {
+       "name": "corr",
+       "code": "import numpy as np\ncheck(close(corr, abs(np.corrcoef(t, Z[:, 0])[0, 1])), \"`corr` should be the absolute correlation of t with Z[:, 0].\")\ncheck(corr > 0.9, \"Isomap's first coordinate should track position along the sheet closely.\")"
+      }
+     ],
+     "explain": "Isomap's first coordinate follows the sheet's long direction, so it nearly reproduces `t` (up to sign)."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.kmeans",
+   "book": {
+    "section": "5.11",
+    "title": "In Depth: k-Means Clustering",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.11-k-means.html"
+   },
+   "intro": "k-means splits rows into k clusters, each summarised by its centre. It alternates two steps until nothing changes: assign every point to the nearest centre, then move each centre to the mean of its points.\n\n```python\nfrom sklearn.cluster import KMeans\nkm = KMeans(n_clusters=3, random_state=0).fit(X)\nkm.labels_              # cluster of each row\nkm.cluster_centers_     # one row per centre\nkm.inertia_             # total squared distance to centres\n```\n\nYou must choose k. Inertia always falls as k rises (more centres are always closer), so look for an \"elbow\" where it stops falling quickly, or compare silhouette scores.\n\nk-means assumes round clusters of similar size, because it only looks at distance to a centre. Elongated or nested groups defeat it, and since it can stop at a local optimum it is run from several starts. The cluster numbers themselves are arbitrary labels.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why can't you choose k by picking the value with the lowest inertia?",
+     "correct": "Inertia always falls as k grows, reaching 0 when every point is its own cluster",
+     "wrong": [
+      "Inertia is random and cannot be compared",
+      "Inertia rises with k",
+      "KMeans does not compute inertia"
+     ],
+     "explain": "Look for the elbow where extra clusters stop buying much reduction."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which data set is k-means most likely to cluster badly?",
+     "correct": "Two concentric rings",
+     "wrong": [
+      "Three well-separated round blobs",
+      "Two blobs of equal size",
+      "Four tight, round groups"
+     ],
+     "explain": "Each k-means cluster is the region closest to a centre, so the boundaries are straight. Rings need a nonlinear method."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You run KMeans twice with different `random_state` values and the labels come out as [0, 0, 1, 1] and [1, 1, 0, 0]. What does this mean?",
+     "correct": "The clusters are the same; only the arbitrary label numbers are swapped",
+     "wrong": [
+      "The two runs found different clusters",
+      "One run failed to converge",
+      "The data have no cluster structure"
+     ],
+     "explain": "Cluster numbers have no meaning; compare which points are grouped together."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.datasets import make_blobs\nfrom sklearn.cluster import KMeans\nX, _ = make_blobs(n_samples=[50, 30, 20], random_state=4, cluster_std=0.6)\nkm = KMeans(n_clusters=3, random_state=0).fit(X)\nprint(sorted(np.bincount(km.labels_).tolist()))",
+     "explain": "The three well-separated blobs have 50, 30 and 20 points; sorting the counts hides the arbitrary label numbers.",
+     "expected": "[20, 30, 50]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import make_blobs\nfrom sklearn.cluster import KMeans\nX, _ = make_blobs(n_samples=150, centers=3, random_state=1)\ninertia = [KMeans(n_clusters=k, random_state=0).fit(X).inertia_ for k in range(1, 6)]\nprint(all(a > b for a, b in zip(inertia, inertia[1:])))",
+     "explain": "Adding a centre can only bring points closer, so inertia falls with every k.",
+     "expected": "True"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` (already defined) holds two indicators for 200 regions. Fit `km = KMeans(n_clusters=4, random_state=0)` and store the cluster centres in `centres` and the number of regions in the largest cluster in `biggest`.",
+     "starter": "import numpy as np\nfrom sklearn.cluster import KMeans\nkm = ...\ncentres = ...\nbiggest = ...",
+     "setup": "from sklearn.datasets import make_blobs\nX, _ = make_blobs(n_samples=[80, 50, 40, 30], cluster_std=0.5, random_state=6)",
+     "solution": "import numpy as np\nfrom sklearn.cluster import KMeans\nkm = KMeans(n_clusters=4, random_state=0).fit(X)\ncentres = km.cluster_centers_\nbiggest = int(np.bincount(km.labels_).max())",
+     "tests": [
+      {
+       "name": "km",
+       "code": "check(getattr(km, \"n_clusters\", None) == 4 and hasattr(km, \"labels_\"), \"`km` should be a KMeans with 4 clusters, fitted on X.\")"
+      },
+      {
+       "name": "centres",
+       "code": "check(getattr(centres, \"shape\", None) == (4, 2), \"`centres` should hold 4 centres with 2 coordinates each.\")"
+      },
+      {
+       "name": "biggest",
+       "code": "check(biggest == 80, \"`biggest` should count the rows in the largest cluster. np.bincount on the labels helps.\")"
+      }
+     ],
+     "explain": "`np.bincount(labels)` counts rows per cluster."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` is already defined. Compute `inertias`, a list with the KMeans inertia for k = 1 to 8 (use `random_state=0`). Then store in `drop` a list of the 7 successive decreases (inertia at k minus inertia at k+1).",
+     "starter": "from sklearn.cluster import KMeans\ninertias = ...\ndrop = ...",
+     "setup": "from sklearn.datasets import make_blobs\nX, _ = make_blobs(n_samples=200, centers=3, random_state=7)",
+     "solution": "from sklearn.cluster import KMeans\ninertias = [KMeans(n_clusters=k, random_state=0).fit(X).inertia_ for k in range(1, 9)]\ndrop = [a - b for a, b in zip(inertias, inertias[1:])]",
+     "tests": [
+      {
+       "name": "inertias",
+       "code": "from sklearn.cluster import KMeans\ncheck(len(inertias) == 8, \"`inertias` should have one value for each k from 1 to 8.\")\ncheck(close(inertias[2], KMeans(n_clusters=3, random_state=0).fit(X).inertia_), \"Use KMeans(n_clusters=k, random_state=0).inertia_ for each k.\")"
+      },
+      {
+       "name": "drop",
+       "code": "import numpy as np\ncheck(len(drop) == 7 and close(drop, -np.diff(inertias)), \"`drop[i]` should be inertias[i] - inertias[i + 1].\")"
+      }
+     ],
+     "explain": "The drops are large up to the true number of clusters and small after it: that change in slope is the elbow."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.gmm",
+   "book": {
+    "section": "5.12",
+    "title": "In Depth: Gaussian Mixture Models",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.12-gaussian-mixtures.html"
+   },
+   "intro": "A **Gaussian mixture model** says each row was drawn from one of k normal distributions, each with its own mean, covariance and weight. Fitting by expectation-maximisation gives **soft** assignments: a probability of belonging to each component, not a single label.\n\n```python\nfrom sklearn.mixture import GaussianMixture\ngmm = GaussianMixture(n_components=3, covariance_type=\"full\", random_state=0).fit(X)\ngmm.predict_proba(X)       # one row of probabilities per point\ngmm.weights_, gmm.means_\ngmm.bic(X)                 # lower is better\nnew_rows, _ = gmm.sample(100)\n```\n\n`covariance_type` sets each component's shape: `\"spherical\"` (round), `\"diag\"` (axis-aligned ellipses) or `\"full\"` (any ellipse). Full handles elongated clusters that defeat k-means.\n\nBecause it is a full probability model, a GMM is also a **density estimator**: it can generate new data. Choose the number of components with AIC or BIC, which reward fit and penalise extra parameters, much as in model selection for time-series lags.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does a GMM give for each point that k-means does not?",
+     "correct": "A probability of belonging to each component",
+     "wrong": [
+      "A distance to the nearest centre",
+      "A single hard label",
+      "A predicted target value"
+     ],
+     "explain": "`predict_proba` returns soft assignments; points between clusters get split probabilities."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You compare GMMs with 1 to 6 components using BIC. Which do you pick?",
+     "correct": "The one with the lowest BIC",
+     "wrong": [
+      "The one with the highest BIC",
+      "The one with the most components",
+      "The one where BIC first goes negative"
+     ],
+     "explain": "BIC adds a penalty for parameters to the negative log-likelihood, so smaller is better."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which `covariance_type` lets each component be an ellipse tilted at any angle?",
+     "correct": "`'full'`",
+     "wrong": [
+      "`'spherical'`",
+      "`'diag'`",
+      "None; GMM components are always round"
+     ],
+     "explain": "Full covariance matrices allow correlation between features within a component. Diagonal ones keep ellipses aligned with the axes."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.mixture import GaussianMixture\nrng = np.random.default_rng(0)\nX = np.concatenate([rng.normal(0, 1, 300), rng.normal(6, 1, 100)])[:, None]\ngmm = GaussianMixture(n_components=2, random_state=0).fit(X)\nprint(np.round(np.sort(gmm.weights_), 2), np.round(np.sort(gmm.means_.ravel()), 1) + 0.0)",
+     "explain": "Three quarters of the draws come from the component at 0 and one quarter from the one at 6. Sorting hides the arbitrary component order.",
+     "expected": "[0.25 0.75] [0. 6.]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "from sklearn.datasets import make_blobs\nfrom sklearn.mixture import GaussianMixture\nX, _ = make_blobs(n_samples=300, centers=3, cluster_std=0.8, random_state=2)\nbic = [GaussianMixture(n_components=k, random_state=0).fit(X).bic(X) for k in range(1, 6)]\nprint(bic.index(min(bic)) + 1)",
+     "explain": "BIC is lowest at the true number of components, 3.",
+     "expected": "3"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`X` (already defined) has two elongated, tilted clusters. Fit `gmm = GaussianMixture(n_components=2, covariance_type=\"full\", random_state=0)` and store in `probs` the array of membership probabilities for every row. Then store in `unsure` the number of rows whose largest probability is below 0.9.",
+     "starter": "from sklearn.mixture import GaussianMixture\ngmm = ...\nprobs = ...\nunsure = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(13)\nA = rng.normal(size=(150, 2)) @ np.array([[2.0, 0.0], [1.5, 0.4]])\nB = rng.normal(size=(150, 2)) @ np.array([[2.0, 0.0], [1.5, 0.4]]) + [0.0, 3.0]\nX = np.vstack([A, B])",
+     "solution": "from sklearn.mixture import GaussianMixture\ngmm = GaussianMixture(n_components=2, covariance_type=\"full\", random_state=0).fit(X)\nprobs = gmm.predict_proba(X)\nunsure = int((probs.max(axis=1) < 0.9).sum())",
+     "tests": [
+      {
+       "name": "gmm",
+       "code": "check(getattr(gmm, \"covariance_type\", None) == \"full\" and hasattr(gmm, \"means_\"), \"`gmm` should be a fitted GaussianMixture with full covariances.\")"
+      },
+      {
+       "name": "probs",
+       "code": "check(getattr(probs, \"shape\", None) == (len(X), 2), \"`probs` should have one row per point and one column per component.\")\ncheck(close(probs.sum(axis=1), [1] * len(X)), \"Each row of `probs` should sum to 1. Use predict_proba.\")"
+      },
+      {
+       "name": "unsure",
+       "code": "check(unsure == int((probs.max(axis=1) < 0.9).sum()), \"`unsure` should count rows whose largest probability is under 0.9.\")"
+      }
+     ],
+     "explain": "Points in the overlap between the ellipses get split probabilities."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 3,
+     "prompt": "`incomes` (a 1-D array of log incomes) is already defined. Fit GaussianMixture models with 1 to 5 components (`random_state=0`) on it as a single column, and store in `best_k` the number of components with the lowest BIC. Then fit the chosen model as `gmm` and draw `fake`, 500 new incomes from it with `gmm.sample(500)`, keeping just the sampled values.",
+     "starter": "from sklearn.mixture import GaussianMixture\nbest_k = ...\ngmm = ...\nfake = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(14)\nincomes = np.concatenate([rng.normal(9.8, 0.3, 400), rng.normal(11.2, 0.4, 200)])",
+     "solution": "from sklearn.mixture import GaussianMixture\nX = incomes[:, None]\nbics = [GaussianMixture(n_components=k, random_state=0).fit(X).bic(X) for k in range(1, 6)]\nbest_k = bics.index(min(bics)) + 1\ngmm = GaussianMixture(n_components=best_k, random_state=0).fit(X)\nfake, _ = gmm.sample(500)",
+     "tests": [
+      {
+       "name": "best_k",
+       "code": "check(best_k == 2, \"`best_k` should be the number of components (1 to 5) with the lowest BIC.\")"
+      },
+      {
+       "name": "gmm",
+       "code": "check(getattr(gmm, \"n_components\", None) == best_k and hasattr(gmm, \"means_\"), \"Fit `gmm` with the chosen number of components.\")"
+      },
+      {
+       "name": "fake",
+       "code": "check(getattr(fake, \"shape\", None) == (500, 1), \"`fake` should be the first item returned by gmm.sample(500), shape (500, 1).\")"
+      }
+     ],
+     "explain": "The incomes come from two groups, so BIC picks 2. `sample` returns the draws and their component labels; keep the draws."
+    }
+   ]
+  },
+  {
+   "id": "py.ml.kde",
+   "book": {
+    "section": "5.13",
+    "title": "In Depth: Kernel Density Estimation",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/05.13-kernel-density-estimation.html"
+   },
+   "intro": "A histogram estimates a density, but it depends on where the bins start. **Kernel density estimation** puts a small smooth bump (the kernel) on every data point and adds them up. Think of it as a mixture model with one component per observation.\n\n```python\nfrom sklearn.neighbors import KernelDensity\nkde = KernelDensity(kernel=\"gaussian\", bandwidth=0.5).fit(x[:, None])\nlog_dens = kde.score_samples(grid[:, None])   # log of the density\ndens = np.exp(log_dens)\n```\n\nNote that `score_samples` returns the **log** density, so exponentiate it.\n\nThe **bandwidth** is the bump width, the analogue of bin width. Too small gives a spiky curve that chases individual points; too large blurs real features such as two peaks in an income distribution. Choose it by cross-validation: `GridSearchCV` over `bandwidth` uses `kde.score`, the total log-likelihood of held-out points.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does `KernelDensity.score_samples(X)` return?",
+     "correct": "The log of the estimated density at each row of X",
+     "wrong": [
+      "The density itself",
+      "The probability of each row's class",
+      "A cluster label per row"
+     ],
+     "explain": "Exponentiate with `np.exp` to get the density."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "A KDE of hourly wages looks like a row of narrow spikes at the observed values. What should you change?",
+     "correct": "Increase the bandwidth",
+     "wrong": [
+      "Decrease the bandwidth",
+      "Switch to a linear kernel",
+      "Use fewer data points"
+     ],
+     "explain": "A bandwidth that is too small fits each point separately, the density analogue of overfitting."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 3,
+     "prompt": "When `GridSearchCV` tunes a `KernelDensity` with no `scoring` argument, what does it maximise?",
+     "correct": "The log-likelihood of the held-out points under the fitted density",
+     "wrong": [
+      "Classification accuracy",
+      "R-squared",
+      "The number of peaks"
+     ],
+     "explain": "KernelDensity's `score` method returns the total log-likelihood, which the search uses by default."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nrng = np.random.default_rng(0)\nx = rng.normal(0, 1, 200)\nkde = KernelDensity(bandwidth=0.4).fit(x[:, None])\ngrid = np.linspace(-6, 6, 1201)\ndens = np.exp(kde.score_samples(grid[:, None]))\nprint(round(dens.sum() * (grid[1] - grid[0]), 3))",
+     "explain": "A density integrates to 1; the Riemann sum over a wide grid confirms it.",
+     "expected": "1.0"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nx = np.array([0.0, 0.0, 4.0])[:, None]\nkde = KernelDensity(bandwidth=0.5).fit(x)\nd = np.exp(kde.score_samples([[0.0], [4.0], [2.0]]))\nprint(d[0] > d[1] > d[2])",
+     "explain": "Two bumps sit at 0 and one at 4, so the density is highest at 0, lower at 4, and near zero halfway between.",
+     "expected": "True"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`logwage` (1-D, already defined) is a sample of log wages. Use `GridSearchCV` with `cv=5` over `KernelDensity` bandwidths `np.linspace(0.05, 1.0, 20)`. Store the fitted search in `grid` and the chosen bandwidth in `bw`.",
+     "starter": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nfrom sklearn.model_selection import GridSearchCV\ngrid = ...\nbw = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(15)\nlogwage = np.concatenate([rng.normal(2.6, 0.25, 150), rng.normal(3.4, 0.3, 100)])",
+     "solution": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nfrom sklearn.model_selection import GridSearchCV\ngrid = GridSearchCV(KernelDensity(), {\"bandwidth\": np.linspace(0.05, 1.0, 20)}, cv=5)\ngrid.fit(logwage[:, None])\nbw = grid.best_params_[\"bandwidth\"]",
+     "tests": [
+      {
+       "name": "grid",
+       "code": "check(hasattr(grid, \"best_params_\") and len(grid.param_grid.get(\"bandwidth\", [])) == 20, \"`grid` should be a fitted GridSearchCV over 20 bandwidth values.\")"
+      },
+      {
+       "name": "bw",
+       "code": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nfrom sklearn.model_selection import GridSearchCV\nref = GridSearchCV(KernelDensity(), {\"bandwidth\": np.linspace(0.05, 1.0, 20)}, cv=5).fit(logwage[:, None])\ncheck(close(bw, ref.best_params_[\"bandwidth\"]), \"`bw` should be the bandwidth in `grid.best_params_`. Did you fit on logwage as a single column?\")"
+      }
+     ],
+     "explain": "No target is needed: the search scores each bandwidth by held-out log-likelihood."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`x` (1-D, already defined) has two groups of values. Fit `kde = KernelDensity(bandwidth=0.3)` on it, evaluate the density (not the log density) on `grid = np.linspace(0, 10, 501)` as `dens`, and store the grid value where the density is highest in `mode`.",
+     "starter": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nkde = ...\ndens = ...\nmode = ...",
+     "setup": "import numpy as np\nrng = np.random.default_rng(16)\nx = np.concatenate([rng.normal(3, 0.5, 300), rng.normal(7, 0.8, 120)])",
+     "solution": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nkde = KernelDensity(bandwidth=0.3).fit(x[:, None])\ngrid = np.linspace(0, 10, 501)\ndens = np.exp(kde.score_samples(grid[:, None]))\nmode = grid[np.argmax(dens)]",
+     "tests": [
+      {
+       "name": "dens",
+       "code": "import numpy as np\ncheck(getattr(dens, \"shape\", None) == (501,), \"`dens` should have one value per grid point.\")\ncheck(dens.min() >= 0 and close(dens.sum() * 0.02, 1, rtol=0.02), \"`dens` should be the density itself. score_samples returns its log.\")"
+      },
+      {
+       "name": "mode",
+       "code": "check(abs(mode - 3.0) < 0.3, \"`mode` should be the grid value with the highest density.\")"
+      }
+     ],
+     "explain": "Exponentiate the log density, then `argmax` finds the peak."
+    }
+   ]
+  }
+ ]
+}

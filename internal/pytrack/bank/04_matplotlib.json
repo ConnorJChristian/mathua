@@ -1,0 +1,1394 @@
+{
+ "chapter": "matplotlib",
+ "title": "Visualization with Matplotlib",
+ "concepts": [
+  {
+   "id": "py.mpl.interfaces",
+   "book": {
+    "section": "4.00",
+    "title": "Introduction to Matplotlib",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.00-introduction-to-matplotlib.html"
+   },
+   "intro": "A Matplotlib picture has two layers. The **Figure** is the whole canvas; each **Axes** is one plotting panel inside it, with its own x and y axis.\n\nThere are two ways to drive them. The *pyplot* style calls functions on `plt` and lets Matplotlib track a \"current\" figure and axes for you. The *object-oriented* style asks for the objects and calls their methods:\n\n```python\nimport matplotlib.pyplot as plt\nimport numpy as np\nyears = np.arange(2015, 2025)\ndebt = np.array([62, 64, 63, 66, 70, 79, 77, 74, 75, 76])\n\nfig, ax = plt.subplots()      # one figure, one axes\nax.plot(years, debt)\nfig.savefig(\"debt.png\")       # the format comes from the extension\n```\n\nIn a script, `plt.show()` opens a window and blocks until it is closed; in a notebook the figure appears below the cell. The object style is clearer once a figure has more than one panel, because you always know which panel a call affects.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "In `fig, ax = plt.subplots()`, what is `ax`?",
+     "correct": "One plotting panel (an Axes) inside the figure",
+     "wrong": [
+      "The x axis only",
+      "The whole canvas, including every panel",
+      "A NumPy array of the plotted data"
+     ],
+     "explain": "The Figure is the container; an Axes is a single panel with its own coordinate system, ticks and labels. With no arguments, `subplots` makes exactly one."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "How does `fig.savefig(\"wage_growth.pdf\")` decide the file format?",
+     "correct": "From the file extension, so this writes a PDF",
+     "wrong": [
+      "It always writes PNG and names it .pdf",
+      "From an rcParam that must be set first",
+      "It asks which format to use"
+     ],
+     "explain": "`savefig` infers the format from the extension (png, pdf, svg and others). You can also pass `format=` explicitly."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which statement about the pyplot interface (`plt.plot`, `plt.title`, ...) is true?",
+     "correct": "Each call acts on whichever figure and axes are current",
+     "wrong": [
+      "It cannot draw more than one line per figure",
+      "It is a separate library from the object-oriented interface",
+      "It only works inside notebooks"
+     ],
+     "explain": "pyplot keeps hidden state: the current figure and the current axes. That is convenient for quick plots but makes it less obvious which panel a call changes when there are several."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([1, 2, 3], [4, 1, 5])\nax.plot([1, 2, 3], [2, 2, 2])\nprint(len(fig.axes), len(ax.lines))",
+     "explain": "Both `plot` calls draw into the same axes, so there is one axes holding two lines.",
+     "expected": "1 2"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nplt.plot([0, 1], [0, 1])\nplt.figure()\nplt.plot([0, 1], [1, 0])\nplt.plot([0, 1], [0.5, 0.5])\nprint(len(plt.get_fignums()), len(plt.gca().lines))",
+     "explain": "The first `plt.plot` creates figure 1. `plt.figure()` makes figure 2 current, so the next two lines go there. `plt.gca()` is figure 2's axes.",
+     "expected": "2 2"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Using the object-oriented interface, make a figure with one axes and plot `rate` (y) against `month` (x). Both arrays are already defined. Keep the figure in `fig` and the axes in `ax`.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = ...",
+     "setup": "import numpy as np\nmonth = np.arange(1, 13)\nrate = np.array([3.9, 3.8, 3.8, 3.9, 4.0, 4.1, 4.3, 4.2, 4.1, 4.1, 4.2, 4.2])",
+     "solution": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(month, rate)",
+     "tests": [
+      {
+       "name": "figure",
+       "code": "figs = figures()\ncheck(len(figs) == 1, \"Make exactly one figure.\")\ncheck(len(figs[0].axes) == 1, \"The figure should have one axes.\")\ncheck(get(\"ax\") is figs[0].axes[0], \"`ax` should be the axes inside your figure.\")"
+      },
+      {
+       "name": "line",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.lines) == 1, \"Draw exactly one line.\")\nx, y = ax.lines[0].get_data()\ncheck(close(x, month) and close(y, rate), \"Plot `rate` on the y axis against `month` on the x axis.\")"
+      }
+     ],
+     "explain": "`plt.subplots()` returns the figure and its axes; `ax.plot(x, y)` puts x first."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.line_styles",
+   "book": {
+    "section": "4.01",
+    "title": "Simple Line Plots",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.01-simple-line-plots.html"
+   },
+   "intro": "`ax.plot(x, y)` joins points with straight segments. Call it again and the next line gets the next color in the cycle (`C0`, `C1`, ...).\n\nAppearance is set with keywords:\n\n```python\nt = np.linspace(0, 10, 50)\nax.plot(t, np.exp(0.05 * t), color=\"C2\", linestyle=\"--\", linewidth=2)\nax.plot(t, 1 + 0.05 * t, color=\"gray\", linestyle=\":\")\nax.plot(t, np.ones_like(t), \"k-.\")       # shorthand: black, dash-dot\n```\n\nColors can be names (`\"gray\"`), cycle codes (`\"C1\"`), hex strings (`\"#1f77b4\"`) or grayscale strings (`\"0.6\"`). Line styles are `\"-\"`, `\"--\"`, `\":\"` and `\"-.\"`. The short format string packs a color letter, a marker and a line style into one argument, which is handy for quick looks but harder to read later.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does the format string `\"r--\"` in `ax.plot(x, y, \"r--\")` give?",
+     "correct": "A red dashed line",
+     "wrong": [
+      "A red dotted line",
+      "Red circles with no line",
+      "A thick red solid line"
+     ],
+     "explain": "`r` is red and `--` is dashed. A dotted line is `:`."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You call `ax.plot` three times with no color argument. What colors do the lines get?",
+     "correct": "The first three colors of the property cycle, `C0`, `C1` and `C2`",
+     "wrong": [
+      "All three are the same blue",
+      "Random colors, different every run",
+      "Black, then gray, then light gray"
+     ],
+     "explain": "Each new line on an axes takes the next entry from the color cycle, so unstyled lines are distinguishable and reproducible."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "The default line width is 1.5 points. Which call draws a line twice as thick?",
+     "correct": "`ax.plot(x, y, linewidth=3)`",
+     "wrong": [
+      "`ax.plot(x, y, linewidth=2)`",
+      "`ax.plot(x, y, linestyle=2)`",
+      "`ax.plot(x, y, size=3)`"
+     ],
+     "explain": "The width is in points, so doubling 1.5 gives 3; `lw` is a short alias. `linestyle` controls dashes, not thickness."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nline, = ax.plot([1, 2, 3], [2, 4, 3], \"g:\")\nprint(line.get_color(), line.get_linestyle())",
+     "explain": "The format string `g:` sets the color to `g` (green) and the line style to dotted, `:`.",
+     "expected": "g :"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nfrom matplotlib.colors import to_hex\nfor k in range(4):\n    ax.plot([0, 1], [k, k + 1])\nax.plot([0, 1], [5, 5], color=\"C1\")\nprint(len({to_hex(ln.get_color()) for ln in ax.lines}))",
+     "explain": "The four unstyled lines take `C0` to `C3`, four different colors. The fifth line asks for `C1`, which repeats the second color, so there are four distinct colors in total.",
+     "expected": "4"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "On one axes, plot `nominal` against `year` as a solid black line, and `real` against `year` as a dashed line with width 3. Both series and `year` are already defined.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(year, nominal)\n# add the real series",
+     "setup": "import numpy as np\nyear = np.arange(2018, 2025)\nnominal = np.array([100, 104, 107, 113, 121, 127, 131])\nreal = np.array([100, 102, 104, 105, 104, 106, 108])",
+     "solution": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(year, nominal, color=\"black\")\nax.plot(year, real, linestyle=\"--\", linewidth=3)",
+     "tests": [
+      {
+       "name": "two lines",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.lines) == 2, \"Draw two lines on the same axes.\")"
+      },
+      {
+       "name": "nominal",
+       "code": "from matplotlib.colors import to_rgb\nax = figures()[0].axes[0]\nln = [l for l in ax.lines if close(l.get_ydata(), nominal)]\ncheck(ln, \"One line should plot `nominal` against `year`.\")\ncheck(to_rgb(ln[0].get_color()) == (0, 0, 0), \"The nominal line should be black.\")\ncheck(ln[0].get_linestyle() == \"-\", \"The nominal line should be solid.\")"
+      },
+      {
+       "name": "real",
+       "code": "ax = figures()[0].axes[0]\nln = [l for l in ax.lines if close(l.get_ydata(), real)]\ncheck(ln, \"One line should plot `real` against `year`.\")\ncheck(ln[0].get_linestyle() == \"--\", \"The real line should be dashed.\")\ncheck(ln[0].get_linewidth() == 3, \"The real line should have width 3.\")"
+      }
+     ],
+     "explain": "`color=\"black\"` (or `\"k\"`) and the default style give a solid black line; `linestyle=\"--\"` and `linewidth=3` style the second."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.limits_labels",
+   "book": {
+    "section": "4.01",
+    "title": "Simple Line Plots",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.01-simple-line-plots.html"
+   },
+   "intro": "Matplotlib picks limits that fit the data with a small margin. Override them with `set_xlim` and `set_ylim`; passing them in descending order flips the axis.\n\n```python\nax.plot(q, price)\nax.set_xlim(0, 100)\nax.set_ylim(0, 25)\nax.set_xlabel(\"Quantity\")\nax.set_ylabel(\"Price\")\nax.set_title(\"Inverse demand\")\n# or all at once:\nax.set(xlim=(0, 100), ylim=(0, 25), xlabel=\"Quantity\", title=\"Inverse demand\")\n```\n\nA common stumble when moving between interfaces: the pyplot functions `plt.xlabel`, `plt.xlim` and `plt.title` become methods with a `set_` prefix on an axes: `ax.set_xlabel`, `ax.set_xlim`, `ax.set_title`. `ax.axis(\"equal\")` makes one unit the same length on both axes, which matters when the picture is geometric.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You have `ax` from `plt.subplots()`. Which call sets the x-axis label?",
+     "correct": "`ax.set_xlabel(\"Hours\")`",
+     "wrong": [
+      "`ax.xlabel(\"Hours\")`",
+      "`ax.label_x(\"Hours\")`",
+      "`ax.xaxis = \"Hours\"`"
+     ],
+     "explain": "Axes methods that change a property use the `set_` prefix. The unprefixed `xlabel` exists only as `plt.xlabel`."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `ax.set_ylim(10, 0)` do?",
+     "correct": "Shows y from 0 to 10 with the axis flipped, so 10 is at the bottom",
+     "wrong": [
+      "Raises an error because the lower limit is larger",
+      "Sets limits 0 to 10 in the usual direction",
+      "Hides the y axis"
+     ],
+     "explain": "Limits are applied in the order given, so a larger first value inverts the axis."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which single call sets the title and both axis labels of `ax`?",
+     "correct": "`ax.set(title=\"Wages\", xlabel=\"Year\", ylabel=\"Index\")`",
+     "wrong": [
+      "`ax.labels(\"Wages\", \"Year\", \"Index\")`",
+      "`plt.set(ax, \"Wages\", \"Year\", \"Index\")`",
+      "`ax.title(\"Wages\", \"Year\", \"Index\")`"
+     ],
+     "explain": "`ax.set(**kwargs)` calls the matching `set_*` method for every keyword."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 4], [1, 3])\nax.set(xlim=(-2, 6), xlabel=\"Tax rate\")\nlo, hi = ax.get_xlim()\nprint(lo, hi, ax.get_xlabel())",
+     "explain": "The explicit limits replace the automatic ones; `get_xlabel` returns the label text.",
+     "expected": "-2.0 6.0 Tax rate"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 10], [0, 5])\nax.set_xlim(10, 0)\nprint(ax.xaxis_inverted())",
+     "explain": "A larger left limit than right limit inverts the x axis.",
+     "expected": "True"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Plot `share` against `age` on a new axes. Give it the title \"Labour force participation\", the x label \"Age\", the y label \"Share\", and y limits from 0 to 1.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(age, share)",
+     "setup": "import numpy as np\nage = np.arange(20, 70, 5)\nshare = np.array([0.71, 0.82, 0.84, 0.84, 0.83, 0.81, 0.77, 0.71, 0.60, 0.42])",
+     "solution": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(age, share)\nax.set(title=\"Labour force participation\", xlabel=\"Age\", ylabel=\"Share\", ylim=(0, 1))",
+     "tests": [
+      {
+       "name": "labels",
+       "code": "ax = figures()[0].axes[0]\ncheck(ax.get_title() == \"Labour force participation\", \"Set the title exactly as given.\")\ncheck(ax.get_xlabel() == \"Age\" and ax.get_ylabel() == \"Share\", \"Label the x axis Age and the y axis Share.\")"
+      },
+      {
+       "name": "limits",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.lines) == 1, \"Plot one line.\")\ncheck(tuple(float(v) for v in ax.get_ylim()) == (0.0, 1.0), \"The y axis should run from 0 to 1.\")"
+      }
+     ],
+     "explain": "`ax.set` takes every property as a keyword; the separate `set_title`, `set_xlabel`, ... calls work too."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.scatter",
+   "book": {
+    "section": "4.02",
+    "title": "Simple Scatter Plots",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.02-simple-scatter-plots.html"
+   },
+   "intro": "Two ways to draw points. `ax.plot` with a marker and no line style draws every point the same way:\n\n```python\nax.plot(educ, wage, \"o\")                 # circles, no connecting line\nax.scatter(educ, wage, s=hours, c=age, cmap=\"viridis\", alpha=0.5)\n```\n\n`ax.scatter` lets **each point** have its own size (`s`, in points squared) and color (`c`, mapped through a colormap), so a third and fourth variable can ride along with x and y. `alpha` makes overlapping points visible.\n\nThe price of that flexibility is speed: scatter keeps per-point properties, so for many thousands of identical points `plot` with a marker is the leaner choice. `plot` creates a `Line2D` in `ax.lines`; `scatter` creates a `PathCollection` in `ax.collections`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You want marker size to show each firm's employment and color to show its sector code. Which function fits?",
+     "correct": "`ax.scatter`, with `s=` for size and `c=` for color",
+     "wrong": [
+      "`ax.plot` with `\"o\"`",
+      "`ax.hist`",
+      "`ax.fill_between`"
+     ],
+     "explain": "Only `scatter` maps per-point values to size and color."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which call draws markers only, with no connecting line?",
+     "correct": "`ax.plot(x, y, \"s\")`",
+     "wrong": [
+      "`ax.plot(x, y, \"-\")`",
+      "`ax.plot(x, y)`",
+      "`ax.plot(x, y, \"--\")`"
+     ],
+     "explain": "A format string with a marker (`s` is a square) and no line style draws markers alone. The default with no format is a line."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why can `ax.plot(x, y, \"o\")` be faster than `ax.scatter(x, y)` for 200,000 points?",
+     "correct": "All markers share one size and color, so they do not need per-point properties",
+     "wrong": [
+      "`plot` samples a subset of the points",
+      "`scatter` sorts the data first",
+      "`plot` draws on the GPU"
+     ],
+     "explain": "`scatter` is built to style every point individually; when every point looks the same that bookkeeping is wasted work."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([1, 2, 3], [3, 1, 2], \"o\")\nax.scatter([1, 2, 3], [1, 2, 3])\nprint(len(ax.lines), len(ax.collections))",
+     "explain": "The marker plot is a line object (with no line drawn); the scatter is a collection.",
+     "expected": "1 1"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\npts = ax.scatter([1, 2, 3, 4], [4, 3, 2, 1], s=[10, 40, 90, 160])\nprint(pts.get_sizes(), len(pts.get_offsets()))",
+     "explain": "Sizes are stored per point; the offsets are the four (x, y) positions.",
+     "expected": "[ 10  40  90 160] 4"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`df` holds one row per household with columns `income`, `spending` and `size`. Make a scatter plot of `spending` (y) against `income` (x), with marker size equal to `size` times 20 and transparency `alpha=0.6`.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(df[\"income\"], df[\"spending\"], \"o\")",
+     "setup": "import pandas as pd\ndf = pd.DataFrame({\"income\": [28, 35, 41, 52, 60, 75],\n                   \"spending\": [25, 30, 33, 40, 44, 51],\n                   \"size\": [1, 3, 2, 4, 2, 5]})",
+     "solution": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.scatter(df[\"income\"], df[\"spending\"], s=df[\"size\"] * 20, alpha=0.6)",
+     "tests": [
+      {
+       "name": "scatter",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.collections) == 1, \"Use ax.scatter to draw one set of points.\")\npts = ax.collections[0]\nxy = pts.get_offsets()\ncheck(close(xy[:, 0], df[\"income\"]) and close(xy[:, 1], df[\"spending\"]), \"Put income on x and spending on y.\")"
+      },
+      {
+       "name": "style",
+       "code": "pts = figures()[0].axes[0].collections[0]\ncheck(close(pts.get_sizes(), df[\"size\"] * 20), \"Marker sizes should be household size times 20.\")\ncheck(pts.get_alpha() == 0.6, \"Set alpha to 0.6.\")"
+      }
+     ],
+     "explain": "`s` accepts an array, one size per point; `alpha` is a single number for the whole collection."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.errorbars",
+   "book": {
+    "section": "4.03",
+    "title": "Visualizing Errors",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.03-errorbars.html"
+   },
+   "intro": "Estimates come with uncertainty, and a plot should show it. For a handful of point estimates, `ax.errorbar` draws a marker with a bar of the given half-width:\n\n```python\nax.errorbar(groups, coef, yerr=1.96 * se, fmt=\"o\", capsize=4)\n```\n\n`fmt` uses the same format codes as `plot`; `capsize` adds small caps at the bar ends. `yerr` can be a single number, one value per point, or a 2 x n array for asymmetric bars.\n\nFor a continuous curve, such as a forecast with a confidence interval, a shaded band reads better than hundreds of bars:\n\n```python\nax.plot(t, fit)\nax.fill_between(t, fit - 2 * sd, fit + 2 * sd, alpha=0.3)\n```\n\n`fill_between(x, lower, upper)` fills the region between the two curves.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You have 6 regression coefficients and their standard errors. Which call shows 95% intervals?",
+     "correct": "`ax.errorbar(x, coef, yerr=1.96 * se, fmt=\"o\")`",
+     "wrong": [
+      "`ax.fill_between(x, coef, se)`",
+      "`ax.plot(x, coef, yerr=se)`",
+      "`ax.scatter(x, coef, s=se)`"
+     ],
+     "explain": "`yerr` is the half-width of each bar; 1.96 standard errors gives a normal 95% interval."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What are the three positional arguments of `ax.fill_between(x, a, b)`?",
+     "correct": "The x values, the lower curve and the upper curve",
+     "wrong": [
+      "x, y and the error half-width",
+      "The left edge, right edge and color",
+      "x, y and the transparency"
+     ],
+     "explain": "It shades the region between `a` and `b` at each x."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 3,
+     "prompt": "How do you give `errorbar` an interval that is longer above the point than below?",
+     "correct": "Pass `yerr` as a 2 x n array: first row below, second row above",
+     "wrong": [
+      "Pass two `errorbar` calls",
+      "Use `capsize` with two values",
+      "It is not possible"
+     ],
+     "explain": "A 2 x n `yerr` holds separate lower and upper half-widths for each point."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nout = ax.errorbar([1, 2, 3], [0.4, 0.1, 0.6], yerr=0.2, fmt=\"o\")\nprint(type(out).__name__, len(ax.containers))",
+     "explain": "`errorbar` returns an `ErrorbarContainer` that groups the marker line and the bar collection, and registers it in `ax.containers`.",
+     "expected": "ErrorbarContainer 1"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`t`, `forecast` and `sd` are arrays. Plot `forecast` against `t` as a line, then shade the band from `forecast - 2*sd` to `forecast + 2*sd` with `alpha=0.25`.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(t, forecast)",
+     "setup": "import numpy as np\nt = np.arange(12)\nforecast = 2.0 + 0.1 * t\nsd = 0.05 + 0.02 * t",
+     "solution": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(t, forecast)\nax.fill_between(t, forecast - 2 * sd, forecast + 2 * sd, alpha=0.25)",
+     "tests": [
+      {
+       "name": "line",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.lines) == 1 and close(ax.lines[0].get_ydata(), forecast), \"Plot the forecast as one line.\")"
+      },
+      {
+       "name": "band",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.collections) == 1, \"Add one shaded band with fill_between.\")\nband = ax.collections[0]\nys = band.get_paths()[0].vertices[:, 1]\ncheck(abs(ys.min() - (forecast - 2 * sd).min()) < 1e-9 and abs(ys.max() - (forecast + 2 * sd).max()) < 1e-9,\n      \"The band should run from forecast - 2*sd to forecast + 2*sd.\")\ncheck(band.get_alpha() == 0.25, \"Set alpha to 0.25.\")"
+      }
+     ],
+     "explain": "`fill_between` takes x, the lower edge and the upper edge; draw the line first or after, either works."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Plot the four estimates in `est` at x positions 0 to 3 with error bars of half-width `se`, using circle markers and no connecting line (`fmt=\"o\"`), and caps of size 5.",
+     "starter": "import matplotlib.pyplot as plt\nimport numpy as np\nfig, ax = plt.subplots()\nax.errorbar(np.arange(4), est)",
+     "setup": "import numpy as np\nest = np.array([0.12, 0.30, 0.05, 0.22])\nse = np.array([0.04, 0.06, 0.05, 0.03])",
+     "solution": "import matplotlib.pyplot as plt\nimport numpy as np\nfig, ax = plt.subplots()\nax.errorbar(np.arange(4), est, yerr=se, fmt=\"o\", capsize=5)",
+     "tests": [
+      {
+       "name": "container",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.containers) == 1, \"Use ax.errorbar once.\")\ndata_line, caps, bars = ax.containers[0].lines\ncheck(close(data_line.get_ydata(), est), \"Plot the estimates in `est`.\")\ncheck(data_line.get_linestyle() == \"None\", \"Use fmt=\\\"o\\\" so the points are not joined.\")"
+      },
+      {
+       "name": "caps",
+       "code": "data_line, caps, bars = figures()[0].axes[0].containers[0].lines\ncheck(len(caps) > 0 and caps[0].get_markersize() == 10, \"Add caps of size 5 to the bars with capsize.\")"
+      }
+     ],
+     "explain": "`fmt=\"o\"` gives markers without a line, and `capsize=5` draws a cap 5 points long at each end of every bar."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.contour",
+   "book": {
+    "section": "4.04",
+    "title": "Density and Contour Plots",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.04-density-and-contour-plots.html"
+   },
+   "intro": "To picture a function of two variables, such as profit over price and quantity, evaluate it on a grid. `np.meshgrid` turns two 1D axes into two 2D coordinate arrays:\n\n```python\nk = np.linspace(1, 10, 50)\nl = np.linspace(1, 10, 60)\nK, L = np.meshgrid(k, l)          # both shape (60, 50)\nY = K**0.3 * L**0.7               # output on the grid\nax.contour(K, L, Y, levels=8, colors=\"k\")   # isoquant lines\nax.contourf(K, L, Y, levels=20, cmap=\"viridis\")  # filled bands\nax.imshow(Y, origin=\"lower\", extent=[1, 10, 1, 10], aspect=\"auto\")\n```\n\n`contour` draws lines of equal value; `contourf` fills between them. `imshow` paints the array as an image. It puts row 0 at the **top** by default, so pass `origin=\"lower\"` and an `extent` to line it up with the x and y values.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "With `x` of length 40 and `y` of length 30, what shape is `X` in `X, Y = np.meshgrid(x, y)`?",
+     "correct": "`(30, 40)`",
+     "wrong": [
+      "`(40, 30)`",
+      "`(40,)`",
+      "`(1200,)`"
+     ],
+     "explain": "Rows follow `y` and columns follow `x`, so the grid has 30 rows and 40 columns."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What is the difference between `contour` and `contourf`?",
+     "correct": "`contour` draws lines of equal value; `contourf` fills the regions between them",
+     "wrong": [
+      "`contourf` is a faster version of `contour`",
+      "`contourf` works on functions, `contour` on data",
+      "There is none"
+     ],
+     "explain": "The `f` is for filled."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Your `imshow` picture appears upside down compared with a contour plot of the same array. Why?",
+     "correct": "`imshow` places row 0 at the top by default; use `origin=\"lower\"`",
+     "wrong": [
+      "`imshow` transposes the array",
+      "The colormap is reversed",
+      "Contour plots flip the y axis"
+     ],
+     "explain": "Images follow the matrix convention (row 0 on top); contour plots follow the y axis (small values at the bottom)."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nX, Y = np.meshgrid(np.arange(3), np.arange(2))\nprint(X)\nprint(Y)",
+     "explain": "`X` repeats the x values down the rows; `Y` repeats the y values across the columns.",
+     "expected": "[[0 1 2]\n [0 1 2]]\n[[0 0 0]\n [1 1 1]]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nx = np.linspace(0, 1, 20)\nX, Y = np.meshgrid(x, x)\nfig, ax = plt.subplots()\ncs = ax.contour(X, Y, X + Y, levels=[0.5, 1.0, 1.5])\nprint(cs.levels)",
+     "explain": "When you pass a list of levels, the contour set uses exactly those.",
+     "expected": "[0.5 1.  1.5]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Build a 2D grid from `price` (x) and `qty` (y) with `np.meshgrid`, compute `revenue = P * Q` on it, and draw a filled contour plot of revenue with 10 levels. Add a colorbar for it.",
+     "starter": "import numpy as np\nimport matplotlib.pyplot as plt\nP, Q = ...\nrevenue = ...",
+     "setup": "import numpy as np\nprice = np.linspace(1, 20, 40)\nqty = np.linspace(0, 100, 30)",
+     "solution": "import numpy as np\nimport matplotlib.pyplot as plt\nP, Q = np.meshgrid(price, qty)\nrevenue = P * Q\nfig, ax = plt.subplots()\ncf = ax.contourf(P, Q, revenue, levels=10)\nfig.colorbar(cf)",
+     "tests": [
+      {
+       "name": "grid",
+       "code": "check(getattr(get(\"revenue\"), \"shape\", None) == (len(qty), len(price)), \"`revenue` should be a 2D grid with one row per qty and one column per price.\")\ncheck(close(revenue[3, 5], qty[3] * price[5]), \"`revenue` should be price times quantity at each grid point.\")"
+      },
+      {
+       "name": "contourf",
+       "code": "from matplotlib.contour import ContourSet\nfig = figures()[0]\nax = fig.axes[0]\nsets = [c for c in ax.collections if isinstance(c, ContourSet)]\ncheck(sets and sets[0].filled, \"Draw a filled contour plot with contourf.\")"
+      },
+      {
+       "name": "colorbar",
+       "code": "check(len(figures()[0].axes) == 2, \"Add a colorbar (it appears as a second axes).\")"
+      }
+     ],
+     "explain": "`meshgrid` gives coordinate arrays; elementwise `P * Q` is the revenue grid. `fig.colorbar` takes the contour set."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.histograms",
+   "book": {
+    "section": "4.05",
+    "title": "Histograms, Binnings, and Density",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.05-histograms-and-binnings.html"
+   },
+   "intro": "A histogram counts how many values fall into each bin.\n\n```python\nrng = np.random.default_rng(1)\nwages = rng.lognormal(3, 0.5, 2000)\ncounts, edges, bars = ax.hist(wages, bins=30, density=False,\n                              histtype=\"stepfilled\", alpha=0.5)\ncounts, edges = np.histogram(wages, bins=30)   # same numbers, no plot\n```\n\n`bins` can be a count or a list of edges. n bins have n + 1 edges. `density=True` rescales so the bars' total area is 1, which lets you overlay groups of different sizes.\n\nFor two variables, bin in 2D: `ax.hist2d(x, y, bins=20)` uses square cells, and `ax.hexbin(x, y, gridsize=25)` uses hexagons, which tile the plane with less visual bias. `np.histogram2d` gives the counts alone.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`ax.hist(data, bins=12)` returns `(counts, edges, patches)`. How long is `edges`?",
+     "correct": "13",
+     "wrong": [
+      "12",
+      "11",
+      "It depends on the data"
+     ],
+     "explain": "Twelve bins need thirteen edges: one start plus one end per bin."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why set `density=True` when overlaying histograms of two groups of very different sizes?",
+     "correct": "Each histogram is scaled to unit area, so the shapes are comparable",
+     "wrong": [
+      "It makes the bins narrower",
+      "It removes outliers",
+      "It sorts the data first"
+     ],
+     "explain": "Raw counts would make the larger group dwarf the smaller one."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You only need the bin counts, not a picture. What should you call?",
+     "correct": "`np.histogram(data, bins=...)`",
+     "wrong": [
+      "`ax.hist` then delete the figure",
+      "`np.bincount(data)` on floats",
+      "`plt.hist2d`"
+     ],
+     "explain": "`np.histogram` returns counts and edges without creating any artists."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which call bins two variables into hexagonal cells?",
+     "correct": "`ax.hexbin(x, y, gridsize=20)`",
+     "wrong": [
+      "`ax.hist2d(x, y, bins=\"hex\")`",
+      "`ax.hist(x, y, histtype=\"hex\")`",
+      "`np.histogram2d(x, y, shape=6)`"
+     ],
+     "explain": "`hexbin` is the hexagonal binning function; `hist2d` uses rectangles."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\ncounts, edges = np.histogram([2, 3, 3, 5, 8, 9, 9, 9], bins=4, range=(0, 12))\nprint(counts)\nprint(edges)",
+     "explain": "Four bins of width 3 from 0 to 12: [0,3), [3,6), [6,9), [9,12]. The last bin includes its right edge.",
+     "expected": "[1 3 1 3]\n[ 0.  3.  6.  9. 12.]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\ncounts, edges, bars = ax.hist([1, 1, 2, 4, 4, 4], bins=[0, 2, 4, 6])\nprint(counts, len(ax.patches))",
+     "explain": "Edges 0, 2, 4, 6 make three bins. 4 sits on an inner edge, so it goes to the bin starting at 4.",
+     "expected": "[2. 1. 3.] 3"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "`hours` holds weekly hours for 500 workers. Draw a histogram of it with 20 bins, scaled with `density=True`, and keep the returned counts in `counts`.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\ncounts = None",
+     "setup": "import numpy as np\nhours = np.random.default_rng(3).normal(38, 6, 500)",
+     "solution": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\ncounts, edges, bars = ax.hist(hours, bins=20, density=True)",
+     "tests": [
+      {
+       "name": "bars",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.patches) == 20, \"Use 20 bins.\")"
+      },
+      {
+       "name": "density",
+       "code": "import numpy as np\ncheck(len(counts) == 20, \"Keep the first return value of hist in `counts`.\")\nwidths = np.array([p.get_width() for p in figures()[0].axes[0].patches])\ncheck(abs((np.asarray(counts) * widths).sum() - 1) < 1e-6, \"Scale the histogram with density=True so its area is 1.\")"
+      }
+     ],
+     "explain": "`ax.hist` returns counts, edges and the bar patches; with `density=True` the counts are densities."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.legends",
+   "book": {
+    "section": "4.06",
+    "title": "Customizing Plot Legends",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.06-customizing-legends.html"
+   },
+   "intro": "`ax.legend()` collects every artist that has a `label` and shows them. Labels that start with an underscore are left out, which is how you hide one series.\n\n```python\nax.plot(t, cpi, label=\"CPI\")\nax.plot(t, core, label=\"Core CPI\")\nax.plot(t, target, label=\"_target\")       # not in the legend\nax.legend(loc=\"upper left\", frameon=False, ncols=2, title=\"Index\")\n```\n\nYou can also choose exactly which handles appear: `ax.legend(handles=[l1, l2])`. For a size legend on a scatter plot, plot empty scatters with representative sizes and labels, then call `legend`.\n\nEach axes keeps only one legend: a second `legend()` call replaces the first. To keep two, add the first one back as an artist with `ax.add_artist(first_legend)` before creating the second.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You plot three lines labelled `\"Exports\"`, `\"Imports\"` and `\"_trend\"` and call `ax.legend()`. How many entries appear?",
+     "correct": "2",
+     "wrong": [
+      "3",
+      "1",
+      "0"
+     ],
+     "explain": "Labels starting with an underscore are skipped by `legend`."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "You call `ax.legend(...)` twice with different handles. What happens?",
+     "correct": "Only the second legend is shown; the first is replaced",
+     "wrong": [
+      "Both legends are shown",
+      "An error is raised",
+      "The entries are merged into one legend"
+     ],
+     "explain": "An axes has one legend slot. Keep the first by `ax.add_artist(first)` before making the second."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which keyword lays legend entries out in three columns?",
+     "correct": "`ncols=3`",
+     "wrong": [
+      "`columns=3`",
+      "`loc=3`",
+      "`shape=(1, 3)`"
+     ],
+     "explain": "`ncols` sets the number of columns (the older spelling `ncol` still works)."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 1], [1, 2], label=\"Urban\")\nax.plot([0, 1], [2, 1], label=\"_Rural\")\nax.plot([0, 1], [1, 1])\nleg = ax.legend()\nprint([t.get_text() for t in leg.get_texts()])",
+     "explain": "The underscored label and the unlabelled line are both left out.",
+     "expected": "['Urban']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Plot `gdp` and `gni` against `year` with labels \"GDP\" and \"GNI\", and plot `trend` against `year` without it appearing in the legend. Add a legend in the lower right with the title \"Series\" and no frame.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(year, gdp)\nax.plot(year, gni)\nax.plot(year, trend)\nax.legend()",
+     "setup": "import numpy as np\nyear = np.arange(2015, 2023)\ngdp = np.array([100, 102, 105, 108, 110, 106, 112, 115])\ngni = gdp - np.array([1, 1, 2, 2, 2, 1, 3, 3])\ntrend = np.linspace(100, 115, 8)",
+     "solution": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(year, gdp, label=\"GDP\")\nax.plot(year, gni, label=\"GNI\")\nax.plot(year, trend)\nax.legend(loc=\"lower right\", title=\"Series\", frameon=False)",
+     "tests": [
+      {
+       "name": "entries",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.lines) == 3, \"Plot all three series.\")\nleg = ax.get_legend()\ncheck(leg is not None, \"Add a legend.\")\ncheck([t.get_text() for t in leg.get_texts()] == [\"GDP\", \"GNI\"], \"The legend should list GDP and GNI only.\")"
+      },
+      {
+       "name": "options",
+       "code": "leg = figures()[0].axes[0].get_legend()\ncheck(leg.get_title().get_text() == \"Series\", \"Give the legend the title Series.\")\ncheck(not leg.get_frame_on(), \"Turn the legend frame off.\")\n# Placement read from where the legend is drawn, not from a private attribute.\nfig = figures()[0]\nfig.canvas.draw()\nlb = leg.get_window_extent()\nab = fig.axes[0].get_window_extent()\ncx, cy = (lb.x0 + lb.x1) / 2, (lb.y0 + lb.y1) / 2\ncheck(cx > (ab.x0 + ab.x1) / 2 and cy < (ab.y0 + ab.y1) / 2, \"Place the legend in the lower right.\")"
+      }
+     ],
+     "explain": "Unlabelled lines are skipped; `loc`, `title` and `frameon` control placement and look."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 3,
+     "prompt": "Lines `a` and `b` are already plotted on `ax`. Show two legends: one with only `a` in the upper left, and another with only `b` in the lower right. Both must stay visible.",
+     "starter": "ax.legend(handles=[a], loc=\"upper left\")\nax.legend(handles=[b], loc=\"lower right\")",
+     "setup": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\na, = ax.plot([0, 1, 2], [1, 3, 2], label=\"Exports\")\nb, = ax.plot([0, 1, 2], [2, 2, 3], label=\"Imports\")",
+     "solution": "first = ax.legend(handles=[a], loc=\"upper left\")\nax.add_artist(first)\nax.legend(handles=[b], loc=\"lower right\")",
+     "tests": [
+      {
+       "name": "two legends",
+       "code": "from matplotlib.legend import Legend\nlegs = [x for x in ax.get_children() if isinstance(x, Legend)]\ncheck(len(legs) == 2, \"Both legends should be on the axes. Add the first back with ax.add_artist.\")"
+      },
+      {
+       "name": "contents",
+       "code": "from matplotlib.legend import Legend\nlegs = [x for x in ax.get_children() if isinstance(x, Legend)]\ntexts = sorted(tuple(t.get_text() for t in l.get_texts()) for l in legs)\ncheck(texts == [(\"Exports\",), (\"Imports\",)], \"Each legend should hold exactly one of the two lines.\")"
+      }
+     ],
+     "explain": "A new `legend()` call replaces the stored legend, so re-attach the first with `add_artist`."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.colorbars",
+   "book": {
+    "section": "4.07",
+    "title": "Customizing Colorbars",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.07-customizing-colorbars.html"
+   },
+   "intro": "When color encodes a number, a colorbar is the key. Pass it the artist that holds the color mapping:\n\n```python\nim = ax.imshow(rates, cmap=\"viridis\")\ncb = fig.colorbar(im, ax=ax, extend=\"both\")\ncb.set_label(\"Unemployment rate\")\nim.set_clim(2, 10)          # values outside 2..10 get the end colors\n```\n\nChoose the colormap to match the data:\n\n- **sequential** (`viridis`, `Blues`) for values that run low to high,\n- **diverging** (`RdBu`, `coolwarm`) for values on either side of a meaningful midpoint, such as growth around zero,\n- **qualitative** (`tab10`) for unordered categories.\n\nRainbow-style maps like `jet` have uneven brightness and can invent edges that are not in the data. Add `_r` to reverse any map. For a discrete key, ask for a map with a few colors: `plt.get_cmap(\"Blues\", 5)`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You are mapping year-on-year price change, which can be negative or positive. Which kind of colormap fits?",
+     "correct": "A diverging map such as `RdBu`",
+     "wrong": [
+      "A sequential map such as `Blues`",
+      "A qualitative map such as `tab10`",
+      "`jet`"
+     ],
+     "explain": "A diverging map gives zero a neutral color and pushes the two signs toward different hues."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `extend=\"both\"` add to a colorbar?",
+     "correct": "Pointed ends showing that some values lie beyond the color limits",
+     "wrong": [
+      "A second colorbar",
+      "Labels at both ends",
+      "Extra ticks"
+     ],
+     "explain": "The triangles signal clipping, useful after `set_clim` narrows the range."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "How do you get the reversed version of the `viridis` colormap?",
+     "correct": "`cmap=\"viridis_r\"`",
+     "wrong": [
+      "`cmap=\"-viridis\"`",
+      "`cmap=\"viridis\", reverse=True`",
+      "`cmap=\"rev_viridis\"`"
+     ],
+     "explain": "Every built-in colormap has an `_r` twin."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why is `jet` a poor default for continuous data?",
+     "correct": "Its brightness does not rise evenly, so it suggests boundaries the data do not have",
+     "wrong": [
+      "It has only eight colors",
+      "It cannot be used with `imshow`",
+      "It is not built into Matplotlib"
+     ],
+     "explain": "Perceptually uniform maps like `viridis` change brightness steadily with the value."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\ncmap = plt.get_cmap(\"Blues\", 4)\nprint(cmap.N, cmap.name)",
+     "explain": "Asking for 4 colors gives a discrete colormap with `N == 4`.",
+     "expected": "4 Blues"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nim = ax.imshow(np.arange(12).reshape(3, 4))\nfig.colorbar(im)\nprint(len(fig.axes), im.get_clim())",
+     "explain": "The colorbar lives in its own axes. The color limits default to the data range, 0 to 11.",
+     "expected": "2 (0, 11)"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`growth` is a 2D array of regional growth rates around zero. Show it with `imshow` using the `RdBu` colormap, set the color limits to -3 and 3, and add a colorbar with `extend=\"both\"`.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nim = ax.imshow(growth)",
+     "setup": "import numpy as np\ngrowth = np.random.default_rng(5).normal(0, 2, (8, 10))",
+     "solution": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nim = ax.imshow(growth, cmap=\"RdBu\")\nim.set_clim(-3, 3)\nfig.colorbar(im, ax=ax, extend=\"both\")",
+     "tests": [
+      {
+       "name": "image",
+       "code": "fig = figures()[0]\nims = [a.images[0] for a in fig.axes if a.images]\ncheck(ims, \"Show `growth` with imshow.\")\ncheck(ims[0].get_cmap().name == \"RdBu\", \"Use the RdBu colormap.\")\ncheck(tuple(float(v) for v in ims[0].get_clim()) == (-3.0, 3.0), \"Set the color limits to -3 and 3.\")"
+      },
+      {
+       "name": "colorbar",
+       "code": "fig = figures()[0]\nim = [a.images[0] for a in fig.axes if a.images][0]\ncb = im.colorbar\ncheck(cb is not None, \"Add a colorbar for the image.\")\ncheck(cb.extend == \"both\", \"Use extend=\\\"both\\\" on the colorbar.\")"
+      }
+     ],
+     "explain": "`set_clim` fixes the range the colormap spans; `fig.colorbar(im, extend=...)` draws the key."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.subplots",
+   "book": {
+    "section": "4.08",
+    "title": "Multiple Subplots",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.08-multiple-subplots.html"
+   },
+   "intro": "Several panels in one figure make comparisons easy. The usual tool is `plt.subplots`, which returns the figure and a NumPy array of axes:\n\n```python\nfig, axs = plt.subplots(2, 3, sharex=True, sharey=True, figsize=(9, 5))\naxs[0, 2].plot(t, y)        # row 0, column 2\nfor ax in axs.flat:\n    ax.grid(True)\n```\n\n`sharex`/`sharey` link the limits, so zooming one panel zooms them all and inner tick labels are hidden. With a single row or column the array is 1D (`axs[1]`).\n\nOther tools: `plt.subplot(rows, cols, k)` adds one panel by a 1-based index; `plt.axes([left, bottom, width, height])` places an axes anywhere, in figure fractions, which is good for insets; and `GridSpec` lets a panel span several cells: `fig.add_subplot(gs[0, :2])`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What is `axs.shape` after `fig, axs = plt.subplots(3, 2)`?",
+     "correct": "`(3, 2)`",
+     "wrong": [
+      "`(2, 3)`",
+      "`(6,)`",
+      "It is a list, so it has no shape"
+     ],
+     "explain": "Rows first, then columns, like any NumPy array."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "In `plt.subplot(2, 2, k)`, which `k` is the bottom-left panel?",
+     "correct": "3",
+     "wrong": [
+      "2",
+      "4",
+      "1"
+     ],
+     "explain": "The index starts at 1 and counts across each row: 1 2 / 3 4."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `sharey=True` do in `plt.subplots(1, 3, sharey=True)`?",
+     "correct": "All three panels use the same y limits, and only the first shows y tick labels",
+     "wrong": [
+      "All panels plot the same y data",
+      "Each panel gets its own y limits",
+      "The panels are stacked vertically"
+     ],
+     "explain": "Shared axes are linked; the inner tick labels are hidden because they would repeat."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`plt.axes([0.65, 0.6, 0.25, 0.25])` creates an axes where?",
+     "correct": "An inset in the upper right, a quarter of the figure wide and tall",
+     "wrong": [
+      "At data coordinates (0.65, 0.6)",
+      "In the lower left corner",
+      "As the fourth subplot of a grid"
+     ],
+     "explain": "The list is left, bottom, width and height as fractions of the figure."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, axs = plt.subplots(1, 4)\nprint(axs.shape, len(fig.axes))",
+     "explain": "A single row gives a 1D array of four axes.",
+     "expected": "(4,) 4"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, axs = plt.subplots(2, 2, sharex=True)\naxs[0, 0].set_xlim(0, 50)\nlo, hi = axs[1, 1].get_xlim()\nprint(lo, hi)",
+     "explain": "With `sharex=True`, setting one panel's x limits sets all of them.",
+     "expected": "0.0 50.0"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Make a figure with 2 rows and 2 columns of axes that share the y axis. In each panel, plot one column of `df` (columns in order: top left, top right, bottom left, bottom right) and set the panel title to the column name.",
+     "starter": "import matplotlib.pyplot as plt\nfig, axs = plt.subplots(2, 2)",
+     "setup": "import pandas as pd\ndf = pd.DataFrame({\"North\": [5.1, 5.0, 4.8, 4.6], \"South\": [6.2, 6.4, 6.1, 5.9],\n                   \"East\": [4.0, 4.1, 4.3, 4.2], \"West\": [5.5, 5.2, 5.0, 5.1]},\n                  index=[2021, 2022, 2023, 2024])",
+     "solution": "import matplotlib.pyplot as plt\nfig, axs = plt.subplots(2, 2, sharey=True)\nfor ax, col in zip(axs.flat, df.columns):\n    ax.plot(df.index, df[col])\n    ax.set_title(col)",
+     "tests": [
+      {
+       "name": "grid",
+       "code": "fig = figures()[0]\ncheck(len(fig.axes) == 4, \"Make a 2 x 2 grid of axes.\")\na = fig.axes\ncheck(a[0].get_shared_y_axes().joined(a[0], a[3]), \"Share the y axis across the panels.\")"
+      },
+      {
+       "name": "panels",
+       "code": "fig = figures()[0]\nfor ax, col in zip(fig.axes, df.columns):\n    check(ax.get_title() == col, \"Title each panel with its column name, in order.\")\n    check(len(ax.lines) == 1 and close(ax.lines[0].get_ydata(), df[col]), \"Panel \" + col + \" should plot that column.\")"
+      }
+     ],
+     "explain": "`axs.flat` walks the panels row by row; `zip` pairs them with the column names."
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 3,
+     "prompt": "Using `GridSpec` with 2 rows and 3 columns on a new figure, add a wide axes `top` spanning the whole first row, and an axes `side` in the second row spanning the last two columns.",
+     "starter": "import matplotlib.pyplot as plt\nfig = plt.figure()\ngs = plt.GridSpec(2, 3)\ntop = fig.add_subplot(gs[0, 0])\nside = fig.add_subplot(gs[1, 0])",
+     "setup": "",
+     "solution": "import matplotlib.pyplot as plt\nfig = plt.figure()\ngs = plt.GridSpec(2, 3)\ntop = fig.add_subplot(gs[0, :])\nside = fig.add_subplot(gs[1, 1:])",
+     "tests": [
+      {
+       "name": "top",
+       "code": "spec = top.get_subplotspec()\ncheck(spec.rowspan == range(0, 1) and spec.colspan == range(0, 3), \"`top` should span all three columns of row 0.\")"
+      },
+      {
+       "name": "side",
+       "code": "spec = side.get_subplotspec()\ncheck(spec.rowspan == range(1, 2) and spec.colspan == range(1, 3), \"`side` should cover row 1, columns 1 and 2.\")"
+      }
+     ],
+     "explain": "Slice the GridSpec like an array: `gs[0, :]` is the whole first row, `gs[1, 1:]` the last two cells of the second."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.annotation",
+   "book": {
+    "section": "4.09",
+    "title": "Text and Annotation",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.09-text-and-annotation.html"
+   },
+   "intro": "`ax.text(x, y, s)` writes text at a position. By default the position is in **data coordinates** (`transform=ax.transData`), so the text moves with the data when limits change. Other coordinate systems:\n\n- `ax.transAxes`: (0, 0) is the axes' lower-left corner and (1, 1) the upper-right, whatever the data limits,\n- `fig.transFigure`: the same idea for the whole figure.\n\n```python\nax.plot(year, rate)\nax.text(0.02, 0.95, \"Source: survey\", transform=ax.transAxes, va=\"top\")\nax.annotate(\"Policy change\", xy=(2020, 6.1), xytext=(2016, 8),\n            arrowprops=dict(arrowstyle=\"->\"))\n```\n\n`annotate` points from the text (`xytext`) to a data point (`xy`) with an arrow. `ha` and `va` set horizontal and vertical alignment.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You want a note to sit in the top-left corner of the axes no matter how the data limits change. What transform should it use?",
+     "correct": "`ax.transAxes`",
+     "wrong": [
+      "`ax.transData`",
+      "No transform; use the data's maximum",
+      "`plt.gcf()`"
+     ],
+     "explain": "Axes coordinates run from 0 to 1 across the panel, independent of the data."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "In `ax.annotate(\"Peak\", xy=(5, 9), xytext=(2, 11), arrowprops=dict(arrowstyle=\"->\"))`, where does the arrow point?",
+     "correct": "At the point (5, 9), from the text at (2, 11)",
+     "wrong": [
+      "At (2, 11), from (5, 9)",
+      "Nowhere; arrowprops only colors the text",
+      "From the origin to (5, 9)"
+     ],
+     "explain": "`xy` is the target; `xytext` is where the label sits."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What coordinate system does `ax.text(3, 4, \"x\")` use when no transform is given?",
+     "correct": "Data coordinates",
+     "wrong": [
+      "Axes fractions",
+      "Figure fractions",
+      "Pixels"
+     ],
+     "explain": "The default transform is `ax.transData`."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 10], [0, 10])\nax.text(5, 5, \"mid\")\nax.text(0.5, 0.9, \"note\", transform=ax.transAxes)\nax.annotate(\"end\", xy=(10, 10), xytext=(6, 9), arrowprops=dict(arrowstyle=\"->\"))\nprint(len(ax.texts))",
+     "explain": "Text objects and annotations are both stored in `ax.texts`.",
+     "expected": "3"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "On the plotted series, add the text \"Recession\" with `ax.annotate`, placing the label at (2006, 9) and an arrow pointing to the data point (2009, 9.3). Also put the text \"Monthly data\" at the bottom-right corner of the axes, position (0.98, 0.02) in axes coordinates.",
+     "starter": "ax.text(2006, 9, \"Recession\")",
+     "setup": "import numpy as np\nimport matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nyr = np.arange(2000, 2016)\nax.plot(yr, [4.0, 4.7, 5.8, 6.0, 5.5, 5.1, 4.6, 4.6, 5.8, 9.3, 9.6, 8.9, 8.1, 7.4, 6.2, 5.3])",
+     "solution": "ax.annotate(\"Recession\", xy=(2009, 9.3), xytext=(2006, 9), arrowprops=dict(arrowstyle=\"->\"))\nax.text(0.98, 0.02, \"Monthly data\", transform=ax.transAxes, ha=\"right\")",
+     "tests": [
+      {
+       "name": "annotate",
+       "code": "from matplotlib.text import Annotation\nanns = [t for t in ax.texts if isinstance(t, Annotation)]\ncheck(anns and anns[0].get_text() == \"Recession\", \"Add the Recession annotation with ax.annotate.\")\na = anns[0]\ncheck(tuple(a.xy) == (2009, 9.3), \"The arrow should point at (2009, 9.3).\")\ncheck(tuple(a.xyann) == (2006, 9), \"Put the label at (2006, 9).\")\ncheck(a.arrow_patch is not None, \"Give the annotation an arrow with arrowprops.\")"
+      },
+      {
+       "name": "corner",
+       "code": "notes = [t for t in ax.texts if t.get_text() == \"Monthly data\"]\ncheck(notes, \"Add the text Monthly data.\")\ncheck(notes[0].get_transform() == ax.transAxes, \"Place Monthly data in axes coordinates (transform=ax.transAxes).\")\ncheck(tuple(notes[0].get_position()) == (0.98, 0.02), \"Put Monthly data at (0.98, 0.02).\")"
+      }
+     ],
+     "explain": "`xy` is the target in data coordinates; `transform=ax.transAxes` makes (0.98, 0.02) a fraction of the axes."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.ticks",
+   "book": {
+    "section": "4.10",
+    "title": "Customizing Ticks",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.10-customizing-ticks.html"
+   },
+   "intro": "Every axis has **major** and **minor** ticks. Where they go is decided by a *locator*; what their labels say is decided by a *formatter*.\n\n```python\nax.xaxis.set_major_locator(plt.MultipleLocator(5))   # a tick every 5 units\nax.yaxis.set_major_locator(plt.MaxNLocator(4))       # at most about 4 ticks\nax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, pos: f\"{v:.0f}%\"))\nax.xaxis.set_major_formatter(plt.NullFormatter())    # keep ticks, hide labels\nax.yaxis.set_major_locator(plt.NullLocator())        # no ticks at all\nax.minorticks_on()\n```\n\nA `FuncFormatter` function receives the tick value and its position and returns the label string. For a quick fixed set, `ax.set_xticks([...])` places ticks at exactly those values. Minor ticks are off by default on a linear axis (`NullLocator`) and on by default on a log axis.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which locator puts a tick at every multiple of 0.25?",
+     "correct": "`plt.MultipleLocator(0.25)`",
+     "wrong": [
+      "`plt.MaxNLocator(0.25)`",
+      "`plt.FixedLocator(0.25)`",
+      "`plt.LogLocator(0.25)`"
+     ],
+     "explain": "`MultipleLocator(base)` places ticks at integer multiples of `base`."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "You want tick marks but no tick labels on the x axis. What do you set?",
+     "correct": "`ax.xaxis.set_major_formatter(plt.NullFormatter())`",
+     "wrong": [
+      "`ax.xaxis.set_major_locator(plt.NullLocator())`",
+      "`ax.set_xlim(None)`",
+      "`ax.set_xlabel(\"\")`"
+     ],
+     "explain": "A `NullFormatter` blanks the labels; a `NullLocator` would remove the ticks themselves."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What arguments does Matplotlib pass to the function inside `plt.FuncFormatter(f)`?",
+     "correct": "The tick value and the tick position",
+     "wrong": [
+      "Only the tick label string",
+      "The axes and the value",
+      "The data array"
+     ],
+     "explain": "The function is called as `f(value, pos)` and must return a string."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 10], [0, 1])\nax.set_xlim(0, 10)\nax.xaxis.set_major_locator(plt.MultipleLocator(4))\nprint([float(v) for v in ax.get_xticks()])",
+     "explain": "The locator returns multiples of 4 that cover the view, including one just beyond each end (Matplotlib only draws those inside the limits).",
+     "expected": "[-4.0, 0.0, 4.0, 8.0, 12.0]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 1], [0, 1])\nax.set_xticks([0, 0.5, 1])\nax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, pos: f\"{v:.0%}\"))\nfig.canvas.draw()\nprint([t.get_text() for t in ax.get_xticklabels()])",
+     "explain": "The formatter turns each tick value into a percentage string.",
+     "expected": "['0%', '50%', '100%']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`ax` shows a share between 0 and 1 on the y axis. Put y ticks every 0.2 with a `MultipleLocator`, and label them as whole percentages (\"40%\") with a `FuncFormatter`. Hide the x ticks entirely with a `NullLocator`.",
+     "starter": "import matplotlib.pyplot as plt\nax.yaxis.set_major_locator(...)",
+     "setup": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([1, 2, 3, 4, 5], [0.31, 0.45, 0.52, 0.66, 0.71])\nax.set_ylim(0, 1)",
+     "solution": "import matplotlib.pyplot as plt\nax.yaxis.set_major_locator(plt.MultipleLocator(0.2))\nax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, pos: f\"{v:.0%}\"))\nax.xaxis.set_major_locator(plt.NullLocator())",
+     "tests": [
+      {
+       "name": "y locator",
+       "code": "import matplotlib.ticker as mt\nloc = ax.yaxis.get_major_locator()\ncheck(isinstance(loc, mt.MultipleLocator), \"Use a MultipleLocator on the y axis.\")\ncheck(close(ax.get_yticks()[1] - ax.get_yticks()[0], 0.2), \"Space the y ticks 0.2 apart.\")"
+      },
+      {
+       "name": "y labels",
+       "code": "fig.canvas.draw()\nlabels = [t.get_text() for t in ax.get_yticklabels()]\ncheck(\"40%\" in labels and \"100%\" in labels, \"Label the y ticks as whole percentages, like 40%.\")"
+      },
+      {
+       "name": "x hidden",
+       "code": "check(len(ax.get_xticks()) == 0, \"Remove the x ticks with a NullLocator.\")"
+      }
+     ],
+     "explain": "Locators decide where, formatters decide what. Format code `.0%` multiplies by 100 and adds a percent sign."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.styles",
+   "book": {
+    "section": "4.11",
+    "title": "Customizing Matplotlib: Configurations and Stylesheets",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.11-settings-and-stylesheets.html"
+   },
+   "intro": "Defaults such as line width, font size and figure size live in the dictionary-like `plt.rcParams`. Changing a key affects every figure made afterwards in the session:\n\n```python\nplt.rcParams[\"lines.linewidth\"] = 2.5\nplt.rcParams[\"axes.grid\"] = True\nplt.rcParams.update({\"font.size\": 11, \"figure.figsize\": (7, 4)})\n```\n\nA **stylesheet** is a named bundle of these settings. `plt.style.use(\"ggplot\")` applies one for the rest of the session; `plt.style.available` lists the built-in names. To try a style for one figure only, use it as a context manager:\n\n```python\nwith plt.style.context(\"bmh\"):\n    fig, ax = plt.subplots()\n    ax.plot(x, y)\n# settings are back to what they were here\n```\n\n`plt.rcdefaults()` restores the library defaults.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What is the scope of `plt.rcParams[\"axes.grid\"] = True`?",
+     "correct": "Every axes created afterwards in this session gets a grid",
+     "wrong": [
+      "Only the current axes",
+      "Only the next figure",
+      "It is saved permanently to all future sessions"
+     ],
+     "explain": "rcParams are session-wide defaults; existing axes keep the settings they were made with."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "How do you apply the `fivethirtyeight` style to one figure without affecting later ones?",
+     "correct": "Create that figure inside `with plt.style.context(\"fivethirtyeight\"):`",
+     "wrong": [
+      "`plt.style.use(\"fivethirtyeight\", once=True)`",
+      "`fig.style = \"fivethirtyeight\"`",
+      "`ax.set_style(\"fivethirtyeight\")`"
+     ],
+     "explain": "The context manager restores the previous settings when the block exits."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Where can you see the names of the stylesheets that ship with Matplotlib?",
+     "correct": "`plt.style.available`",
+     "wrong": [
+      "`plt.rcParams.keys()`",
+      "`plt.styles()`",
+      "`matplotlib.themes`"
+     ],
+     "explain": "It is a list of style names you can pass to `use` or `context`."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nwith plt.style.context({\"lines.linewidth\": 4}):\n    fig, ax = plt.subplots()\n    a, = ax.plot([0, 1])\nb, = ax.plot([1, 0])\nprint(a.get_linewidth(), b.get_linewidth())",
+     "explain": "A dict works as a style too. Inside the block the default width is 4; after it, the default 1.5 is back, even on the same axes.",
+     "expected": "4.0 1.5"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nplt.rcParams.update({\"figure.figsize\": (5, 2)})\nfig = plt.figure()\nprint(fig.get_size_inches())",
+     "explain": "New figures take their size from `figure.figsize`, in inches.",
+     "expected": "[5. 2.]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Change the defaults so that every new axes has a grid and every line is 2.5 points wide, then create a figure and plot `y`.",
+     "starter": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot(y)",
+     "setup": "y = [3, 1, 4, 1, 5, 9, 2, 6]",
+     "solution": "import matplotlib.pyplot as plt\nplt.rcParams[\"axes.grid\"] = True\nplt.rcParams[\"lines.linewidth\"] = 2.5\nfig, ax = plt.subplots()\nax.plot(y)",
+     "tests": [
+      {
+       "name": "rcParams",
+       "code": "import matplotlib.pyplot as plt\ncheck(plt.rcParams[\"axes.grid\"] is True, \"Turn on axes.grid in rcParams.\")\ncheck(plt.rcParams[\"lines.linewidth\"] == 2.5, \"Set lines.linewidth to 2.5 in rcParams.\")"
+      },
+      {
+       "name": "figure",
+       "code": "ax = figures()[0].axes[0]\ncheck(len(ax.lines) == 1 and ax.lines[0].get_linewidth() == 2.5, \"Plot `y` after changing the settings so the line picks them up.\")"
+      }
+     ],
+     "explain": "rcParams only affect objects created after the change, so set them first."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.three_d",
+   "book": {
+    "section": "4.12",
+    "title": "Three-Dimensional Plotting in Matplotlib",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.12-three-dimensional-plotting.html"
+   },
+   "intro": "A 3D axes comes from the `projection=\"3d\"` keyword (the `mplot3d` toolkit ships with Matplotlib and registers itself):\n\n```python\nfig = plt.figure()\nax = fig.add_subplot(projection=\"3d\")\nax.plot3D(x, y, z)                    # a path through space\nax.scatter3D(x, y, z, c=z)            # points, colored by height\nK, L = np.meshgrid(k, l)\nax.plot_surface(K, L, K**0.4 * L**0.6, cmap=\"viridis\")\nax.set_zlabel(\"Output\")\nax.view_init(elev=30, azim=-60)       # camera angle\n```\n\nSurfaces need the same 2D grids as contour plots. 3D plots look impressive but are hard to read precisely, because depth hides values; a contour plot of the same function is often clearer on paper.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "How do you create a 3D axes on an existing figure `fig`?",
+     "correct": "`fig.add_subplot(projection=\"3d\")`",
+     "wrong": [
+      "`fig.add_subplot(dims=3)`",
+      "`plt.axes3d()`",
+      "`fig.add_axes(z=True)`"
+     ],
+     "explain": "The `projection` keyword selects the 3D axes class."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What inputs does `ax.plot_surface(X, Y, Z)` expect?",
+     "correct": "2D arrays of the same shape, as from `np.meshgrid`",
+     "wrong": [
+      "Three 1D arrays of equal length",
+      "A single 3D array",
+      "A DataFrame with x, y and z columns"
+     ],
+     "explain": "A surface is defined over a grid, so every argument is a 2D array."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `ax.view_init(elev=90, azim=0)` show?",
+     "correct": "The plot seen from straight above",
+     "wrong": [
+      "The plot seen from the side at ground level",
+      "A zoomed view",
+      "The plot rotated 90 degrees about the z axis"
+     ],
+     "explain": "Elevation is the camera angle above the x-y plane; 90 degrees looks straight down."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nimport matplotlib.pyplot as plt\nfig = plt.figure()\nax = fig.add_subplot(projection=\"3d\")\nax.plot3D([0, 1, 2], [0, 1, 0], [0, 2, 4])\nax.scatter3D([1], [1], [1])\nprint(ax.name, len(ax.lines), len(ax.collections))",
+     "explain": "A 3D axes reports the name `3d`. The path is a line and the scatter a collection.",
+     "expected": "3d 1 1"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "On a new 3D axes, draw a surface of `Z = X**0.5 * Y**0.5` over the grid made by `np.meshgrid(cap, lab)` (both 1D arrays are defined), with the `viridis` colormap. Label the z axis \"Output\".",
+     "starter": "import numpy as np\nimport matplotlib.pyplot as plt\nfig = plt.figure()\nax = fig.add_subplot()",
+     "setup": "import numpy as np\ncap = np.linspace(1, 10, 25)\nlab = np.linspace(1, 10, 25)",
+     "solution": "import numpy as np\nimport matplotlib.pyplot as plt\nX, Y = np.meshgrid(cap, lab)\nZ = X**0.5 * Y**0.5\nfig = plt.figure()\nax = fig.add_subplot(projection=\"3d\")\nax.plot_surface(X, Y, Z, cmap=\"viridis\")\nax.set_zlabel(\"Output\")",
+     "tests": [
+      {
+       "name": "3d axes",
+       "code": "fig = figures()[0]\ncheck(fig.axes and fig.axes[0].name == \"3d\", \"Create the axes with projection=\\\"3d\\\".\")"
+      },
+      {
+       "name": "surface",
+       "code": "from mpl_toolkits.mplot3d.art3d import Poly3DCollection\nax = figures()[0].axes[0]\nsurf = [c for c in ax.collections if isinstance(c, Poly3DCollection)]\ncheck(surf, \"Draw the surface with plot_surface.\")\ncheck(surf[0].get_cmap().name == \"viridis\", \"Use the viridis colormap.\")\ncheck(ax.get_zlabel() == \"Output\", \"Label the z axis Output.\")"
+      }
+     ],
+     "explain": "Build the grid, compute Z on it elementwise, then call `plot_surface` on a 3D axes."
+    }
+   ]
+  },
+  {
+   "id": "py.mpl.distributions",
+   "book": {
+    "section": "4.14",
+    "title": "Visualization with Seaborn",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/04.14-visualization-with-seaborn.html"
+   },
+   "intro": "Seaborn is a higher-level library built on Matplotlib that draws statistical views (distributions, pairwise grids, faceted plots) in one call. It is not installed here, but pandas covers the core ideas with Matplotlib underneath, and each call returns ordinary axes you can style.\n\n```python\ndf[\"wage\"].plot.hist(bins=30, alpha=0.5)        # a histogram on an axes\ndf[\"wage\"].plot.kde()                           # smoothed density (needs SciPy)\ndf.plot.scatter(x=\"educ\", y=\"wage\")\ndf.boxplot(column=\"wage\", by=\"sector\")          # one box per group\npd.plotting.scatter_matrix(df[[\"educ\", \"exper\", \"wage\"]])\n```\n\n`scatter_matrix` is the pandas version of a pair plot: a grid with a scatter for every pair of columns and a histogram of each column on the diagonal. It returns a 2D NumPy array of axes.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`pd.plotting.scatter_matrix(df[[\"a\", \"b\", \"c\"]])` returns an array of what shape?",
+     "correct": "`(3, 3)`, one axes per pair of columns",
+     "wrong": [
+      "`(3,)`",
+      "`(1, 3)`",
+      "`(9, 2)`"
+     ],
+     "explain": "Every column is paired with every column, giving a 3 x 3 grid of axes."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What goes on the diagonal of a pandas scatter matrix by default?",
+     "correct": "A histogram of each column",
+     "wrong": [
+      "A scatter of each column against itself",
+      "The correlation coefficient",
+      "Nothing"
+     ],
+     "explain": "A column against itself would be a straight line, so the diagonal shows its distribution instead."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "You want to compare the distribution of hourly pay across five sectors at a glance. Which view fits best?",
+     "correct": "Side-by-side box plots, one per sector",
+     "wrong": [
+      "One scatter plot of pay against row number",
+      "A pie chart of total pay",
+      "A 3D surface"
+     ],
+     "explain": "Box plots show median, spread and outliers for each group in a compact, comparable way."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `df[\"wage\"].plot.hist(bins=20)` return?",
+     "correct": "The Matplotlib axes it drew on",
+     "wrong": [
+      "The bin counts",
+      "A new DataFrame",
+      "A seaborn object"
+     ],
+     "explain": "pandas plotting methods return the axes, so you can keep customizing with Matplotlib calls."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nimport matplotlib.pyplot as plt\ndf = pd.DataFrame({\"educ\": [10, 12, 12, 16, 18, 14],\n                   \"exper\": [20, 5, 12, 8, 3, 10],\n                   \"wage\": [15, 17, 21, 30, 34, 22]})\naxs = pd.plotting.scatter_matrix(df)\nprint(axs.shape, len(plt.gcf().axes))",
+     "explain": "Three columns give a 3 x 3 grid; all nine axes live in the current figure.",
+     "expected": "(3, 3) 9"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"wage\": [12, 14, 15, 15, 18, 22, 25, 31]})\nax = df[\"wage\"].plot.hist(bins=4)\nprint(len(ax.patches), [int(p.get_height()) for p in ax.patches])",
+     "explain": "Four equal-width bins from 12 to 31 (edges about 12, 16.75, 21.5, 26.25, 31) hold 4, 1, 2 and 1 values.",
+     "expected": "4 [4, 1, 2, 1]"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,267 @@
+[
+  {
+    "id": "py.pd.series",
+    "label": "The Series object",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_01_introducing_pandas_objects",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.create",
+      "py.np.indexing"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.dataframe",
+    "label": "The DataFrame object",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_01_introducing_pandas_objects",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.series"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.index",
+    "label": "The Index object",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_01_introducing_pandas_objects",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.dataframe"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.series_select",
+    "label": "Selecting from a Series: loc and iloc",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_02_data_indexing_and_selection",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.series",
+      "py.np.slicing",
+      "py.np.masks"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.frame_select",
+    "label": "Selecting from a DataFrame",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_02_data_indexing_and_selection",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.series_select",
+      "py.pd.dataframe"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.alignment",
+    "label": "Operations and index alignment",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_03_operations_in_pandas",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.frame_select",
+      "py.np.ufuncs",
+      "py.np.broadcast_rules"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.missing",
+    "label": "Handling missing data",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_04_missing_values",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.alignment",
+      "py.np.aggregates"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.multiindex",
+    "label": "Hierarchical indexing with MultiIndex",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_05_hierarchical_indexing",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.frame_select"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.reshape_index",
+    "label": "Stacking, unstacking and resetting the index",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_05_hierarchical_indexing",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.multiindex"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.concat",
+    "label": "Concatenating with pd.concat",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_06_concat_and_append",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.index",
+      "py.np.concat_split"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.merge",
+    "label": "Merging and joining tables",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_07_merge_and_join",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.concat",
+      "py.pd.frame_select"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.groupby",
+    "label": "GroupBy: split, apply, combine",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_08_aggregation_and_grouping",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.frame_select",
+      "py.np.aggregates"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.groupby_ops",
+    "label": "GroupBy: aggregate, filter, transform, apply",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_08_aggregation_and_grouping",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.groupby"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.pivot",
+    "label": "Pivot tables",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_09_pivot_tables",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.groupby_ops",
+      "py.pd.reshape_index"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.strings",
+    "label": "Vectorized string operations",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_10_working_with_strings",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.series_select"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.datetime",
+    "label": "Dates, times and date ranges",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_11_working_with_time_series",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.series_select",
+      "py.np.dtypes"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.resample",
+    "label": "Resampling, shifting and rolling windows",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_11_working_with_time_series",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.datetime",
+      "py.pd.groupby"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.pd.eval_query",
+    "label": "Fast expressions: eval and query",
+    "domain": "python_pandas",
+    "subdomain": "python_pandas.03_12_performance_eval_and_query",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.pd.frame_select"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  }
+]

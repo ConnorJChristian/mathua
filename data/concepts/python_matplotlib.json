@@ -1,0 +1,218 @@
+[
+  {
+    "id": "py.mpl.interfaces",
+    "label": "Figures, axes and the two interfaces",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_00_introduction_to_matplotlib",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.create"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.line_styles",
+    "label": "Line plots: colors and styles",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_01_simple_line_plots",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.interfaces",
+      "py.np.ufuncs"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.limits_labels",
+    "label": "Axis limits, labels and titles",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_01_simple_line_plots",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.line_styles"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.scatter",
+    "label": "Scatter plots",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_02_simple_scatter_plots",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.line_styles"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.errorbars",
+    "label": "Error bars and uncertainty bands",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_03_errorbars",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.scatter"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.contour",
+    "label": "Density and contour plots",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_04_density_and_contour_plots",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.interfaces",
+      "py.np.broadcast_practice"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.histograms",
+    "label": "Histograms and binning",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_05_histograms_and_binnings",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.interfaces",
+      "py.np.aggregates"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.legends",
+    "label": "Customizing legends",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_06_customizing_legends",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.line_styles"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.colorbars",
+    "label": "Colorbars and colormaps",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_07_customizing_colorbars",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.contour",
+      "py.mpl.scatter"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.subplots",
+    "label": "Multiple subplots and grids",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_08_multiple_subplots",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.limits_labels"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.annotation",
+    "label": "Text, transforms and annotations",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_09_text_and_annotation",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.limits_labels"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.ticks",
+    "label": "Customizing ticks",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_10_customizing_ticks",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.limits_labels"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.styles",
+    "label": "Settings and stylesheets",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_11_settings_and_stylesheets",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.line_styles"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.three_d",
+    "label": "Three-dimensional plotting",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_12_three_dimensional_plotting",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.contour"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.mpl.distributions",
+    "label": "Distribution and pairwise views from pandas",
+    "domain": "python_matplotlib",
+    "subdomain": "python_matplotlib.04_14_visualization_with_seaborn",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.mpl.histograms",
+      "py.mpl.subplots",
+      "py.pd.dataframe"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  }
+]

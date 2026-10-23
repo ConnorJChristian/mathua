@@ -91,6 +91,9 @@ export const MATH_DOMAIN_ORDER = [
 export const PYTHON_DOMAIN_ORDER = [
   'python_ipython',
   'python_numpy',
+  'python_pandas',
+  'python_matplotlib',
+  'python_ml',
 ] as const
 
 export const DOMAIN_ORDER = [...MATH_DOMAIN_ORDER, ...PYTHON_DOMAIN_ORDER] as const

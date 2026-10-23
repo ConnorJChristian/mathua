@@ -1,0 +1,1688 @@
+{
+ "chapter": "pandas",
+ "title": "Data Manipulation with Pandas",
+ "concepts": [
+  {
+   "id": "py.pd.series",
+   "book": {
+    "section": "3.01",
+    "title": "Introducing Pandas Objects",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.01-introducing-pandas-objects.html"
+   },
+   "intro": "A **Series** is a one-dimensional NumPy array with a label attached to every value. The labels form the **index**; the values keep a single dtype, just like an array.\n\n```python\nimport pandas as pd\nwage = pd.Series([18.5, 22.0, 31.0], index=[\"clerk\", \"driver\", \"nurse\"])\nwage[\"driver\"]      # 22.0, looked up by label\nwage.values         # the underlying data\nwage.index          # Index(['clerk', 'driver', 'nurse'], dtype='str')\n```\n\nYou can read a Series two ways. It behaves like an array (slicing, vectorised arithmetic, a dtype), and it behaves like a dictionary (look up a value by its key, test `\"nurse\" in wage`). Building one from a dict uses the keys as the index. Without an explicit index, pandas numbers the entries 0, 1, 2, ...",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does `pd.Series({'Q1': 4.0, 'Q2': 5.5})` use as its index?",
+     "correct": "The dict keys, `'Q1'` and `'Q2'`",
+     "wrong": [
+      "The integers 0 and 1",
+      "The values 4.0 and 5.5",
+      "No index until you call `set_index`"
+     ],
+     "explain": "A dict maps keys to values, and a Series does the same, so the keys become the labels."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "How is a Series different from a plain NumPy array?",
+     "correct": "Each value carries a label, and the labels can be any hashable values, not only 0 to n-1",
+     "wrong": [
+      "A Series can mix dtypes freely while an array cannot",
+      "A Series cannot be used in arithmetic",
+      "A Series has no dtype"
+     ],
+     "explain": "Under the hood the values are still a typed array. The extra piece is the explicit index, which lets you look values up by name."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`s = pd.Series(7, index=['a', 'b', 'c'])`. What is `s`?",
+     "correct": "Three entries, each equal to 7",
+     "wrong": [
+      "One entry, 7, labelled 'a'",
+      "An error: the data must be a list",
+      "Three missing values"
+     ],
+     "explain": "A scalar is repeated to fill every label in the index you give."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nrent = pd.Series({\"Reno\": 1450, \"Elko\": 980, \"Ely\": 720})\nprint(rent[\"Elko\"], len(rent), \"Ely\" in rent)",
+     "explain": "Lookup by label, the number of entries, and `in` checks the index (the keys), just as it does for a dict.",
+     "expected": "980 3 True"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ns = pd.Series([3, 1, 4])\nprint(s.index.tolist(), s.dtype)",
+     "explain": "Without an index argument pandas uses 0, 1, 2. Three integers give an int64 Series.",
+     "expected": "[0, 1, 2] int64"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Make a Series `cpi` holding the price index values 100.0, 102.1 and 104.9 labelled by the years 2021, 2022 and 2023. Then set `latest` to the 2023 value, looked up by its label.",
+     "starter": "import pandas as pd\ncpi = ...\nlatest = ...",
+     "setup": "",
+     "solution": "import pandas as pd\ncpi = pd.Series([100.0, 102.1, 104.9], index=[2021, 2022, 2023])\nlatest = cpi[2023]",
+     "tests": [
+      {
+       "name": "cpi",
+       "code": "import pandas as pd\ncheck(isinstance(cpi, pd.Series), \"`cpi` should be a pandas Series.\")\ncheck(list(cpi.index) == [2021, 2022, 2023], \"The index of `cpi` should be the years 2021, 2022, 2023.\")\ncheck(close(cpi.values, [100.0, 102.1, 104.9]), \"`cpi` should hold 100.0, 102.1 and 104.9.\")"
+      },
+      {
+       "name": "latest",
+       "code": "check(close(latest, 104.9), \"`latest` should be the value labelled 2023.\")"
+      }
+     ],
+     "explain": "Pass the values and an `index=` list of the same length. A dict `{2021: 100.0, ...}` works too."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.dataframe",
+   "book": {
+    "section": "3.01",
+    "title": "Introducing Pandas Objects",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.01-introducing-pandas-objects.html"
+   },
+   "intro": "A **DataFrame** is a table: several Series that share one row index, each stored as a named column. Columns may have different dtypes.\n\n```python\ncounties = pd.DataFrame({\n    \"pop\":   [264, 20, 4],\n    \"wage\":  [24.1, 27.3, 21.8],\n}, index=[\"Washoe\", \"Elko\", \"White Pine\"])\ncounties.shape     # (3, 2)\ncounties.columns   # Index(['pop', 'wage'], dtype='str')\ncounties[\"wage\"]   # one column, as a Series\n```\n\nThe usual ways in: a dict of lists or Series (keys become columns), a list of dicts (one dict per row; missing keys become NaN), or a 2-D NumPy array plus `columns=` and `index=` labels. A dict of Series is aligned on the Series' indexes, so rows line up by label, not by position.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`pd.DataFrame([{'a': 1, 'b': 2}, {'a': 3}])` has what in row 1, column `b`?",
+     "correct": "`NaN`",
+     "wrong": [
+      "`0`",
+      "`2`",
+      "It raises an error because the dicts differ"
+     ],
+     "explain": "Each dict is a row. A key missing from a row is filled with NaN, which also makes column `b` floating point."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "For a DataFrame `df`, what does `df['price']` return?",
+     "correct": "The `price` column, as a Series sharing df's row index",
+     "wrong": [
+      "The row labelled `price`",
+      "A one-column DataFrame",
+      "A NumPy array of prices with no labels"
+     ],
+     "explain": "Square brackets with a single column name give that column as a Series. Use `df[['price']]` for a one-column DataFrame."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which statement about DataFrame columns is true?",
+     "correct": "Each column has a single dtype, but different columns can have different dtypes",
+     "wrong": [
+      "All columns must share one dtype",
+      "Each cell stores its own dtype",
+      "Columns can only hold numbers"
+     ],
+     "explain": "Think of each column as its own Series. That is what lets a table hold a text column next to a float column."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nimport pandas as pd\ndf = pd.DataFrame(np.arange(6).reshape(3, 2), columns=[\"x\", \"y\"])\nprint(df.shape, df[\"y\"].sum())",
+     "explain": "Three rows and two columns. Column `y` holds 1, 3 and 5.",
+     "expected": "(3, 2) 9"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\na = pd.Series([1, 2], index=[\"p\", \"q\"])\nb = pd.Series([10, 30], index=[\"q\", \"r\"])\ndf = pd.DataFrame({\"a\": a, \"b\": b})\nprint(df)",
+     "explain": "The row index is the union p, q, r. Each column is aligned by label, so gaps become NaN and both columns turn float.",
+     "expected": "     a     b\np  1.0   NaN\nq  2.0  10.0\nr  NaN  30.0"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "Build a DataFrame `firms` with columns `sector` and `employees` and the row index `[\"F1\", \"F2\", \"F3\"]`. The sectors are \"retail\", \"mining\" and \"retail\"; the employee counts are 40, 310 and 12. Then set `total` to the sum of the `employees` column.",
+     "starter": "import pandas as pd\nfirms = ...\ntotal = ...",
+     "setup": "",
+     "solution": "import pandas as pd\nfirms = pd.DataFrame({\"sector\": [\"retail\", \"mining\", \"retail\"],\n                      \"employees\": [40, 310, 12]},\n                     index=[\"F1\", \"F2\", \"F3\"])\ntotal = firms[\"employees\"].sum()",
+     "tests": [
+      {
+       "name": "shape",
+       "code": "import pandas as pd\ncheck(isinstance(firms, pd.DataFrame), \"`firms` should be a DataFrame.\")\ncheck(list(firms.columns) == [\"sector\", \"employees\"], \"Columns should be sector then employees.\")\ncheck(list(firms.index) == [\"F1\", \"F2\", \"F3\"], \"The row index should be F1, F2, F3.\")"
+      },
+      {
+       "name": "values",
+       "code": "check(list(firms[\"employees\"]) == [40, 310, 12] and list(firms[\"sector\"]) == [\"retail\", \"mining\", \"retail\"], \"Check the values in each column.\")"
+      },
+      {
+       "name": "total",
+       "code": "check(total == 362, \"`total` should be the sum of the employees column.\")"
+      }
+     ],
+     "explain": "A dict of lists gives one column per key; `index=` sets the row labels. Selecting a column gives a Series, which has `.sum()`."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.index",
+   "book": {
+    "section": "3.01",
+    "title": "Introducing Pandas Objects",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.01-introducing-pandas-objects.html"
+   },
+   "intro": "The labels of a Series or DataFrame live in an **Index** object. It looks like an array (it has `shape`, `dtype`, slicing), with two twists.\n\nFirst, it is **immutable**: `idx[0] = \"x\"` raises a `TypeError`. That lets several objects share one index safely.\n\nSecond, it behaves like an **ordered set**, with set operations that keep a sensible order:\n\n```python\na = pd.Index([\"AL\", \"NV\", \"UT\"])\nb = pd.Index([\"NV\", \"UT\", \"WY\"])\na.intersection(b)          # Index(['NV', 'UT'])\na.union(b)                 # Index(['AL', 'NV', 'UT', 'WY'])\na.difference(b)            # Index(['AL'])\na.symmetric_difference(b)  # Index(['AL', 'WY'])\n```\n\nThese are handy for questions like \"which states appear in both surveys?\" before you join two tables.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`idx = pd.Index([2019, 2020, 2021])`. What happens on `idx[1] = 2025`?",
+     "correct": "A `TypeError`: an Index cannot be changed in place",
+     "wrong": [
+      "The middle label becomes 2025",
+      "A new Index is returned",
+      "Nothing happens silently"
+     ],
+     "explain": "Index objects are immutable. To relabel, build a new index (for example with `rename` or by assigning a whole new list to `.index`)."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`a = pd.Index([1, 2, 3, 4])`, `b = pd.Index([3, 4, 5])`. What is `a.difference(b)`?",
+     "correct": "`Index([1, 2])`",
+     "wrong": [
+      "`Index([5])`",
+      "`Index([1, 2, 5])`",
+      "`Index([3, 4])`"
+     ],
+     "explain": "The difference keeps labels in `a` that are not in `b`."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why is it useful that two DataFrames can share the same Index object?",
+     "correct": "Because an Index cannot be modified, sharing it cannot cause one table to change the other's labels",
+     "wrong": [
+      "Because sharing makes the data columns immutable too",
+      "Because pandas requires every DataFrame to have a unique Index object",
+      "Because shared indexes sort faster"
+     ],
+     "explain": "Immutability is what makes sharing safe: nobody can edit the labels out from under another object."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\na = pd.Index([\"AL\", \"NV\", \"UT\"])\nb = pd.Index([\"NV\", \"UT\", \"WY\"])\nprint(a.symmetric_difference(b).tolist())",
+     "explain": "Labels in exactly one of the two: AL (only in a) and WY (only in b).",
+     "expected": "['AL', 'WY']"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nidx = pd.Index([10, 20, 30, 40])\nprint(idx[1:3].tolist(), idx.size)",
+     "explain": "An Index slices like an array: positions 1 and 2.",
+     "expected": "[20, 30] 4"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 1,
+     "prompt": "`survey_a` and `survey_b` are DataFrames indexed by county name. Set `both` to the Index of counties present in both surveys, and `only_a` to those in `survey_a` but not `survey_b`.",
+     "starter": "print(survey_a.index, survey_b.index)\nboth = ...\nonly_a = ...",
+     "setup": "import pandas as pd\nsurvey_a = pd.DataFrame({'x': range(4)}, index=['Clark', 'Elko', 'Lyon', 'Washoe'])\nsurvey_b = pd.DataFrame({'y': range(3)}, index=['Washoe', 'Nye', 'Clark'])",
+     "solution": "both = survey_a.index.intersection(survey_b.index)\nonly_a = survey_a.index.difference(survey_b.index)",
+     "tests": [
+      {
+       "name": "both",
+       "code": "check(sorted(both) == [\"Clark\", \"Washoe\"], \"`both` should hold the counties in both indexes.\")"
+      },
+      {
+       "name": "only_a",
+       "code": "check(sorted(only_a) == [\"Elko\", \"Lyon\"], \"`only_a` should hold counties in survey_a only.\")"
+      }
+     ],
+     "explain": "Each DataFrame's labels are in `.index`, and Index objects have set methods: `intersection`, `union`, `difference`."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.series_select",
+   "book": {
+    "section": "3.02",
+    "title": "Data Indexing and Selection",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.02-data-indexing-and-selection.html"
+   },
+   "intro": "A Series supports dictionary-style lookups (`s[\"a\"]`), array-style slices and boolean masks. Because labels can themselves be integers, \"position 1\" and \"label 1\" can be different things. Two indexers remove the guesswork:\n\n- `s.loc[...]` always means **labels**. Label slices include the end.\n- `s.iloc[...]` always means **integer positions**. Slices exclude the end, as in Python.\n\n```python\ns = pd.Series([5.0, 6.5, 8.0, 9.5], index=[10, 20, 30, 40])\ns.loc[20]          # 6.5   (label 20)\ns.iloc[1]          # 6.5   (second position)\ns.loc[20:30]       # labels 20 and 30, both included\ns.iloc[1:3]        # positions 1 and 2\ns[s > 7]           # boolean mask: 8.0 and 9.5\n```\n\nGet in the habit of writing `loc` and `iloc` explicitly; it makes the intent clear to the reader and to pandas.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`s = pd.Series([1, 2, 3, 4], index=['a', 'b', 'c', 'd'])`. What is `s.loc['b':'c']`?",
+     "correct": "The values 2 and 3",
+     "wrong": [
+      "Only the value 2",
+      "The values 2, 3 and 4",
+      "An error: labels cannot be sliced"
+     ],
+     "explain": "Label slices with `loc` include both endpoints, unlike position slices."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`s = pd.Series([7, 8, 9], index=[3, 2, 1])`. What is `s.iloc[0]`?",
+     "correct": "7",
+     "wrong": [
+      "9",
+      "8",
+      "A `KeyError`"
+     ],
+     "explain": "`iloc` ignores the labels and counts positions from 0, so it takes the first entry, 7. `s.loc[1]` would be 9."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which expression keeps only the entries of a Series `wage` above 20?",
+     "correct": "`wage[wage > 20]`",
+     "wrong": [
+      "`wage > 20`",
+      "`wage.loc[20:]`",
+      "`wage.iloc[wage > 20]`"
+     ],
+     "explain": "`wage > 20` is a boolean Series; using it as an index keeps the True rows. `wage.loc[20:]` slices labels, not values."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ns = pd.Series([5, 6, 7, 8], index=[1, 3, 5, 7])\nprint(s.loc[3:5].tolist(), s.iloc[3:5].tolist())",
+     "explain": "`loc[3:5]` takes labels 3 through 5 inclusive. `iloc[3:5]` takes positions 3 and 4, but there is only position 3.",
+     "expected": "[6, 7] [8]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nprice = pd.Series([2.5, 4.0, 1.25], index=[\"eggs\", \"milk\", \"salt\"])\nprice.loc[\"salt\"] = 1.5\nprint(price[price < 3].index.tolist())",
+     "explain": "The `loc` assignment updates salt to 1.5. The mask then keeps eggs and salt.",
+     "expected": "['eggs', 'salt']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`rate` is a Series of unemployment rates indexed by year (integers 2015 to 2024). Set `mid` to the rates for 2018 through 2020 inclusive (by label), `first3` to the first three entries (by position), and `high` to the entries above 5.0.",
+     "starter": "print(rate)\nmid = rate[2018:2020]\nfirst3 = ...\nhigh = ...",
+     "setup": "import pandas as pd\nrate = pd.Series([5.0, 4.7, 4.1, 3.9, 3.7, 8.1, 5.4, 3.6, 3.6, 4.0], index=range(2015, 2025))",
+     "solution": "mid = rate.loc[2018:2020]\nfirst3 = rate.iloc[:3]\nhigh = rate[rate > 5.0]",
+     "tests": [
+      {
+       "name": "mid",
+       "code": "check(list(mid.index) == [2018, 2019, 2020], \"`mid` should hold the labels 2018 to 2020, both included. Use loc.\")"
+      },
+      {
+       "name": "first3",
+       "code": "check(list(first3.index) == [2015, 2016, 2017], \"`first3` should be the first three entries by position. Use iloc.\")"
+      },
+      {
+       "name": "high",
+       "code": "check(list(high.index) == [2020, 2021], \"`high` should keep the entries whose value is above 5.0.\")"
+      }
+     ],
+     "explain": "`loc` slices by label and includes the end; `iloc` slices by position and excludes it; a boolean Series filters by value."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.frame_select",
+   "book": {
+    "section": "3.02",
+    "title": "Data Indexing and Selection",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.02-data-indexing-and-selection.html"
+   },
+   "intro": "A DataFrame is dictionary-like over its **columns** and array-like over its **rows**. That gives a few conventions worth memorising:\n\n```python\ndf[\"wage\"]                  # one column (Series)\ndf[[\"wage\", \"hours\"]]       # several columns (DataFrame)\ndf[\"pay\"] = df.wage * df.hours   # add a column\ndf.loc[\"Elko\", \"wage\"]      # one cell by labels\ndf.loc[df.hours > 40, [\"wage\"]]  # mask on rows, list of columns\ndf.iloc[:2, 1:]             # first two rows, columns from position 1\ndf[1:3]                     # slicing in [] slices ROWS by position\ndf[df.wage > 25]            # a mask in [] filters ROWS\n```\n\nWith copy-on-write in pandas 3, chained assignment such as `df[\"wage\"][\"Elko\"] = 30` never changes `df`. Do it in one step: `df.loc[\"Elko\", \"wage\"] = 30`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "For a DataFrame `df`, what does `df[0:2]` select?",
+     "correct": "The first two rows",
+     "wrong": [
+      "The first two columns",
+      "The column labelled 0 and 1",
+      "A `KeyError`"
+     ],
+     "explain": "A plain name in `[]` picks a column, but a slice in `[]` slices rows. It is a convenience convention worth knowing, though `df.iloc[0:2]` says the same thing more clearly."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "With pandas 3 (copy-on-write on), what does `df['wage'][0] = 99` do to `df`?",
+     "correct": "Nothing: the assignment lands on a temporary copy, and pandas warns about chained assignment",
+     "wrong": [
+      "It sets the first wage in `df` to 99",
+      "It raises a `KeyError`",
+      "It sets every wage to 99"
+     ],
+     "explain": "Under copy-on-write, `df['wage']` behaves as a copy, so the second assignment never reaches `df`. Use `df.loc[row, 'wage'] = 99`."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which expression gives the `wage` and `hours` columns for rows where `hours` is over 40?",
+     "correct": "`df.loc[df['hours'] > 40, ['wage', 'hours']]`",
+     "wrong": [
+      "`df.iloc[df['hours'] > 40, ['wage', 'hours']]`",
+      "`df[df['hours'] > 40, ['wage', 'hours']]`",
+      "`df.loc[['wage', 'hours'], df['hours'] > 40]`"
+     ],
+     "explain": "`loc[rows, columns]`: the mask selects rows and the list selects columns. `iloc` wants positions, and plain `[]` takes one key."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"wage\": [21.0, 30.5, 18.0], \"hours\": [38, 45, 20]},\n                  index=[\"Ana\", \"Ben\", \"Cy\"])\nprint(df.loc[\"Ben\", \"hours\"], df.iloc[2, 0])",
+     "explain": "`loc` uses the labels Ben and hours. `iloc[2, 0]` is the third row and first column: Cy's wage.",
+     "expected": "45 18.0"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"wage\": [21.0, 30.5, 18.0], \"hours\": [38, 45, 20]},\n                  index=[\"Ana\", \"Ben\", \"Cy\"])\ndf[\"pay\"] = df[\"wage\"] * df[\"hours\"]\nprint(df[df[\"pay\"] > 500].index.tolist())",
+     "explain": "Pay is 798, 1372.5 and 360. A mask inside `[]` filters rows.",
+     "expected": "['Ana', 'Ben']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`jobs` has columns `wage` and `hours`, indexed by worker id. Add a column `weekly` equal to wage times hours. Then set `full_time` to the `wage` and `weekly` columns for workers with at least 35 hours, and raise the wage of worker `\"w3\"` to 20.0 in `jobs` itself.",
+     "starter": "jobs[\"weekly\"] = ...\nfull_time = ...\njobs[\"wage\"][\"w3\"] = 20.0",
+     "setup": "import pandas as pd\njobs = pd.DataFrame({'wage': [18.0, 25.0, 16.5, 30.0], 'hours': [40, 20, 30, 38]}, index=['w1', 'w2', 'w3', 'w4'])",
+     "solution": "jobs[\"weekly\"] = jobs[\"wage\"] * jobs[\"hours\"]\nfull_time = jobs.loc[jobs[\"hours\"] >= 35, [\"wage\", \"weekly\"]]\njobs.loc[\"w3\", \"wage\"] = 20.0",
+     "tests": [
+      {
+       "name": "weekly",
+       "code": "check(\"weekly\" in jobs.columns and close(jobs.loc[\"w1\", \"weekly\"], 720.0), \"Add a `weekly` column equal to wage * hours.\")"
+      },
+      {
+       "name": "full_time",
+       "code": "check(list(full_time.index) == [\"w1\", \"w4\"] and list(full_time.columns) == [\"wage\", \"weekly\"], \"`full_time` should keep rows with hours >= 35 and only the wage and weekly columns.\")"
+      },
+      {
+       "name": "w3",
+       "code": "check(close(jobs.loc[\"w3\", \"wage\"], 20.0), \"Worker w3 should have wage 20.0 in `jobs`. Chained assignment does not modify the frame; use loc[row, col].\")"
+      }
+     ],
+     "explain": "Assigning to a new column name adds it. `loc[mask, list]` picks rows and columns together, and `loc[row, col] = value` writes in one step, which is the form that works under copy-on-write."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.alignment",
+   "book": {
+    "section": "3.03",
+    "title": "Operating on Data in Pandas",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.03-operations-in-pandas.html"
+   },
+   "intro": "NumPy ufuncs work on pandas objects and keep the labels: `np.log(s)` returns a Series with the same index.\n\nBinary operations go further: pandas **aligns on labels** before computing. Labels present in only one operand produce NaN.\n\n```python\nq1 = pd.Series({\"NV\": 120, \"UT\": 90})\nq2 = pd.Series({\"UT\": 95, \"AZ\": 200})\nq1 + q2                     # AZ NaN, NV NaN, UT 185.0\nq1.add(q2, fill_value=0)    # AZ 200.0, NV 120.0, UT 185.0\n```\n\nDataFrames align on both rows and columns. Between a DataFrame and a Series, the Series lines up with the **columns** by default (like NumPy broadcasting a row). To line it up with the rows, use a method with `axis=0`: `df.sub(df[\"base\"], axis=0)`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`a = pd.Series([1, 2], index=['x', 'y'])`, `b = pd.Series([10, 20], index=['y', 'z'])`. What is `(a + b)['y']`?",
+     "correct": "12.0",
+     "wrong": [
+      "21",
+      "NaN",
+      "11"
+     ],
+     "explain": "Values are matched by label: a's y (2) plus b's y (10). The result is float because x and z become NaN."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `a.add(b, fill_value=0)` change compared with `a + b`?",
+     "correct": "A label missing from one side is treated as 0 there instead of producing NaN",
+     "wrong": [
+      "It fills NaN in the result with 0 after adding",
+      "It drops labels that are not in both",
+      "Nothing; it is an alias"
+     ],
+     "explain": "`fill_value` replaces the missing operand before adding. So a label only in `b` keeps b's value."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`df` has columns `['a', 'b']` and 3 rows. What does `df - df.iloc[0]` do?",
+     "correct": "Subtracts the first row from every row, matching by column",
+     "wrong": [
+      "Subtracts the first column from every column",
+      "Raises an error because shapes differ",
+      "Subtracts only from the first row"
+     ],
+     "explain": "`df.iloc[0]` is a Series indexed by column names, so it aligns with the columns and is applied to each row."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nq1 = pd.Series({\"NV\": 120, \"UT\": 90})\nq2 = pd.Series({\"UT\": 95, \"AZ\": 200})\nprint((q1 + q2).tolist())",
+     "explain": "The result index is the sorted union AZ, NV, UT. Only UT is in both, so the other two are NaN.",
+     "expected": "[nan, nan, 185.0]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nimport pandas as pd\ns = pd.Series([1.0, 100.0], index=[\"lo\", \"hi\"])\nprint(np.log10(s))",
+     "explain": "A ufunc applied to a Series keeps the index and order.",
+     "expected": "lo    0.0\nhi    2.0\ndtype: float64"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`sales` has one row per store and columns `base`, `q1`, `q2`. Make `growth`, a DataFrame with columns `q1` and `q2` holding each quarter's sales minus that store's `base` value.",
+     "starter": "growth = sales[[\"q1\", \"q2\"]] - sales[\"base\"]",
+     "setup": "import pandas as pd\nsales = pd.DataFrame({'base': [100, 80, 50], 'q1': [105, 70, 52], 'q2': [115, 80, 54]}, index=['s1', 's2', 's3'])",
+     "solution": "growth = sales[[\"q1\", \"q2\"]].sub(sales[\"base\"], axis=0)",
+     "tests": [
+      {
+       "name": "shape",
+       "code": "check(getattr(growth, \"shape\", None) == (3, 2) and list(growth.columns) == [\"q1\", \"q2\"], \"`growth` should have the 3 stores and columns q1 and q2.\")"
+      },
+      {
+       "name": "values",
+       "code": "check(close(growth.values, [[5, 15], [-10, 0], [2, 4]]), \"Each quarter should have that row's base subtracted. A Series lines up with the rows only with axis=0.\")"
+      }
+     ],
+     "explain": "`df - series` lines the Series up with the columns, which would produce NaN here. `.sub(series, axis=0)` matches it to the rows."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.missing",
+   "book": {
+    "section": "3.04",
+    "title": "Handling Missing Data",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.04-missing-values.html"
+   },
+   "intro": "Pandas marks missing values with **sentinels**. In float columns the sentinel is `NaN`, and `None` is converted to it, so an integer column with a gap becomes float64. The nullable dtypes (`\"Int64\"`, `\"Float64\"`, `\"boolean\"`, note the capital letters) use a separate mask and print the gap as `<NA>`, keeping integers as integers.\n\n```python\ns = pd.Series([3, None, 5])           # float64: 3.0, NaN, 5.0\npd.Series([3, None, 5], dtype=\"Int64\")  # 3, <NA>, 5\ns.isna()          # True where missing (alias: isnull)\ns.notna()         # the opposite\ns.dropna()        # drop missing entries\ns.fillna(0)       # replace them\ns.ffill()         # carry the last value forward\n```\n\nOn DataFrames, `dropna()` drops any row with a gap; `how=\"all\"` drops only rows that are entirely missing, `axis=1` drops columns, and `thresh=k` keeps rows with at least k values. Aggregates like `mean` skip missing values by default.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What is the dtype of `pd.Series([4, None, 6])`?",
+     "correct": "`float64`",
+     "wrong": [
+      "`int64`",
+      "`object`",
+      "`Int64`"
+     ],
+     "explain": "`None` becomes NaN, a float sentinel, so the integers are upcast to float64. Ask for `dtype=\"Int64\"` to keep them as integers."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`s = pd.Series([1.0, None, 3.0])`. What is `s.mean()`?",
+     "correct": "2.0",
+     "wrong": [
+      "NaN",
+      "1.333...",
+      "An error"
+     ],
+     "explain": "Pandas aggregates skip missing values by default (`skipna=True`), so the mean is of 1 and 3."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which call drops only the rows of `df` in which every value is missing?",
+     "correct": "`df.dropna(how='all')`",
+     "wrong": [
+      "`df.dropna()`",
+      "`df.dropna(axis=1)`",
+      "`df.fillna(how='all')`"
+     ],
+     "explain": "The default `how='any'` drops a row with even one gap. `axis=1` works on columns instead."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "In pandas 3, how do you carry the previous value forward into gaps?",
+     "correct": "`s.ffill()`",
+     "wrong": [
+      "`s.fillna(method='ffill')`",
+      "`s.fillna(forward=True)`",
+      "`s.dropna(method='ffill')`"
+     ],
+     "explain": "The `method=` argument of `fillna` was removed in pandas 3; the dedicated methods `ffill` and `bfill` replace it."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ns = pd.Series([2, None, 7, None])\nprint(s.isna().sum(), s.fillna(0).tolist())",
+     "explain": "Two entries are missing. `fillna(0)` replaces them, and the Series stays float because it was float to begin with.",
+     "expected": "2 [2.0, 0.0, 7.0, 0.0]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ns = pd.Series([2, None, 7], dtype=\"Int64\")\nprint(s.tolist(), s.dtype)",
+     "explain": "The nullable integer dtype keeps whole numbers and stores the gap as `pd.NA`.",
+     "expected": "[2, <NA>, 7] Int64"
+    },
+    {
+     "id": "o3",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import numpy as np\nimport pandas as pd\ndf = pd.DataFrame({\"a\": [1, np.nan, np.nan], \"b\": [2, 5, np.nan]})\nprint(len(df.dropna()), len(df.dropna(how=\"all\")), len(df.dropna(thresh=1)))",
+     "explain": "Only row 0 is complete. Row 2 is entirely missing, so `how='all'` drops just that one, and `thresh=1` keeps rows with at least one value: the same two.",
+     "expected": "1 2 2"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`prices` is a daily Series with some missing quotes. Make `filled`, the series with each gap replaced by the most recent earlier quote, and `n_gaps`, the number of missing quotes in the original.",
+     "starter": "filled = prices.fillna(0)\nn_gaps = ...",
+     "setup": "import numpy as np\nimport pandas as pd\nprices = pd.Series([10.0, np.nan, 10.5, np.nan, np.nan, 11.0])",
+     "solution": "filled = prices.ffill()\nn_gaps = prices.isna().sum()",
+     "tests": [
+      {
+       "name": "filled",
+       "code": "check(close(filled.values, [10.0, 10.0, 10.5, 10.5, 10.5, 11.0]), \"`filled` should carry the last known price forward into each gap.\")"
+      },
+      {
+       "name": "n_gaps",
+       "code": "check(int(n_gaps) == 3, \"`n_gaps` should count the missing values in `prices`.\")"
+      },
+      {
+       "name": "original",
+       "code": "check(int(prices.isna().sum()) == 3, \"Leave `prices` itself unchanged.\")"
+      }
+     ],
+     "explain": "`ffill` returns a new Series. `isna()` gives a boolean Series and summing it counts the Trues."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.multiindex",
+   "book": {
+    "section": "3.05",
+    "title": "Hierarchical Indexing",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.05-hierarchical-indexing.html"
+   },
+   "intro": "A **MultiIndex** gives each row a tuple of labels, so a single Series can hold panel data such as (state, year) without a 3-D structure.\n\n```python\nidx = pd.MultiIndex.from_product([[\"NV\", \"UT\"], [2022, 2023]],\n                                 names=[\"state\", \"year\"])\ngdp = pd.Series([210, 225, 230, 244], index=idx)\ngdp[\"NV\"]               # the NV rows, indexed by year\ngdp.loc[\"UT\", 2023]     # one value: 244\ngdp.loc[:, 2023]        # every state in 2023\ngdp.xs(2023, level=\"year\")   # the same, naming the level\n```\n\nOther constructors: `from_tuples`, `from_arrays`, or passing a list of arrays as `index=`. Name the levels (`names=`) so later code can refer to them by name. Slicing a range of labels, as in `gdp.loc[\"NV\":\"UT\"]`, needs the index to be sorted; call `sort_index()` first.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "How many entries does `pd.MultiIndex.from_product([['a', 'b', 'c'], [1, 2]])` have?",
+     "correct": "6",
+     "wrong": [
+      "5",
+      "2",
+      "3"
+     ],
+     "explain": "`from_product` takes every combination: 3 x 2 = 6 pairs."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`gdp` has a (state, year) MultiIndex. What does `gdp.loc[:, 2023]` return?",
+     "correct": "Every state's value for 2023, indexed by state",
+     "wrong": [
+      "Every year's value for the first state",
+      "Only the first row",
+      "An error: `:` is not allowed in loc"
+     ],
+     "explain": "The first slot `:` keeps all states; the second picks year 2023. The year level is dropped from the result."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Why give a MultiIndex level names such as `names=['state', 'year']`?",
+     "correct": "So methods like `xs`, `groupby` and `unstack` can refer to a level by name instead of by position",
+     "wrong": [
+      "Names are required or the index cannot be created",
+      "Named levels make lookups faster",
+      "So the levels are sorted automatically"
+     ],
+     "explain": "Names make code readable and robust to reordering levels. They are optional."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nidx = pd.MultiIndex.from_product([[\"NV\", \"UT\"], [2022, 2023]], names=[\"state\", \"year\"])\ngdp = pd.Series([210, 225, 230, 244], index=idx)\nprint(gdp.loc[\"UT\", 2022], gdp[\"NV\"].sum())",
+     "explain": "UT in 2022 is the third entry, 230. The NV rows are 210 and 225.",
+     "expected": "230 435"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nidx = pd.MultiIndex.from_product([[\"NV\", \"UT\"], [2022, 2023]], names=[\"state\", \"year\"])\ngdp = pd.Series([210, 225, 230, 244], index=idx)\nprint(gdp.xs(2023, level=\"year\").tolist())",
+     "explain": "A cross-section at year 2023 takes one value per state.",
+     "expected": "[225, 244]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Build `emp`, a Series of employment counts with a MultiIndex whose levels are named `county` and `quarter`. The counties are \"Elko\" and \"Lyon\"; the quarters are \"Q1\" and \"Q2\"; the values in order (Elko Q1, Elko Q2, Lyon Q1, Lyon Q2) are 510, 530, 300, 290. Then set `q2` to the Q2 value for every county.",
+     "starter": "import pandas as pd\nidx = ...\nemp = ...\nq2 = ...",
+     "setup": "",
+     "solution": "import pandas as pd\nidx = pd.MultiIndex.from_product([[\"Elko\", \"Lyon\"], [\"Q1\", \"Q2\"]], names=[\"county\", \"quarter\"])\nemp = pd.Series([510, 530, 300, 290], index=idx)\nq2 = emp.xs(\"Q2\", level=\"quarter\")",
+     "tests": [
+      {
+       "name": "index",
+       "code": "import pandas as pd\ncheck(isinstance(getattr(emp, \"index\", None), pd.MultiIndex), \"`emp` should have a MultiIndex.\")\ncheck(list(emp.index.names) == [\"county\", \"quarter\"], \"Name the levels county and quarter.\")"
+      },
+      {
+       "name": "values",
+       "code": "check(emp.loc[(\"Lyon\", \"Q1\")] == 300 and emp.loc[(\"Elko\", \"Q2\")] == 530, \"Check that the values follow the order Elko Q1, Elko Q2, Lyon Q1, Lyon Q2.\")"
+      },
+      {
+       "name": "q2",
+       "code": "check(list(q2.index) == [\"Elko\", \"Lyon\"] and list(q2) == [530, 290], \"`q2` should hold the Q2 value for each county, indexed by county.\")"
+      }
+     ],
+     "explain": "`from_product` builds every (county, quarter) pair in order. `xs(..., level=...)` or `emp.loc[:, \"Q2\"]` takes the cross-section."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.reshape_index",
+   "book": {
+    "section": "3.05",
+    "title": "Hierarchical Indexing",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.05-hierarchical-indexing.html"
+   },
+   "intro": "A table can be stored **long** (one row per state-year, a MultiIndex) or **wide** (states as rows, years as columns). Two methods move between them:\n\n- `unstack()` moves the innermost index level into the columns (long to wide). Pass a level name to choose which one.\n- `stack()` moves the columns into the innermost index level (wide to long).\n\nColumns and index can also trade places:\n\n```python\nlong = df.set_index([\"state\", \"year\"])   # columns become the index\nflat = long.reset_index()                # index levels become columns\nwide = long[\"gdp\"].unstack(\"year\")       # one column per year\n```\n\nData files usually arrive flat, so `set_index` then `unstack` is the common route to a wide table; `reset_index` is the way back.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`s` has a (state, year) MultiIndex with 3 states and 4 years. What is the shape of `s.unstack()`?",
+     "correct": "`(3, 4)`",
+     "wrong": [
+      "`(4, 3)`",
+      "`(12, 1)`",
+      "`(12,)`"
+     ],
+     "explain": "`unstack` moves the innermost level (year) into the columns, leaving one row per state."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does `df.reset_index()` do to a DataFrame indexed by (state, year)?",
+     "correct": "Turns `state` and `year` into ordinary columns and gives a fresh 0, 1, 2, ... index",
+     "wrong": [
+      "Deletes the index labels entirely",
+      "Sorts the rows by the index",
+      "Moves the year level into the columns"
+     ],
+     "explain": "`reset_index` is the inverse of `set_index`: the levels come back as columns."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which pair of calls round-trips a Series with a two-level MultiIndex back to the same shape?",
+     "correct": "`s.unstack().stack()`",
+     "wrong": [
+      "`s.unstack().unstack()`",
+      "`s.stack().reset_index()`",
+      "`s.set_index().unstack()`"
+     ],
+     "explain": "`unstack` moves a level to the columns; `stack` moves it back."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"state\": [\"NV\", \"NV\", \"UT\", \"UT\"],\n                   \"year\": [2022, 2023, 2022, 2023],\n                   \"gdp\": [210, 225, 230, 244]})\nwide = df.set_index([\"state\", \"year\"])[\"gdp\"].unstack()\nprint(wide)",
+     "explain": "One row per state and one column per year. The column axis is named after the year level.",
+     "expected": "year   2022  2023\nstate            \nNV      210   225\nUT      230   244"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"state\": [\"NV\", \"UT\"], \"gdp\": [210, 230]}).set_index(\"state\")\nprint(df.reset_index().columns.tolist())",
+     "explain": "The index named state comes back as the first column.",
+     "expected": "['state', 'gdp']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`panel` is a flat DataFrame with columns `county`, `year` and `wage`. Make `wide`, a DataFrame with one row per county, one column per year, and wages as values. Then make `long`, a flat DataFrame with columns `county`, `year` and `wage` again, by reversing the steps.",
+     "starter": "wide = ...\nlong = ...",
+     "setup": "import pandas as pd\npanel = pd.DataFrame({'county': ['Elko'] * 3 + ['Nye'] * 3, 'year': [2021, 2022, 2023] * 2, 'wage': [24.0, 25.1, 26.0, 22.0, 23.5, 24.2]})",
+     "solution": "wide = panel.set_index([\"county\", \"year\"])[\"wage\"].unstack(\"year\")\nlong = wide.stack().rename(\"wage\").reset_index()",
+     "tests": [
+      {
+       "name": "wide",
+       "code": "check(getattr(wide, \"shape\", None) == (2, 3) and list(wide.columns) == [2021, 2022, 2023] and list(wide.index) == [\"Elko\", \"Nye\"], \"`wide` should have counties as rows and years 2021-2023 as columns.\")"
+      },
+      {
+       "name": "wide values",
+       "code": "check(close(wide.loc[\"Nye\", 2022], 23.5), \"Check the values in `wide`: Nye in 2022 should be 23.5.\")"
+      },
+      {
+       "name": "long",
+       "code": "check(sorted(long.columns) == [\"county\", \"wage\", \"year\"] and len(long) == 6, \"`long` should be flat, with 6 rows and columns county, year and wage.\")"
+      }
+     ],
+     "explain": "`set_index` builds the (county, year) MultiIndex, `unstack(\"year\")` spreads the years across columns, and `stack` plus `reset_index` undo it. `rename` names the stacked Series so its column is called wage."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.concat",
+   "book": {
+    "section": "3.06",
+    "title": "Combining Datasets: Concat and Append",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.06-concat-and-append.html"
+   },
+   "intro": "`pd.concat` stacks Series or DataFrames along an axis, like `np.concatenate` but label-aware.\n\n```python\nq1 = pd.DataFrame({\"sales\": [5, 7]}, index=[\"a\", \"b\"])\nq2 = pd.DataFrame({\"sales\": [6, 9]}, index=[\"a\", \"b\"])\npd.concat([q1, q2])                      # 4 rows; index a, b, a, b\npd.concat([q1, q2], ignore_index=True)   # index 0..3\npd.concat([q1, q2], keys=[\"Q1\", \"Q2\"])   # MultiIndex (quarter, store)\npd.concat([q1, q2], axis=1)              # side by side\n```\n\nPandas keeps duplicate labels by default. Pass `verify_integrity=True` to raise an error instead, `ignore_index=True` to renumber, or `keys=` to record where each piece came from. When the pieces have different columns, the default `join=\"outer\"` keeps all of them (gaps become NaN); `join=\"inner\"` keeps only shared columns.\n\n`DataFrame.append` was removed in pandas 2. Use `pd.concat`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`a` and `b` each have index `[0, 1]`. What is the index of `pd.concat([a, b])`?",
+     "correct": "`[0, 1, 0, 1]`",
+     "wrong": [
+      "`[0, 1, 2, 3]`",
+      "`[0, 1]`",
+      "It raises an error because labels repeat"
+     ],
+     "explain": "concat keeps the original labels, duplicates included. Use `ignore_index=True` for 0 to 3."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`x` has columns `['a', 'b']` and `y` has columns `['b', 'c']`. What columns does `pd.concat([x, y], join='inner')` have?",
+     "correct": "`['b']`",
+     "wrong": [
+      "`['a', 'b', 'c']`",
+      "`['a', 'c']`",
+      "It raises an error"
+     ],
+     "explain": "An inner join keeps only the column labels that every piece shares."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "How do you add new rows to a DataFrame in pandas 3?",
+     "correct": "`pd.concat([df, new_rows])`",
+     "wrong": [
+      "`df.append(new_rows)`",
+      "`df.extend(new_rows)`",
+      "`df + new_rows`"
+     ],
+     "explain": "`DataFrame.append` no longer exists. `df + new_rows` would align and add values, not stack rows."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nq1 = pd.Series([5, 7], index=[\"a\", \"b\"])\nq2 = pd.Series([6, 9], index=[\"a\", \"b\"])\nboth = pd.concat([q1, q2], keys=[\"Q1\", \"Q2\"])\nprint(both.loc[\"Q2\", \"a\"], len(both))",
+     "explain": "`keys` adds an outer level naming the source piece.",
+     "expected": "6 4"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nx = pd.DataFrame({\"a\": [1], \"b\": [2]})\ny = pd.DataFrame({\"b\": [3], \"c\": [4]})\nprint(pd.concat([x, y], ignore_index=True))",
+     "explain": "The outer join keeps every column; cells a piece did not have are NaN, which turns those columns float.",
+     "expected": "     a  b    c\n0  1.0  2  NaN\n1  NaN  3  4.0"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`jan`, `feb` and `mar` are DataFrames of transactions with the same columns, each indexed from 0. Make `quarter`, one DataFrame with all the rows in month order and a fresh index 0, 1, 2, ..., and `tagged`, the same rows with an outer index level holding \"jan\", \"feb\" or \"mar\".",
+     "starter": "import pandas as pd\nquarter = pd.concat([jan, feb, mar])\ntagged = ...",
+     "setup": "import pandas as pd\njan = pd.DataFrame({'id': [1, 2], 'amount': [10, 20]})\nfeb = pd.DataFrame({'id': [3, 4], 'amount': [30, 40]})\nmar = pd.DataFrame({'id': [5, 6], 'amount': [50, 60]})",
+     "solution": "import pandas as pd\nquarter = pd.concat([jan, feb, mar], ignore_index=True)\ntagged = pd.concat([jan, feb, mar], keys=[\"jan\", \"feb\", \"mar\"])",
+     "tests": [
+      {
+       "name": "quarter",
+       "code": "check(getattr(quarter, \"shape\", None) == (6, 2) and list(quarter.index) == list(range(6)), \"`quarter` should have 6 rows and a fresh index 0..5.\")"
+      },
+      {
+       "name": "order",
+       "code": "check(list(quarter[\"amount\"]) == [10, 20, 30, 40, 50, 60], \"Keep the rows in month order: jan, feb, mar.\")"
+      },
+      {
+       "name": "tagged",
+       "code": "check(len(tagged) == 6 and int(tagged.loc[(\"feb\", 0), \"amount\"]) == 30, \"`tagged` should have an outer level jan/feb/mar from keys=.\")"
+      }
+     ],
+     "explain": "`ignore_index=True` renumbers; `keys=` records the source of each block as an outer index level."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.merge",
+   "book": {
+    "section": "3.07",
+    "title": "Combining Datasets: Merge and Join",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.07-merge-and-join.html"
+   },
+   "intro": "`pd.merge` combines tables by matching **key values**, the way a database join does.\n\n```python\nworkers = pd.DataFrame({\"id\": [1, 2, 3], \"county\": [\"Elko\", \"Nye\", \"Elko\"]})\nrates = pd.DataFrame({\"county\": [\"Elko\", \"Nye\"], \"min_wage\": [12.0, 11.5]})\npd.merge(workers, rates, on=\"county\")   # many-to-one: each worker gets a rate\n```\n\nThe shape of the result depends on the keys: **one-to-one** keeps the row count, **many-to-one** repeats the \"one\" side's rows, and **many-to-many** produces every matching pair.\n\nOptions to know:\n\n- `on=\"key\"`, or `left_on=` / `right_on=` when the names differ, or `left_index=True` / `right_index=True` to match on the index.\n- `how=\"inner\"` (default, keys in both), `\"left\"`, `\"right\"`, `\"outer\"`.\n- `suffixes=(\"_x\", \"_y\")` renames clashing non-key columns.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "A left table has 5 workers across 2 counties; the right table has one row per county. How many rows does an inner merge on county give (all counties match)?",
+     "correct": "5",
+     "wrong": [
+      "2",
+      "10",
+      "7"
+     ],
+     "explain": "Many-to-one: each worker row picks up its county's row, so the worker count is kept."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Left has key `k` values `[1, 1]`; right has `[1, 1, 1]`. How many rows does `pd.merge(left, right, on='k')` have?",
+     "correct": "6",
+     "wrong": [
+      "2",
+      "3",
+      "5"
+     ],
+     "explain": "Many-to-many joins pair every matching row: 2 x 3."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "The key is `fips` in one table and `county_code` in the other. Which call joins them?",
+     "correct": "`pd.merge(a, b, left_on='fips', right_on='county_code')`",
+     "wrong": [
+      "`pd.merge(a, b, on=['fips', 'county_code'])`",
+      "`pd.merge(a, b, how='fips')`",
+      "`pd.concat([a, b], on='fips')`"
+     ],
+     "explain": "`left_on` and `right_on` name the key in each table. Both columns are kept in the result."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which `how=` keeps every row of the left table, filling NaN where the right has no match?",
+     "correct": "`'left'`",
+     "wrong": [
+      "`'inner'`",
+      "`'right'`",
+      "`'cross'`"
+     ],
+     "explain": "A left join keeps all left keys. `inner` would drop unmatched ones."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nworkers = pd.DataFrame({\"id\": [1, 2, 3], \"county\": [\"Elko\", \"Nye\", \"Lyon\"]})\nrates = pd.DataFrame({\"county\": [\"Elko\", \"Nye\"], \"min_wage\": [12.0, 11.5]})\nm = pd.merge(workers, rates, on=\"county\", how=\"left\")\nprint(m[\"min_wage\"].tolist())",
+     "explain": "Lyon has no rate, so the left join gives it NaN.",
+     "expected": "[12.0, 11.5, nan]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\na = pd.DataFrame({\"k\": [1, 2], \"v\": [10, 20]})\nb = pd.DataFrame({\"k\": [1, 2], \"v\": [5, 6]})\nprint(pd.merge(a, b, on=\"k\", suffixes=(\"_old\", \"_new\")).columns.tolist())",
+     "explain": "Both tables have a non-key column `v`, so the suffixes tell the two apart.",
+     "expected": "['k', 'v_old', 'v_new']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`hh` lists households with columns `hh_id` and `fips`. `cty` lists counties with columns `county_code` and `median_rent`. Make `joined`, every household with its county's median rent (keep households whose county is missing from `cty`, with NaN rent).",
+     "starter": "import pandas as pd\njoined = pd.merge(hh, cty, left_on=\"fips\", right_on=\"county_code\")",
+     "setup": "import pandas as pd\nhh = pd.DataFrame({'hh_id': [101, 102, 103, 104], 'fips': [7, 9, 7, 99]})\ncty = pd.DataFrame({'county_code': [7, 9], 'median_rent': [1200, 900]})",
+     "solution": "import pandas as pd\njoined = pd.merge(hh, cty, left_on=\"fips\", right_on=\"county_code\", how=\"left\")",
+     "tests": [
+      {
+       "name": "rows",
+       "code": "check(len(joined) == 4 and list(joined[\"hh_id\"]) == [101, 102, 103, 104], \"`joined` should keep all 4 households in their original order.\")"
+      },
+      {
+       "name": "rent",
+       "code": "import numpy as np\nr = joined[\"median_rent\"].to_numpy(dtype=float)\ncheck(close(r[:3], [1200, 900, 1200]), \"Each household should get its own county's median_rent.\")\ncheck(np.isnan(r[3]), \"The household with no matching county should have NaN rent: use a left join.\")"
+      }
+     ],
+     "explain": "The key names differ, so use `left_on` and `right_on`. `how=\"left\"` keeps unmatched households."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.groupby",
+   "book": {
+    "section": "3.08",
+    "title": "Aggregation and Grouping",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.08-aggregation-and-grouping.html"
+   },
+   "intro": "Series and DataFrames have the usual aggregates (`sum`, `mean`, `median`, `min`, `max`, `count`, `std`), and `describe()` gives several at once.\n\n`groupby` runs an aggregate per group in three steps: **split** the rows by a key, **apply** a function to each piece, **combine** the results.\n\n```python\nwages = pd.DataFrame({\n    \"sector\": [\"retail\", \"mining\", \"retail\", \"mining\"],\n    \"wage\":   [16.0, 34.0, 18.0, 30.0],\n    \"hours\":  [30, 45, 34, 40]})\nwages.groupby(\"sector\")[\"wage\"].mean()   # mining 32.0, retail 17.0\nwages.groupby(\"sector\").size()            # rows per group\nwages.groupby([\"sector\", \"hours\"]).sum()  # several keys\n```\n\nThe result is indexed by the group keys, in sorted order. The key can be a column name, a list of names, an array or Series of the same length, a dict that maps index labels to groups, or a function of the index.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`df.groupby('state')['income'].median()` returns",
+     "correct": "A Series with one median income per state, indexed by state",
+     "wrong": [
+      "One overall median",
+      "A DataFrame with the same number of rows as df",
+      "The state with the highest median"
+     ],
+     "explain": "Split by state, take the median of each piece, combine into a Series keyed by state."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What is the difference between `g.size()` and `g.count()` on a grouped DataFrame?",
+     "correct": "`size` counts rows per group; `count` counts non-missing values per column per group",
+     "wrong": [
+      "They are identical",
+      "`count` counts rows; `size` counts bytes",
+      "`size` skips missing values; `count` does not"
+     ],
+     "explain": "`size` ignores the values entirely. `count` excludes NaN, so it can differ between columns."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which expression gives the mean wage by sector **and** year?",
+     "correct": "`df.groupby(['sector', 'year'])['wage'].mean()`",
+     "wrong": [
+      "`df.groupby('sector')['wage'].mean('year')`",
+      "`df.groupby('sector', 'year')['wage'].mean()`",
+      "`df['wage'].groupby().mean(['sector', 'year'])`"
+     ],
+     "explain": "Pass a list of keys. The result has a two-level MultiIndex."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"sector\": [\"retail\", \"mining\", \"retail\", \"mining\"],\n                   \"wage\": [16.0, 34.0, 18.0, 30.0]})\nprint(df.groupby(\"sector\")[\"wage\"].max())",
+     "explain": "The groups come out in sorted order, mining before retail.",
+     "expected": "sector\nmining    34.0\nretail    18.0\nName: wage, dtype: float64"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ns = pd.Series([3, 5, 2, 8, 1], index=[\"a\", \"b\", \"a\", \"c\", \"b\"])\nprint(s.groupby(level=0).sum().tolist())",
+     "explain": "Grouping by the index labels: a is 3 + 2, b is 5 + 1, c is 8.",
+     "expected": "[5, 6, 8]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`tx` holds transactions with columns `county`, `month` and `amount`. Make `by_county`, total amount per county (a Series), and `n_by_month`, the number of transactions per month.",
+     "starter": "by_county = tx[\"amount\"].sum()\nn_by_month = ...",
+     "setup": "import pandas as pd\ntx = pd.DataFrame({'county': ['Elko', 'Nye', 'Elko', 'Nye', 'Elko'], 'month': [1, 1, 2, 2, 2], 'amount': [10, 20, 25, 40, 35]})",
+     "solution": "by_county = tx.groupby(\"county\")[\"amount\"].sum()\nn_by_month = tx.groupby(\"month\").size()",
+     "tests": [
+      {
+       "name": "by_county",
+       "code": "check(dict(by_county) == {\"Elko\": 70, \"Nye\": 60}, \"`by_county` should be the sum of amount for each county.\")"
+      },
+      {
+       "name": "n_by_month",
+       "code": "check(dict(n_by_month) == {1: 2, 2: 3}, \"`n_by_month` should count the rows in each month.\")"
+      }
+     ],
+     "explain": "Select the column after grouping, then aggregate. `size()` counts rows per group."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.groupby_ops",
+   "book": {
+    "section": "3.08",
+    "title": "Aggregation and Grouping",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.08-aggregation-and-grouping.html"
+   },
+   "intro": "Beyond a single aggregate, a GroupBy object offers four tools. Each returns a different shape:\n\n| method | returns |\n|---|---|\n| `agg` | one row per group (several statistics at once) |\n| `filter` | the original rows of groups that pass a test |\n| `transform` | one value per original row, same index |\n| `apply` | whatever your function returns, glued together |\n\n```python\ng = df.groupby(\"county\")[\"wage\"]\ng.agg([\"min\", \"mean\", \"max\"])            # 3 columns per county\ndf.groupby(\"county\").filter(lambda d: len(d) >= 30)   # drop small counties\ndf[\"demeaned\"] = df[\"wage\"] - g.transform(\"mean\")     # within-county deviation\n```\n\n`transform` is the workhorse for within-group demeaning, the fixed-effects trick in panel econometrics: subtract each group's mean from its own rows.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`df` has 100 rows in 5 groups. How many rows does `df.groupby('g')['x'].transform('mean')` have?",
+     "correct": "100",
+     "wrong": [
+      "5",
+      "1",
+      "It depends on the group sizes"
+     ],
+     "explain": "`transform` broadcasts each group's result back to that group's rows, so the output matches the input index."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which keeps only the rows belonging to counties with average wage above 20?",
+     "correct": "`df.groupby('county').filter(lambda d: d['wage'].mean() > 20)`",
+     "wrong": [
+      "`df.groupby('county')['wage'].mean() > 20`",
+      "`df.groupby('county').transform(lambda d: d.mean() > 20)`",
+      "`df[df['wage'] > 20]`"
+     ],
+     "explain": "`filter` evaluates the function on each group and keeps or drops all of that group's rows. The last option tests individual rows."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does `df.groupby('sector')['wage'].agg(['mean', 'std'])` return?",
+     "correct": "A DataFrame with one row per sector and columns `mean` and `std`",
+     "wrong": [
+      "A Series of means",
+      "A Series with a two-level index",
+      "Two separate DataFrames"
+     ],
+     "explain": "A list of functions gives one column per function."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"g\": [\"a\", \"a\", \"b\", \"b\"], \"x\": [1.0, 3.0, 10.0, 14.0]})\nprint((df[\"x\"] - df.groupby(\"g\")[\"x\"].transform(\"mean\")).tolist())",
+     "explain": "Group means are 2 and 12; each row minus its own group's mean.",
+     "expected": "[-1.0, 1.0, -2.0, 2.0]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"g\": [\"a\", \"a\", \"b\", \"c\", \"c\", \"c\"], \"x\": range(6)})\nprint(df.groupby(\"g\").filter(lambda d: len(d) > 1)[\"g\"].tolist())",
+     "explain": "Group b has one row, so it is dropped; the others keep all rows.",
+     "expected": "['a', 'a', 'c', 'c', 'c']"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`panel` has columns `county`, `year` and `wage`. Add a column `wage_dm` equal to each wage minus the mean wage of its county (within-county demeaning). Then make `summary`, a DataFrame with one row per county and columns `mean` and `max` of `wage`.",
+     "starter": "panel[\"wage_dm\"] = panel[\"wage\"] - panel.groupby(\"county\")[\"wage\"].mean()\nsummary = ...",
+     "setup": "import pandas as pd\npanel = pd.DataFrame({'county': ['Elko', 'Elko', 'Nye', 'Nye', 'Nye'], 'year': [1, 2, 1, 2, 3], 'wage': [24.0, 26.0, 17.0, 20.0, 23.0]})",
+     "solution": "panel[\"wage_dm\"] = panel[\"wage\"] - panel.groupby(\"county\")[\"wage\"].transform(\"mean\")\nsummary = panel.groupby(\"county\")[\"wage\"].agg([\"mean\", \"max\"])",
+     "tests": [
+      {
+       "name": "wage_dm",
+       "code": "check(\"wage_dm\" in panel.columns and close(panel[\"wage_dm\"], [-1.0, 1.0, -3.0, 0.0, 3.0]), \"`wage_dm` should be each wage minus its county's mean wage, on every row.\")"
+      },
+      {
+       "name": "summary",
+       "code": "check(list(getattr(summary, \"columns\", [])) == [\"mean\", \"max\"] and close(summary.loc[\"Nye\"].values, [20.0, 23.0]), \"`summary` should have columns mean and max, one row per county.\")"
+      }
+     ],
+     "explain": "`transform(\"mean\")` returns the group mean aligned to every row, so the subtraction is row by row. `agg` with a list gives one column per statistic."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.pivot",
+   "book": {
+    "section": "3.09",
+    "title": "Pivot Tables",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.09-pivot-tables.html"
+   },
+   "intro": "A pivot table is a two-way groupby laid out as a grid: one key down the rows, another across the columns, an aggregate in each cell.\n\n```python\ndf.pivot_table(values=\"wage\", index=\"sector\", columns=\"sex\", aggfunc=\"mean\")\n# is the same as\ndf.groupby([\"sector\", \"sex\"])[\"wage\"].mean().unstack()\n```\n\nUseful options:\n\n- `aggfunc=` takes a name (`\"mean\"` is the default, `\"sum\"`, `\"count\"`, ...), a function, or a dict mapping columns to functions.\n- `index=` and `columns=` accept lists for multilevel grids, and you can bin a numeric column first with `pd.cut` to use it as a key.\n- `margins=True` adds an `All` row and column computed over the raw data, not by averaging the cell values.\n- `fill_value=` replaces empty cells.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What `aggfunc` does `pivot_table` use if you do not pass one?",
+     "correct": "`'mean'`",
+     "wrong": [
+      "`'sum'`",
+      "`'count'`",
+      "`'first'`"
+     ],
+     "explain": "The default is the mean. Use `aggfunc='sum'` for totals."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Which groupby expression gives the same grid as `df.pivot_table('pay', index='region', columns='year', aggfunc='sum')`?",
+     "correct": "`df.groupby(['region', 'year'])['pay'].sum().unstack()`",
+     "wrong": [
+      "`df.groupby('region')['pay'].sum()`",
+      "`df.groupby(['year', 'region'])['pay'].sum()`",
+      "`df.groupby('pay').sum().unstack()`"
+     ],
+     "explain": "Group by both keys, aggregate, then move the column key (year) into the columns with `unstack`."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 3,
+     "prompt": "With `margins=True` and `aggfunc='mean'`, how is the `All` column computed?",
+     "correct": "As the mean over all raw rows in that row group, not the mean of the cell means",
+     "wrong": [
+      "As the sum of the cells",
+      "As the mean of the cell means",
+      "As the count of rows"
+     ],
+     "explain": "Margins re-aggregate the underlying data, so unequal group sizes are weighted correctly."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"region\": [\"N\", \"N\", \"S\", \"S\", \"S\"],\n                   \"year\": [2023, 2024, 2023, 2024, 2024],\n                   \"pay\": [10, 12, 8, 9, 11]})\nprint(df.pivot_table(\"pay\", index=\"region\", columns=\"year\", aggfunc=\"sum\"))",
+     "explain": "South in 2024 has two rows, 9 and 11, which sum to 20.",
+     "expected": "year    2023  2024\nregion            \nN         10    12\nS          8    20"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"region\": [\"N\", \"N\", \"S\"], \"year\": [1, 2, 1], \"pay\": [10, 12, 8]})\nt = df.pivot_table(\"pay\", index=\"region\", columns=\"year\", aggfunc=\"sum\", fill_value=0)\nprint(t.loc[\"S\", 2])",
+     "explain": "No South row has year 2, so that cell would be missing; `fill_value=0` puts 0 there.",
+     "expected": "0"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`survey` has columns `state`, `sex` and `income`. Make `grid`, a pivot table of median income with states as rows and sex as columns, including an `All` row and column.",
+     "starter": "grid = survey.pivot_table(values=\"income\", index=\"state\", columns=\"sex\")",
+     "setup": "import pandas as pd\nsurvey = pd.DataFrame({'state': ['NV', 'NV', 'NV', 'UT', 'UT', 'UT', 'NV'], 'sex': ['F', 'M', 'M', 'F', 'M', 'F', 'F'], 'income': [40.0, 46.0, 54.0, 38.0, 60.0, 47.0, 44.0]})",
+     "solution": "grid = survey.pivot_table(values=\"income\", index=\"state\", columns=\"sex\",\n                          aggfunc=\"median\", margins=True)",
+     "tests": [
+      {
+       "name": "layout",
+       "code": "check(list(getattr(grid, \"index\", [])) == [\"NV\", \"UT\", \"All\"] and list(grid.columns) == [\"F\", \"M\", \"All\"], \"`grid` should have states (plus All) as rows and sex (plus All) as columns.\")"
+      },
+      {
+       "name": "median",
+       "code": "check(close(grid.loc[\"NV\", \"M\"], 50.0) and close(grid.loc[\"All\", \"All\"], 46.0), \"Use the median income in each cell, and margins=True for the All row and column.\")"
+      }
+     ],
+     "explain": "`aggfunc=\"median\"` sets the statistic; `margins=True` adds the totals computed over the raw rows."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.strings",
+   "book": {
+    "section": "3.10",
+    "title": "Vectorized String Operations",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.10-working-with-strings.html"
+   },
+   "intro": "Text columns have a `.str` accessor that applies Python string methods to every entry, skipping missing values instead of crashing on them. In pandas 3 such columns have the dtype `str` by default.\n\n```python\nnames = pd.Series([\"  elko county\", \"Washoe COUNTY\", None])\nnames.str.strip().str.title()          # 'Elko County', 'Washoe County', NaN\nnames.str.len()\nnames.str.contains(\"county\", case=False)\n```\n\nRegular-expression methods do pattern work: `contains`, `match`, `extract` (capture groups become columns), `replace`, `findall`, `split`. Indexing helpers include `str[0:3]`, `str.get(i)` after a split, and `str.cat`. For a column of delimited tags, `str.get_dummies(\"|\")` makes one 0/1 indicator column per tag.\n\n```python\ncodes = pd.Series([\"NAICS-445\", \"NAICS-212\"])\ncodes.str.extract(r\"(\\d+)\")     # one column of the digits\n```",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does `pd.Series(['ab', 'cde']).str.len()` return?",
+     "correct": "A Series `[2, 3]`",
+     "wrong": [
+      "`2`, the number of entries",
+      "`5`, the total length",
+      "An error: Series has no len"
+     ],
+     "explain": "`.str` methods work element by element and return a Series."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What is the dtype of `pd.Series(['NV', 'UT'])` in pandas 3?",
+     "correct": "`str`",
+     "wrong": [
+      "`object`",
+      "`category`",
+      "`<U2`"
+     ],
+     "explain": "Pandas 3 infers its dedicated string dtype for text by default, printed as `str`."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`s.str.get_dummies('|')` on `['wage|rent', 'rent']` returns",
+     "correct": "A DataFrame with columns `rent` and `wage` holding 1s and 0s",
+     "wrong": [
+      "A Series of lists",
+      "The number of tags per row",
+      "A boolean Series"
+     ],
+     "explain": "Each distinct tag becomes an indicator column, sorted by name."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ns = pd.Series([\"  elko county\", \"Washoe COUNTY\", \"nye\"])\nprint(s.str.strip().str.title().tolist())",
+     "explain": "`strip` removes the outer spaces; `title` capitalises each word.",
+     "expected": "['Elko County', 'Washoe County', 'Nye']"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ncodes = pd.Series([\"NAICS-445\", \"NAICS-212\", \"SIC-58\"])\nprint(codes.str.extract(r\"-(\\d+)\")[0].astype(int).sum())",
+     "explain": "The capture group pulls the digits after the dash: 445 + 212 + 58.",
+     "expected": "715"
+    },
+    {
+     "id": "o3",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ntags = pd.Series([\"wage|rent\", \"rent\", \"tax|wage\"])\nprint(tags.str.get_dummies(\"|\"))",
+     "explain": "One indicator column per distinct tag, in alphabetical order.",
+     "expected": "   rent  tax  wage\n0     1    0     1\n1     1    0     0\n2     0    1     1"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`place` holds messy county names such as `\"  washoe county, NV\"`. Make `clean`, the names with outer spaces removed, in title case, and with `\" County\"` and the state suffix dropped (so the result is `\"Washoe\"`). Then make `state`, the two-letter state code after the comma, in upper case.",
+     "starter": "parts = ...\nclean = ...\nstate = ...",
+     "setup": "import pandas as pd\nplace = pd.Series(['  washoe county, NV', 'CLARK COUNTY,nv', 'elko county , Nv', 'salt lake county, ut'])",
+     "solution": "parts = place.str.split(\",\")\nclean = parts.str[0].str.strip().str.title().str.replace(\" County\", \"\")\nstate = parts.str[1].str.strip().str.upper()",
+     "tests": [
+      {
+       "name": "clean",
+       "code": "check(list(clean) == [\"Washoe\", \"Clark\", \"Elko\", \"Salt Lake\"], \"`clean` should be the bare county names in title case, without the word County.\")"
+      },
+      {
+       "name": "state",
+       "code": "check(list(state) == [\"NV\", \"NV\", \"NV\", \"UT\"], \"`state` should be the upper-case code after the comma.\")"
+      }
+     ],
+     "explain": "Split on the comma, then use `.str[0]` and `.str[1]` to take each part. Chain `strip`, `title` and `replace` on the name part."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.datetime",
+   "book": {
+    "section": "3.11",
+    "title": "Working with Time Series",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.11-working-with-time-series.html"
+   },
+   "intro": "Python's `datetime` handles one date at a time; NumPy's `datetime64` packs many into an array. Pandas builds on both with **Timestamp** (one moment) and **DatetimeIndex** (many), plus **Period** for spans such as a month or quarter and **Timedelta** for durations.\n\n```python\npd.to_datetime([\"2024-01-15\", \"2024-03-01\"])     # parse strings\npd.Timestamp(\"2024-02-28\") + pd.Timedelta(days=2)  # 2024-03-01\npd.date_range(\"2024-01-01\", periods=4, freq=\"QE\")  # quarter ends\ns = pd.Series([1.2, 1.5, 1.4],\n              index=pd.date_range(\"2024-01-31\", periods=3, freq=\"ME\"))\ns.loc[\"2024-02\"]       # partial-string indexing: all of February\n```\n\nFrequency codes in pandas 3 include `\"D\"` (day), `\"B\"` (business day), `\"W\"`, `\"ME\"` (month end), `\"MS\"` (month start), `\"QE\"`, `\"YE\"` and `\"h\"` (hour). The old `\"M\"` and `\"H\"` are no longer accepted. Codes take multipliers: `\"2h\"`, `\"3ME\"`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "Which call gives the last day of each month for January to March 2024?",
+     "correct": "`pd.date_range('2024-01-01', periods=3, freq='ME')`",
+     "wrong": [
+      "`pd.date_range('2024-01-01', periods=3, freq='MS')`",
+      "`pd.date_range('2024-01-01', periods=3, freq='D')`",
+      "`pd.date_range('2024-01-31', periods=3)`"
+     ],
+     "explain": "`ME` is month end; `MS` is month start; with no `freq`, the step is one day."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What is `pd.Timestamp('2024-02-28') + pd.Timedelta(days=1)`?",
+     "correct": "`Timestamp('2024-02-29 00:00:00')`",
+     "wrong": [
+      "`Timestamp('2024-03-01 00:00:00')`",
+      "An error: you cannot add days to a date",
+      "`Timestamp('2024-02-29')` as a string"
+     ],
+     "explain": "2024 is a leap year, and Timestamp arithmetic knows the calendar."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "In pandas 3, what happens with `pd.date_range('2024-01-01', periods=3, freq='M')`?",
+     "correct": "A `ValueError`: the month-end alias is now `'ME'`",
+     "wrong": [
+      "Three month starts",
+      "Three minutes",
+      "Three month ends, silently"
+     ],
+     "explain": "The single-letter `M` for month end was removed. Use `ME` (or `MS` for month starts, `min` for minutes)."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nidx = pd.date_range(\"2024-01-01\", periods=4, freq=\"QE\")\nprint(idx.strftime(\"%Y-%m-%d\").tolist())",
+     "explain": "Quarter ends: the last days of March, June, September and December.",
+     "expected": "['2024-03-31', '2024-06-30', '2024-09-30', '2024-12-31']"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ns = pd.Series(range(6), index=pd.date_range(\"2024-01-30\", periods=6, freq=\"D\"))\nprint(s.loc[\"2024-02\"].tolist())",
+     "explain": "The daily index covers Jan 30 to Feb 4. A partial string selects every timestamp in February.",
+     "expected": "[2, 3, 4, 5]"
+    },
+    {
+     "id": "o3",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nd = pd.to_datetime([\"2024-03-15\", \"2024-07-04\"])\nprint(d.quarter.tolist(), (d[1] - d[0]).days)",
+     "explain": "DatetimeIndex has date-part attributes like `quarter`, and subtracting timestamps gives a Timedelta.",
+     "expected": "[1, 3] 111"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`raw` is a DataFrame with a text column `date` (like `\"2024-01-31\"`) and a column `cpi`. Make `cpi`, a Series of the CPI values indexed by a DatetimeIndex built from `date`. Then set `h1` to the values from January through June 2024 using partial-string indexing.",
+     "starter": "import pandas as pd\ncpi = ...\nh1 = ...",
+     "setup": "import pandas as pd\nraw = pd.DataFrame({'date': [str(d.date()) for d in pd.date_range('2024-01-31', periods=9, freq='ME')], 'cpi': [300.0, 300.4, 301.0, 301.5, 302.0, 302.5, 303.1, 303.4, 304.0]})",
+     "solution": "import pandas as pd\ncpi = pd.Series(raw[\"cpi\"].values, index=pd.to_datetime(raw[\"date\"]))\nh1 = cpi.loc[\"2024-01\":\"2024-06\"]",
+     "tests": [
+      {
+       "name": "index",
+       "code": "import pandas as pd\ncheck(isinstance(getattr(cpi, \"index\", None), pd.DatetimeIndex), \"`cpi` should be indexed by a DatetimeIndex (use pd.to_datetime).\")\ncheck(len(cpi) == 9 and close(cpi.iloc[0], 300.0), \"`cpi` should hold all 9 CPI values in order.\")"
+      },
+      {
+       "name": "h1",
+       "code": "check(len(h1) == 6 and close(h1.iloc[-1], 302.5), \"`h1` should hold January to June 2024.\")"
+      }
+     ],
+     "explain": "`pd.to_datetime` parses the strings. With a DatetimeIndex, `loc[\"2024-01\":\"2024-06\"]` takes whole months at both ends. `raw.set_index(\"date\")` works too once the column is converted."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.resample",
+   "book": {
+    "section": "3.11",
+    "title": "Working with Time Series",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.11-working-with-time-series.html"
+   },
+   "intro": "With a DatetimeIndex, three tools cover most time-series chores.\n\n**Resample** groups by calendar period, like a groupby on time:\n\n```python\ndaily.resample(\"ME\").mean()    # monthly average\ndaily.resample(\"QE\").last()    # value at the end of each quarter\n```\n\n**asfreq** picks the values at new timestamps without aggregating.\n\n**Shift** moves the data relative to the index, which is how you build lags and growth rates:\n\n```python\ngdp.shift(1)                   # last period's value on this row\ngdp / gdp.shift(1) - 1         # period-on-period growth\ngdp.pct_change()               # the same thing\n```\n\n**Rolling** windows compute a statistic over the last k observations: `s.rolling(3).mean()` is a 3-period moving average whose first two values are NaN because the window is not yet full.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "`s` is a daily Series covering one year. How many values does `s.resample('ME').sum()` have?",
+     "correct": "12",
+     "wrong": [
+      "365",
+      "1",
+      "52"
+     ],
+     "explain": "Resampling to month end makes one bin per month."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What is the first value of `s.shift(1)`?",
+     "correct": "NaN",
+     "wrong": [
+      "The first value of `s`",
+      "0",
+      "The last value of `s`"
+     ],
+     "explain": "Shifting forward by one moves every value down a row, leaving no value for the first row."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "`s` has 10 values. How many non-missing values does `s.rolling(4).mean()` have?",
+     "correct": "7",
+     "wrong": [
+      "10",
+      "6",
+      "4"
+     ],
+     "explain": "The first 3 windows are incomplete, so they are NaN; positions 4 to 10 give 7 values."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 3,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\nidx = pd.date_range(\"2024-01-01\", periods=6, freq=\"15D\")\ns = pd.Series([1, 2, 3, 4, 5, 6], index=idx)\nprint(s.resample(\"ME\").sum().tolist())",
+     "explain": "The dates are Jan 1, Jan 16, Jan 31, Feb 15, Mar 1, Mar 16. Summing by month gives 1+2+3, 4, and 5+6.",
+     "expected": "[6, 4, 11]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ngdp = pd.Series([100.0, 110.0, 99.0])\nprint(gdp.pct_change().round(2).tolist())",
+     "explain": "Growth is 10% then -10%; the first value has no predecessor.",
+     "expected": "[nan, 0.1, -0.1]"
+    },
+    {
+     "id": "o3",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ns = pd.Series([2.0, 4.0, 6.0, 8.0])\nprint(s.rolling(2).mean().tolist())",
+     "explain": "Each value averages itself and the previous one.",
+     "expected": "[nan, 3.0, 5.0, 7.0]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`price` is a daily Series with a DatetimeIndex covering the first quarter of 2024. Make `monthly`, the average price per calendar month; `mom`, the month-on-month growth rate of `monthly` (first value NaN); and `ma7`, the 7-day moving average of the daily price.",
+     "starter": "monthly = ...\nmom = ...\nma7 = price.rolling(7)",
+     "setup": "import numpy as np\nimport pandas as pd\nprice = pd.Series(np.arange(91, dtype=float), index=pd.date_range('2024-01-01', periods=91, freq='D'))",
+     "solution": "monthly = price.resample(\"ME\").mean()\nmom = monthly.pct_change()\nma7 = price.rolling(7).mean()",
+     "tests": [
+      {
+       "name": "monthly",
+       "code": "check(len(monthly) == 3 and close(monthly.iloc[0], 15.0), \"`monthly` should have one average per month (resample with 'ME').\")"
+      },
+      {
+       "name": "mom",
+       "code": "import numpy as np\ncheck(len(mom) == 3 and np.isnan(mom.iloc[0]) and close(mom.iloc[1], monthly.iloc[1] / monthly.iloc[0] - 1), \"`mom` should be the growth rate from one month to the next.\")"
+      },
+      {
+       "name": "ma7",
+       "code": "import numpy as np\ncheck(len(ma7) == len(price) and np.isnan(ma7.iloc[5]) and close(ma7.iloc[6], 3.0), \"`ma7` should be a 7-day rolling mean on the daily data, NaN until 7 days are in.\")"
+      }
+     ],
+     "explain": "`resample(\"ME\")` bins by month; `pct_change` divides by the previous value; `rolling(7)` uses a window of 7 rows."
+    }
+   ]
+  },
+  {
+   "id": "py.pd.eval_query",
+   "book": {
+    "section": "3.12",
+    "title": "High-Performance Pandas: eval and query",
+    "url": "https://jakevdp.github.io/PythonDataScienceHandbook/03.12-performance-eval-and-query.html"
+   },
+   "intro": "An expression like `(a + b) / (c - d)` on large columns builds a temporary array for each step. `pd.eval` and the DataFrame methods `eval` and `query` parse the expression as a string and can evaluate it in one pass, saving memory and sometimes time on big frames.\n\n```python\ndf.eval(\"pay = wage * hours\")          # returns a new frame with `pay`\ndf.query(\"hours > 40 and wage < 20\")   # rows that satisfy the condition\ncutoff = 25\ndf.query(\"wage > @cutoff\")             # @ refers to a Python variable\n```\n\nInside the string, column names are used bare. `and`, `or` and `not` work, as do comparisons chained like `10 < wage < 30`. For small frames the speed gain is nil; the readability is the main reason to reach for `query`.",
+   "items": [
+    {
+     "id": "m1",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "In `df.query('price > @limit')`, what does `@limit` refer to?",
+     "correct": "A Python variable named `limit` in the surrounding code",
+     "wrong": [
+      "A column named `limit`",
+      "A row labelled `limit`",
+      "A placeholder you must fill with `.format`"
+     ],
+     "explain": "The `@` prefix pulls in local variables; bare names are columns."
+    },
+    {
+     "id": "m2",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "With pandas copy-on-write, what does `df.eval('z = x + y')` do to `df`?",
+     "correct": "Nothing: it returns a new DataFrame that has the extra column",
+     "wrong": [
+      "Adds column `z` to `df` in place",
+      "Raises an error because eval cannot assign",
+      "Returns only the new column"
+     ],
+     "explain": "`eval` returns a modified copy by default. Assign the result (`df = df.eval(...)`) to keep it."
+    },
+    {
+     "id": "m3",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "When is `query` or `eval` most likely to beat ordinary pandas expressions for speed?",
+     "correct": "On large frames with compound expressions, where intermediate arrays are costly",
+     "wrong": [
+      "On every frame, always",
+      "On very small frames",
+      "Only when the frame has string columns"
+     ],
+     "explain": "The overhead of parsing the string dominates on small data. The savings come from avoiding big temporaries."
+    },
+    {
+     "id": "o1",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"wage\": [15.0, 22.0, 30.0], \"hours\": [40, 35, 45]})\ncutoff = 20\nprint(df.query(\"wage > @cutoff and hours >= 40\").index.tolist())",
+     "explain": "Only row 2 has a wage above 20 and at least 40 hours.",
+     "expected": "[2]"
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [10, 20]})\nout = df.eval(\"c = a * b\")\nprint(df.columns.tolist(), out[\"c\"].tolist())",
+     "explain": "`df` is unchanged; the returned frame has the new column.",
+     "expected": "['a', 'b'] [10, 40]"
+    },
+    {
+     "id": "c1",
+     "kind": "code",
+     "level": 2,
+     "prompt": "`hh` has columns `income`, `size` and `rent`. Using `eval`, make `hh2`, a copy of `hh` with a new column `per_cap` equal to income divided by size. Then, using `query` with the Python variable `burden`, set `stressed` to the rows of `hh2` whose rent is more than `burden` times income.",
+     "starter": "hh2 = ...\nstressed = ...",
+     "setup": "import pandas as pd\nhh = pd.DataFrame({'income': [40.0, 45.0, 60.0, 36.0], 'size': [2, 3, 2, 4], 'rent': [10.0, 15.0, 12.0, 14.0]})\nburden = 0.3",
+     "solution": "hh2 = hh.eval(\"per_cap = income / size\")\nstressed = hh2.query(\"rent > @burden * income\")",
+     "tests": [
+      {
+       "name": "per_cap",
+       "code": "check(\"per_cap\" in getattr(hh2, \"columns\", []) and close(hh2[\"per_cap\"], [20.0, 15.0, 30.0, 9.0]), \"`hh2` should have per_cap = income / size.\")"
+      },
+      {
+       "name": "stressed",
+       "code": "check(list(stressed.index) == [1, 3], \"`stressed` should keep rows where rent exceeds burden times income.\")"
+      },
+      {
+       "name": "methods",
+       "code": "check(uses(\"eval(\") and uses(\"query(\") and uses(\"@burden\"), \"Use eval for the column and query with @burden for the rows.\")"
+      }
+     ],
+     "explain": "`eval` with an assignment returns a new frame. Inside `query`, `@burden` reads the Python variable."
+    }
+   ]
+  }
+ ]
+}

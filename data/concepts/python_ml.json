@@ -1,0 +1,234 @@
+[
+  {
+    "id": "py.ml.kinds",
+    "label": "Kinds of machine learning",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_01_what_is_machine_learning",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.np.attributes"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.estimator_api",
+    "label": "Features matrix, target and the Estimator API",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_02_introducing_scikit_learn",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.kinds",
+      "py.np.reshape",
+      "py.pd.dataframe"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.holdout_cv",
+    "label": "Holdout sets and cross-validation",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_03_hyperparameters_and_model_validation",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.estimator_api"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.model_selection",
+    "label": "Bias-variance, validation curves and grid search",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_03_hyperparameters_and_model_validation",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.holdout_cv"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.categorical_text",
+    "label": "Encoding categories and text",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_04_feature_engineering",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.estimator_api",
+      "py.pd.series"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.pipelines",
+    "label": "Derived features, imputation and pipelines",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_04_feature_engineering",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.categorical_text",
+      "py.ml.holdout_cv"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.naive_bayes",
+    "label": "Naive Bayes classification",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_05_naive_bayes",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.categorical_text",
+      "py.ml.holdout_cv"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.linear_regression",
+    "label": "Linear regression and basis functions",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_06_linear_regression",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.pipelines"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.regularization",
+    "label": "Ridge and lasso regularization",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_06_linear_regression",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.linear_regression",
+      "py.ml.model_selection"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.svm",
+    "label": "Support vector machines",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_07_support_vector_machines",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.holdout_cv"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.forests",
+    "label": "Decision trees and random forests",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_08_random_forests",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.model_selection"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.pca",
+    "label": "Principal component analysis",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_09_principal_component_analysis",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.estimator_api",
+      "py.np.aggregates"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.manifold",
+    "label": "Manifold learning",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_10_manifold_learning",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.pca"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.kmeans",
+    "label": "k-means clustering",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_11_k_means",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.estimator_api"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.gmm",
+    "label": "Gaussian mixture models",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_12_gaussian_mixtures",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.kmeans"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  },
+  {
+    "id": "py.ml.kde",
+    "label": "Kernel density estimation",
+    "domain": "python_ml",
+    "subdomain": "python_ml.05_13_kernel_density_estimation",
+    "grading_type": "python",
+    "prerequisites": [
+      "py.ml.gmm",
+      "py.ml.model_selection"
+    ],
+    "mastery_threshold": {
+      "streak": 4,
+      "avg_time_seconds": 120.0
+    }
+  }
+]

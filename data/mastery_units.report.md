@@ -12,19 +12,19 @@ assessed; `3` is a candidate, not a decision. Regenerate with `-band 2` or `-ban
 
 | Metric | Value |
 |---|---|
-| Total concepts | 1279 |
-| Total units | 127 |
+| Total concepts | 1328 |
+| Total units | 136 |
 | Minimum unit size | 1 |
 | Median unit size | 6 |
 | Maximum unit size | 61 |
-| Singleton units | 27 |
-| Units with <= 3 concepts | 36 |
+| Singleton units | 29 |
+| Units with <= 3 concepts | 39 |
 | Units with > 25 concepts | 10 |
 | Units with > 50 concepts | 3 |
-| Cross-unit prerequisite edges (derived) | 302 |
+| Cross-unit prerequisite edges (derived) | 322 |
 | Backward band edges | 0 |
 
-If the learner is assessed once per unit, then 127 assessments cover the corpus, and the
+If the learner is assessed once per unit, then 136 assessments cover the corpus, and the
 median is one assessment per 6 concepts. That is the frequency question this report
 exists to make concrete.
 
@@ -136,9 +136,18 @@ exists to make concrete.
 | `probability_theory.b5` | probability_theory | 5 | 14 | 4 | 15–17 |
 | `python_ipython.b0` | python_ipython | 0 | 8 | 7 | 0–2 |
 | `python_ipython.b1` | python_ipython | 1 | 1 | 1 | 3–3 |
+| `python_matplotlib.b0` | python_matplotlib | 0 | 1 | 1 | 2–2 |
+| `python_matplotlib.b1` | python_matplotlib | 1 | 10 | 9 | 3–5 |
+| `python_matplotlib.b2` | python_matplotlib | 2 | 4 | 4 | 6–7 |
+| `python_ml.b1` | python_ml | 1 | 1 | 1 | 3–3 |
+| `python_ml.b2` | python_ml | 2 | 11 | 9 | 6–8 |
+| `python_ml.b3` | python_ml | 3 | 4 | 3 | 9–10 |
 | `python_numpy.b0` | python_numpy | 0 | 4 | 3 | 0–2 |
 | `python_numpy.b1` | python_numpy | 1 | 12 | 6 | 3–5 |
 | `python_numpy.b2` | python_numpy | 2 | 4 | 3 | 6–7 |
+| `python_pandas.b1` | python_pandas | 1 | 2 | 1 | 4–5 |
+| `python_pandas.b2` | python_pandas | 2 | 11 | 10 | 6–8 |
+| `python_pandas.b3` | python_pandas | 3 | 5 | 5 | 9–10 |
 | `real_analysis.b9` | real_analysis | 9 | 5 | 3 | 28–29 |
 | `real_analysis.b10` | real_analysis | 10 | 32 | 5 | 30–32 |
 | `real_analysis.b11` | real_analysis | 11 | 9 | 4 | 33–35 |
@@ -173,19 +182,19 @@ at every width.
 
 | Band width | Units | Median | Max | Singletons | <=3 | >25 | Backward |
 |---|---|---|---|---|---|---|---|
-| 2 | 166 | 5 | 56 | 28 | 53 | 6 | 0 |
-| 3 | 127 | 6 | 61 | 27 | 36 | 10 | 0 |
-| 4 | 101 | 9 | 78 | 12 | 27 | 12 | 0 |
-| 5 | 87 | 9 | 89 | 8 | 18 | 12 | 0 |
-| 6 | 82 | 11 | 115 | 9 | 16 | 17 | 0 |
-| 8 | 65 | 15 | 139 | 6 | 13 | 18 | 0 |
-| 10 | 55 | 17 | 176 | 4 | 9 | 16 | 0 |
-| 12 | 56 | 16 | 144 | 2 | 7 | 19 | 0 |
-| 15 | 44 | 21 | 176 | 1 | 4 | 20 | 0 |
-| 20 | 37 | 28 | 205 | 2 | 4 | 19 | 0 |
-| 45 | 23 | 45 | 205 | 0 | 0 | 21 | 0 |
+| 2 | 177 | 5 | 56 | 31 | 58 | 6 | 0 |
+| 3 | 136 | 6 | 61 | 29 | 39 | 10 | 0 |
+| 4 | 108 | 9 | 78 | 13 | 29 | 12 | 0 |
+| 5 | 95 | 9 | 89 | 12 | 22 | 12 | 0 |
+| 6 | 88 | 11 | 115 | 10 | 18 | 17 | 0 |
+| 8 | 70 | 13 | 139 | 6 | 13 | 18 | 0 |
+| 10 | 60 | 17 | 176 | 6 | 11 | 16 | 0 |
+| 12 | 59 | 16 | 144 | 2 | 7 | 19 | 0 |
+| 15 | 47 | 18 | 176 | 1 | 4 | 20 | 0 |
+| 20 | 40 | 24 | 205 | 2 | 4 | 19 | 0 |
+| 45 | 26 | 45 | 205 | 0 | 0 | 21 | 0 |
 
-**No width is clean.** Small widths fragment — at 3 there are 27 singleton units, which is a
+**No width is clean.** Small widths fragment — at 3 there are 29 singleton units, which is a
 quiz per concept and is exactly what §12 rules out. Large widths stop fragmenting but produce
 units too large to assess: at 45 the partition is just the 17 domains themselves, whose
 largest is 128 concepts. The usable widths trade fragmentation against size rather than
@@ -354,12 +363,12 @@ Unresolvable subdomains:
 `trigonometry.hyperbolic` 
 `trigonometry.identities` 
 
-Concept depth is a proper topological ranking on an acyclic graph, so it resolves all 1279
+Concept depth is a proper topological ranking on an acyclic graph, so it resolves all 1328
 concepts and yields zero backward band edges by construction.
 
 ## Validation findings
 
-- **anomaly** `singleton_units`: 27 unit(s) hold a single concept; the spec forbids a quiz per concept, so these need merging
+- **anomaly** `singleton_units`: 29 unit(s) hold a single concept; the spec forbids a quiz per concept, so these need merging
 
 ## Not decided here
 

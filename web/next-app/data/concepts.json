@@ -15009,6 +15009,454 @@
     "subdomain": "python_ipython.01_07_timing_and_profiling"
   },
   {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.interfaces",
+    "label": "Figures, axes and the two interfaces",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.np.create"
+    ],
+    "subdomain": "python_matplotlib.04_00_introduction_to_matplotlib"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.line_styles",
+    "label": "Line plots: colors and styles",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.interfaces",
+      "py.np.ufuncs"
+    ],
+    "subdomain": "python_matplotlib.04_01_simple_line_plots"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.limits_labels",
+    "label": "Axis limits, labels and titles",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.line_styles"
+    ],
+    "subdomain": "python_matplotlib.04_01_simple_line_plots"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.scatter",
+    "label": "Scatter plots",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.line_styles"
+    ],
+    "subdomain": "python_matplotlib.04_02_simple_scatter_plots"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.errorbars",
+    "label": "Error bars and uncertainty bands",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.scatter"
+    ],
+    "subdomain": "python_matplotlib.04_03_errorbars"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.contour",
+    "label": "Density and contour plots",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.interfaces",
+      "py.np.broadcast_practice"
+    ],
+    "subdomain": "python_matplotlib.04_04_density_and_contour_plots"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.histograms",
+    "label": "Histograms and binning",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.interfaces",
+      "py.np.aggregates"
+    ],
+    "subdomain": "python_matplotlib.04_05_histograms_and_binnings"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.legends",
+    "label": "Customizing legends",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.line_styles"
+    ],
+    "subdomain": "python_matplotlib.04_06_customizing_legends"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.colorbars",
+    "label": "Colorbars and colormaps",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.contour",
+      "py.mpl.scatter"
+    ],
+    "subdomain": "python_matplotlib.04_07_customizing_colorbars"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.subplots",
+    "label": "Multiple subplots and grids",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.limits_labels"
+    ],
+    "subdomain": "python_matplotlib.04_08_multiple_subplots"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.annotation",
+    "label": "Text, transforms and annotations",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.limits_labels"
+    ],
+    "subdomain": "python_matplotlib.04_09_text_and_annotation"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.ticks",
+    "label": "Customizing ticks",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.limits_labels"
+    ],
+    "subdomain": "python_matplotlib.04_10_customizing_ticks"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.styles",
+    "label": "Settings and stylesheets",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.line_styles"
+    ],
+    "subdomain": "python_matplotlib.04_11_settings_and_stylesheets"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.three_d",
+    "label": "Three-dimensional plotting",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.contour"
+    ],
+    "subdomain": "python_matplotlib.04_12_three_dimensional_plotting"
+  },
+  {
+    "domain": "python_matplotlib",
+    "grading_type": "python",
+    "id": "py.mpl.distributions",
+    "label": "Distribution and pairwise views from pandas",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.mpl.histograms",
+      "py.mpl.subplots",
+      "py.pd.dataframe"
+    ],
+    "subdomain": "python_matplotlib.04_14_visualization_with_seaborn"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.kinds",
+    "label": "Kinds of machine learning",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.np.attributes"
+    ],
+    "subdomain": "python_ml.05_01_what_is_machine_learning"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.estimator_api",
+    "label": "Features matrix, target and the Estimator API",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.kinds",
+      "py.np.reshape",
+      "py.pd.dataframe"
+    ],
+    "subdomain": "python_ml.05_02_introducing_scikit_learn"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.holdout_cv",
+    "label": "Holdout sets and cross-validation",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.estimator_api"
+    ],
+    "subdomain": "python_ml.05_03_hyperparameters_and_model_validation"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.model_selection",
+    "label": "Bias-variance, validation curves and grid search",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.holdout_cv"
+    ],
+    "subdomain": "python_ml.05_03_hyperparameters_and_model_validation"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.categorical_text",
+    "label": "Encoding categories and text",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.estimator_api",
+      "py.pd.series"
+    ],
+    "subdomain": "python_ml.05_04_feature_engineering"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.pipelines",
+    "label": "Derived features, imputation and pipelines",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.categorical_text",
+      "py.ml.holdout_cv"
+    ],
+    "subdomain": "python_ml.05_04_feature_engineering"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.naive_bayes",
+    "label": "Naive Bayes classification",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.categorical_text",
+      "py.ml.holdout_cv"
+    ],
+    "subdomain": "python_ml.05_05_naive_bayes"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.linear_regression",
+    "label": "Linear regression and basis functions",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.pipelines"
+    ],
+    "subdomain": "python_ml.05_06_linear_regression"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.regularization",
+    "label": "Ridge and lasso regularization",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.linear_regression",
+      "py.ml.model_selection"
+    ],
+    "subdomain": "python_ml.05_06_linear_regression"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.svm",
+    "label": "Support vector machines",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.holdout_cv"
+    ],
+    "subdomain": "python_ml.05_07_support_vector_machines"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.forests",
+    "label": "Decision trees and random forests",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.model_selection"
+    ],
+    "subdomain": "python_ml.05_08_random_forests"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.pca",
+    "label": "Principal component analysis",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.estimator_api",
+      "py.np.aggregates"
+    ],
+    "subdomain": "python_ml.05_09_principal_component_analysis"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.manifold",
+    "label": "Manifold learning",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.pca"
+    ],
+    "subdomain": "python_ml.05_10_manifold_learning"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.kmeans",
+    "label": "k-means clustering",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.estimator_api"
+    ],
+    "subdomain": "python_ml.05_11_k_means"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.gmm",
+    "label": "Gaussian mixture models",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.kmeans"
+    ],
+    "subdomain": "python_ml.05_12_gaussian_mixtures"
+  },
+  {
+    "domain": "python_ml",
+    "grading_type": "python",
+    "id": "py.ml.kde",
+    "label": "Kernel density estimation",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.ml.gmm",
+      "py.ml.model_selection"
+    ],
+    "subdomain": "python_ml.05_13_kernel_density_estimation"
+  },
+  {
     "domain": "python_numpy",
     "grading_type": "python",
     "id": "py.np.dtypes",
@@ -15295,6 +15743,271 @@
       "py.np.masks"
     ],
     "subdomain": "python_numpy.02_09_structured_data_numpy"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.series",
+    "label": "The Series object",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.np.create",
+      "py.np.indexing"
+    ],
+    "subdomain": "python_pandas.03_01_introducing_pandas_objects"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.dataframe",
+    "label": "The DataFrame object",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.series"
+    ],
+    "subdomain": "python_pandas.03_01_introducing_pandas_objects"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.index",
+    "label": "The Index object",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.dataframe"
+    ],
+    "subdomain": "python_pandas.03_01_introducing_pandas_objects"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.series_select",
+    "label": "Selecting from a Series: loc and iloc",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.series",
+      "py.np.slicing",
+      "py.np.masks"
+    ],
+    "subdomain": "python_pandas.03_02_data_indexing_and_selection"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.frame_select",
+    "label": "Selecting from a DataFrame",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.series_select",
+      "py.pd.dataframe"
+    ],
+    "subdomain": "python_pandas.03_02_data_indexing_and_selection"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.alignment",
+    "label": "Operations and index alignment",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.frame_select",
+      "py.np.ufuncs",
+      "py.np.broadcast_rules"
+    ],
+    "subdomain": "python_pandas.03_03_operations_in_pandas"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.missing",
+    "label": "Handling missing data",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.alignment",
+      "py.np.aggregates"
+    ],
+    "subdomain": "python_pandas.03_04_missing_values"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.multiindex",
+    "label": "Hierarchical indexing with MultiIndex",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.frame_select"
+    ],
+    "subdomain": "python_pandas.03_05_hierarchical_indexing"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.reshape_index",
+    "label": "Stacking, unstacking and resetting the index",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.multiindex"
+    ],
+    "subdomain": "python_pandas.03_05_hierarchical_indexing"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.concat",
+    "label": "Concatenating with pd.concat",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.index",
+      "py.np.concat_split"
+    ],
+    "subdomain": "python_pandas.03_06_concat_and_append"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.merge",
+    "label": "Merging and joining tables",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.concat",
+      "py.pd.frame_select"
+    ],
+    "subdomain": "python_pandas.03_07_merge_and_join"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.groupby",
+    "label": "GroupBy: split, apply, combine",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.frame_select",
+      "py.np.aggregates"
+    ],
+    "subdomain": "python_pandas.03_08_aggregation_and_grouping"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.groupby_ops",
+    "label": "GroupBy: aggregate, filter, transform, apply",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.groupby"
+    ],
+    "subdomain": "python_pandas.03_08_aggregation_and_grouping"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.pivot",
+    "label": "Pivot tables",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.groupby_ops",
+      "py.pd.reshape_index"
+    ],
+    "subdomain": "python_pandas.03_09_pivot_tables"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.strings",
+    "label": "Vectorized string operations",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.series_select"
+    ],
+    "subdomain": "python_pandas.03_10_working_with_strings"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.datetime",
+    "label": "Dates, times and date ranges",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.series_select",
+      "py.np.dtypes"
+    ],
+    "subdomain": "python_pandas.03_11_working_with_time_series"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.resample",
+    "label": "Resampling, shifting and rolling windows",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.datetime",
+      "py.pd.groupby"
+    ],
+    "subdomain": "python_pandas.03_11_working_with_time_series"
+  },
+  {
+    "domain": "python_pandas",
+    "grading_type": "python",
+    "id": "py.pd.eval_query",
+    "label": "Fast expressions: eval and query",
+    "mastery_threshold": {
+      "avg_time_seconds": 120,
+      "streak": 4
+    },
+    "prerequisites": [
+      "py.pd.frame_select"
+    ],
+    "subdomain": "python_pandas.03_12_performance_eval_and_query"
   },
   {
     "domain": "real_analysis",

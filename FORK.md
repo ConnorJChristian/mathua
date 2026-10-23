@@ -95,9 +95,9 @@ notes are original: the book's text is CC-BY-NC-ND, so nothing here adapts it.
 |---|---|---|
 | 1. IPython | `python_ipython` | 9 topics, 60 questions |
 | 2. NumPy | `python_numpy` | 20 topics, 127 questions |
-| 3. Pandas | `python_pandas` | planned |
-| 4. Matplotlib | `python_matplotlib` | planned |
-| 5. Machine Learning | `python_ml` | planned |
+| 3. Pandas | `python_pandas` | 18 topics, 114 questions |
+| 4. Matplotlib | `python_matplotlib` | 15 topics, 92 questions |
+| 5. Machine Learning | `python_ml` | 16 topics, 114 questions |
 
 Each topic mixes three kinds of question:
 
