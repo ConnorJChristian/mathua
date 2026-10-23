@@ -10,9 +10,11 @@ Is it valid to subtract a large number from a smaller one? It may be hard to ima
 
 You've probably seen signed numbers used to describe the temperature of very cold things. Most people on Earth use the Celsius scale for temperature. If you're not familiar with the Celsius temperature scale, think about these examples:
 
+![Number line with interesting Celsius temperatures](/diagrams/arithmetic/neg-number-line-celsius.svg)
+
 *Number line with interesting Celsius temperatures*
 
-the figure  uses a *number line* to illustrate these  positive and negative numbers. A number line is a useful device for visualizing how numbers relate to each other and combine with each other. Values to the right of 0 are called *positive* numbers and values to the left of 0 are called *negative numbers*.
+The figure uses a *number line* to illustrate these positive and negative numbers. A number line is a useful device for visualizing how numbers relate to each other and combine with each other. Values to the right of 0 are called *positive* numbers and values to the left of 0 are called *negative numbers*.
 
 **Warning**
 

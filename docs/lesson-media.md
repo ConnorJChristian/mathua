@@ -5,8 +5,8 @@ a report, because the remaining decisions are per instance.
 
 ## A. Orphan caption candidates
 
-153 paragraphs across 46 lessons look like a figure caption whose image
-was dropped while its text was kept: **49 certain**, **33 strong**, **71 likely**.
+149 paragraphs across 46 lessons look like a figure caption whose image
+was dropped while its text was kept: **49 certain**, **33 strong**, **67 likely**.
 
 `certain` opens with an auto-numbered `Figure 3.2` / `Table 1.4` label, which PreTeXt
 generates for a figure or table and which survives ingestion — no judgement needed.
@@ -58,18 +58,14 @@ so the tiers below do not treat it as evidence either way.
 | `teaching/alg.seq.sum_arith.md` | 33 | likely | *Values of $\operatorname{sqrt}(x)$* | teaching corpus: standalone emphasis is the dropped-figure shape |
 | `teaching/alg.seq.sum_arith.md` | 195 | likely | *Unemployment in the United States* | teaching corpus: standalone emphasis is the dropped-figure shape |
 | `teaching/alg.systems.word.md` | 45 | likely | *Amount in Savings Account* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.add_sub.md` | 13 | likely | *Number line with interesting Celsius temperatures* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.add_sub.md` | 193 | likely | *Viewing $3\cdot(-7)$ as repeated addition* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.add_sub.md` | 199 | likely | *Viewing $-3\cdot(-7)$ as repeated subtraction* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.mult_div.md` | 13 | likely | *Number line with interesting Celsius temperatures* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.mult_div.md` | 193 | likely | *Viewing $3\cdot(-7)$ as repeated addition* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.mult_div.md` | 199 | likely | *Viewing $-3\cdot(-7)$ as repeated subtraction* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.number_line.md` | 13 | likely | *Number line with interesting Celsius temperatures* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.number_line.md` | 193 | likely | *Viewing $3\cdot(-7)$ as repeated addition* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.number_line.md` | 199 | likely | *Viewing $-3\cdot(-7)$ as repeated subtraction* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.order_ops.md` | 13 | likely | *Number line with interesting Celsius temperatures* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.order_ops.md` | 193 | likely | *Viewing $3\cdot(-7)$ as repeated addition* | teaching corpus: standalone emphasis is the dropped-figure shape |
-| `teaching/arith.neg.order_ops.md` | 199 | likely | *Viewing $-3\cdot(-7)$ as repeated subtraction* | teaching corpus: standalone emphasis is the dropped-figure shape |
+| `teaching/arith.neg.add_sub.md` | 195 | likely | *Viewing $3\cdot(-7)$ as repeated addition* | teaching corpus: standalone emphasis is the dropped-figure shape |
+| `teaching/arith.neg.add_sub.md` | 201 | likely | *Viewing $-3\cdot(-7)$ as repeated subtraction* | teaching corpus: standalone emphasis is the dropped-figure shape |
+| `teaching/arith.neg.mult_div.md` | 195 | likely | *Viewing $3\cdot(-7)$ as repeated addition* | teaching corpus: standalone emphasis is the dropped-figure shape |
+| `teaching/arith.neg.mult_div.md` | 201 | likely | *Viewing $-3\cdot(-7)$ as repeated subtraction* | teaching corpus: standalone emphasis is the dropped-figure shape |
+| `teaching/arith.neg.number_line.md` | 195 | likely | *Viewing $3\cdot(-7)$ as repeated addition* | teaching corpus: standalone emphasis is the dropped-figure shape |
+| `teaching/arith.neg.number_line.md` | 201 | likely | *Viewing $-3\cdot(-7)$ as repeated subtraction* | teaching corpus: standalone emphasis is the dropped-figure shape |
+| `teaching/arith.neg.order_ops.md` | 195 | likely | *Viewing $3\cdot(-7)$ as repeated addition* | teaching corpus: standalone emphasis is the dropped-figure shape |
+| `teaching/arith.neg.order_ops.md` | 201 | likely | *Viewing $-3\cdot(-7)$ as repeated subtraction* | teaching corpus: standalone emphasis is the dropped-figure shape |
 | `teaching/arith.sci_notation.ops.md` | 26 | likely | *Whole Number Powers of 10* | teaching corpus: standalone emphasis is the dropped-figure shape |
 | `teaching/arith.sci_notation.ops.md` | 84 | likely | *Negative Integer Powers of 10* | teaching corpus: standalone emphasis is the dropped-figure shape |
 | `teaching/arith.sqrt.perfect.md` | 15 | likely | *$\abs{2}$ and $\abs{-2}$* | teaching corpus: standalone emphasis is the dropped-figure shape |
@@ -216,7 +212,7 @@ so the tiers below do not treat it as evidence either way.
 
 ## C. Shipped but unreferenced
 
-692 diagrams ship, 386 URLs are referenced by lesson bodies, and
+693 diagrams ship, 387 URLs are referenced by lesson bodies, and
 **286 content diagrams are referenced by nothing** (site chrome
 with dark/light variants is excluded — components reference those).
 
@@ -294,6 +290,15 @@ figure already on disk could be dropped in without authoring anything.
 | `algebrica/sets-and-numbers/properties-of-real-numbers.md` | no | — | `complex-numbers-1.svg`, `complex-numbers-2.svg`, `complex-numbers-3.svg`, `complex-numbers-exponential-form-1.svg`, `complex-numbers-trigonometric-form-1.svg`, `discontinuities-of-real-functions-1.svg`, `discontinuities-of-real-functions-2.svg`, `discontinuities-of-real-functions-3.svg` |
 | `algebrica/vectors-and-matrices/determinant-of-a-square-matrix.md` | no | — | `chi-square-distribution-1.svg`, `chi-square-distribution-2.svg`, `completing-the-square-1.svg` |
 | `algebrica/vectors-and-matrices/inverse-matrix.md` | no | — | `derivative-of-the-inverse-function-1.svg`, `inverse-function-1.svg` |
+| `authored/alg.factor.cubes.md` | no | — | `factor-composite.svg`, `factor-find.svg`, `factor-gcf.svg`, `factor-lcm.svg`, `factor-prime-fact.svg`, `factor-prime.svg` |
+| `authored/alg.factor.grouping.md` | no | — | `factor-composite.svg`, `factor-find.svg`, `factor-gcf.svg`, `factor-lcm.svg`, `factor-prime-fact.svg`, `factor-prime.svg` |
+| `authored/alg.linear.intercepts.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `authored/alg.linear.two_points.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `authored/arith.place.expanded.md` | no | — | `place-hundreds.svg`, `place-tens.svg`, `place-thousands.svg` |
+| `authored/arith.place.powers_ten.md` | no | — | `place-hundreds.svg`, `place-tens.svg`, `place-thousands.svg` |
+| `authored/arith.sqrt.cube.md` | no | — | `sqrt-perfect.svg`, `sqrt-simplify.svg` |
+| `authored/arith.sqrt.estimate.md` | no | — | `sqrt-perfect.svg`, `sqrt-simplify.svg` |
+| `authored/arith.word.multi_step.md` | no | — | `add-word.svg`, `div-word.svg`, `mult-word.svg`, `sub-word.svg` |
 | `authored/calc.integral.applied.md` | no | — | `integral-test-for-series-convergence-1.svg` |
 | `authored/calc.integral.average_value.md` | no | — | `integral-test-for-series-convergence-1.svg` |
 | `authored/calc.integral.cross_section_volume.md` | no | — | `integral-test-for-series-convergence-1.svg` |
@@ -334,13 +339,19 @@ figure already on disk could be dropped in without authoring anything.
 | `authored/geo.triangle.special_right.md` | no | — | `right-triangle-trigonometry-1.svg`, `right-triangle-trigonometry-2.svg`, `right-triangle-trigonometry–3.svg`, `right-triangle-trigonometry–4.svg`, `right-triangle-trigonometry–5.svg` |
 | `authored/nt.prime.exponent.md` | no | — | `factor-prime-fact.svg`, `factor-prime.svg` |
 | `authored/nt.pythagorean.hypotenuse.md` | no | — | `pythagorean-theorem-1.svg`, `pythagorean-theorem-2.svg`, `pythagorean-theorem-3.svg` |
+| `authored/prealg.measure.convert.md` | no | — | `angles-and-angular-measure-1.svg`, `angles-and-angular-measure-2.svg` |
+| `authored/prealg.measure.metric.md` | no | — | `angles-and-angular-measure-1.svg`, `angles-and-angular-measure-2.svg` |
+| `authored/prealg.measure.temperature.md` | no | — | `angles-and-angular-measure-1.svg`, `angles-and-angular-measure-2.svg` |
 | `teaching/alg.factor.diff_squares.md` | no | — | `factor-composite.svg`, `factor-find.svg`, `factor-gcf.svg`, `factor-lcm.svg`, `factor-prime-fact.svg`, `factor-prime.svg` |
 | `teaching/alg.factor.gcf.md` | no | — | `factor-composite.svg`, `factor-find.svg`, `factor-gcf.svg`, `factor-lcm.svg`, `factor-prime-fact.svg`, `factor-prime.svg` |
 | `teaching/alg.linear.graph.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
 | `teaching/alg.linear.parallel_perp.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
 | `teaching/alg.linear.slope.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
 | `teaching/alg.linear.standard_form.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/alg.systems.matrices.md` | no | — | `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/alg.systems.nonlinear.md` | no | — | `systems-of-linear-equations-in-two-variables-1.svg` |
 | `teaching/alg.systems.substitution.md` | no | — | `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/alg.systems.three_var.md` | no | — | `systems-of-linear-equations-in-two-variables-1.svg` |
 | `teaching/alg.systems.word.md` | no | — | `systems-of-linear-equations-in-two-variables-1.svg` |
 | `teaching/arith.factor.gcf.md` | no | — | `factor-composite.svg`, `factor-find.svg`, `factor-gcf.svg`, `factor-lcm.svg`, `factor-prime-fact.svg`, `factor-prime.svg` |
 | `teaching/arith.factor.lcm.md` | no | — | `factor-composite.svg`, `factor-find.svg`, `factor-gcf.svg`, `factor-lcm.svg`, `factor-prime-fact.svg`, `factor-prime.svg` |
@@ -349,6 +360,22 @@ figure already on disk could be dropped in without authoring anything.
 | `teaching/arith.order_ops.nested.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
 | `teaching/arith.sci_notation.ops.md` | no | — | `big-o-notation-1.svg` |
 | `teaching/arith.sqrt.perfect.md` | no | — | `sqrt-perfect.svg`, `sqrt-simplify.svg` |
+| `teaching/calc.integral.beta.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.integral.consumer_surplus.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.integral.double_polar.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.integral.fourier_coefficients.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.integral.hydrostatic.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.integral.moment_inertia.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.integral.numerical_error.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.integral.pappus.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.integral.surface_scalar.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.polar.arc_length.md` | no | — | `polar-coordinates-1.svg`, `polar-coordinates-2.svg` |
+| `teaching/calc.series.binomial.md` | no | — | `harmonic-series-1.svg`, `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.series.cauchy_product.md` | no | — | `harmonic-series-1.svg`, `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.series.dirichlet_test.md` | no | — | `harmonic-series-1.svg`, `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.series.gamma.md` | no | — | `harmonic-series-1.svg`, `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.series.operations.md` | no | — | `harmonic-series-1.svg`, `integral-test-for-series-convergence-1.svg` |
+| `teaching/calc.series.p_series.md` | no | — | `harmonic-series-1.svg`, `integral-test-for-series-convergence-1.svg` |
 | `teaching/complex.analytic.md` | no | — | `complex-number-operations-1.svg`, `complex-numbers-1.svg`, `complex-numbers-2.svg`, `complex-numbers-3.svg`, `complex-numbers-exponential-form-1.svg`, `complex-numbers-trigonometric-form-1.svg` |
 | `teaching/complex.argument.md` | no | — | `complex-number-operations-1.svg`, `complex-numbers-1.svg`, `complex-numbers-2.svg`, `complex-numbers-3.svg`, `complex-numbers-exponential-form-1.svg`, `complex-numbers-trigonometric-form-1.svg` |
 | `teaching/complex.cauchy_goursat.md` | no | — | `complex-number-operations-1.svg`, `complex-numbers-1.svg`, `complex-numbers-2.svg`, `complex-numbers-3.svg`, `complex-numbers-exponential-form-1.svg`, `complex-numbers-trigonometric-form-1.svg` |
@@ -381,8 +408,49 @@ figure already on disk could be dropped in without authoring anything.
 | `teaching/geo.triangle.angles.md` | no | — | `right-triangle-trigonometry-1.svg`, `right-triangle-trigonometry-2.svg`, `right-triangle-trigonometry–3.svg`, `right-triangle-trigonometry–4.svg`, `right-triangle-trigonometry–5.svg` |
 | `teaching/geo.triangle.area.md` | no | — | `right-triangle-trigonometry-1.svg`, `right-triangle-trigonometry-2.svg`, `right-triangle-trigonometry–3.svg`, `right-triangle-trigonometry–4.svg`, `right-triangle-trigonometry–5.svg` |
 | `teaching/geo.triangle.types.md` | no | — | `right-triangle-trigonometry-1.svg`, `right-triangle-trigonometry-2.svg`, `right-triangle-trigonometry–3.svg`, `right-triangle-trigonometry–4.svg`, `right-triangle-trigonometry–5.svg` |
+| `teaching/linalg.quadratic.definite.md` | no | — | `geometric-interpretation-quadratic-equations-1.svg`, `geometric-interpretation-quadratic-equations-2.svg`, `geometric-interpretation-quadratic-equations-3.svg`, `geometric-interpretation-quadratic-inequalities-1.svg`, `geometric-interpretation-quadratic-inequalities-2.svg`, `quadratic-inequalities-1.svg`, `quadratic-inequalities-2.svg`, `quadratic-inequalities-4.svg` |
 | `teaching/linalg.systems.matrix.md` | no | — | `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/linalg.vector.cross.md` | no | — | `vector-and-parametric-equations-of-a-line-1.svg`, `vector-spaces-1.svg` |
+| `teaching/numa.linear.elimination.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/numa.linear.gauss_seidel.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/numa.linear.jacobi.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/numa.linear.least_squares_qr.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/numa.linear.lu.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/numa.linear.pivoting.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/numa.linear.power.md` | no | — | `linear-equations-1.svg`, `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/numa.roots.bisection.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/numa.roots.bracketing.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/numa.roots.false_position.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/numa.roots.fixed_point.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/numa.roots.horner.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/numa.roots.multiple.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/numa.roots.newton.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/numa.roots.order.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/numa.roots.secant.md` | no | — | `roots-of-a-polynomial-1.svg`, `roots-of-a-polynomial-2.svg`, `roots-of-a-polynomial-3.svg` |
+| `teaching/ode.first_order.bernoulli.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ode.first_order.mixing.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ode.second_order.cauchy_euler.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ode.second_order.power_series.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ode.second_order.reduction.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ode.second_order.spring.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ode.systems.matrix_exp.md` | no | — | `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/ode.systems.predator_prey.md` | no | — | `systems-of-linear-equations-in-two-variables-1.svg` |
+| `teaching/precalc.parametric.projectile.md` | no | — | `vector-and-parametric-equations-of-a-line-1.svg` |
+| `teaching/precalc.vector.resultant.md` | no | — | `vector-and-parametric-equations-of-a-line-1.svg`, `vector-spaces-1.svg` |
+| `teaching/ra.order.archimedean.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ra.order.completeness.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ra.order.countable.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ra.order.density.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ra.order.extended.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ra.order.nested_intervals.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ra.order.supremum.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/ra.order.uncountable.md` | no | — | `order-basic.svg`, `order-full.svg`, `order-nested.svg` |
+| `teaching/stat.test.anova.md` | no | — | `integral-test-for-series-convergence-1.svg` |
+| `teaching/stat.test.chi_square.md` | no | — | `integral-test-for-series-convergence-1.svg` |
 | `teaching/topology/covering-spaces.md` | no | — | `inner-product-spaces-1.svg`, `inner-product-spaces-2.svg`, `inner-product-spaces-3.svg`, `inner-product-spaces-4.svg`, `vector-spaces-1.svg` |
+| `teaching/trig.hyperbolic.derivative.md` | no | — | `hyperbolic-cosine-function-1.svg`, `hyperbolic-cotangent-function-1.svg`, `hyperbolic-sine-and-cosine-1.svg`, `hyperbolic-sine-and-cosine-2.svg`, `hyperbolic-sine-and-cosine-3.svg`, `hyperbolic-sine-and-cosine-4.svg`, `hyperbolic-sine-and-cosine-5.svg`, `hyperbolic-sine-function-1.svg` |
+| `teaching/trig.hyperbolic.identities.md` | no | — | `hyperbolic-cosine-function-1.svg`, `hyperbolic-cotangent-function-1.svg`, `hyperbolic-sine-and-cosine-1.svg`, `hyperbolic-sine-and-cosine-2.svg`, `hyperbolic-sine-and-cosine-3.svg`, `hyperbolic-sine-and-cosine-4.svg`, `hyperbolic-sine-and-cosine-5.svg`, `hyperbolic-sine-function-1.svg` |
+| `teaching/trig.hyperbolic.inverse.md` | no | — | `hyperbolic-cosine-function-1.svg`, `hyperbolic-cotangent-function-1.svg`, `hyperbolic-sine-and-cosine-1.svg`, `hyperbolic-sine-and-cosine-2.svg`, `hyperbolic-sine-and-cosine-3.svg`, `hyperbolic-sine-and-cosine-4.svg`, `hyperbolic-sine-and-cosine-5.svg`, `hyperbolic-sine-function-1.svg` |
 | `algebrica/complex-numbers/complex-numbers-in-exponential-form.md` | yes | `complex-numbers-exponential-form-1.svg` | — |
 | `algebrica/complex-numbers/complex-numbers-in-trigonometric-form.md` | yes | `complex-numbers-trigonometric-form-1.svg` | — |
 | `algebrica/complex-numbers/complex-numbers.md` | yes | `complex-numbers-1.svg`, `complex-numbers-2.svg`, `complex-numbers-3.svg` | — |
@@ -522,3 +590,4 @@ figure already on disk could be dropped in without authoring anything.
 | `teaching/calc.integral.power_rule.md` | yes | — | `integral-test-for-series-convergence-1.svg` |
 | `teaching/calc.integral.volume.md` | yes | — | `integral-test-for-series-convergence-1.svg` |
 | `teaching/frac.mult.whole.md` | yes | — | `mult-2-5-10.svg`, `mult-concept.svg`, `mult-double.svg`, `mult-tables.svg`, `mult-triple.svg`, `mult-word.svg`, `neg-mult-div.svg` |
+
