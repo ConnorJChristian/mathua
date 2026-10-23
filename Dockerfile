@@ -101,7 +101,7 @@ RUN printf '%s\n' '{"id":"1","expected":"5^4","answer":"625"}' \
 # Build-time Python track self-test: every printed output stored in the
 # question bank is recomputed with the libraries this image pins, every
 # reference solution must pass its hidden tests and every starter must fail.
-# It runs in a throwaway stage (below) so the authoring sources stay out of
+# It runs in a throwaway stage (pybankcheck, above) so the authoring sources stay out of
 # the image; the final stage copies its marker, which forces it to run.
 COPY --from=pybankcheck /bankcheck.ok /app/grading/bankcheck.ok
 
