@@ -9,7 +9,7 @@ import Footer from '../../components/Footer'
 import Loading from '../../components/Loading'
 import SectionHeader from '../../components/SectionHeader'
 import { useTheme } from '../../hooks/useTheme'
-import { getCourseCatalog, getProgress, getTranscript, setActiveCourse, type ConceptProgress, type CourseStatus } from '../../lib/api'
+import { getCourseCatalog, getProgress, getTranscript, setActiveCourses, type ConceptProgress, type CourseStatus } from '../../lib/api'
 import { getUserInfo } from '../../lib/auth'
 import { concepts, type ConceptRecord } from '../../lib/conceptData'
 import { domainLabel } from '../../lib/domains'
@@ -82,7 +82,7 @@ function TopicsContent() {
   const [limit, setLimit] = useState(PAGE)
   const [progress, setProgress] = useState<Record<string, ConceptProgress>>({})
   const [courses, setCourses] = useState<CourseStatus[]>([])
-  const [active, setActive] = useState('')
+  const [following, setFollowing] = useState<string[]>([])
   const [signedIn, setSignedIn] = useState(false)
   const [busy, setBusy] = useState('')
   const [notice, setNotice] = useState('')
@@ -93,11 +93,10 @@ function TopicsContent() {
     if (sid) getProgress(sid).then(setProgress).catch(() => {})
     void (async () => {
       const cat = await getCourseCatalog()
-      setActive(cat.active)
-      // Opened plainly (no filters in the link): start on the plan you follow.
-      if (cat.active && !window.location.search && cat.courses.some((c) => c.id === cat.active && (c.plan?.length ?? 0) > 0)) {
-        setPlanId(cat.active)
-      }
+      setFollowing(cat.activeIds)
+      // Opened plainly (no filters in the link): start on the first plan you follow.
+      const first = cat.activeIds.find((id) => cat.courses.some((c) => c.id === id && (c.plan?.length ?? 0) > 0))
+      if (first && !window.location.search) setPlanId(first)
       let list = cat.courses
       if (sid) {
         const withProgress = await getTranscript()
@@ -153,15 +152,17 @@ function TopicsContent() {
     }).map((id) => ({ c: byId.get(id)!, planned: planned.has(id) }))
   }, [q, track, domain, plan, withPrereqs])
 
-  async function makeActive(id: string) {
+  async function toggleFollow(id: string) {
+    const next = following.includes(id) ? following.filter((x) => x !== id) : [...following, id]
     setBusy(id)
     setNotice('')
     try {
-      await setActiveCourse(id)
-      setActive(id)
-      setNotice('Your recommendations now follow this plan.')
+      setFollowing(await setActiveCourses(next))
+      setNotice(next.length === 0
+        ? 'You follow no plans now; recommendations come from the whole graph.'
+        : `Recommendations now mix ${next.length === 1 ? 'this plan' : `your ${next.length} plans`}.`)
     } catch {
-      setNotice('Could not switch plans. Are you signed in?')
+      setNotice('Could not save. Are you signed in?')
     } finally {
       setBusy('')
     }
@@ -183,6 +184,41 @@ function TopicsContent() {
           <b>Practise</b> starts questions. Reading earns nothing on its own; mastery comes from practice.
         </p>
 
+        {signedIn && plans.length > 0 && (
+          <details className="mb-5 border border-mathua-border bg-mathua-surface" open={following.length === 0}>
+            <summary className="cursor-pointer px-4 py-3 font-mono text-xs text-mathua-primary">
+              Plans you follow: {following.length === 0
+                ? 'none'
+                : following.map((id) => shortName(plans.find((c) => c.id === id)?.name ?? id)).join(', ')}
+            </summary>
+            <div className="px-4 pb-3">
+              <p className="font-mono text-[11px] text-mathua-secondary mb-2">
+                Tick every plan you are working on. Your recommendations take turns between them, earliest topics first.
+              </p>
+              <ul className="grid gap-1 sm:grid-cols-2">
+                {plans.map((c) => (
+                  <li key={c.id} className="min-w-0">
+                    <label className="flex items-start gap-2 font-mono text-[11px] text-mathua-primary py-1 cursor-pointer">
+                      <input
+                        id={`follow-${c.id}`}
+                        type="checkbox"
+                        checked={following.includes(c.id)}
+                        disabled={busy !== ''}
+                        onChange={() => void toggleFollow(c.id)}
+                        className="mt-0.5"
+                      />
+                      <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                        {shortName(c.name)}
+                        {c.progress && <span className="text-mathua-muted"> · {Math.round(c.progress.pct * 100)}%</span>}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </details>
+        )}
+        {!plan && notice && <p role="status" className="mb-3 font-mono text-[11px] text-mathua-secondary">{notice}</p>}
         <div className="flex flex-wrap gap-2 mb-3 items-end">
           {plans.length > 0 && (
             <label className="flex flex-col gap-1 min-w-0">
@@ -190,7 +226,7 @@ function TopicsContent() {
               <select id="topic-plan" value={planId} onChange={(e) => { setPlanId(e.target.value); setDomain('') }} className={`${input} max-w-[260px]`}>
                 <option value="">All topics</option>
                 {plans.map((c) => (
-                  <option key={c.id} value={c.id}>{shortName(c.name)}{c.id === active ? ' (active)' : ''}</option>
+                  <option key={c.id} value={c.id}>{shortName(c.name)}{following.includes(c.id) ? ' (following)' : ''}</option>
                 ))}
               </select>
             </label>
@@ -229,21 +265,20 @@ function TopicsContent() {
                 </div>
               )}
             </div>
-            {plan.id === active ? (
-              <span className="font-mono text-[11px] text-mathua-blue">Your recommendations follow this plan</span>
-            ) : signedIn ? (
+            {signedIn && (
               <button
                 type="button"
+                aria-pressed={following.includes(plan.id)}
                 disabled={busy === plan.id}
-                onClick={() => void makeActive(plan.id)}
-                className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint disabled:opacity-60`}
+                onClick={() => void toggleFollow(plan.id)}
+                className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint disabled:opacity-60 ${following.includes(plan.id) ? 'bg-mathua-blue-faint' : ''}`}
               >
-                {busy === plan.id ? 'Switching…' : 'Follow this plan'}
+                {busy === plan.id ? 'Saving…' : following.includes(plan.id) ? '✓ Following' : 'Follow this plan'}
               </button>
-            ) : null}
+            )}
           </div>
         )}
-        {notice && <p role="status" className="mb-3 font-mono text-[11px] text-mathua-secondary">{notice}</p>}
+        {plan && notice && <p role="status" className="mb-3 font-mono text-[11px] text-mathua-secondary">{notice}</p>}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <p className="font-mono text-[11px] text-mathua-secondary" aria-live="polite">
             {plan ? `${shortName(plan.name)} in teaching order: ` : ''}

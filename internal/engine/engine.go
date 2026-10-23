@@ -411,24 +411,62 @@ func (e *Engine) GetStudent(id string) (*storage.Student, error) {
 }
 
 func (e *Engine) SetActiveCourse(studentID, courseID string) (*planning.Path, error) {
+	return e.SetActiveCourses(studentID, []string{courseID})
+}
+
+// Fork change: a learner may follow several courses at once (a math course, a
+// coding course, a certification...). They are stored comma-separated in the
+// student's course_id, so no schema change is needed; ActiveCourses reads
+// them back. The returned path is the union of the courses' paths, each
+// concept once, in the order the courses were given.
+func (e *Engine) SetActiveCourses(studentID string, courseIDs []string) (*planning.Path, error) {
 	if e.planner == nil {
 		return nil, fmt.Errorf("no planner configured")
 	}
-	path, err := e.planner.PathForCourse(courseID)
-	if err != nil {
-		return nil, err
+	var ids []string
+	seen := map[string]bool{}
+	union := &planning.Path{}
+	set := map[string]bool{}
+	for _, id := range courseIDs {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		path, err := e.planner.PathForCourse(id)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+		for _, c := range path.Concepts {
+			if !set[c.ID] {
+				set[c.ID] = true
+				union.Concepts = append(union.Concepts, c)
+			}
+		}
 	}
-	if err := e.repo.SetCourseID(studentID, courseID); err != nil {
+	if err := e.repo.SetCourseID(studentID, strings.Join(ids, ",")); err != nil {
 		return nil, fmt.Errorf("save course: %w", err)
 	}
-	set := make(map[string]bool, len(path.Concepts))
-	for _, c := range path.Concepts {
-		set[c.ID] = true
-	}
 	e.mu.Lock()
-	e.activePath[studentID] = set
+	if len(set) == 0 {
+		delete(e.activePath, studentID)
+	} else {
+		e.activePath[studentID] = set
+	}
 	e.mu.Unlock()
-	return path, nil
+	return union, nil
+}
+
+// ActiveCourses splits a stored course_id into the courses a learner follows.
+func ActiveCourses(stored string) []string {
+	var out []string
+	for _, id := range strings.Split(stored, ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 func (e *Engine) GetPlanner() *planning.Planner { return e.planner }

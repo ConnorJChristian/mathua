@@ -183,6 +183,45 @@ func (p *Planner) planPath(c *Course) (*Path, error) {
 	return &Path{Course: c, Concepts: out}, nil
 }
 
+// PlansOrder ranks the paths of several planned courses together. Their
+// positions interleave (a course's k-th topic ranks beside every other
+// course's k-th), so each followed course keeps getting turns on the shelf
+// instead of the first one being finished before the next starts. A concept
+// on several paths takes its best rank. Courses without a plan add nothing.
+func (p *Planner) PlansOrder(courseIDs []string) map[string]int {
+	var orders []map[string]int
+	for _, id := range courseIDs {
+		if o := p.PlanOrder(id); o != nil {
+			orders = append(orders, o)
+		}
+	}
+	if len(orders) == 0 {
+		return nil
+	}
+	if len(orders) == 1 {
+		return orders[0]
+	}
+	rank := map[string]int{}
+	for k, o := range orders {
+		for id, r := range o {
+			v := r*len(orders) + k
+			if old, ok := rank[id]; !ok || v < old {
+				rank[id] = v
+			}
+		}
+	}
+	// Re-number densely so planBonus spreads over the combined length.
+	ids := make([]string, 0, len(rank))
+	for id := range rank {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return rank[ids[i]] < rank[ids[j]] })
+	for i, id := range ids {
+		rank[id] = i
+	}
+	return rank
+}
+
 // PlanOrder ranks a planned course's path: concept id to its position. It is
 // nil for an unknown course or one without a plan.
 func (p *Planner) PlanOrder(courseID string) map[string]int {

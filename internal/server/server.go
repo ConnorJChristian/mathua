@@ -2554,18 +2554,28 @@ func (s *Server) handleCourses(w http.ResponseWriter, r *http.Request) {
 	courses := s.eng.PlannerCourses()
 	// Fork change: name the learner's active course, so the topic library can
 	// show which study plan the shelf is following.
-	active := ""
+	active := []string{}
 	if sid, _ := r.Context().Value(authStudentKey{}).(string); sid != "" {
 		if st, err := s.repo.GetStudent(sid); err == nil && st != nil {
-			active = st.CourseID
+			if ids := engine.ActiveCourses(st.CourseID); len(ids) > 0 {
+				active = ids
+			}
 		}
 	}
-	writeJSON(w, map[string]interface{}{"courses": courses, "active": active})
+	first := ""
+	if len(active) > 0 {
+		first = active[0]
+	}
+	writeJSON(w, map[string]interface{}{"courses": courses, "active": first, "active_ids": active})
 }
 
 // GET /api/courses/{id} | POST /api/courses/{id}/diagnostic
 func (s *Server) handleCourseRoute(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/api/courses/")
+	if strings.TrimSuffix(path, "/") == "active" {
+		s.handleActiveCourses(w, r)
+		return
+	}
 	if strings.HasSuffix(path, "/diagnostic") {
 		s.handleCourseDiagnostic(w, r)
 		return
@@ -2937,6 +2947,38 @@ func csvCell(s string) string {
 		return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 	}
 	return s
+}
+
+// PUT /api/courses/active {"ids": [...]}: the courses the learner follows, all
+// at once (fork change). An empty list follows none. The shelf then offers
+// untouched topics from every followed plan, interleaved.
+func (s *Server) handleActiveCourses(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		http.Error(w, `{"error":"method not allowed"}`, 405)
+		return
+	}
+	studentID, _ := r.Context().Value(authStudentKey{}).(string)
+	if studentID == "" {
+		writeError(w, "sign in to follow courses", 401)
+		return
+	}
+	var req struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
+		writeError(w, "invalid request", 400)
+		return
+	}
+	if len(req.IDs) > 20 {
+		writeError(w, "too many courses", 400)
+		return
+	}
+	path, err := s.eng.SetActiveCourses(studentID, req.IDs)
+	if err != nil {
+		writeError(w, "failed to set courses: "+err.Error(), 400)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"active_ids": engine.ActiveCourses(strings.Join(req.IDs, ",")), "path_length": len(path.Concepts)})
 }
 
 // POST /api/courses/{id}/diagnostic

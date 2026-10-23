@@ -216,10 +216,12 @@ def analyse(db, st, concepts, courses, cfg, days, now):
 
     # --- plans: progress and pace
     plans = []
+    # A learner may follow several courses; they are stored comma-separated.
+    followed = {x.strip() for x in st["course"].split(",") if x.strip()}
     deadlines = cfg.get("deadlines", {})
     pace = out["mastery"]["per_week"]
     for cid, c in courses.items():
-        if not c.get("plan") and cid != st["course"]:
+        if not c.get("plan") and cid not in followed:
             continue
         path = closure(concepts, c.get("plan") or c.get("targets", []))
         done = sum(1 for x in path if mastered(x))
@@ -227,7 +229,7 @@ def analyse(db, st, concepts, courses, cfg, days, now):
         # Pace on this plan: topics on its path newly mastered in the window.
         plan_pace = sum(1 for x in new_m if x in path) / (days / 7)
         row = {"id": cid, "name": c["name"], "total": len(path), "done": done, "left": left,
-               "pace_per_week": round(plan_pace, 1), "active": cid == st["course"]}
+               "pace_per_week": round(plan_pace, 1), "active": cid in followed}
         if cid in deadlines:
             dl = dt.datetime.fromisoformat(deadlines[cid]).replace(tzinfo=dt.timezone.utc)
             wk = max((dl - now).days / 7, 0.1)
@@ -367,9 +369,8 @@ def markdown(r):
         L.append("| %s%s | %d/%d | %d | %.1f | %s | %s | %s |" % (
             p["name"].replace(": study plan", ""), " (active)" if p["active"] else "", p["done"], p["total"], p["left"],
             p["pace_per_week"], p.get("deadline", "—"), p.get("needed_per_week", "—"), p.get("status", "—")))
-    act = [p for p in r["plans"] if p["active"]]
-    if act and act[0]["next_plan_topics"]:
-        L += ["", "Next topics on the active plan: " + "; ".join(act[0]["next_plan_topics"])]
+    for p in [p for p in r["plans"] if p["active"] and p["next_plan_topics"]]:
+        L += ["", "Next on %s: %s" % (p["name"].replace(": study plan", ""), "; ".join(p["next_plan_topics"]))]
     L += [""]
     if r["stuck"]:
         L += ["## Stuck topics", "", "| Topic | Tries | Right | Suspect prerequisite |", "|---|---|---|---|"]

@@ -173,7 +173,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		}
 		// A course with a study plan orders the new topics it offers.
 		if st.CourseID != "" && e.planner != nil {
-			pathOrder = e.planner.PlanOrder(st.CourseID)
+			pathOrder = e.planner.PlansOrder(ActiveCourses(st.CourseID))
 		}
 	}
 

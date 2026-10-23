@@ -232,3 +232,28 @@ func TestPlannedCourse_KeepsPlanOrderWithPrerequisitesFirst(t *testing.T) {
 		t.Error("unknown course should have no plan order")
 	}
 }
+
+func TestPlansOrder_InterleavesFollowedPlans(t *testing.T) {
+	p := testPlanner(t)
+	dir := t.TempDir()
+	extra := filepath.Join(dir, "courses.json")
+	os.WriteFile(extra, []byte(`[{"id":"p1","name":"P1","grade":"","description":"","plan":["b"]},
+{"id":"p2","name":"P2","grade":"","description":"","plan":["c"]}]`), 0644)
+	base := filepath.Join(dir, "base.json")
+	os.WriteFile(base, []byte(`[]`), 0644)
+	q, err := Load(base, p.dag, extra)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	// p1's path is a, b; p2's is a, c. Interleaved: a (both), then b and c.
+	r := q.PlansOrder([]string{"p1", "p2"})
+	if len(r) != 3 || r["a"] != 0 || r["b"] != 1 || r["c"] != 2 {
+		t.Errorf("interleaved order %v, want a=0 b=1 c=2", r)
+	}
+	if one := q.PlansOrder([]string{"p2"}); one["c"] != 1 {
+		t.Errorf("a single plan keeps its own order, got %v", one)
+	}
+	if q.PlansOrder(nil) != nil || q.PlansOrder([]string{"missing"}) != nil {
+		t.Error("no followed plans should give no order")
+	}
+}

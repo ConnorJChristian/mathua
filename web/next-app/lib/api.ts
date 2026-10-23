@@ -484,11 +484,24 @@ export interface CourseStatus {
 
 // Fork: the course catalog with the learner's active course (the study plan
 // the shelf follows). Progress comes from the transcript when signed in.
-export async function getCourseCatalog(): Promise<{ courses: CourseStatus[]; active: string }> {
+export async function getCourseCatalog(): Promise<{ courses: CourseStatus[]; active: string; activeIds: string[] }> {
   const res = await authedFetch(`${API_BASE}/api/courses`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })
-  if (!res.ok) return { courses: [], active: '' }
+  if (!res.ok) return { courses: [], active: '', activeIds: [] }
   const data = await res.json()
-  return { courses: data.courses ?? [], active: data.active ?? '' }
+  const activeIds: string[] = data.active_ids ?? (data.active ? [data.active] : [])
+  return { courses: data.courses ?? [], active: data.active ?? '', activeIds }
+}
+
+// Fork: follow several courses at once. The shelf interleaves their plans.
+export async function setActiveCourses(courseIds: string[]): Promise<string[]> {
+  const res = await authedFetch(`${API_BASE}/api/courses/active`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ ids: courseIds }),
+  })
+  if (!res.ok) await throwWithResponse(res, `Set courses failed: ${res.status}`)
+  const data = await res.json()
+  return data.active_ids ?? courseIds
 }
 
 // Fork: make a course the active one. The server plans the course's path and
