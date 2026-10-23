@@ -157,7 +157,7 @@ func (g *linearCongruenceGen) Generate(ctx generator.GeneratorContext) generator
 	x := smallInt(0, m-1)
 	b := (a * x) % m
 	return generator.Problem{
-		Question: fmt.Sprintf("Solve the congruence \\\\(%dx \\\\equiv %d \\\\pmod{%d}\\\\), giving the least non-negative solution.", a, b, m),
+		Question: fmt.Sprintf("Solve the congruence \\\\(%dx \\equiv %d \\pmod{%d}\\\\), giving the least non-negative solution.", a, b, m),
 		Answer:   fmt.Sprintf("%d", x),
 		Explanation: fmt.Sprintf("The coefficient %d is coprime to %d, so it has an inverse modulo %d and the solution is unique. Multiplying both sides by that inverse gives x ≡ %d (mod %d), and that residue is the least non-negative one.",
 			a, m, m, x, m),

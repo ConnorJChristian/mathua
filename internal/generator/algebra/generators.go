@@ -650,16 +650,28 @@ func (g *quadCompleteSquareGen) Generate(ctx generator.GeneratorContext) generat
 
 type quadFormulaGen struct{}
 
+// quadFormulaGen answers with the two roots. A repeated root is one number, and
+// the concept grades numerically rather than as a tuple so that the order the
+// learner writes the roots in does not decide the mark: a report on 22 October
+// gave "5, 7" for the roots of x^2 - 12x + 35 and was marked wrong.
 func (g *quadFormulaGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	r1 := rand.Intn(8) + 1
 	r2 := rand.Intn(8) + 1
 	b := -(r1 + r2)
 	c := r1 * r2
 	q := formatQuadratic(b, c)
+	answer := fmt.Sprintf("%d,%d", r1, r2)
+	explanation := fmt.Sprintf("\\(x = \\frac{%d \\pm \\sqrt{%d - 4(%d)}}{2} = %d\\) or %d", b, b*b, c, r1, r2)
+	if r1 == r2 {
+		// The discriminant is zero, so both roots are the same number and the
+		// answer is a single value rather than a list of two of it.
+		answer = strconv.Itoa(r1)
+		explanation = fmt.Sprintf("\\(x = \\frac{%d \\pm \\sqrt{0}}{2} = %d\\) twice: the root is repeated.", b, r1)
+	}
 	return generator.Problem{
 		Question:    fmt.Sprintf("Solve using quadratic formula: %s = 0", q),
-		Answer:      fmt.Sprintf("%d,%d", r1, r2),
-		Explanation: fmt.Sprintf("\\(x = \\frac{%d \\pm \\sqrt{%d - 4(%d)}}{2} = %d\\) or %d", b, b*b, c, r1, r2),
+		Answer:      answer,
+		Explanation: explanation,
 		Facts:       map[string]string{"q": q, "b": strconv.Itoa(b), "c": strconv.Itoa(c), "b2": strconv.Itoa(b * b), "four_c": strconv.Itoa(4 * c), "disc": strconv.Itoa(b*b - 4*c), "r1": strconv.Itoa(r1), "r2": strconv.Itoa(r2)},
 	}
 }

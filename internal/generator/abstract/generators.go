@@ -218,7 +218,11 @@ func (g *ringGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		}
 		w := witTable[rand.Intn(len(witTable))]
 		return generator.Problem{
-			Question:    fmt.Sprintf("Name an element of %s with no multiplicative inverse (enter it)", w.set),
+			// "Name an element with no inverse" has as many right answers as
+			// the set has non-units, and the key held one of them, so a learner
+			// who wrote 3 for Z was marked wrong (report 122). The smallest
+			// positive one is unique and asks the same thing.
+			Question:    fmt.Sprintf("What is the smallest positive integer with no multiplicative inverse in %s? (enter a number)", w.set),
 			Answer:      w.wit,
 			Explanation: w.reason,
 		}

@@ -598,7 +598,10 @@ func (g *nonlinearSystemsGen) Generate(ctx generator.GeneratorContext) generator
 	scale := 1 + rand.Intn(1+int(ctx.Difficulty*3))
 	p := rand.Intn(2*scale+1) - scale
 	q := rand.Intn(2*scale+1) - scale
-	for q == p {
+	// q == p would make one root a double root and the "smaller" one ambiguous;
+	// p + q == 0 would make the line's coefficient zero, and a line written
+	// "y = 0x - 1" is not the situation the question describes.
+	for q == p || p+q == 0 {
 		q = rand.Intn(2*scale+1) - scale
 	}
 	m := p + q

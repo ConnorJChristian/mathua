@@ -59,7 +59,7 @@ func (g *stokesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	p := small(1, 3+int(ctx.Difficulty*3))
 	q := small(1, 3+int(ctx.Difficulty*3))
 	return generator.Problem{
-		Question: fmt.Sprintf("Use Stokes' theorem to evaluate the circulation of \\\\(\\\\mathbf{F} = (%dy,\\\\ %dx,\\\\ 0)\\\\) around the boundary of the rectangle \\\\(0 \\\\le x \\\\le %d\\\\), \\\\(0 \\\\le y \\\\le %d\\\\) in the plane \\\\(z = 2\\\\), oriented counterclockwise seen from above.", a, b, p, q),
+		Question: fmt.Sprintf("Use Stokes' theorem to evaluate the circulation of \\\\(\\mathbf{F} = (%dy,\\\\ %dx,\\\\ 0)\\\\) around the boundary of the rectangle \\\\(0 \\le x \\le %d\\\\), \\\\(0 \\le y \\le %d\\\\) in the plane \\\\(z = 2\\\\), oriented counterclockwise seen from above.", a, b, p, q),
 		Answer:   fmt.Sprintf("%d", (b-a)*p*q),
 		Explanation: fmt.Sprintf("The surface is flat with unit normal in the z direction, and the z component of the curl is dQ/dx - dP/dy = %d - %d = %d. Stokes' theorem turns the circulation into that constant times the area: %d * %d * %d = %d.",
 			b, a, b-a, b-a, p, q, (b-a)*p*q),
@@ -85,7 +85,7 @@ func (g *curl3DGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	}
 	chosen := components[rand.Intn(3)]
 	return generator.Problem{
-		Question: fmt.Sprintf("For \\\\(\\\\mathbf{F} = (%dy,\\\\ %dz,\\\\ %dx)\\\\), find the %s-component of \\\\(\\\\nabla \\\\times \\\\mathbf{F}\\\\).", a, b, c, chosen.name),
+		Question: fmt.Sprintf("For \\\\(\\mathbf{F} = (%dy,\\\\ %dz,\\\\ %dx)\\\\), find the %s-component of \\\\(\\nabla \\times \\mathbf{F}\\\\).", a, b, c, chosen.name),
 		Answer:   chosen.answer,
 		Explanation: fmt.Sprintf("The components of the curl are the three cross-partial differences, and the %s one is %s = %s.",
 			chosen.name, chosen.why, chosen.answer),
@@ -103,7 +103,7 @@ func (g *workGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	p := small(1, 4+int(ctx.Difficulty*4))
 	q := small(1, 4+int(ctx.Difficulty*4))
 	return generator.Problem{
-		Question: fmt.Sprintf("A constant force \\\\(\\\\mathbf{F} = (%d, %d)\\\\) acts on an object that moves in a straight line from \\\\((0,0)\\\\) to \\\\((%d,%d)\\\\). Find the work done.", a, b, p, q),
+		Question: fmt.Sprintf("A constant force \\\\(\\mathbf{F} = (%d, %d)\\\\) acts on an object that moves in a straight line from \\\\((0,0)\\\\) to \\\\((%d,%d)\\\\). Find the work done.", a, b, p, q),
 		Answer:   fmt.Sprintf("%d", a*p+b*q),
 		Explanation: fmt.Sprintf("Work is the integral of F along the path, and along a straight displacement it is the dot product of the force with it: %d*%d + %d*%d = %d.",
 			a, p, b, q, a*p+b*q),

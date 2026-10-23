@@ -391,7 +391,7 @@
     "label": "Quadratic formula",
     "domain": "algebra",
     "subdomain": "algebra.quadratics",
-    "grading_type": "tuple",
+    "grading_type": "numeric",
     "prerequisites": [
       "alg.quad.complete_square",
       "arith.sqrt.simplify"
