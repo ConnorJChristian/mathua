@@ -11,21 +11,33 @@ import (
 
 // Tracks split the one concept graph into the sides of the site the header
 // switch shows: "math" (the base install) and whatever tracks the enabled
-// modules declare (internal/modules). They share storage, mastery, XP and
-// spaced review; what a track changes is which concepts the scheduler may
-// offer.
+// modules declare (internal/modules). They share storage, mastery, XP, spaced
+// review and prerequisite credit; a track decides which concepts the
+// scheduler may offer.
 //
-// The split is a separate DAG per track rather than a filter threaded through
-// the scheduler. The scheduler walks dag.Order() in several places, and a view
-// that simply does not contain the other track's concepts cannot leak one
-// through a path someone forgot to filter. It needs tracks that do not depend
-// on each other; a cross-track prerequisite makes that track's view fall back
-// to the whole graph, with a warning.
+// Prerequisites are not sandboxed by track. A concept may need a concept in
+// any domain (an econometrics topic after Mathua's coefficient of
+// determination, a code task after a pandas topic), and the graph is
+// sequenced as one: eligibility reads the learner's whole record, and credit
+// for mastering a concept flows to everything below it, in every track
+// (creditPrerequisites walks the full graph).
+//
+// Each track keeps two views of the graph:
+//
+//   - members: the track's own concepts. Reviews, the quiz and the curriculum
+//     page use it, so a Math concept never appears in the Econometrics review
+//     queue or domain list.
+//   - offer: the members plus "bridges", the outside concepts a member
+//     directly needs. The recommender uses it, so when an econometrics topic
+//     waits on a statistics concept that is ready to learn, the Econometrics
+//     shelf offers that concept rather than leaving the learner stuck.
 type trackViews struct {
-	once  sync.Once
-	mods  *modules.Set
-	dags  map[string]*concepts.DAG
-	sched map[string]*scheduler.Scheduler
+	once    sync.Once
+	mods    *modules.Set
+	dags    map[string]*concepts.DAG
+	sched   map[string]*scheduler.Scheduler
+	offer   map[string]*scheduler.Scheduler
+	bridges map[string]map[string]bool
 }
 
 // SetModules sets the module set the engine's tracks come from. Without it
@@ -44,24 +56,37 @@ func (e *Engine) views() *trackViews {
 		}
 		e.tracks.dags = map[string]*concepts.DAG{}
 		e.tracks.sched = map[string]*scheduler.Scheduler{}
+		e.tracks.offer = map[string]*scheduler.Scheduler{}
+		e.tracks.bridges = map[string]map[string]bool{}
 		split := map[string][]concepts.Concept{}
 		for _, c := range e.dag.Order() {
 			t := e.tracks.mods.TrackOf(c.Domain)
 			split[t] = append(split[t], *c)
 		}
 		for _, t := range e.tracks.mods.Tracks() {
-			dag := concepts.Empty()
-			if len(split[t.ID]) > 0 {
-				d, err := concepts.Build(split[t.ID])
-				if err != nil {
-					log.Printf("warning: %s track view: %v (serving the whole graph)", t.ID, err)
-					dag = e.dag
-				} else {
-					dag = d
+			members := split[t.ID]
+			in := make(map[string]bool, len(members))
+			for _, c := range members {
+				in[c.ID] = true
+			}
+			offer := append([]concepts.Concept(nil), members...)
+			bridges := map[string]bool{}
+			for _, c := range members {
+				for _, pid := range c.Prerequisites {
+					if in[pid] || bridges[pid] {
+						continue
+					}
+					if p := e.dag.Concept(pid); p != nil {
+						bridges[pid] = true
+						offer = append(offer, *p)
+					}
 				}
 			}
+			dag := concepts.BuildView(members)
 			e.tracks.dags[t.ID] = dag
 			e.tracks.sched[t.ID] = scheduler.New(dag)
+			e.tracks.offer[t.ID] = scheduler.New(concepts.BuildView(offer))
+			e.tracks.bridges[t.ID] = bridges
 		}
 	})
 	return &e.tracks
@@ -89,6 +114,20 @@ func (e *Engine) TrackDAG(track string) *concepts.DAG {
 func (e *Engine) trackScheduler(track string) *scheduler.Scheduler {
 	v := e.views()
 	return v.sched[v.mods.Normalize(track)]
+}
+
+// offerScheduler is the recommender's view of a track: its concepts plus the
+// outside concepts they directly need (see trackViews).
+func (e *Engine) offerScheduler(track string) *scheduler.Scheduler {
+	v := e.views()
+	return v.offer[v.mods.Normalize(track)]
+}
+
+// IsBridge reports whether a concept is offered in a track it does not belong
+// to, because one of the track's concepts needs it.
+func (e *Engine) IsBridge(conceptID, track string) bool {
+	v := e.views()
+	return v.bridges[v.mods.Normalize(track)][conceptID]
 }
 
 // InTrack reports whether a concept belongs to a track.

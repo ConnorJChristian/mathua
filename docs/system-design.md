@@ -525,7 +525,7 @@ Mathua implements a compressed-covering + info-gain CAT to locate a student's kn
 - **Covering-set + info-gain efficiency**: `2 × |cover|` probes, `≤ 45` total, vs `666` exhaustive; `80%` difficulty targeting via `engine.computeDifficulty` `engine.go:157`
 - **Evidence propagation**: correct boosts prereqs, wrong penalizes postrequisites — finds frontier even with conflicting evidence
 - **Mastery + automaticity**: `fast` (`elapsed < timeThreshold`) distinguishes `PRACTICING` vs `LEARNING` placement
-- **Optimistic merge**: Retaking does not delete progress; `ApplyGoalResults` `engine.go:1947` merges with `Practicing/Learning` vs `Unseen`
+- **Optimistic merge**: Retaking does not delete progress; `ApplyGoalResults` `engine.go:1969` merges with `Practicing/Learning` vs `Unseen`
 - **Time-bounded**: Per-concept `AvgTimeSeconds` threshold; slow answers are `!fast` for diagnostic purposes
 
 ### Goal-Oriented Diagnostic

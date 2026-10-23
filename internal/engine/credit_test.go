@@ -10,11 +10,24 @@ import (
 
 // Fork change tests: prerequisite credit (credit.go). testEngine's graph is a <- b.
 
+// creditStudent creates the learner the progress rows belong to: the progress
+// table has a foreign key to students, so rows for an id that was never
+// created are rejected.
+func creditStudent(t *testing.T, e *Engine) string {
+	t.Helper()
+	st, err := e.CreateStudent("credit-learner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return st.ID
+}
+
 func TestCreditPrerequisites_MasteryCreditsUnseenPrereq(t *testing.T) {
 	e := testEngine(t)
-	e.creditPrerequisites("s1", "b", true)
+	s1 := creditStudent(t, e)
+	e.creditPrerequisites(s1, "b", true)
 
-	p, err := e.repo.GetProgress("s1", "a")
+	p, err := e.repo.GetProgress(s1, "a")
 	if err != nil || p == nil {
 		t.Fatalf("prereq row missing: %v", err)
 	}
@@ -27,31 +40,33 @@ func TestCreditPrerequisites_MasteryCreditsUnseenPrereq(t *testing.T) {
 	if !isCredited(p) {
 		t.Fatal("isCredited should recognise the row")
 	}
-	if el, err := e.EligibilityFor("s1", "b"); err != nil || !el.Eligible {
+	if el, err := e.EligibilityFor(s1, "b"); err != nil || !el.Eligible {
 		t.Fatalf("b should be eligible once a is credited: %+v %v", el, err)
 	}
 }
 
 func TestCreditPrerequisites_CorrectAnswerWithoutMasteryGrantsNothing(t *testing.T) {
 	e := testEngine(t)
-	e.creditPrerequisites("s1", "b", false)
-	if p, _ := e.repo.GetProgress("s1", "a"); p != nil && p.Status == string(mastery.StatusMastered) {
+	s1 := creditStudent(t, e)
+	e.creditPrerequisites(s1, "b", false)
+	if p, _ := e.repo.GetProgress(s1, "a"); p != nil && p.Status == string(mastery.StatusMastered) {
 		t.Fatalf("no credit expected before mastery, got %+v", p)
 	}
 }
 
 func TestCreditPrerequisites_LeavesDemonstratedMasteryAlone(t *testing.T) {
 	e := testEngine(t)
+	s1 := creditStudent(t, e)
 	then := time.Now().UTC().Add(-48 * time.Hour).Truncate(time.Second)
 	due := then.AddDate(0, 0, 6)
 	if err := e.repo.UpsertProgress(&storage.ConceptProgress{
-		StudentID: "s1", ConceptID: "a", Status: string(mastery.StatusMastered),
+		StudentID: s1, ConceptID: "a", Status: string(mastery.StatusMastered),
 		MasteredAt: &then, LastReviewed: &then, NextReviewDue: &due, SM2EFactor: 2.5,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	e.creditPrerequisites("s1", "b", true)
-	p, _ := e.repo.GetProgress("s1", "a")
+	e.creditPrerequisites(s1, "b", true)
+	p, _ := e.repo.GetProgress(s1, "a")
 	if p.PlacementSeeded || p.MasteredAt == nil || !p.LastReviewed.Equal(then) {
 		t.Fatalf("demonstrated mastery must be untouched, got %+v", p)
 	}
@@ -59,15 +74,16 @@ func TestCreditPrerequisites_LeavesDemonstratedMasteryAlone(t *testing.T) {
 
 func TestCreditPrerequisites_CorrectAnswerRefreshesCredit(t *testing.T) {
 	e := testEngine(t)
+	s1 := creditStudent(t, e)
 	old := time.Now().UTC().Add(-10 * 24 * time.Hour).Truncate(time.Second)
 	if err := e.repo.UpsertProgress(&storage.ConceptProgress{
-		StudentID: "s1", ConceptID: "a", Status: string(mastery.StatusMastered),
+		StudentID: s1, ConceptID: "a", Status: string(mastery.StatusMastered),
 		PlacementSeeded: true, LastReviewed: &old, SM2EFactor: 2.5,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	e.creditPrerequisites("s1", "b", false)
-	p, _ := e.repo.GetProgress("s1", "a")
+	e.creditPrerequisites(s1, "b", false)
+	p, _ := e.repo.GetProgress(s1, "a")
 	if p.LastReviewed == nil || !p.LastReviewed.After(old) {
 		t.Fatalf("credited prereq should be refreshed, got %+v", p)
 	}

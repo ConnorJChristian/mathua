@@ -1934,8 +1934,19 @@ func (e *Engine) StartGoalDiagnostic(studentID string, conceptIDs []string) (*di
 	if err != nil {
 		return nil, nil, fmt.Errorf("goal path: %w", err)
 	}
-	session := e.diag.StartWithPath(path.Concepts)
-	if session.State == diagnostic.StateDone || len(path.Concepts) == 0 {
+	// Placement tests the goal's prerequisites in every domain, but only
+	// concepts with generated questions: question-bank sets (imported
+	// flashcards, code tasks) are practice, and a self-graded card or a
+	// five-minute code task is not a placement item. They still sit on the
+	// goal's path and unlock from what the test finds.
+	placeable := make([]*concepts.Concept, 0, len(path.Concepts))
+	for _, c := range path.Concepts {
+		if c.GradingType != "bank" && c.GradingType != "python" {
+			placeable = append(placeable, c)
+		}
+	}
+	session := e.diag.StartWithPath(placeable)
+	if session.State == diagnostic.StateDone || len(placeable) == 0 {
 		return session, nil, nil
 	}
 	prob, cid, err := e.diag.NextQuestion(session)

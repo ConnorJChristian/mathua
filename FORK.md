@@ -103,6 +103,22 @@ server and the web build read every enabled module. A module can declare a
 **track**, which adds an option to the header switch (Math | Python | ...).
 `modules-local/README.md` shows the layout.
 
+**One graph across tracks.** A track decides what the shelf offers. It does
+not wall off prerequisites. A concept can come after a concept in any
+domain or track: an econometrics topic after Mathua's coefficient of
+determination, a code task after a pandas topic. The engine sequences the
+graph as one:
+
+- A concept unlocks from your whole record, in every track.
+- When a track's topic waits on a concept from another track that is ready
+  to learn, this track's shelf offers it, marked **Needed next**.
+- When everything in a track waits on other tracks, the shelf offers the
+  track's entry topics as **Jump in**. You can practise a locked topic.
+- Mastering a concept credits everything below it, in every track.
+- A goal (destination) plans and places across tracks. Its placement test
+  covers the goal's prerequisites in every domain. It skips question-bank
+  practice sets, such as flashcards and code tasks.
+
 Use `modules-local/` for anything made from your own books, notes or Anki
 decks. Its topics can point at the section to read with `readings.json`.
 Learn then shows **Open section**, which opens your PDF from `files/` at that
@@ -157,7 +173,9 @@ each subject to a Mathua domain and the concepts it follows:
 
 A card goes to the subject that lists its `topic::` tag. A card without a
 tag goes by its deck folder. A `routes` list can re-sort cards by their
-text. The practice sets then appear in Mathua's own domains, after the
+text.
+
+The practice sets then appear in Mathua's own domains, after the
 concepts named in `after`. Use a new domain only where Mathua has none.
 Placement tests skip these sets: they are practice, not placement
 material.

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/chuma-beep/mathua/internal/mastery"
@@ -109,7 +110,9 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	// A track whose module says it has no placement (the Python track's first
 	// topics are open from the start) is never offered the diagnostic.
 	noPlacement := !e.Modules().HasPlacement(track)
-	sched := e.trackScheduler(track)
+	// The offer view: the track's concepts plus the outside concepts they
+	// directly need, so sequencing crosses tracks (see trackViews).
+	sched := e.offerScheduler(track)
 	if studentID == "" {
 		return sched.Recommend(scheduler.RecommendInput{
 			Now: time.Now(), Weakness: map[string]float64{},
@@ -167,7 +170,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		diagnosticCompleted = true
 	}
 
-	return sched.Recommend(scheduler.RecommendInput{
+	res := sched.Recommend(scheduler.RecommendInput{
 		Snapshots:           snapshots,
 		Now:                 time.Now(),
 		Weakness:            weakness,
@@ -177,7 +180,90 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		AttemptedDays:       len(attemptedDays),
 		ExcludeConceptIds:   exclude,
 		DiagnosticCompleted: diagnosticCompleted,
-	}), nil
+	})
+	e.labelBridges(&res, track)
+	if res.Primary != nil && res.Primary.ID == "graph" {
+		// "Nothing to do" is wrong when the track's topics are only waiting on
+		// another track. Offer its entry points: a learner may practise a
+		// locked topic, and mastering it credits what it builds on.
+		if jump := e.jumpIns(track, e.conceptSnapshotsFrom(studentID, progress), 3); len(jump) > 0 {
+			res.Primary = &jump[0]
+			res.Alternatives = append(jump[1:], res.Alternatives...)
+		}
+	}
+	return res, nil
+}
+
+// jumpIns lists a track's unfinished concepts whose prerequisites inside the
+// track are done, so only outside prerequisites hold them back: the places a
+// learner can start in this track today.
+func (e *Engine) jumpIns(track string, snaps map[string]*scheduler.ConceptSnapshot, max int) []scheduler.Recommendation {
+	done := func(id string) bool {
+		s := snaps[id]
+		return s != nil && (s.Placement || s.Status == mastery.StatusMastered)
+	}
+	var out []scheduler.Recommendation
+	for _, c := range e.TrackDAG(track).Order() {
+		if len(out) >= max {
+			break
+		}
+		if done(c.ID) {
+			continue
+		}
+		var missing []string
+		ready := true
+		for _, pid := range c.Prerequisites {
+			if done(pid) {
+				continue
+			}
+			if e.InTrack(pid, track) {
+				ready = false
+				break
+			}
+			if p := e.dag.Concept(pid); p != nil {
+				missing = append(missing, p.Label)
+			}
+		}
+		if !ready || len(missing) == 0 {
+			continue
+		}
+		if len(missing) > 2 {
+			missing = append(missing[:2], fmt.Sprintf("%d more", len(missing)-2))
+		}
+		out = append(out, scheduler.Recommendation{
+			ID:           c.ID,
+			ConceptID:    c.ID,
+			ConceptTitle: c.Label,
+			Kind:         scheduler.KindLearn,
+			Reason:       scheduler.ReasonNew,
+			Action:       scheduler.Action{Type: scheduler.KindLearn, Href: "/learn?concept=" + c.ID},
+			Badge:        "Jump in",
+			Detail:       "Builds on " + strings.Join(missing, ", ") + ". You can start here: mastering it credits them.",
+			CTA:          "Start →",
+		})
+	}
+	return out
+}
+
+// labelBridges says why a concept from another track is on this track's
+// shelf: it names the track concept it unlocks.
+func (e *Engine) labelBridges(res *scheduler.RecommendationResponse, track string) {
+	label := func(r *scheduler.Recommendation) {
+		if r == nil || !e.IsBridge(r.ConceptID, track) {
+			return
+		}
+		r.Badge = "Needed next"
+		for _, d := range e.dag.DependentsOf(r.ConceptID) {
+			if e.InTrack(d.ID, track) {
+				r.Detail = "Comes before " + d.Label + " in this track"
+				return
+			}
+		}
+	}
+	label(res.Primary)
+	for i := range res.Alternatives {
+		label(&res.Alternatives[i])
+	}
 }
 
 func daysSinceReview(t *time.Time) float64 {

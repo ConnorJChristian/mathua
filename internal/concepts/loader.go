@@ -157,6 +157,18 @@ func Build(raw []Concept) (*DAG, error) {
 	return build(raw), nil
 }
 
+// BuildView builds the graph of part of an already-validated corpus: a
+// track's concepts plus the outside concepts they need. A prerequisite that is
+// not in the view is a reference to the rest of the corpus. It does not
+// order the view, and eligibility checks it against the learner's whole record,
+// so a view never needs the whole graph to be correct.
+func BuildView(raw []Concept) *DAG {
+	if len(raw) == 0 {
+		return Empty()
+	}
+	return build(raw)
+}
+
 func build(raw []Concept) *DAG {
 	cmap := make(map[string]*Concept, len(raw))
 	for i := range raw {
@@ -207,9 +219,23 @@ func build(raw []Concept) *DAG {
 	}
 
 	// Topological sort via Kahn's algorithm — includes prerequisites + encompasses as edges
+	// Only edges inside this graph count: in a view, a prerequisite outside it
+	// is already ordered by the corpus and would otherwise hold its dependent
+	// out of the order for ever. In a full build every edge is inside.
 	inDegree := make(map[string]int, len(raw))
 	for _, c := range raw {
-		inDegree[c.ID] = len(c.Prerequisites) + len(c.Encompasses)
+		n := 0
+		for _, pid := range c.Prerequisites {
+			if _, ok := cmap[pid]; ok {
+				n++
+			}
+		}
+		for _, eid := range c.Encompasses {
+			if _, ok := cmap[eid]; ok {
+				n++
+			}
+		}
+		inDegree[c.ID] = n
 	}
 	var queue []string
 	for _, c := range raw {

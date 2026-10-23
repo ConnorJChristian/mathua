@@ -48,7 +48,7 @@ Concepts live in per-domain files under `data/concepts/`. Each file is a JSON ar
 ]
 ```
 
-Valid `grading_type` values: `numeric`, `polynomial`, `expression`, `multiple_choice`, `comparison`, `ordering`, `tuple`, `complex`, `symbolic` (9 total, `internal/concepts/loader.go:321`).
+Valid `grading_type` values: `numeric`, `polynomial`, `expression`, `multiple_choice`, `comparison`, `ordering`, `tuple`, `complex`, `symbolic`, and `bank` for question-bank concepts (`python` is its old name) (`internal/concepts/loader.go:348`).
 
 > The prerequisites list is the most important field. What must a student absolutely know before attempting this? If in doubt, add the prerequisite — the graph validator will catch cycles.
 
@@ -193,10 +193,10 @@ Every lesson is broken into exactly 3 **knowledge points** (KPs), each a subgoal
 
 A validator runs on every pull request. It checks invariants before any merge can happen:
 
-1. **No cycles** — including `prerequisites` + `encompasses` edges (`loader.go:362` Kahn’s)
-2. **No orphans** — every `prerequisites`/`encompasses`/`key_prerequisites` must exist (`loader.go:254`)
-3. **No dup IDs, no empty label/domain, valid `mastery_threshold`** (`loader.go:303`)
-4. **No singleton `interference_group`** (`loader.go:350`), valid `grading_type` enum (9 values `loader.go:321`), `variants` `0.1–1.0` difficulty
+1. **No cycles** — including `prerequisites` + `encompasses` edges (`loader.go:388` Kahn’s)
+2. **No orphans** — every `prerequisites`/`encompasses`/`key_prerequisites` must exist (`loader.go:308`)
+3. **No dup IDs, no empty label/domain, valid `mastery_threshold`** (`loader.go:299`)
+4. **No singleton `interference_group`** (`loader.go:375`), valid `grading_type` enum (`loader.go:356`), `variants` `0.1–1.0` difficulty
 
 A second audit guards the lesson corpus (`python3 scripts/audit_lessons.py:191`). It fails on these conditions:
 
