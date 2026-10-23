@@ -4,6 +4,12 @@ run:
 build:
 	go build -o bin/mathua ./cmd/mathua
 
+# Build the UI against your own local server (not the upstream hosted API),
+# then start everything on http://localhost:8080 with a local SQLite database.
+local:
+	cd web/next-app && npm ci && rm -rf out && NEXT_PUBLIC_API_URL=http://localhost:8080 npx next build
+	DATABASE_URL=sqlite:mathua.db go run ./cmd/mathua --port 8080
+
 build-all:
 	mkdir -p dist
 	GOOS=windows GOARCH=amd64 go build -o dist/mathua-windows-amd64.exe ./cmd/mathua

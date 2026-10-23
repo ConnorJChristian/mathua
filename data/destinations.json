@@ -1,5 +1,11 @@
 [
   {
+    "id": "ma-econ",
+    "name": "MA Economics: Math & Statistical Learning",
+    "description": "Math for Economists plus Statistical Learning, with prerequisites pulled in automatically. No trigonometry required.",
+    "courses": ["econ5153", "statlearn"]
+  },
+  {
     "id": "math-for-ml",
     "name": "Mathematics for Machine Learning",
     "description": "Calculus, linear algebra, and probability/statistics foundations for ML, with prerequisites pulled in automatically.",
