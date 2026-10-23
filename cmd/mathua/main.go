@@ -74,7 +74,8 @@ func openRepo() (storage.Repository, string, error) {
 		r, err := storage.NewPostgresStore(dsn)
 		return r, dsn, err
 	}
-	path := dsn
+	// Accept the documented "sqlite:<path>" form (docker-compose.yml, .env.example).
+	path := strings.TrimPrefix(dsn, "sqlite:")
 	if path == "" {
 		path = "mathua.db"
 	}
