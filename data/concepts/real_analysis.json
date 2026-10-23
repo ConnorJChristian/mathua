@@ -1,7 +1,7 @@
 [
   {
     "id": "ra.order.supremum",
-    "label": "Supremum and infimum",
+    "label": "Supremum and infimum (analysis)",
     "domain": "real_analysis",
     "subdomain": "real_analysis.order",
     "grading_type": "numeric",
@@ -171,7 +171,7 @@
   },
   {
     "id": "ra.seq.cauchy",
-    "label": "Cauchy sequences",
+    "label": "Cauchy sequences (analysis)",
     "domain": "real_analysis",
     "subdomain": "real_analysis.seq",
     "grading_type": "multiple_choice",
@@ -215,7 +215,7 @@
   },
   {
     "id": "ra.seq.absolute",
-    "label": "Absolute and conditional convergence",
+    "label": "Absolute and conditional convergence (analysis)",
     "domain": "real_analysis",
     "subdomain": "real_analysis.seq",
     "grading_type": "multiple_choice",
@@ -328,7 +328,7 @@
   },
   {
     "id": "ra.limit.uniform",
-    "label": "Uniform continuity",
+    "label": "Uniform continuity (analysis)",
     "domain": "real_analysis",
     "subdomain": "real_analysis.limit",
     "grading_type": "multiple_choice",
@@ -441,7 +441,7 @@
   },
   {
     "id": "ra.deriv.lhopital",
-    "label": "L'Hopital's rule",
+    "label": "L'Hopital's rule (analysis)",
     "domain": "real_analysis",
     "subdomain": "real_analysis.deriv",
     "grading_type": "numeric",
@@ -497,7 +497,7 @@
   },
   {
     "id": "ra.deriv.parts",
-    "label": "Integration by parts",
+    "label": "Integration by parts (analysis)",
     "domain": "real_analysis",
     "subdomain": "real_analysis.deriv",
     "grading_type": "numeric",
@@ -511,7 +511,7 @@
   },
   {
     "id": "ra.deriv.improper",
-    "label": "Improper integrals",
+    "label": "Improper integrals (analysis)",
     "domain": "real_analysis",
     "subdomain": "real_analysis.deriv",
     "grading_type": "numeric",
@@ -539,7 +539,7 @@
   },
   {
     "id": "ra.deriv.power_series",
-    "label": "Power series",
+    "label": "Power series (analysis)",
     "domain": "real_analysis",
     "subdomain": "real_analysis.seq",
     "grading_type": "numeric",

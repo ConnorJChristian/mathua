@@ -5,22 +5,20 @@ package algebra
 //
 // The batch fills the groups the domain left thin. Functions gain piecewise
 // evaluation, graph transformations and the domain of an inverse; exponentials
-// and logarithms gain their graphs, compound interest and the solution of a
+// and logarithms gain their graphs and the solution of a
 // logarithmic model; radicals gain simplifying, combining and conjugates;
 // rational expressions gain complex fractions, proportions and vertical
-// asymptotes; systems gain a three-variable elimination, the matrix method and
+// asymptotes; systems gain a three-variable elimination and
 // a nonlinear pair; sequences gain sigma notation and induction; polynomials
 // gain the factor theorem and the rational root theorem.
 //
-// Twelve concepts are numeric, so the arithmetic is exercised, and eight are
+// Eleven concepts are numeric, so the arithmetic is exercised, and seven are
 // conceptual multiple choice, where the domain is about statements rather than
 // computation. Every numeric generator publishes the parameters its answer
 // follows from, and the tests recompute the answer rather than trusting the
 // author's arithmetic.
 
 import (
-	"fmt"
-	"math"
 	"math/rand"
 	"strconv"
 
@@ -32,7 +30,6 @@ func registerRaise(reg *generator.Registry) {
 	reg.Register("alg.func.transformations", &transformationsGen{})
 	reg.Register("alg.func.inverse_domain", &inverseDomainGen{})
 	reg.Register("alg.exp.graph", &expGraphGen{})
-	reg.Register("alg.exp.compound", &compoundGen{})
 	reg.Register("alg.log.graph", &logGraphGen{})
 	reg.Register("alg.log.model", &logModelGen{})
 	reg.Register("alg.radical.simplify", &radicalSimplifyGen{})
@@ -42,7 +39,6 @@ func registerRaise(reg *generator.Registry) {
 	reg.Register("alg.rational.proportions", &proportionsGen{})
 	reg.Register("alg.rational.asymptotes", &asymptotesGen{})
 	reg.Register("alg.systems.three_var", &threeVarGen{})
-	reg.Register("alg.systems.matrices", &matricesGen{})
 	reg.Register("alg.systems.nonlinear", &nonlinearSystemGen{})
 	reg.Register("alg.seq.sigma", &sigmaGen{})
 	reg.Register("alg.seq.induction", &inductionGen{})
@@ -221,34 +217,6 @@ func (g *expGraphGen) Generate(ctx generator.GeneratorContext) generator.Problem
 // ---------------------------------------------------------------------------
 // Compound interest (numeric)
 // ---------------------------------------------------------------------------
-
-type compoundGen struct{}
-
-func (g *compoundGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	type claim struct{ p, r, t int }
-	claims := []claim{
-		{p: 1000, r: 5, t: 3},
-		{p: 2000, r: 4, t: 2},
-		{p: 500, r: 10, t: 3},
-		{p: 1500, r: 3, t: 4},
-		{p: 800, r: 6, t: 2},
-		{p: 2500, r: 2, t: 5},
-	}
-	c := claims[rand.Intn(len(claims))]
-	value := float64(c.p) * math.Pow(1+float64(c.r)/100, float64(c.t))
-	answer := fmt.Sprintf("%.2f", value)
-	return generator.Problem{
-		Question: "An investment of " + strconv.Itoa(c.p) + " dollars earns " + strconv.Itoa(c.r) +
-			" percent interest per year, compounded once a year, for " + strconv.Itoa(c.t) +
-			" years. Using A = P(1 + r)^t, what is the value at the end, in dollars? (round to cents)",
-		Answer: answer,
-		Explanation: "With P = " + strconv.Itoa(c.p) + ", the annual factor is 1 + " + strconv.Itoa(c.r) +
-			"/100, and raising it to the power " + strconv.Itoa(c.t) + " and multiplying by P gives " + answer + " dollars.",
-		Facts: map[string]string{
-			"p": strconv.Itoa(c.p), "r": strconv.Itoa(c.r), "t": strconv.Itoa(c.t), "answer": answer,
-		},
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Logarithmic graphs (multiple choice)
@@ -537,31 +505,6 @@ func (g *threeVarGen) Generate(ctx generator.GeneratorContext) generator.Problem
 // ---------------------------------------------------------------------------
 // Matrices (multiple choice)
 // ---------------------------------------------------------------------------
-
-type matricesGen struct{}
-
-func (g *matricesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return algPickMC([]algMCClaim{
-		{
-			q:           "A system of linear equations is solved by row-reducing its augmented matrix, which...",
-			correct:     "holds the coefficients of the variables in the left columns and the constants in the rightmost column",
-			distractors: []string{"holds only the constants", "holds the variables themselves as entries", "holds the right-hand sides in the leftmost column"},
-			reason:      "The augmented column carries the constants so that row operations act on equations and constants together.",
-		},
-		{
-			q:           "Which of these is a valid elementary row operation for Gaussian elimination?",
-			correct:     "adding a multiple of one row to another row",
-			distractors: []string{"multiplying two rows together", "adding the same constant to every entry", "replacing a row by its reciprocal"},
-			reason:      "The three allowed operations are swapping rows, scaling a row by a nonzero constant, and adding a multiple of one row to another.",
-		},
-		{
-			q:           "If the row-reduced augmented matrix contains a row reading 0 0 0 with a nonzero constant in the last column, the system has...",
-			correct:     "no solution",
-			distractors: []string{"exactly one solution", "infinitely many solutions", "a solution equal to that constant"},
-			reason:      "That row states 0 equals a nonzero number, which no values of the variables can satisfy.",
-		},
-	})
-}
 
 // ---------------------------------------------------------------------------
 // Nonlinear systems (numeric)

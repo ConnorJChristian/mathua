@@ -2226,20 +2226,6 @@
   },
   {
     "domain": "algebra",
-    "grading_type": "numeric",
-    "id": "alg.exp.compound",
-    "label": "Compound interest",
-    "mastery_threshold": {
-      "avg_time_seconds": 25,
-      "streak": 10
-    },
-    "prerequisites": [
-      "alg.exp.concept"
-    ],
-    "subdomain": "algebra.exponential"
-  },
-  {
-    "domain": "algebra",
     "grading_type": "multiple_choice",
     "id": "alg.log.graph",
     "label": "Graphs of logarithmic functions",
@@ -2361,20 +2347,6 @@
     },
     "prerequisites": [
       "alg.systems.elimination"
-    ],
-    "subdomain": "algebra.systems"
-  },
-  {
-    "domain": "algebra",
-    "grading_type": "multiple_choice",
-    "id": "alg.systems.matrices",
-    "label": "Solving systems with matrices",
-    "mastery_threshold": {
-      "avg_time_seconds": 15,
-      "streak": 10
-    },
-    "prerequisites": [
-      "alg.systems.gaussian"
     ],
     "subdomain": "algebra.systems"
   },
@@ -6179,7 +6151,8 @@
       "streak": 10
     },
     "prerequisites": [
-      "calc.multi.double_integral_region"
+      "calc.limit.epsilon_delta",
+      "calc.deriv.partial"
     ],
     "subdomain": "calculus.multivariable"
   },
@@ -13570,7 +13543,7 @@
     "domain": "precalculus",
     "grading_type": "numeric",
     "id": "precalc.vector.basics",
-    "label": "Vectors: magnitude and direction",
+    "label": "Vectors: magnitude and direction (precalculus)",
     "mastery_threshold": {
       "avg_time_seconds": 18,
       "streak": 10
@@ -13629,7 +13602,7 @@
     "domain": "precalculus",
     "grading_type": "symbolic",
     "id": "precalc.induction",
-    "label": "Mathematical induction",
+    "label": "Mathematical induction (precalculus)",
     "mastery_threshold": {
       "avg_time_seconds": 120,
       "streak": 3
@@ -13918,7 +13891,7 @@
     "domain": "precalculus",
     "grading_type": "numeric",
     "id": "precalc.func.inverse_value",
-    "label": "Inverse functions",
+    "label": "Inverse functions (precalculus)",
     "mastery_threshold": {
       "avg_time_seconds": 22,
       "streak": 10
@@ -14887,7 +14860,7 @@
     "domain": "real_analysis",
     "grading_type": "numeric",
     "id": "ra.order.supremum",
-    "label": "Supremum and infimum",
+    "label": "Supremum and infimum (analysis)",
     "mastery_threshold": {
       "avg_time_seconds": 30,
       "streak": 10
@@ -15057,7 +15030,7 @@
     "domain": "real_analysis",
     "grading_type": "multiple_choice",
     "id": "ra.seq.cauchy",
-    "label": "Cauchy sequences",
+    "label": "Cauchy sequences (analysis)",
     "mastery_threshold": {
       "avg_time_seconds": 32,
       "streak": 10
@@ -15101,7 +15074,7 @@
     "domain": "real_analysis",
     "grading_type": "multiple_choice",
     "id": "ra.seq.absolute",
-    "label": "Absolute and conditional convergence",
+    "label": "Absolute and conditional convergence (analysis)",
     "mastery_threshold": {
       "avg_time_seconds": 32,
       "streak": 10
@@ -15214,7 +15187,7 @@
     "domain": "real_analysis",
     "grading_type": "multiple_choice",
     "id": "ra.limit.uniform",
-    "label": "Uniform continuity",
+    "label": "Uniform continuity (analysis)",
     "mastery_threshold": {
       "avg_time_seconds": 34,
       "streak": 10
@@ -15327,7 +15300,7 @@
     "domain": "real_analysis",
     "grading_type": "numeric",
     "id": "ra.deriv.lhopital",
-    "label": "L'Hopital's rule",
+    "label": "L'Hopital's rule (analysis)",
     "mastery_threshold": {
       "avg_time_seconds": 30,
       "streak": 10
@@ -15383,7 +15356,7 @@
     "domain": "real_analysis",
     "grading_type": "numeric",
     "id": "ra.deriv.parts",
-    "label": "Integration by parts",
+    "label": "Integration by parts (analysis)",
     "mastery_threshold": {
       "avg_time_seconds": 30,
       "streak": 10
@@ -15397,7 +15370,7 @@
     "domain": "real_analysis",
     "grading_type": "numeric",
     "id": "ra.deriv.improper",
-    "label": "Improper integrals",
+    "label": "Improper integrals (analysis)",
     "mastery_threshold": {
       "avg_time_seconds": 30,
       "streak": 10
@@ -15425,7 +15398,7 @@
     "domain": "real_analysis",
     "grading_type": "numeric",
     "id": "ra.deriv.power_series",
-    "label": "Power series",
+    "label": "Power series (analysis)",
     "mastery_threshold": {
       "avg_time_seconds": 30,
       "streak": 10
@@ -16384,7 +16357,7 @@
     "domain": "topology",
     "grading_type": "multiple_choice",
     "id": "topo.basics.metric",
-    "label": "Metric spaces",
+    "label": "Metric spaces (topology)",
     "mastery_threshold": {
       "avg_time_seconds": 25,
       "streak": 10
@@ -16399,7 +16372,7 @@
     "domain": "topology",
     "grading_type": "multiple_choice",
     "id": "topo.basics.open_closed",
-    "label": "Open and closed sets",
+    "label": "Open and closed sets (topology)",
     "mastery_threshold": {
       "avg_time_seconds": 20,
       "streak": 10
@@ -16859,7 +16832,7 @@
     "domain": "topology",
     "grading_type": "numeric",
     "id": "topo.metric.convergence",
-    "label": "Convergence in metric spaces",
+    "label": "Convergence in metric spaces (topology)",
     "mastery_threshold": {
       "avg_time_seconds": 22,
       "streak": 10
@@ -17935,7 +17908,7 @@
     "domain": "trigonometry",
     "grading_type": "multiple_choice",
     "id": "trig.hyperbolic.derivative",
-    "label": "Derivatives of hyperbolic functions",
+    "label": "Derivatives of hyperbolic functions (trigonometry)",
     "mastery_threshold": {
       "avg_time_seconds": 18,
       "streak": 10
@@ -17950,7 +17923,7 @@
     "domain": "trigonometry",
     "grading_type": "numeric",
     "id": "trig.adv.polar",
-    "label": "Polar coordinates",
+    "label": "Polar coordinates (trigonometry)",
     "mastery_threshold": {
       "avg_time_seconds": 25,
       "streak": 10
@@ -18510,7 +18483,7 @@
     "domain": "python_ml",
     "grading_type": "bank",
     "id": "py.ml.kmeans",
-    "label": "k-means clustering",
+    "label": "k-means clustering in scikit-learn",
     "mastery_threshold": {
       "avg_time_seconds": 120,
       "streak": 4

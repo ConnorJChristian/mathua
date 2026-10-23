@@ -107,7 +107,7 @@
  },
  {
   "id": "precalc.vector.basics",
-  "label": "Vectors: magnitude and direction",
+  "label": "Vectors: magnitude and direction (precalculus)",
   "domain": "precalculus",
   "subdomain": "precalculus.vectors",
   "grading_type": "numeric",
@@ -166,7 +166,7 @@
  },
  {
   "id": "precalc.induction",
-  "label": "Mathematical induction",
+  "label": "Mathematical induction (precalculus)",
   "domain": "precalculus",
   "subdomain": "precalculus.discrete",
   "grading_type": "symbolic",
@@ -455,7 +455,7 @@
   },
   {
    "id": "precalc.func.inverse_value",
-   "label": "Inverse functions",
+   "label": "Inverse functions (precalculus)",
    "domain": "precalculus",
    "subdomain": "precalculus.functions",
    "grading_type": "numeric",

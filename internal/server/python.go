@@ -57,6 +57,37 @@ func (s *Server) handleModuleFile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, p)
 }
 
+// readingText is a module reading as a teaching step: what to read, and a
+// link that opens your own copy of the book at that page.
+type readingText struct{ Source, Body string }
+
+// readingStep is the "read this section first" step for a concept that a
+// module gives a reading, whether the concept is a module's or the base
+// graph's.
+func (s *Server) readingStep(conceptID string) (readingText, bool) {
+	rd, ok := s.eng.Modules().Reading(conceptID)
+	if !ok {
+		return readingText{}, false
+	}
+	var b strings.Builder
+	if rd.Note != "" {
+		b.WriteString(rd.Note + "\n\n")
+	}
+	fmt.Fprintf(&b, "**Read first:** %s", rd.Source)
+	switch {
+	case rd.File != "":
+		link := "/api/modules/" + url.PathEscape(rd.Module) + "/files/" + escapePath(rd.File)
+		if rd.Page > 0 {
+			link += fmt.Sprintf("#page=%d", rd.Page)
+		}
+		fmt.Fprintf(&b, "\n\n[Open section](%s)", link)
+	case rd.URL != "":
+		fmt.Fprintf(&b, "\n\n[Open section](%s)", rd.URL)
+	}
+	b.WriteString("\n\nPress Next when you have read it.")
+	return readingText{Source: rd.Source, Body: b.String()}, true
+}
+
 // moduleKPs is the teaching step for a module concept, which has no lesson
 // corpus: the question bank's original note, or a pointer to the section of
 // your own book to read (a module's readings.json), opened from your files.
@@ -70,24 +101,8 @@ func (s *Server) moduleKPs(conceptID, label string) []map[string]interface{} {
 			"assets":         []interface{}{},
 		}}
 	}
-	if rd, ok := s.eng.Modules().Reading(conceptID); ok {
-		var b strings.Builder
-		if rd.Note != "" {
-			b.WriteString(rd.Note + "\n\n")
-		}
-		fmt.Fprintf(&b, "**Read first:** %s", rd.Source)
-		switch {
-		case rd.File != "":
-			link := "/api/modules/" + url.PathEscape(rd.Module) + "/files/" + escapePath(rd.File)
-			if rd.Page > 0 {
-				link += fmt.Sprintf("#page=%d", rd.Page)
-			}
-			fmt.Fprintf(&b, "\n\n[Open section](%s)", link)
-		case rd.URL != "":
-			fmt.Fprintf(&b, "\n\n[Open section](%s)", rd.URL)
-		}
-		b.WriteString("\n\nPress Next when you have read it.")
-		return step(rd.Source, b.String())
+	if rd, ok := s.readingStep(conceptID); ok {
+		return step(rd.Source, rd.Body)
 	}
 	t, err := pytrack.Default()
 	if err != nil {

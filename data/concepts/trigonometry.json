@@ -947,7 +947,7 @@
   },
   {
     "id": "trig.hyperbolic.derivative",
-    "label": "Derivatives of hyperbolic functions",
+    "label": "Derivatives of hyperbolic functions (trigonometry)",
     "domain": "trigonometry",
     "subdomain": "trigonometry.hyperbolic",
     "grading_type": "multiple_choice",
@@ -962,7 +962,7 @@
   },
   {
     "id": "trig.adv.polar",
-    "label": "Polar coordinates",
+    "label": "Polar coordinates (trigonometry)",
     "domain": "trigonometry",
     "subdomain": "trigonometry.advanced",
     "grading_type": "numeric",

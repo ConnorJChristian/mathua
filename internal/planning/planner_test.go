@@ -192,3 +192,43 @@ func TestProgressForCourse(t *testing.T) {
 		t.Errorf("expected full progress, got %+v", cp2)
 	}
 }
+
+func TestPlannedCourse_KeepsPlanOrderWithPrerequisitesFirst(t *testing.T) {
+	p := testPlanner(t)
+	dir := t.TempDir()
+	extra := filepath.Join(dir, "courses.json")
+	// Plan c before b: graph order alone would give a, b, c, d.
+	os.WriteFile(extra, []byte(`[{"id":"planned","name":"P","grade":"","description":"","plan":["c","b","d"]}]`), 0644)
+	base := filepath.Join(dir, "base.json")
+	os.WriteFile(base, []byte(`[]`), 0644)
+	q, err := Load(base, p.dag, extra)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	path, err := q.PathForCourse("planned")
+	if err != nil {
+		t.Fatalf("path: %v", err)
+	}
+	var ids []string
+	for _, c := range path.Concepts {
+		ids = append(ids, c.ID)
+	}
+	want := []string{"a", "c", "b", "d"}
+	if len(ids) != len(want) {
+		t.Fatalf("path %v, want %v", ids, want)
+	}
+	for i := range want {
+		if ids[i] != want[i] {
+			t.Fatalf("path %v, want %v", ids, want)
+		}
+	}
+	if got := q.Course("planned").Targets; len(got) != 3 {
+		t.Errorf("a course with only a plan should target it, got %v", got)
+	}
+	if r := q.PlanOrder("planned"); r["c"] >= r["b"] {
+		t.Errorf("plan order %v should rank c before b", r)
+	}
+	if q.PlanOrder("missing") != nil {
+		t.Error("unknown course should have no plan order")
+	}
+}

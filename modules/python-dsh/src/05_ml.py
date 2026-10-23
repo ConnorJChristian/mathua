@@ -1738,7 +1738,7 @@ concept(
 
 # ---------------------------------------------------------------- 5.11
 concept(
-    "py.ml.kmeans", "k-means clustering", ["py.ml.estimator_api"],
+    "py.ml.kmeans", "k-means clustering in scikit-learn", ["py.ml.estimator_api"],
     "5.11", "In Depth: k-Means Clustering", "05.11-k-means",
     """
     k-means splits rows into k clusters, each summarised by its centre. It

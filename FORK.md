@@ -94,7 +94,15 @@ mastered yourself keep their own review schedule.
 These courses live in `modules/ma-econ/courses.json` (the destination in
 `destinations.json` beside it) as lists of target concept IDs, read at startup.
 Restart the server after editing. Concept IDs are in `data/concepts/*.json`.
-Run `go run scripts/validate_graph.go` after any change.
+Run `go run scripts/validate_graph.go` after any change. It checks the graph
+the install runs with, modules included, for cycles, dangling prerequisites
+and duplicate labels.
+
+**Study plans.** A course can carry an ordered `plan` instead of (or as well
+as) `targets`: its topics in the order they are taught. The course's path
+keeps that order, putting each topic's unmet prerequisites just before it,
+and with the course active the shelf offers untouched topics earlier in the
+plan first. A course with only a plan targets its plan.
 
 ## Modules
 
@@ -134,6 +142,8 @@ Use `modules-local/` for anything made from your own books, notes or Anki
 decks. Its topics can point at the section to read with `readings.json`.
 Learn then shows **Open section**, which opens your PDF from `files/` at that
 page through your local server. The questions come from the module's bank.
+A reading can also point at a base-graph concept (say `calc.multi.lagrange`
+at your textbook's section); its lesson then starts with that step.
 
 Add, remove or switch off a module, then rebuild:
 

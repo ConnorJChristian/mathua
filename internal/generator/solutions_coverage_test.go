@@ -70,7 +70,6 @@ var generatorExplained = map[string]string{
 	"alg.radical.conjugate":         "table-driven: fixed question, fixed answer",
 	"alg.rational.complex_fraction": "table-driven: fixed question, fixed answer",
 	"alg.seq.induction":             "table-driven: fixed question, fixed answer",
-	"alg.systems.matrices":          "table-driven: fixed question, fixed answer",
 }
 
 // TestLearnerDomainsHaveSchemas is the gate that keeps the explanation

@@ -1549,20 +1549,6 @@
     }
   },
   {
-    "id": "alg.exp.compound",
-    "label": "Compound interest",
-    "domain": "algebra",
-    "subdomain": "algebra.exponential",
-    "grading_type": "numeric",
-    "prerequisites": [
-      "alg.exp.concept"
-    ],
-    "mastery_threshold": {
-      "streak": 10,
-      "avg_time_seconds": 25.0
-    }
-  },
-  {
     "id": "alg.log.graph",
     "label": "Graphs of logarithmic functions",
     "domain": "algebra",
@@ -1686,20 +1672,6 @@
     "mastery_threshold": {
       "streak": 10,
       "avg_time_seconds": 25.0
-    }
-  },
-  {
-    "id": "alg.systems.matrices",
-    "label": "Solving systems with matrices",
-    "domain": "algebra",
-    "subdomain": "algebra.systems",
-    "grading_type": "multiple_choice",
-    "prerequisites": [
-      "alg.systems.gaussian"
-    ],
-    "mastery_threshold": {
-      "streak": 10,
-      "avg_time_seconds": 15.0
     }
   },
   {

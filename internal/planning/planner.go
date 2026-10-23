@@ -17,6 +17,12 @@ type Course struct {
 	Grade       string   `json:"grade"`
 	Description string   `json:"description"`
 	Targets     []string `json:"targets"`
+	// Plan, when set, is the course's study plan: its topics in the order
+	// they are taught. The course's path keeps that order, with each topic's
+	// unmet prerequisites slotted in just before it, and the recommender
+	// offers new topics in path order. A course with a plan and no targets
+	// targets its plan.
+	Plan []string `json:"plan,omitempty"`
 }
 
 type Path struct {
@@ -42,11 +48,16 @@ func Load(coursesPath string, dag *concepts.DAG, extra ...string) (*Planner, err
 		if err := json.Unmarshal(data, &batch); err != nil {
 			return nil, fmt.Errorf("parse courses %s: %w", path, err)
 		}
+		for _, c := range batch {
+			if len(c.Targets) == 0 {
+				c.Targets = append([]string(nil), c.Plan...)
+			}
+		}
 		if i > 0 {
 			// A module's course must stand on the graph this install has; a
 			// target from a disabled module would otherwise plan nothing.
 			for _, c := range batch {
-				for _, t := range c.Targets {
+				for _, t := range append(append([]string(nil), c.Targets...), c.Plan...) {
 					if dag != nil && dag.Concept(t) == nil {
 						return nil, fmt.Errorf("course %q in %s targets unknown concept %q", c.ID, path, t)
 					}
@@ -130,12 +141,64 @@ func (p *Planner) PathForCourse(courseID string) (*Path, error) {
 	if c == nil {
 		return nil, fmt.Errorf("course %q not found", courseID)
 	}
+	if len(c.Plan) > 0 {
+		return p.planPath(c)
+	}
 	path, err := p.PrerequisitesOf(c.Targets)
 	if err != nil {
 		return nil, err
 	}
 	path.Course = c
 	return path, nil
+}
+
+// planPath is a planned course's path: each plan topic in order, preceded by
+// those of its prerequisites (in graph order) not already on the path, then
+// anything else the course targets.
+func (p *Planner) planPath(c *Course) (*Path, error) {
+	order := p.dag.Order()
+	seen := make(map[string]bool)
+	var out []*concepts.Concept
+	add := func(ids []string) error {
+		chain, err := p.collectChain(ids)
+		if err != nil {
+			return err
+		}
+		for _, cc := range order {
+			if chain[cc.ID] && !seen[cc.ID] {
+				seen[cc.ID] = true
+				out = append(out, cc)
+			}
+		}
+		return nil
+	}
+	for _, id := range c.Plan {
+		if err := add([]string{id}); err != nil {
+			return nil, err
+		}
+	}
+	if err := add(c.Targets); err != nil {
+		return nil, err
+	}
+	return &Path{Course: c, Concepts: out}, nil
+}
+
+// PlanOrder ranks a planned course's path: concept id to its position. It is
+// nil for an unknown course or one without a plan.
+func (p *Planner) PlanOrder(courseID string) map[string]int {
+	c := p.byID[courseID]
+	if c == nil || len(c.Plan) == 0 {
+		return nil
+	}
+	path, err := p.planPath(c)
+	if err != nil {
+		return nil
+	}
+	rank := make(map[string]int, len(path.Concepts))
+	for i, cc := range path.Concepts {
+		rank[cc.ID] = i
+	}
+	return rank
 }
 
 func (p *Planner) Unmastered(path *Path, progress map[string]*storage.ConceptProgress) []*concepts.Concept {

@@ -1880,7 +1880,15 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 			WorkedExample string          `json:"worked_example"`
 			Assets        []lessons.Asset `json:"assets"`
 		}
-		out := make([]kpInfo, 0, len(kps))
+		out := make([]kpInfo, 0, len(kps)+1)
+		// Fork change: a module may point a base-graph concept at the section
+		// of your own book to read; that comes before the lesson's steps.
+		if c := s.eng.GetDAG().Concept(conceptID); c != nil {
+			if rd, ok := s.readingStep(conceptID); ok {
+				out = append(out, kpInfo{Label: c.Label, Section: rd.Source, Subgoals: []string{},
+					WorkedExample: rd.Body, Assets: []lessons.Asset{}})
+			}
+		}
 		for _, kp := range kps {
 			// TeachingSlice never falls back to the lesson body. It used to: when a shard's
 			// section was empty the server substituted l.Body, so 69 of 1,971 steps across 43

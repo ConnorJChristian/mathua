@@ -5,7 +5,7 @@
   "band_width": 3,
   "note": "DRAFT — ADR-046 D3. Band width is the open decision (how often a learner is assessed), not product policy. Unit prerequisite order is DERIVED from the concept DAG and deliberately not stored: authoring it would be a second hierarchy. Do not hand-edit concept_ids; regenerate with `go run ./cmd/masteryunits -band N`.",
   "source": "data/concepts",
-  "concept_count": 1250,
+  "concept_count": 1248,
   "unit_count": 122,
   "units": [
     {
@@ -295,12 +295,11 @@
         "alg.rational.proportions",
         "alg.rational.simplify",
         "alg.systems.elimination",
-        "alg.systems.matrices",
         "alg.systems.nonlinear",
         "alg.systems.three_var",
         "alg.systems.word"
       ],
-      "concept_count": 41
+      "concept_count": 40
     },
     {
       "id": "algebra.b8",
@@ -329,7 +328,6 @@
         "alg.eq.exponential",
         "alg.eq.polynomial",
         "alg.eq.trinomial",
-        "alg.exp.compound",
         "alg.exp.evaluate",
         "alg.exp.graph",
         "alg.func.quad",
@@ -353,7 +351,7 @@
         "alg.seq.sum_arith",
         "alg.seq.sum_geo"
       ],
-      "concept_count": 30
+      "concept_count": 29
     },
     {
       "id": "algebra.b9",
@@ -628,6 +626,7 @@
         "calc.limit.uniform_continuity",
         "calc.limit.weierstrass",
         "calc.multi.euler_homogeneous",
+        "calc.multi.iterated_limits",
         "calc.series.absolute",
         "calc.series.alternating",
         "calc.series.binomial",
@@ -655,7 +654,7 @@
         "calc.vec.curl",
         "calc.vec.divergence"
       ],
-      "concept_count": 61
+      "concept_count": 62
     },
     {
       "id": "calculus.b11",
@@ -786,7 +785,6 @@
         "calc.multi.change_order",
         "calc.multi.double_integral_region",
         "calc.multi.implicit_function",
-        "calc.multi.iterated_limits",
         "calc.multi.mass_lamina",
         "calc.multi.triple_integral_box",
         "calc.polar.arc_length",
@@ -809,7 +807,7 @@
         "calc.vec.torsion",
         "calc.vec.work"
       ],
-      "concept_count": 61
+      "concept_count": 60
     },
     {
       "id": "complex_numbers.b3",

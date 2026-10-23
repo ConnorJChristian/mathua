@@ -166,8 +166,15 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	// AttemptedDays check alone is not enough, because placement deliberately
 	// seeds reachability without mastery.
 	diagnosticCompleted := noPlacement
-	if st, err := e.repo.GetStudent(studentID); err == nil && st != nil && st.DiagnosticCompleted {
-		diagnosticCompleted = true
+	var pathOrder map[string]int
+	if st, err := e.repo.GetStudent(studentID); err == nil && st != nil {
+		if st.DiagnosticCompleted {
+			diagnosticCompleted = true
+		}
+		// A course with a study plan orders the new topics it offers.
+		if st.CourseID != "" && e.planner != nil {
+			pathOrder = e.planner.PlanOrder(st.CourseID)
+		}
 	}
 
 	res := sched.Recommend(scheduler.RecommendInput{
@@ -180,6 +187,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		AttemptedDays:       len(attemptedDays),
 		ExcludeConceptIds:   exclude,
 		DiagnosticCompleted: diagnosticCompleted,
+		PathOrder:           pathOrder,
 	})
 	e.labelBridges(&res, track)
 	if res.Primary != nil && res.Primary.ID == "graph" {

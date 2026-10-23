@@ -317,3 +317,20 @@ func TestRecommend_NothingAvailableFallsBackToOrientation(t *testing.T) {
 		t.Errorf("primary points at the closed reference library: %q", got.Primary.Action.Href)
 	}
 }
+
+func TestRecommend_StudyPlanOrdersNewTopics(t *testing.T) {
+	s := New(miniDAG(t))
+	now := time.Now()
+	in := RecommendInput{
+		Now: now, AttemptedDays: 10, ConceptsMastered: 1,
+		Snapshots: map[string]*ConceptSnapshot{"a": masteredAt(now)},
+	}
+	if rankOf(s.Recommend(in), "b") > rankOf(s.Recommend(in), "c") {
+		t.Fatal("fixture: without a plan, b and c tie and b comes first by id")
+	}
+	in.PathOrder = map[string]int{"a": 0, "c": 1, "b": 2, "d": 3}
+	got := s.Recommend(in)
+	if rankOf(got, "c") > rankOf(got, "b") {
+		t.Errorf("the plan puts c before b, got order %v", all(got))
+	}
+}

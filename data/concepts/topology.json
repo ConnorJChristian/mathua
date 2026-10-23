@@ -1,7 +1,7 @@
 [
   {
     "id": "topo.basics.metric",
-    "label": "Metric spaces",
+    "label": "Metric spaces (topology)",
     "domain": "topology",
     "subdomain": "topology.basics",
     "grading_type": "multiple_choice",
@@ -16,7 +16,7 @@
   },
   {
     "id": "topo.basics.open_closed",
-    "label": "Open and closed sets",
+    "label": "Open and closed sets (topology)",
     "domain": "topology",
     "subdomain": "topology.basics",
     "grading_type": "multiple_choice",
@@ -476,7 +476,7 @@
   },
   {
     "id": "topo.metric.convergence",
-    "label": "Convergence in metric spaces",
+    "label": "Convergence in metric spaces (topology)",
     "domain": "topology",
     "subdomain": "topology.basics",
     "grading_type": "numeric",

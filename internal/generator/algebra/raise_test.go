@@ -10,7 +10,6 @@ package algebra
 
 import (
 	"fmt"
-	"math"
 	"testing"
 
 	"github.com/chuma-beep/mathua/internal/grader"
@@ -21,7 +20,6 @@ var algRaiseIDs = []string{
 	"alg.func.transformations",
 	"alg.func.inverse_domain",
 	"alg.exp.graph",
-	"alg.exp.compound",
 	"alg.log.graph",
 	"alg.log.model",
 	"alg.radical.simplify",
@@ -31,7 +29,6 @@ var algRaiseIDs = []string{
 	"alg.rational.proportions",
 	"alg.rational.asymptotes",
 	"alg.systems.three_var",
-	"alg.systems.matrices",
 	"alg.systems.nonlinear",
 	"alg.seq.sigma",
 	"alg.seq.induction",
@@ -45,7 +42,6 @@ var algRaiseMCIDs = []string{
 	"alg.log.graph",
 	"alg.radical.conjugate",
 	"alg.rational.complex_fraction",
-	"alg.systems.matrices",
 	"alg.seq.induction",
 	"alg.poly.factor_theorem",
 }
@@ -53,7 +49,6 @@ var algRaiseMCIDs = []string{
 var algRaiseNumericIDs = []string{
 	"alg.func.piecewise",
 	"alg.exp.graph",
-	"alg.exp.compound",
 	"alg.log.model",
 	"alg.radical.simplify",
 	"alg.radical.operations",
@@ -158,17 +153,6 @@ func TestRaiseNumericRecompute(t *testing.T) {
 		}
 		if p.Answer != fmt.Sprint(want) {
 			t.Fatalf("exp.graph: a=%d b=%d x=%d answers %s, want %d", a, b, x, p.Answer, want)
-		}
-	}
-
-	for i := 0; i < 200; i++ {
-		p := sample(t, reg, "alg.exp.compound", 100+i)
-		pr := intFact(t, p, "p")
-		r := intFact(t, p, "r")
-		tt := intFact(t, p, "t")
-		want := fmt.Sprintf("%.2f", float64(pr)*math.Pow(1+float64(r)/100, float64(tt)))
-		if p.Answer != want {
-			t.Fatalf("exp.compound: p=%d r=%d t=%d answers %s, want %s", pr, r, tt, p.Answer, want)
 		}
 	}
 

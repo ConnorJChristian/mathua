@@ -128,6 +128,22 @@ type RecommendInput struct {
 	// ExcludeConceptIds drops concepts already shown — the finished concept must not be offered
 	// back as the next thing to learn.
 	ExcludeConceptIds []string
+	// PathOrder ranks the active course's path when the course has a study
+	// plan (concept id to position). New, untouched and resumed topics
+	// earlier on the path are preferred; reviews and practice on topics
+	// already attempted are ranked as before.
+	PathOrder map[string]int
+}
+
+// planBonus prefers earlier topics on a planned course's path. It stays below
+// one, so it orders new topics among themselves without outranking a review
+// (+5) or the layering bonus (+2).
+func planBonus(order map[string]int, id string) float64 {
+	rank, ok := order[id]
+	if !ok || len(order) == 0 {
+		return 0
+	}
+	return 0.9 * (1 - float64(rank)/float64(len(order)))
 }
 
 // RecommendCaps bound the set. Five is the number of cards the existing shelf shows, so the
@@ -299,6 +315,11 @@ func (s *Scheduler) conceptRecommendations(in RecommendInput, now time.Time, cap
 			// nodes in one topic. This is NextSmart's interleaving rule, expressed as a
 			// ranking term rather than a second selection pass.
 			priority += layeringBonus(c.Concept, in.Weakness)
+		}
+		// A topic the learner has not touched can be classed as practice when
+		// the weakness map defaults it, so "untouched" counts as new here.
+		if snap := in.Snapshots[c.Concept.ID]; b == bucketNew || b == bucketResume || snap == nil || snap.LastAttempted.IsZero() {
+			priority += planBonus(in.PathOrder, c.Concept.ID)
 		}
 		r := s.render(c.Concept, kind, reason, priority)
 		r.bucket = b

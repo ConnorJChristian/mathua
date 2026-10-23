@@ -12,11 +12,11 @@ assessed; `3` is a candidate, not a decision. Regenerate with `-band 2` or `-ban
 
 | Metric | Value |
 |---|---|
-| Total concepts | 1250 |
+| Total concepts | 1248 |
 | Total units | 122 |
 | Minimum unit size | 1 |
 | Median unit size | 7 |
-| Maximum unit size | 61 |
+| Maximum unit size | 62 |
 | Singleton units | 26 |
 | Units with <= 3 concepts | 35 |
 | Units with > 25 concepts | 10 |
@@ -41,8 +41,8 @@ exists to make concrete.
 | `algebra.b4` | algebra | 4 | 1 | 1 | 12–12 |
 | `algebra.b5` | algebra | 5 | 5 | 1 | 16–17 |
 | `algebra.b6` | algebra | 6 | 36 | 7 | 18–20 |
-| `algebra.b7` | algebra | 7 | 41 | 9 | 21–23 |
-| `algebra.b8` | algebra | 8 | 30 | 10 | 24–26 |
+| `algebra.b7` | algebra | 7 | 40 | 9 | 21–23 |
+| `algebra.b8` | algebra | 8 | 29 | 10 | 24–26 |
 | `algebra.b9` | algebra | 9 | 7 | 4 | 27–28 |
 | `arithmetic.b0` | arithmetic | 0 | 8 | 4 | 0–2 |
 | `arithmetic.b1` | arithmetic | 1 | 16 | 7 | 3–5 |
@@ -50,9 +50,9 @@ exists to make concrete.
 | `arithmetic.b3` | arithmetic | 3 | 20 | 5 | 9–11 |
 | `calculus.b8` | calculus | 8 | 1 | 1 | 26–26 |
 | `calculus.b9` | calculus | 9 | 28 | 4 | 27–29 |
-| `calculus.b10` | calculus | 10 | 61 | 7 | 30–32 |
+| `calculus.b10` | calculus | 10 | 62 | 7 | 30–32 |
 | `calculus.b11` | calculus | 11 | 54 | 6 | 33–35 |
-| `calculus.b12` | calculus | 12 | 61 | 7 | 36–38 |
+| `calculus.b12` | calculus | 12 | 60 | 7 | 36–38 |
 | `complex_numbers.b3` | complex_numbers | 3 | 4 | 2 | 10–11 |
 | `complex_numbers.b6` | complex_numbers | 6 | 1 | 1 | 20–20 |
 | `complex_numbers.b7` | complex_numbers | 7 | 10 | 2 | 21–23 |
@@ -168,14 +168,14 @@ at every width.
 
 | Band width | Units | Median | Max | Singletons | <=3 | >25 | Backward |
 |---|---|---|---|---|---|---|---|
-| 2 | 160 | 5 | 56 | 28 | 52 | 6 | 0 |
-| 3 | 122 | 7 | 61 | 26 | 35 | 10 | 0 |
-| 4 | 98 | 9 | 78 | 12 | 27 | 12 | 0 |
-| 5 | 84 | 9 | 89 | 8 | 18 | 12 | 0 |
-| 6 | 79 | 11 | 115 | 9 | 16 | 17 | 0 |
+| 2 | 160 | 5 | 55 | 28 | 52 | 5 | 0 |
+| 3 | 122 | 7 | 62 | 26 | 35 | 10 | 0 |
+| 4 | 98 | 9 | 79 | 12 | 27 | 12 | 0 |
+| 5 | 84 | 9 | 90 | 8 | 18 | 12 | 0 |
+| 6 | 79 | 11 | 116 | 9 | 16 | 17 | 0 |
 | 8 | 63 | 15 | 139 | 6 | 13 | 18 | 0 |
 | 10 | 53 | 17 | 176 | 4 | 9 | 16 | 0 |
-| 12 | 54 | 16 | 144 | 2 | 7 | 19 | 0 |
+| 12 | 54 | 16 | 145 | 2 | 7 | 19 | 0 |
 | 15 | 42 | 22 | 176 | 1 | 4 | 20 | 0 |
 | 20 | 35 | 31 | 205 | 2 | 4 | 19 | 0 |
 | 45 | 21 | 45 | 205 | 0 | 0 | 21 | 0 |
@@ -347,7 +347,7 @@ Unresolvable subdomains:
 `trigonometry.hyperbolic` 
 `trigonometry.identities` 
 
-Concept depth is a proper topological ranking on an acyclic graph, so it resolves all 1250
+Concept depth is a proper topological ranking on an acyclic graph, so it resolves all 1248
 concepts and yields zero backward band edges by construction.
 
 ## Validation findings

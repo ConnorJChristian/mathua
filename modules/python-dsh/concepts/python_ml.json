@@ -190,7 +190,7 @@
   },
   {
     "id": "py.ml.kmeans",
-    "label": "k-means clustering",
+    "label": "k-means clustering in scikit-learn",
     "domain": "python_ml",
     "subdomain": "python_ml.05_11_k_means",
     "grading_type": "bank",

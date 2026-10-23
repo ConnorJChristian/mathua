@@ -4856,10 +4856,6 @@
     "source": "teaching/alg.exp.graph.md"
   },
   {
-    "concept_id": "alg.exp.compound",
-    "source": "teaching/alg.exp.compound.md"
-  },
-  {
     "concept_id": "alg.log.graph",
     "source": "teaching/alg.log.graph.md"
   },
@@ -4894,10 +4890,6 @@
   {
     "concept_id": "alg.systems.three_var",
     "source": "teaching/alg.systems.three_var.md"
-  },
-  {
-    "concept_id": "alg.systems.matrices",
-    "source": "teaching/alg.systems.matrices.md"
   },
   {
     "concept_id": "alg.systems.nonlinear",

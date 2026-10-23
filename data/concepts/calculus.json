@@ -2862,7 +2862,8 @@
    "subdomain": "calculus.multivariable",
    "grading_type": "multiple_choice",
    "prerequisites": [
-    "calc.multi.double_integral_region"
+    "calc.limit.epsilon_delta",
+    "calc.deriv.partial"
    ],
    "mastery_threshold": {
     "streak": 10,
