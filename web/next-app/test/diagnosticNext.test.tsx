@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { createRef } from 'react'
 import { DiagnosticStep, WelcomeStep } from '../app/onboard/steps'
 import DiagnosticHost from '../app/goals/DiagnosticHost'
@@ -8,6 +8,7 @@ import {
   submitGoalAnswer,
   skipGoalQuestion,
   retryGoalQuestion,
+  getGoalPlan,
   submitQuizAnswer,
   skipQuizQuestion,
 } from '../lib/api'
@@ -413,7 +414,25 @@ describe('DiagnosticHost manual advance', () => {
     await screen.findByText('Q2 text')
   })
 
-    it('shows only Restart on an expired session', async () => {    vi.mocked(submitGoalAnswer).mockRejectedValueOnce(
+    it('completes a run whose session ended after the last answer', async () => {
+    // The final answer committed and the server deleted the session, so the
+    // client's retry finds nothing. The plan exists, which means the run is
+    // finished, not lost.
+    vi.mocked(submitGoalAnswer).mockRejectedValueOnce(
+      Object.assign(new Error('Goal answer failed: 404'), { status: 404, serverMessage: 'diagnostic session not found' }),
+    )
+    const plan = { plan: null }
+    vi.mocked(getGoalPlan).mockResolvedValueOnce(plan as never)
+    const onComplete = vi.fn()
+    render(<DiagnosticHost startIds={[]} resumeId={null} onComplete={onComplete} onResumeExpired={() => {}} />)
+    await screen.findByText('Q1 text')
+    typeAnswer(await findMathField(), '5')
+    fireEvent.click(screen.getByRole('button', { name: 'Check Answer' }))
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith(plan))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('shows only Restart on an expired session', async () => {    vi.mocked(submitGoalAnswer).mockRejectedValueOnce(
       Object.assign(new Error('Goal answer failed: 404'), {
         status: 404,
         serverMessage: 'diagnostic session not found',

@@ -244,6 +244,29 @@ export default function DiagnosticHost({
       }
       setLoading(false)
     } catch (e) {
+      // A 404 means the server has no session under this id any more. That is
+      // what happens when the final answer committed but its response was lost:
+      // the retry arrives after the server deleted the finished session, so the
+      // learner sees an error at the end of a run that actually completed. Ask
+      // for the plan before reporting a failure.
+      if ((e as { status?: number } | null)?.status === 404) {
+        try {
+          const planRes = await getGoalPlan(sessionId.current)
+          // A bare resolve is not a plan: the mock and a degraded server can
+          // both return nothing, and completing the flow with nothing would
+          // lose the run without telling the learner. Fall through instead.
+          if (!planRes) throw new Error('no plan to recover')
+          setFinished(true)
+          try {
+            sessionStorage.removeItem(GOALS_DIAG_KEY)
+          } catch { /* ignore */ }
+          onComplete(planRes)
+          return
+        } catch {
+          // No plan either, so the run really is gone. The error block below
+          // offers a restart, which is the only honest option left.
+        }
+      }
       setSubmitError(toSubmitError(e, 'Failed to submit answer.'))
       setLoading(false)
     }
