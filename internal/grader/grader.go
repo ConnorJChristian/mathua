@@ -12,10 +12,13 @@ const (
 	GradingOrdering       GradingType = "ordering"
 	GradingTuple          GradingType = "tuple"
 	GradingComplex        GradingType = "complex"
-	// GradingPython covers every Python-track question: multiple choice,
-	// "what does this print" and code tasks checked by hidden tests. The
-	// grading itself lives in internal/pytrack, which installs it with
-	// SetPythonGrader; this package only routes to it.
+	// GradingBank covers every question-bank question (internal/pytrack):
+	// multiple choice, "what does this print", code tasks checked by hidden
+	// tests, and recall cards. The grading itself lives in internal/pytrack,
+	// which installs it with SetPythonGrader; this package only routes to it.
+	GradingBank GradingType = "bank"
+	// GradingPython is GradingBank's original name, kept for banks built
+	// before the rename.
 	GradingPython GradingType = "python"
 )
 

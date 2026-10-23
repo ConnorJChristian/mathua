@@ -27,15 +27,9 @@ func TestCurriculumDomainsCountsEveryConcept(t *testing.T) {
 	t.Cleanup(func() { store.Close() })
 	e := New(store, dag, generator.NewRegistry(), nil, nil)
 
-	// The Math and Python tracks list disjoint domains; together they must
-	// account for the whole corpus.
-	var rows []DomainSummary
-	for _, track := range []string{"math", "python"} {
-		r, err := e.CurriculumDomainsTrack("", track)
-		if err != nil {
-			t.Fatalf("curriculum domains (%s): %v", track, err)
-		}
-		rows = append(rows, r...)
+	rows, err := e.CurriculumDomains("")
+	if err != nil {
+		t.Fatalf("curriculum domains: %v", err)
 	}
 	total := 0
 	for _, row := range rows {

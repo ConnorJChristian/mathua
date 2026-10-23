@@ -21,15 +21,15 @@
     "prealgebra": 60,
     "precalculus": 50,
     "probability_theory": 50,
+    "real_analysis": 50,
+    "statistics": 55,
+    "topology": 42,
+    "trigonometry": 68,
     "python_ipython": 9,
     "python_matplotlib": 15,
     "python_ml": 16,
     "python_numpy": 20,
-    "python_pandas": 18,
-    "real_analysis": 50,
-    "statistics": 55,
-    "topology": 42,
-    "trigonometry": 68
+    "python_pandas": 18
   },
   "layoutVersion": 2
 }

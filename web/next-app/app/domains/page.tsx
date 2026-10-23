@@ -20,7 +20,7 @@ import {
   type TopicSummary,
   type EligibilityPrereq,
 } from '../../lib/api'
-import { DOMAIN_ORDER, domainLabel } from '../../lib/graphDomains'
+import { allDomainOrder, domainLabel } from '../../lib/domains'
 import { useTrack } from '../../lib/track'
 
 /**
@@ -94,11 +94,11 @@ export default function DomainsPage() {
     if (!domains) return []
     const byId = new Map(domains.map((d) => [d.id, d]))
     const out: DomainSummary[] = []
-    for (const id of DOMAIN_ORDER) {
+    for (const id of allDomainOrder()) {
       const d = byId.get(id)
       if (d) out.push(d)
     }
-    // Any domain the corpus grows that DOMAIN_ORDER does not yet name still
+    // Any domain the corpus grows that the domain order does not yet name still
     // appears, rather than silently vanishing from the picker.
     for (const d of domains) if (!out.includes(d)) out.push(d)
     return out

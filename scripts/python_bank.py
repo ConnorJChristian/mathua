@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Build and check the Python track's question bank.
+"""Build and check question banks written as Python authoring files.
 
-Source:  data/python/<NN>_<chapter>.py   (authored; one file per book chapter)
-Output:  internal/pytrack/bank/<NN>_<chapter>.json   (generated; embedded in the server)
-         data/concepts/<domain>.json                  (generated; the concept graph)
+A module (see internal/modules) that authors questions keeps them in
 
-    python3 scripts/python_bank.py build            # regenerate every chapter
-    python3 scripts/python_bank.py build numpy      # one chapter
-    python3 scripts/python_bank.py check            # verify the JSON is current
+    modules/<id>/src/<NN>_<chapter>.py          (or modules-local/<id>/src/...)
+
+and this script writes, next to them,
+
+    modules/<id>/bank/<NN>_<chapter>.json       the question bank the server reads
+    modules/<id>/concepts/<domain>.json         the chapter's concept-graph nodes
+
+    python3 scripts/python_bank.py build              # every module with a src/
+    python3 scripts/python_bank.py build numpy        # files or modules matching "numpy"
+    python3 scripts/python_bank.py check              # verify the JSON is current
 
 Every snippet runs through grading/pyrunner.py, the same runner the server
 uses, so the bank is checked in the environment that grades learners:
@@ -35,8 +40,6 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "data", "python")
-OUT = os.path.join(ROOT, "internal", "pytrack", "bank")
 RUNNER = os.path.join(ROOT, "grading", "pyrunner.py")
 BOOK = "https://jakevdp.github.io/PythonDataScienceHandbook/"
 
@@ -207,22 +210,28 @@ def build_chapter(path):
     return chapter, errors
 
 
-def chapter_files(only=None):
-    files = sorted(glob.glob(os.path.join(SRC, "[0-9][0-9]_*.py")))
+def chapter_files(only=None, include_local=True):
+    areas = ["modules"] + (["modules-local"] if include_local else [])
+    files = []
+    for area in areas:
+        files += sorted(glob.glob(os.path.join(ROOT, area, "*", "src", "[0-9][0-9]_*.py")))
     if only:
-        files = [f for f in files if only in os.path.basename(f)]
+        files = [f for f in files
+                 if only in os.path.basename(f) or only == os.path.basename(module_dir(f))]
     return files
 
 
 def out_path(src):
-    return os.path.join(OUT, os.path.basename(src)[:-3] + ".json")
+    return os.path.join(module_dir(src), "bank", os.path.basename(src)[:-3] + ".json")
 
 
-GRAPH = os.path.join(ROOT, "data", "concepts")
+def module_dir(src):
+    """modules/<id>/src/<file>.py -> modules/<id>"""
+    return os.path.dirname(os.path.dirname(src))
 
 
-def graph_path(chapter):
-    return os.path.join(GRAPH, chapter["domain"] + ".json")
+def graph_path(src, chapter):
+    return os.path.join(module_dir(src), "concepts", chapter["domain"] + ".json")
 
 
 def render_graph(chapter):
@@ -234,7 +243,7 @@ def render_graph(chapter):
             "label": c["_label"],
             "domain": chapter["domain"],
             "subdomain": chapter["domain"] + "." + c["book"]["url"].rsplit("/", 1)[-1][:-5].replace("-", "_").replace(".", "_"),
-            "grading_type": "python",
+            "grading_type": "bank",
             "prerequisites": c["_prereqs"],
             "mastery_threshold": {"streak": 4, "avg_time_seconds": chapter.get("avg_time_seconds", 120.0)},
         })
@@ -255,10 +264,17 @@ def main(argv):
         print(__doc__)
         return 2
     mode = argv[1]
-    only = argv[2] if len(argv) > 2 else None
-    os.makedirs(OUT, exist_ok=True)
+    args = [a for a in argv[2:] if not a.startswith("--")]
+    only = args[0] if args else None
+    # --public: only committed modules (the Docker image's self-test, which
+    # never sees your modules-local/).
+    include_local = "--public" not in argv
     failed = False
-    for src in chapter_files(only):
+    files = chapter_files(only, include_local)
+    if not files:
+        print("no authoring files found" + (" matching %r" % only if only else ""))
+        return 1
+    for src in files:
         chapter, errors = build_chapter(src)
         n = sum(len(c["items"]) for c in chapter["concepts"])
         for e in errors:
@@ -267,14 +283,16 @@ def main(argv):
         text = render(chapter)
         graph = render_graph(chapter)
         dst = out_path(src)
-        gdst = graph_path(chapter)
+        gdst = graph_path(src, chapter)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        os.makedirs(os.path.dirname(gdst), exist_ok=True)
         if mode == "build":
             if not errors:
                 with open(dst, "w", encoding="utf-8") as f:
                     f.write(text)
                 with open(gdst, "w", encoding="utf-8") as f:
                     f.write(graph)
-            print("%s: %d concepts, %d questions%s" % (os.path.basename(src), len(chapter["concepts"]), n,
+            print("%s: %d concepts, %d questions%s" % (os.path.relpath(src, ROOT), len(chapter["concepts"]), n,
                                                       "" if not errors else " (not written: errors)"))
         else:
             try:
@@ -286,10 +304,10 @@ def main(argv):
             except FileNotFoundError:
                 gcurrent = ""
             if current != text or gcurrent != graph:
-                print("STALE %s: run `python3 scripts/python_bank.py build`" % os.path.relpath(dst, ROOT))
+                print("STALE %s: run `python3 scripts/python_bank.py build %s`" % (os.path.relpath(dst, ROOT), os.path.basename(module_dir(src))))
                 failed = True
             else:
-                print("%s: ok (%d questions)" % (os.path.basename(src), n))
+                print("%s: ok (%d questions)" % (os.path.relpath(src, ROOT), n))
     if mode == "build" and not failed:
         # The browser bundles its own copy of the concept graph; refresh it so
         # new concepts get labels on /learn and appear in the topic browser.

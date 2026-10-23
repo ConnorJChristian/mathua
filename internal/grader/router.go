@@ -36,7 +36,7 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 		return r.tuple.grade(expected, answer)
 	case GradingComplex:
 		return r.complex.grade(expected, answer)
-	case GradingPython:
+	case GradingBank, GradingPython:
 		return gradePython(expected, answer)
 	default:
 		return r.tuple.grade(expected, answer)

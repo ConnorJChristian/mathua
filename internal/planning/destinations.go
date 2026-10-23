@@ -19,14 +19,18 @@ type Destination struct {
 }
 
 // LoadDestinations reads destination bundles from a JSON file.
-func LoadDestinations(path string) ([]*Destination, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read destinations: %w", err)
-	}
+func LoadDestinations(path string, extra ...string) ([]*Destination, error) {
 	var ds []*Destination
-	if err := json.Unmarshal(data, &ds); err != nil {
-		return nil, fmt.Errorf("parse destinations: %w", err)
+	for _, p := range append([]string{path}, extra...) {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return nil, fmt.Errorf("read destinations: %w", err)
+		}
+		var batch []*Destination
+		if err := json.Unmarshal(data, &batch); err != nil {
+			return nil, fmt.Errorf("parse destinations %s: %w", p, err)
+		}
+		ds = append(ds, batch...)
 	}
 	seen := map[string]bool{}
 	for _, d := range ds {

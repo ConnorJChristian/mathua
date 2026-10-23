@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/chuma-beep/mathua/internal/mastery"
-	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
@@ -104,16 +103,17 @@ func (e *Engine) RecommendNext(studentID string, exclude []string) (scheduler.Re
 	return e.RecommendNextTrack(studentID, exclude, "")
 }
 
-// RecommendNextTrack recommends within one track ("" is the Math track). The
-// Python track has no placement diagnostic, so it is never offered one: its
-// first concepts have no prerequisites and are open from the start.
+// RecommendNextTrack recommends within one track ("" is the math track).
 func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track string) (scheduler.RecommendationResponse, error) {
-	track = pytrack.NormalizeTrack(track)
+	track = e.NormalizeTrack(track)
+	// A track whose module says it has no placement (the Python track's first
+	// topics are open from the start) is never offered the diagnostic.
+	noPlacement := !e.Modules().HasPlacement(track)
 	sched := e.trackScheduler(track)
 	if studentID == "" {
 		return sched.Recommend(scheduler.RecommendInput{
 			Now: time.Now(), Weakness: map[string]float64{},
-			DiagnosticCompleted: track == pytrack.TrackPython,
+			DiagnosticCompleted: noPlacement,
 		}), nil
 	}
 	progress, err := e.repo.GetAllProgress(studentID)
@@ -162,7 +162,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	// guard against offering the diagnostic back as an active task; the
 	// AttemptedDays check alone is not enough, because placement deliberately
 	// seeds reachability without mastery.
-	diagnosticCompleted := track == pytrack.TrackPython
+	diagnosticCompleted := noPlacement
 	if st, err := e.repo.GetStudent(studentID); err == nil && st != nil && st.DiagnosticCompleted {
 		diagnosticCompleted = true
 	}

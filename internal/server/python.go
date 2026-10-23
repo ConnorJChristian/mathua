@@ -3,17 +3,119 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/chuma-beep/mathua/internal/pytrack"
 )
 
 // trackOf reads the track a request is scoped to. The browser sends
-// ?track=python from the Python side of the site; a request without it is the
-// Math track, which is what every client did before the Python track existed.
-func trackOf(r *http.Request) string {
-	return pytrack.NormalizeTrack(r.URL.Query().Get("track"))
+// ?track=<id> from a module's side of the site; a request without it is the
+// math track, which is what every client did before tracks existed.
+func (s *Server) trackOf(r *http.Request) string {
+	return s.eng.NormalizeTrack(r.URL.Query().Get("track"))
+}
+
+// GET /api/modules/{module}/files/{path} — a file from an enabled module's
+// files/ folder, which is where your own PDFs live (modules-local/*/files is
+// git-ignored). Readings link here so "Open section" opens your copy at the
+// right page. Only regular files under files/ are served.
+func (s *Server) handleModuleFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.Error(w, `{"error":"method not allowed"}`, 405)
+		return
+	}
+	rest := strings.TrimPrefix(r.URL.Path, "/api/modules/")
+	parts := strings.SplitN(rest, "/", 3)
+	if len(parts) != 3 || parts[1] != "files" || parts[2] == "" {
+		http.NotFound(w, r)
+		return
+	}
+	rel, err := url.PathUnescape(parts[2])
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	p := s.eng.Modules().FilePath(parts[0], path.Clean(rel))
+	if p == "" {
+		http.NotFound(w, r)
+		return
+	}
+	st, err := os.Stat(p)
+	if err != nil || !st.Mode().IsRegular() {
+		http.NotFound(w, r)
+		return
+	}
+	// Your files, for you: never cached by a shared proxy, never indexed.
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	w.Header().Set("X-Robots-Tag", "noindex")
+	http.ServeFile(w, r, p)
+}
+
+// moduleKPs is the teaching step for a module concept, which has no lesson
+// corpus: the question bank's original note, or a pointer to the section of
+// your own book to read (a module's readings.json), opened from your files.
+func (s *Server) moduleKPs(conceptID, label string) []map[string]interface{} {
+	step := func(section, body string) []map[string]interface{} {
+		return []map[string]interface{}{{
+			"label":          label,
+			"section":        section,
+			"subgoals":       []string{},
+			"worked_example": body,
+			"assets":         []interface{}{},
+		}}
+	}
+	if rd, ok := s.eng.Modules().Reading(conceptID); ok {
+		var b strings.Builder
+		if rd.Note != "" {
+			b.WriteString(rd.Note + "\n\n")
+		}
+		fmt.Fprintf(&b, "**Read first:** %s", rd.Source)
+		switch {
+		case rd.File != "":
+			link := "/api/modules/" + url.PathEscape(rd.Module) + "/files/" + escapePath(rd.File)
+			if rd.Page > 0 {
+				link += fmt.Sprintf("#page=%d", rd.Page)
+			}
+			fmt.Fprintf(&b, "\n\n[Open section](%s)", link)
+		case rd.URL != "":
+			fmt.Fprintf(&b, "\n\n[Open section](%s)", rd.URL)
+		}
+		b.WriteString("\n\nPress Next when you have read it.")
+		return step(rd.Source, b.String())
+	}
+	t, err := pytrack.Default()
+	if err != nil {
+		return nil
+	}
+	c := t.Bank.Concept(conceptID)
+	if c == nil || strings.TrimSpace(c.Intro) == "" {
+		return nil
+	}
+	body := c.Intro
+	section := c.Book.Title
+	if c.Book.URL != "" {
+		name := c.Book.Name
+		if name == "" {
+			name = "Python Data Science Handbook"
+		}
+		body += "\n\nRead more: [" + name + " §" + c.Book.Section + ", " + c.Book.Title + "](" + c.Book.URL + ")"
+		section = "§" + c.Book.Section + " " + c.Book.Title
+	}
+	return step(section, body)
+}
+
+func escapePath(p string) string {
+	segs := strings.Split(p, "/")
+	for i, s := range segs {
+		segs[i] = url.PathEscape(s)
+	}
+	return strings.Join(segs, "/")
 }
 
 // maxRunCode bounds what the Run button may send. Practice tasks are a few
@@ -71,28 +173,4 @@ func (s *Server) handlePythonRun(w http.ResponseWriter, r *http.Request) {
 		"timed_out":        res.TimedOut,
 		"time_limit":       t.Runner.TimeLimit(),
 	})
-}
-
-// pythonKPs is the teaching step for a Python concept: the bank's original
-// note and a link to the matching book section. Python concepts have no
-// lesson corpus, so without this the Learn page would open straight onto a
-// question.
-func pythonKPs(conceptID, label string) []map[string]interface{} {
-	t, err := pytrack.Default()
-	if err != nil {
-		return nil
-	}
-	c := t.Bank.Concept(conceptID)
-	if c == nil {
-		return nil
-	}
-	body := c.Intro + "\n\nRead more: [Python Data Science Handbook §" + c.Book.Section + ", " + c.Book.Title + "](" + c.Book.URL + ")"
-	return []map[string]interface{}{{
-		"label":          label,
-		"section":        "§" + c.Book.Section + " " + c.Book.Title,
-		"subgoals":       []string{},
-		"worked_example": body,
-		"assets":         []interface{}{},
-		"book_url":       c.Book.URL,
-	}}
 }

@@ -1,5 +1,5 @@
 import type { Scores } from '../lib/api'
-import { domainLabel } from '../lib/graphDomains'
+import { domainLabel } from '../lib/domains'
 
 interface ProgressSummaryProps {
   scores: Scores

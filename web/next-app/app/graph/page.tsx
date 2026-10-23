@@ -15,7 +15,7 @@ import { getScores, getGraph, getProgress, getWeaknesses, healthCheck, type Grap
 import { getUserInfo } from '../../lib/auth'
 import { useAuthState } from '../../hooks/useAuthState'
 import { deriveStatuses } from '../../lib/graphStatus'
-import { DOMAIN_ORDER, domainLabel } from '../../lib/graphDomains'
+import { allDomainOrder, domainLabel } from '../../lib/domains'
 import { createInflightCache, createSessionCache } from '../../lib/requestCache'
 import Loading from '../../components/Loading'
 
@@ -171,7 +171,7 @@ function GraphContent() {
   const domains = useMemo(() => {
     const set = new Set<string>()
     for (const c of concepts) set.add(c.domain)
-    return DOMAIN_ORDER.filter(d => set.has(d))
+    return allDomainOrder().filter(d => set.has(d))
   }, [concepts])
 
   const onPathNodes = useMemo(() => {
@@ -197,11 +197,11 @@ function GraphContent() {
     if (deepLinkHandled.current || concepts.length === 0) return
     // Not marked handled until the domain has been resolved against the canonical list, so a
     // ?domain= that has to be cleared still gets a chance to clear itself on a later pass.
-    if (domainParam && !DOMAIN_ORDER.includes(domainParam as (typeof DOMAIN_ORDER)[number])) return
+    if (domainParam && !allDomainOrder().includes(domainParam)) return
     deepLinkHandled.current = true
     // An unknown ?domain= is ignored rather than honoured: filtering on "bogus" matches no
     // concept, so the graph would render empty with no indication of why.
-    if (activeDomain && !DOMAIN_ORDER.includes(activeDomain as (typeof DOMAIN_ORDER)[number])) {
+    if (activeDomain && !allDomainOrder().includes(activeDomain)) {
       setActiveDomain(null)
     }
     if (!conceptParam || !activeDomain) return

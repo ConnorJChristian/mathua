@@ -5,6 +5,7 @@
 //
 //   code task  -> a code box prefilled with the starter, with Run and Reset
 //   output     -> a monospace field for what the snippet prints
+//   recall     -> Show answer, then "I had it" / "I missed it" (self-graded)
 //   multiple choice -> nothing here; the host's ChoiceOptions is the input
 //
 // The code box is a plain textarea on purpose. It has to work on a phone, with
@@ -13,8 +14,9 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { runPython, type PythonRunRes } from '../../lib/api'
-import { pythonKind, starterCode, taskKey } from '../../lib/pythonQuestion'
+import { pythonKind, recallBack, starterCode, taskKey } from '../../lib/pythonQuestion'
 import { Play } from '../icons'
+import KatexContent from '../KatexContent'
 
 interface Props {
   question: string
@@ -30,10 +32,57 @@ const INDENT = '    '
 export default function PythonAnswer({ question, value, onChange, onSubmit, disabled, id }: Props) {
   const kind = useMemo(() => pythonKind(question), [question])
   if (kind === 'mc') return null
+  if (kind === 'recall') {
+    return <RecallCard question={question} value={value} onChange={onChange} disabled={disabled} />
+  }
   if (kind === 'output') {
     return <OutputField value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
   }
   return <CodeBox question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
+}
+
+// A flashcard. The back is part of the served question (a flashcard has no
+// secret to keep), shown only when the learner asks; the verdict is theirs.
+function RecallCard({ question, value, onChange, disabled }: Omit<Props, 'onSubmit' | 'id'>) {
+  const [shown, setShown] = useState(false)
+  useEffect(() => setShown(false), [question])
+  const back = useMemo(() => recallBack(question), [question])
+  if (!shown) {
+    return (
+      <button
+        type="button"
+        onClick={() => setShown(true)}
+        disabled={disabled}
+        className="self-start border border-mathua-border-strong px-4 h-10 font-mono text-xs text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue disabled:opacity-50"
+      >
+        Show answer
+      </button>
+    )
+  }
+  const pick = (v: 'right' | 'wrong', label: string) => (
+    <button
+      type="button"
+      onClick={() => onChange(v)}
+      disabled={disabled}
+      aria-pressed={value === v}
+      className={`border px-4 min-h-[44px] font-mono text-xs disabled:opacity-50 ${
+        value === v ? 'border-mathua-blue text-mathua-blue' : 'border-mathua-border-strong text-mathua-primary hover:border-mathua-blue'
+      }`}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div className="w-full min-w-0">
+      <div className="border border-mathua-border bg-mathua-bg px-4 py-3">
+        <KatexContent className="text-sm text-mathua-primary">{back}</KatexContent>
+      </div>
+      <div role="group" aria-label="How did you do?" className="mt-2 flex flex-wrap gap-2">
+        {pick('right', 'I had it')}
+        {pick('wrong', 'I missed it')}
+      </div>
+    </div>
+  )
 }
 
 function OutputField({ value, onChange, onSubmit, disabled, id }: Omit<Props, 'question'>) {

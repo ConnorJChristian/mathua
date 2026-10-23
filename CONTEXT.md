@@ -7,7 +7,7 @@
 **Concept** — Atomic node in the DAG (`internal/concepts/concepts.go:8` `id/label/domain/subdomain/prerequisites/mastery_threshold`). Example: `frac.add.word` (`data/concepts/fractions.json:149`, 25.0s).  
 _Avoid_: topic (MA), lesson (maps to corpus, not node)
 
-**DAG** — Directed acyclic graph of Concepts. Hard rules: prereqs mastered before surface (`internal/concepts/concepts.go:73` `Available`), Kahn's topo order, `scripts/validate_graph.go` rejects cycles/orphans.  
+**DAG** — Directed acyclic graph of Concepts. Hard rules: prereqs mastered before surface (`internal/concepts/concepts.go:86` `Available`), Kahn's topo order, `scripts/validate_graph.go` rejects cycles/orphans.  
 _Avoid_: graph alone, knowledge map
 
 **Lesson (corpus / worked example)** — Inline worked example per KP, 10× granularity vs textbook (`improve.md:39` 300 topics ×3 KPs). Q1 locked: Lesson is corpus, not library. Rendered via `KatexContent` (`web/next-app/components/LearnStepper.tsx`) before practice, one knowledge point at a time — never the whole article (ADR-045, ADR-047). Source: `data/lessons/lessons.json:1` `teaching/*.md` + `algebrica/*.md` (`README.md:177`).  

@@ -72,9 +72,6 @@ describe('stated concept count matches the corpus', () => {
     const ids = new Set<string>()
     for (const name of readdirSync(dir)) {
       if (!name.endsWith('.json')) continue
-      // The advertised count is the mathematics curriculum's; the Python
-      // track's chapter files (python_*.json) are not part of it.
-      if (name.startsWith('python_')) continue
       const raw = JSON.parse(readFileSync(join(dir, name), 'utf-8'))
       const items = Array.isArray(raw) ? raw : (raw.concepts ?? raw.items ?? [])
       for (const c of items) {

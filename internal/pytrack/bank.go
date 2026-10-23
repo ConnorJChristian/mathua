@@ -1,34 +1,31 @@
-// Package pytrack is the "Python for Data Science" track: a question bank per
-// concept, a generator that serves it through the ordinary registry, and a
-// grader that runs code tasks against hidden tests.
+// Package pytrack serves question banks: multiple choice, "what does this
+// print", code tasks graded by hidden tests, and recall cards. A bank belongs
+// to a module (internal/modules); the Python track is modules/python-dsh.
 //
-// The concepts themselves live in data/concepts/python_*.json like every other
-// domain, so the concept graph, mastery evidence, spaced review and the
-// planner treat them exactly as they treat mathematics. Only the questions and
-// their grading are new.
+// The concepts themselves live in each module's concepts/ folder in the same
+// format as data/concepts, so the concept graph, mastery evidence, spaced
+// review and the planner treat them exactly as they treat mathematics. Only
+// the questions and their grading are new.
 //
-// The question bank is embedded in the binary (bank/*.json). Hidden tests and
-// fixtures must never reach the browser, and embedding them means the Docker
-// image cannot ship a binary without its tests.
+// Banks are read from disk at startup. Hidden tests and fixtures stay on the
+// server: the generator serves the prompt and the answer key, never a test.
 package pytrack
 
 import (
-	"embed"
 	"encoding/json"
 	"fmt"
-	"path"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
-
-//go:embed bank/*.json
-var bankFS embed.FS
 
 // Book points a concept at the matching section of the Python Data Science
 // Handbook. The book's text is CC-BY-NC-ND, so the track links to it and never
 // adapts its prose.
 type Book struct {
-	Section string `json:"section"` // "2.02"
+	Name    string `json:"name,omitempty"` // the book; defaults to the Python Data Science Handbook
+	Section string `json:"section"`        // "2.02"
 	Title   string `json:"title"`
 	URL     string `json:"url"`
 }
@@ -47,6 +44,8 @@ const (
 	KindChoice = "mc"
 	KindOutput = "output"
 	KindCode   = "code"
+	// KindRecall is a flashcard: front, back, and the learner's own verdict.
+	KindRecall = "recall"
 )
 
 // Item is one question.
@@ -71,6 +70,9 @@ type Item struct {
 	Setup    string `json:"setup,omitempty"`
 	Solution string `json:"solution,omitempty"`
 	Tests    []Test `json:"tests,omitempty"`
+
+	// Recall card.
+	Back string `json:"back,omitempty"`
 
 	Explain string `json:"explain"`
 }
@@ -97,32 +99,35 @@ type Bank struct {
 	items    map[string]*Item // "<concept>#<item>"
 }
 
-// LoadBank reads and validates the embedded bank.
-func LoadBank() (*Bank, error) {
-	entries, err := bankFS.ReadDir("bank")
-	if err != nil {
-		return nil, err
-	}
-	names := make([]string, 0, len(entries))
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
-			names = append(names, e.Name())
-		}
-	}
-	sort.Strings(names)
+// LoadBank reads and validates every *.json bank file in the given folders
+// (each module's bank/ folder), in folder order and then file-name order.
+func LoadBank(dirs ...string) (*Bank, error) {
 	b := &Bank{concepts: map[string]*Concept{}, items: map[string]*Item{}}
-	for _, name := range names {
-		raw, err := bankFS.ReadFile(path.Join("bank", name))
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
 		if err != nil {
 			return nil, err
 		}
-		var ch Chapter
-		dec := json.NewDecoder(strings.NewReader(string(raw)))
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&ch); err != nil {
-			return nil, fmt.Errorf("bank/%s: %w", name, err)
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
+				names = append(names, e.Name())
+			}
 		}
-		b.chapters = append(b.chapters, ch)
+		sort.Strings(names)
+		for _, name := range names {
+			raw, err := os.ReadFile(filepath.Join(dir, name))
+			if err != nil {
+				return nil, err
+			}
+			var ch Chapter
+			dec := json.NewDecoder(strings.NewReader(string(raw)))
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(&ch); err != nil {
+				return nil, fmt.Errorf("%s: %w", filepath.Join(dir, name), err)
+			}
+			b.chapters = append(b.chapters, ch)
+		}
 	}
 	for ci := range b.chapters {
 		ch := &b.chapters[ci]
@@ -150,8 +155,8 @@ func validateConcept(c *Concept) error {
 	if c.ID == "" {
 		return fmt.Errorf("concept with empty id")
 	}
-	if c.Book.URL == "" || c.Book.Title == "" {
-		return fmt.Errorf("concept %q has no book section", c.ID)
+	if c.Book.Title == "" {
+		return fmt.Errorf("concept %q has no source section", c.ID)
 	}
 	if len(c.Items) == 0 {
 		return fmt.Errorf("concept %q has no questions", c.ID)
@@ -169,8 +174,11 @@ func validateConcept(c *Concept) error {
 		if it.Level < 1 || it.Level > 3 {
 			return fmt.Errorf("%s: level must be 1-3", where)
 		}
-		if strings.TrimSpace(it.Prompt) == "" || strings.TrimSpace(it.Explain) == "" {
-			return fmt.Errorf("%s: prompt and explain are required", where)
+		if strings.TrimSpace(it.Prompt) == "" {
+			return fmt.Errorf("%s: prompt is required", where)
+		}
+		if it.Kind != KindRecall && strings.TrimSpace(it.Explain) == "" {
+			return fmt.Errorf("%s: explain is required", where)
 		}
 		switch it.Kind {
 		case KindChoice:
@@ -199,6 +207,13 @@ func validateConcept(c *Concept) error {
 				if strings.TrimSpace(t.Code) == "" || t.Name == "" {
 					return fmt.Errorf("%s: every test needs a name and code", where)
 				}
+			}
+		case KindRecall:
+			if strings.TrimSpace(it.Back) == "" {
+				return fmt.Errorf("%s: recall card needs a back", where)
+			}
+			if strings.Contains(it.Prompt, RecallMarker) {
+				return fmt.Errorf("%s: the front may not contain the recall marker", where)
 			}
 		default:
 			return fmt.Errorf("%s: unknown kind %q", where, it.Kind)

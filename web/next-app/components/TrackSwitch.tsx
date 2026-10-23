@@ -1,10 +1,12 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { setTrack, useTrack, type Track } from '../lib/track'
+import { TRACKS, setTrack, useTrack, type Track } from '../lib/track'
 
-// Math | Python in the header. Same site, same login, same progress store:
-// the switch only changes which concepts the pages offer (lib/track.ts).
+// The track switch in the header (Math | Python | ...). Same site, same login,
+// same progress store: the switch only changes which concepts the pages offer
+// (lib/track.ts). It lists the base math track and every track an enabled
+// module declares, and hides itself when there is only one.
 //
 // Pages that are about one concept or one session belong to the track they
 // were opened on, so switching away from them goes to the new track's Learn
@@ -17,6 +19,8 @@ export default function TrackSwitch() {
   const router = useRouter()
   const pathname = usePathname() ?? ''
 
+  if (TRACKS.length < 2) return null
+
   function choose(next: Track) {
     if (next === track) return
     setTrack(next)
@@ -28,26 +32,23 @@ export default function TrackSwitch() {
     }
   }
 
-  const option = (value: Track, label: string) => (
-    <button
-      type="button"
-      onClick={() => choose(value)}
-      aria-pressed={track === value}
-      className={`px-1.5 sm:px-2.5 min-h-[32px] font-mono text-[11px] transition-colors ${
-        track === value
-          ? 'bg-mathua-blue text-white'
-          : 'text-mathua-muted hover:text-mathua-blue'
-      }`}
-    >
-      {label}
-    </button>
-  )
-
   return (
     <div role="group" aria-label="Track" className="flex items-stretch border border-mathua-border-strong">
-      {option('math', 'Math')}
-      <span aria-hidden="true" className="w-px bg-mathua-border-strong" />
-      {option('python', 'Python')}
+      {TRACKS.map((t, i) => (
+        <span key={t.id} className="flex items-stretch">
+          {i > 0 && <span aria-hidden="true" className="w-px bg-mathua-border-strong" />}
+          <button
+            type="button"
+            onClick={() => choose(t.id)}
+            aria-pressed={track === t.id}
+            className={`px-1.5 sm:px-2.5 min-h-[32px] font-mono text-[11px] transition-colors ${
+              track === t.id ? 'bg-mathua-blue text-white' : 'text-mathua-muted hover:text-mathua-blue'
+            }`}
+          >
+            {t.label}
+          </button>
+        </span>
+      ))}
     </div>
   )
 }

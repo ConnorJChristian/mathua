@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { CONCEPT_COUNT, DOMAIN_COUNT } from '../lib/curriculumFacts'
-import { MATH_DOMAIN_ORDER, PYTHON_DOMAIN_ORDER } from '../lib/graphDomains'
+import { MATH_DOMAIN_ORDER } from '../lib/graphDomains'
 
 // The corpus is the owner of these numbers. The page copy used to say
 // "1250 concepts spanning 17 domains" long after the corpus held 21, and no
@@ -47,11 +47,12 @@ describe('curriculum facts in the copy', () => {
     expect(domains.sort()).toEqual([...MATH_DOMAIN_ORDER].sort())
   })
 
-  it('lists every Python chapter domain on disk, and only those', () => {
-    const python = [...perFile.keys()].filter((d) => d.startsWith('python_'))
-    expect(python.sort()).toEqual([...PYTHON_DOMAIN_ORDER].sort())
+  it('keeps module domains out of the base corpus', () => {
+    // Module content lives in modules/ (internal/modules), never in data/concepts,
+    // so the counts above describe the base install whatever modules are enabled.
+    const moduleish = [...perFile.keys()].filter((d) => d.startsWith('python_'))
+    expect(moduleish).toEqual([])
   })
-
   it('does not hardcode a concept count in the page copy', () => {
     // The guard above only works while the copy reads the constant. A literal
     // reintroduced into the section would keep the page wrong and keep this

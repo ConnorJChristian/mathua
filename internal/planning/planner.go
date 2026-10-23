@@ -31,17 +31,35 @@ type Planner struct {
 	destByID map[string]*Destination
 }
 
-func Load(coursesPath string, dag *concepts.DAG) (*Planner, error) {
-	data, err := os.ReadFile(coursesPath)
-	if err != nil {
-		return nil, fmt.Errorf("read courses: %w", err)
-	}
+func Load(coursesPath string, dag *concepts.DAG, extra ...string) (*Planner, error) {
 	var courses []*Course
-	if err := json.Unmarshal(data, &courses); err != nil {
-		return nil, fmt.Errorf("parse courses: %w", err)
+	for i, path := range append([]string{coursesPath}, extra...) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read courses: %w", err)
+		}
+		var batch []*Course
+		if err := json.Unmarshal(data, &batch); err != nil {
+			return nil, fmt.Errorf("parse courses %s: %w", path, err)
+		}
+		if i > 0 {
+			// A module's course must stand on the graph this install has; a
+			// target from a disabled module would otherwise plan nothing.
+			for _, c := range batch {
+				for _, t := range c.Targets {
+					if dag != nil && dag.Concept(t) == nil {
+						return nil, fmt.Errorf("course %q in %s targets unknown concept %q", c.ID, path, t)
+					}
+				}
+			}
+		}
+		courses = append(courses, batch...)
 	}
 	byID := make(map[string]*Course, len(courses))
 	for _, c := range courses {
+		if _, dup := byID[c.ID]; dup {
+			return nil, fmt.Errorf("course id %q is defined twice", c.ID)
+		}
 		byID[c.ID] = c
 	}
 	return &Planner{dag: dag, courses: courses, byID: byID}, nil

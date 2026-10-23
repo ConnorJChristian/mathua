@@ -152,3 +152,9 @@ figures/fonts/
 # scripts/copy-mathlive-fonts.mjs regenerates them on predev/prebuild out of
 # node_modules, so they are build output rather than source.
 web/next-app/public/fonts/
+
+# Your own modules (internal/modules): built from your library, never pushed.
+# Only the README explaining the folder is committed.
+modules-local/*
+!modules-local/README.md
+modules.local.json

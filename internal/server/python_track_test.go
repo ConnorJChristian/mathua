@@ -12,6 +12,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/engine"
 	"github.com/chuma-beep/mathua/internal/generator/all"
+	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/planning"
 	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -21,7 +22,11 @@ import (
 // handlers, so these tests see exactly what a learner on either track sees.
 func pythonServer(t *testing.T) *http.ServeMux {
 	t.Helper()
-	dag, err := concepts.LoadDir("../../data/concepts")
+	mods, err := modules.Load("../..")
+	if err != nil {
+		t.Fatalf("modules: %v", err)
+	}
+	dag, err := concepts.LoadDirs("../../data/concepts", mods.ConceptDirs()...)
 	if err != nil {
 		t.Fatalf("corpus: %v", err)
 	}
@@ -31,7 +36,9 @@ func pythonServer(t *testing.T) *http.ServeMux {
 	}
 	t.Cleanup(func() { store.Close() })
 	ll := miniLessons(t, map[string]string{"arith.add.basic": "Adding."})
-	s := New(engine.New(store, dag, all.Registry(), ll, planning.New(dag)), store, auth.New(store))
+	eng := engine.New(store, dag, all.Registry(), ll, planning.New(dag))
+	eng.SetModules(mods)
+	s := New(eng, store, auth.New(store))
 	mux := http.NewServeMux()
 	s.Register(mux)
 	return mux
@@ -63,7 +70,7 @@ func TestPythonTrack_DomainsAreSeparated(t *testing.T) {
 		}
 		for _, d := range ds {
 			id, _ := d.(map[string]interface{})["id"].(string)
-			if pytrack.IsPythonDomain(id) != tc.wantPython {
+			if strings.HasPrefix(id, "python_") != tc.wantPython {
 				t.Errorf("domains%s lists %q", tc.query, id)
 			}
 		}
@@ -234,5 +241,20 @@ func TestPythonTrack_RunEndpoint(t *testing.T) {
 	code, res = postJSON(t, mux, "/api/python/run", `{"code":"print(raw)","task":"code:py.np.dtypes#c2"}`)
 	if code != 200 || !strings.Contains(res["stdout"].(string), "7.9") {
 		t.Fatalf("run with fixture: %d %v", code, res)
+	}
+}
+
+func TestModuleFilesStayInsideFiles(t *testing.T) {
+	mux := pythonServer(t)
+	for _, p := range []string{
+		"/api/modules/python-dsh/files/../module.json",
+		"/api/modules/python-dsh/files/%2e%2e/module.json",
+		"/api/modules/python-dsh/module.json",
+		"/api/modules/nope/files/x.pdf",
+	} {
+		rec := authedGet(t, mux, p, "")
+		if rec.Code == 200 {
+			t.Errorf("%s served a file outside files/", p)
+		}
 	}
 }

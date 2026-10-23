@@ -21,6 +21,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/engine"
 	"github.com/chuma-beep/mathua/internal/generator/all"
 	"github.com/chuma-beep/mathua/internal/lessons"
+	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/planning"
 	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/repair"
@@ -186,7 +187,19 @@ func main() {
 		}
 	}
 
-	dag, err := concepts.LoadDir(dataPath("concepts"))
+	// The base corpus plus every enabled module's concepts (internal/modules).
+	mods, err := modules.Default()
+	if err != nil {
+		log.Fatalf("modules: %v", err)
+	}
+	for _, m := range mods.Modules {
+		where := "modules"
+		if m.Local {
+			where = "modules-local"
+		}
+		fmt.Printf("module %s (%s): %s\n", m.ID, where, m.Name)
+	}
+	dag, err := concepts.LoadDirs(dataPath("concepts"), mods.ConceptDirs()...)
 	if err != nil {
 		log.Fatalf("load concepts: %v", err)
 	}
@@ -249,14 +262,14 @@ func main() {
 	// with nothing logged, and every /api/destinations/{id}/estimate then answered 404
 	// "planner unavailable". From the learner's side that was a planner page with an empty
 	// dropdown and no message. Fail loudly instead.
-	planner, err := planning.Load(dataPath("courses.json"), dag)
+	planner, err := planning.Load(dataPath("courses.json"), dag, mods.CourseFiles()...)
 	if err != nil {
 		log.Printf("WARNING: course catalog unavailable (%v) — the learning planner and every "+
 			"destination estimate will be unavailable. Set MATHUA_DATA_DIR if the data "+
 			"directory is not next to the binary or the working directory", err)
 	}
 	if planner != nil {
-		if ds, err := planning.LoadDestinations(dataPath("destinations.json")); err != nil {
+		if ds, err := planning.LoadDestinations(dataPath("destinations.json"), mods.DestinationFiles()...); err != nil {
 			log.Printf("WARNING: destinations unavailable (%v) — destination estimates will "+
 				"return 404 until this is fixed", err)
 		} else {

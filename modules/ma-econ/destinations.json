@@ -1,0 +1,11 @@
+[
+  {
+    "id": "ma-econ",
+    "name": "MA Economics: Math & Statistical Learning",
+    "description": "Math for Economists plus Statistical Learning, with prerequisites pulled in automatically. No trigonometry required.",
+    "courses": [
+      "econ5153",
+      "statlearn"
+    ]
+  }
+]

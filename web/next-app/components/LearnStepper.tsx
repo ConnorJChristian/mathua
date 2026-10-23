@@ -794,7 +794,11 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                 <div className="mt-3">
                   <p className={`font-mono text-xs ${qe.feedback.correct ? 'text-green-400' : 'text-red-400'}`}>
                     {qe.feedback.correct ? `✓ ${qe.feedback.xp ? `+${qe.feedback.xp} XP` : 'Correct'}` : '✗ Not quite.'}{' '}
-                    <span className="text-mathua-muted">{pyKind === 'code' ? 'checked against the hidden tests' : `you answered “${isPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
+                    <span className="text-mathua-muted">{pyKind === 'code'
+                        ? 'checked against the hidden tests'
+                        : pyKind === 'recall'
+                          ? qe.answer === 'right' ? 'you had it' : 'you marked it missed'
+                          : `you answered “${isPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
                   </p>
                   {pyKind === 'code' && (
                     <details className="mt-1.5" open={!qe.feedback.correct}>

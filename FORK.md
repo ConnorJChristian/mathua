@@ -1,7 +1,11 @@
 # MA Economics fork
 
-This fork adds two courses and one destination on top of upstream Mathua. It
-adds no new concepts or generators: everything uses the existing graph.
+This fork is upstream Mathua plus **modules**. The base install (engine, web
+app, mathematics corpus) is unchanged; everything this fork adds lives in a
+module folder that can be switched off. See "Modules" below.
+
+The `ma-econ` module adds two courses and one destination. It adds no new
+concepts or generators: everything uses the existing graph.
 
 | ID | Course | Targets | Concepts incl. prerequisites |
 |---|---|---|---|
@@ -77,27 +81,64 @@ Topics you mastered yourself keep their own review schedule.
 
 ## Editing the courses
 
-Courses live in `data/courses.json` as a list of target concept IDs, and are read
-at startup. Restart the server after editing. Concept IDs are in
-`data/concepts/*.json`. Run `go run scripts/validate_graph.go` after any change.
+These courses live in `modules/ma-econ/courses.json` (the destination in
+`destinations.json` beside it) as lists of target concept IDs, read at startup.
+Restart the server after editing. Concept IDs are in `data/concepts/*.json`.
+Run `go run scripts/validate_graph.go` after any change.
+
+## Modules
+
+```
+data/                 upstream Mathua's corpus (unchanged)
+modules/              committed modules: original content, safe to push
+  ma-econ/            the two courses and the MA Economics destination
+  python-dsh/         the Python for Data Science track
+modules-local/        your own modules: git-ignored, never pushed
+modules.local.json    {"disabled": ["..."]}: switch modules off (git-ignored)
+```
+
+A module is a folder with a `module.json` and any of `concepts/`, `bank/`,
+`readings.json`, `courses.json`, `destinations.json` and `files/`. The
+server and the web build read every enabled module. A module can declare a
+**track**, which adds an option to the header switch (Math | Python | ...).
+`modules-local/README.md` shows the layout.
+
+Use `modules-local/` for anything made from your own books, notes or Anki
+decks. Its topics can point at the section to read with `readings.json`.
+Learn then shows **Open section**, which opens your PDF from `files/` at that
+page through your local server. The questions come from the module's bank.
+
+Add, remove or switch off a module, then rebuild:
+
+```bash
+docker compose up --build
+```
+
+The rebuild is needed because the web app bundles the concept list.
+`make local` includes your local modules too. It rewrites
+`web/next-app/data/concepts.json`, so run `go run ./scripts/merge_concepts`
+before you commit. A test fails if local module content is committed.
 
 ## Python for Data Science track
 
-The header has a **Math | Python** switch. Same site, same login, same XP and
-review schedule. The switch only changes which topics the Learn shelf, the
-topic browser, reviews and the quiz offer.
+The `python-dsh` module adds the **Python** side of the header switch. Same
+site, same login, same XP and review schedule. The switch only changes which
+topics the Learn shelf, the topic browser, reviews and the quiz offer.
 
-The Python track follows the five chapters of Jake VanderPlas's *Python Data
-Science Handbook*. Every topic links to its book section. The questions and
-notes are original: the book's text is CC-BY-NC-ND, so nothing here adapts it.
+The track follows the five chapters of Jake VanderPlas's *Python Data Science
+Handbook*. Every topic links to its book section. The questions and notes are
+original: the book's text is CC-BY-NC-ND, so nothing here adapts it.
 
-| Chapter | Domain | Status |
-|---|---|---|
-| 1. IPython | `python_ipython` | 9 topics, 60 questions |
-| 2. NumPy | `python_numpy` | 20 topics, 127 questions |
-| 3. Pandas | `python_pandas` | 18 topics, 114 questions |
-| 4. Matplotlib | `python_matplotlib` | 15 topics, 92 questions |
-| 5. Machine Learning | `python_ml` | 16 topics, 114 questions |
+| Chapter | Domain | Topics | Questions |
+|---|---|---|---|
+| 1. IPython | `python_ipython` | 9 | 60 |
+| 2. NumPy | `python_numpy` | 20 | 127 |
+| 3. Pandas | `python_pandas` | 18 | 114 |
+| 4. Matplotlib | `python_matplotlib` | 15 | 92 |
+| 5. Machine Learning | `python_ml` | 16 | 114 |
+
+Section 5.14 (image features) is not covered: it needs scikit-image. Section
+4.14 (Seaborn) uses pandas plotting, because Seaborn is not installed.
 
 Each topic mixes three kinds of question:
 
@@ -106,6 +147,9 @@ Each topic mixes three kinds of question:
   matter; everything else does.
 - **Code tasks.** Write code in the box. **Run** shows output and plots.
   **Check** grades it against hidden tests on the server.
+
+A question bank can also hold **recall cards**, which work like flashcards.
+You answer in your head, reveal the back, then mark whether you had it.
 
 The Python track has no placement test. Its first topics have no
 prerequisites. Mastering a topic credits the topics below it, as on the math
@@ -126,20 +170,20 @@ in `grading/requirements-python.txt`.
 
 ### Editing the questions
 
-Questions are written in `data/python/<NN>_<chapter>.py`, one file per
-chapter. Build them with the pinned libraries installed:
+Questions are written in `modules/<id>/src/<NN>_<chapter>.py`, one file per
+chapter (`modules-local/` works the same way). Build them with the pinned
+libraries installed:
 
 ```bash
-python3 scripts/python_bank.py build           # all chapters
-python3 scripts/python_bank.py build numpy     # one chapter
+python3 scripts/python_bank.py build             # every module
+python3 scripts/python_bank.py build python-dsh  # one module
+python3 scripts/python_bank.py build numpy       # one chapter
 ```
 
 The build runs every snippet. It computes the expected output of each "what
 does this print" question, checks that each reference solution passes its
-hidden tests and that each starter fails them, and writes:
-
-- `internal/pytrack/bank/*.json`: the question bank, embedded in the server.
-- `data/concepts/python_*.json`: the topics and their prerequisites.
+hidden tests and that each starter fails them, and writes the module's
+`bank/*.json` and `concepts/*.json`.
 
 Then rebuild the image. The image build runs
 `python3 scripts/python_bank.py check` and fails if a stored output no longer

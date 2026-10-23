@@ -58,6 +58,10 @@ describe('every API route has a caller', () => {
       // the client fetches whatever URL it was given and never names the route.
       ['/api/avatar/u/', 'avatar URL is built server-side and fetched as given'],
       ['/api/efficacy/all', 'fetched by the efficacy page'],
+      // A module reading's "Open section" link, built server-side into the
+      // teaching step (internal/server/python.go moduleKPs) and opened by the
+      // browser as a page, never fetch()ed.
+      ['/api/modules/', 'reading links are built server-side and opened as pages'],
       ['/api/efficacy/trend', 'fetched by the efficacy page'],
       // OAuth providers: the login page offers Google only, but the server
       // registers drivers for all five. Registered and tested server-side,

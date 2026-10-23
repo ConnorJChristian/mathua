@@ -9,6 +9,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import rehypeCollapseEmptyColumns from '../lib/rehypeCollapseEmptyColumns'
 import 'katex/dist/katex.min.css'
 import { lessonMacros, prepareLessonMath } from '../lib/lessonMath'
+import { API_BASE } from '../lib/apiBase'
 
 // Resolve a lesson-image reference to a served URL.
 //
@@ -162,7 +163,9 @@ export default function KatexContent({ children, className = '', externalLinks =
    * Render https links as real links that open in a new tab. Off by default:
    * lesson text links to its scraped source pages, which are not where a
    * learner should go mid-question. The Python track turns it on for its links
-   * to the Python Data Science Handbook, which are the point of those links.
+   * to the Python Data Science Handbook, which are the point of those links,
+   * and for module readings, whose "Open section" opens your own copy of a
+   * book from the local server (/api/modules/...).
    */
   externalLinks?: boolean
 }) {
@@ -202,8 +205,8 @@ export default function KatexContent({ children, className = '', externalLinks =
           // override: spreading it would render node="[object Object]" on each
           // heading, so it is destructured out and dropped here.
           a: ({ children, href }) =>
-            externalLinks && typeof href === 'string' && href.startsWith('https://') ? (
-              <a href={href} target="_blank" rel="noopener noreferrer" className="text-mathua-blue underline underline-offset-2">
+            externalLinks && typeof href === 'string' && (href.startsWith('https://') || href.startsWith('/api/modules/')) ? (
+              <a href={href.startsWith('/api/') ? API_BASE + href : href} target="_blank" rel="noopener noreferrer" className="text-mathua-blue underline underline-offset-2">
                 {children}
               </a>
             ) : (

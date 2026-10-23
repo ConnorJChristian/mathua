@@ -39,14 +39,49 @@ if (!existsSync(conceptsDir) && !process.argv.includes('--require-source')) {
   process.exit(0)
 }
 
-function loadRaw() {
-  const files = readdirSync(conceptsDir)
+function readDir(dir) {
+  const raw = []
+  const files = readdirSync(dir)
     .filter(f => f.endsWith('.json') && f !== 'enrichment.json')
     .sort()
-  const raw = []
-  for (const f of files) {
-    raw.push(...JSON.parse(readFileSync(join(conceptsDir, f), 'utf8')))
+  for (const f of files) raw.push(...JSON.parse(readFileSync(join(dir, f), 'utf8')))
+  return raw
+}
+
+// Module concept folders in the server's order (internal/modules: committed
+// modules, then modules-local/, each by id; disabled ones skipped). Local
+// modules are included only when MATHUA_INCLUDE_LOCAL_MODULES=1, so the
+// committed artifact never carries them.
+function moduleConceptDirs() {
+  const repo = join(root, '..', '..')
+  let disabled = []
+  try {
+    disabled = JSON.parse(readFileSync(join(repo, 'modules.local.json'), 'utf8')).disabled ?? []
+  } catch {}
+  const areas = ['modules']
+  if (process.env.MATHUA_INCLUDE_LOCAL_MODULES === '1') areas.push('modules-local')
+  const out = []
+  for (const area of areas) {
+    const base = join(repo, area)
+    if (!existsSync(base)) continue
+    const mods = []
+    for (const name of readdirSync(base)) {
+      if (name.startsWith('.') || name.startsWith('_')) continue
+      const manifest = join(base, name, 'module.json')
+      if (!existsSync(manifest)) continue
+      const id = JSON.parse(readFileSync(manifest, 'utf8')).id || name
+      if (disabled.includes(id)) continue
+      if (existsSync(join(base, name, 'concepts'))) mods.push({ id, dir: join(base, name, 'concepts') })
+    }
+    mods.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    out.push(...mods.map(m => m.dir))
   }
+  return out
+}
+
+function loadRaw() {
+  const raw = readDir(conceptsDir)
+  for (const dir of moduleConceptDirs()) raw.push(...readDir(dir))
   return raw
 }
 

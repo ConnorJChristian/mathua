@@ -1,5 +1,5 @@
 import { countByDomain, masteryState, prereqMet } from './progress'
-import { DOMAIN_ORDER, domainLabel } from './graphDomains'
+import { allDomainOrder, domainLabel } from './domains'
 import type { ConceptRecord } from './conceptData'
 import type { ConceptProgress } from './api'
 
@@ -65,7 +65,7 @@ function statusOf(p: ConceptProgress | undefined, unlocked: boolean): DomainConc
 }
 
 /**
- * Build one row per domain, in DOMAIN_ORDER.
+ * Build one row per domain: base domains, then module domains (lib/domains).
  *
  * `catalogue` is the full concept list; domains with no concepts are skipped rather than shown
  * as empty rows, so a domain that does not exist cannot appear as a 0% bar.
@@ -85,7 +85,7 @@ export function buildDomainRows(
   }
 
   const rows: DomainRow[] = []
-  for (const domain of DOMAIN_ORDER) {
+  for (const domain of allDomainOrder()) {
     const count = counts.get(domain)
     if (!count) continue
     const members = byDomain.get(domain) ?? []

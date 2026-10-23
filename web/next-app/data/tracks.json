@@ -1,0 +1,27 @@
+{
+  "domain_labels": {
+    "python_ipython": "Ch 1 · IPython",
+    "python_matplotlib": "Ch 4 · Matplotlib",
+    "python_ml": "Ch 5 · Machine Learning",
+    "python_numpy": "Ch 2 · NumPy",
+    "python_pandas": "Ch 3 · Pandas"
+  },
+  "tracks": [
+    {
+      "id": "math",
+      "label": "Math",
+      "domains": []
+    },
+    {
+      "id": "python",
+      "label": "Python",
+      "domains": [
+        "python_ipython",
+        "python_numpy",
+        "python_pandas",
+        "python_matplotlib",
+        "python_ml"
+      ]
+    }
+  ]
+}

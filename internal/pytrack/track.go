@@ -14,36 +14,8 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
+	"github.com/chuma-beep/mathua/internal/modules"
 )
-
-// Track names. A concept belongs to the Python track when its domain starts
-// with DomainPrefix; everything else is the Math track.
-const (
-	TrackMath    = "math"
-	TrackPython  = "python"
-	DomainPrefix = "python_"
-)
-
-// IsPythonDomain reports whether a concept domain belongs to the Python track.
-func IsPythonDomain(domain string) bool { return strings.HasPrefix(domain, DomainPrefix) }
-
-// TrackOfDomain names the track a domain belongs to.
-func TrackOfDomain(domain string) string {
-	if IsPythonDomain(domain) {
-		return TrackPython
-	}
-	return TrackMath
-}
-
-// NormalizeTrack maps a request parameter onto a track. Anything that is not
-// "python" is the Math track, so a client that never sends the parameter keeps
-// the behaviour it had before the Python track existed.
-func NormalizeTrack(s string) string {
-	if strings.EqualFold(strings.TrimSpace(s), TrackPython) {
-		return TrackPython
-	}
-	return TrackMath
-}
 
 // Answer prefixes. The served answer says which kind of question it was, so
 // one grading type can cover all three and every serve path (Learn, review,
@@ -52,7 +24,14 @@ const (
 	prefixChoice = "mc:"
 	prefixOutput = "out:"
 	prefixCode   = "code:"
+	prefixRecall = "recall:"
 )
+
+// RecallMarker separates a recall card's front from its back in the served
+// question. The client shows the front, reveals the back on request, and
+// submits the learner's own verdict: "right" or "wrong". A recall card is a
+// flashcard, so the back necessarily reaches the browser.
+const RecallMarker = "<!--recall-back-->"
 
 // StarterFence is the info string that marks a code task's starter code in
 // the question Markdown. The client turns that block into the code box.
@@ -70,11 +49,16 @@ var (
 	defaultErr   error
 )
 
-// Default is the process-wide track: the embedded bank and a runner configured
-// from the environment.
+// Default is the process-wide track: the enabled modules' banks and a runner
+// configured from the environment.
 func Default() (*Track, error) {
 	defaultOnce.Do(func() {
-		b, err := LoadBank()
+		mods, err := modules.Default()
+		if err != nil {
+			defaultErr = err
+			return
+		}
+		b, err := LoadBank(mods.BankDirs()...)
 		if err != nil {
 			defaultErr = err
 			return
@@ -143,18 +127,37 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 
 // Problem renders one item as a served question.
 func (t *Track) Problem(c *Concept, it *Item) generator.Problem {
-	book := fmt.Sprintf("Read more: [Python Data Science Handbook §%s, %s](%s)", c.Book.Section, c.Book.Title, c.Book.URL)
+	book := ""
+	if c.Book.URL != "" {
+		name := c.Book.Name
+		if name == "" {
+			name = "Python Data Science Handbook"
+		}
+		book = fmt.Sprintf("Read more: [%s §%s, %s](%s)", name, c.Book.Section, c.Book.Title, c.Book.URL)
+	}
 	switch it.Kind {
 	case KindChoice:
 		q := strings.TrimSpace(it.Prompt)
 		for i, o := range stableOptions(c.ID, it) {
 			q += fmt.Sprintf("\n\n%c) %s", 'A'+i, o)
 		}
-		return generator.Problem{Question: q, Answer: prefixChoice + it.Correct, Explanation: strings.TrimSpace(it.Explain) + "\n\n" + book}
+		return generator.Problem{Question: q, Answer: prefixChoice + it.Correct, Explanation: joinNonEmpty(strings.TrimSpace(it.Explain), book)}
 	case KindOutput:
 		q := strings.TrimSpace(it.Prompt) + "\n\n```python\n" + strings.TrimRight(it.Code, "\n") + "\n```"
-		exp := strings.TrimSpace(it.Explain) + "\n\nIt prints:\n\n```text\n" + strings.TrimRight(it.Expected, "\n") + "\n```\n\n" + book
+		exp := joinNonEmpty(strings.TrimSpace(it.Explain)+"\n\nIt prints:\n\n```text\n"+strings.TrimRight(it.Expected, "\n")+"\n```", book)
 		return generator.Problem{Question: q, Answer: prefixOutput + it.Expected, Explanation: exp}
+	case KindRecall:
+		q := strings.TrimSpace(it.Prompt) + "\n\n" + RecallMarker + "\n\n" + strings.TrimSpace(it.Back)
+		exp := strings.TrimSpace(it.Back)
+		if strings.TrimSpace(it.Explain) != "" {
+			exp += "\n\n" + strings.TrimSpace(it.Explain)
+		}
+		if c.Book.URL != "" {
+			exp += "\n\n" + book
+		} else if c.Book.Title != "" {
+			exp += "\n\nSource: " + c.Book.Title
+		}
+		return generator.Problem{Question: q, Answer: prefixRecall + itemKey(c.ID, it.ID), Explanation: exp}
 	default: // KindCode
 		starter := strings.TrimRight(it.Starter, "\n")
 		if starter == "" {
@@ -166,7 +169,7 @@ func (t *Track) Problem(c *Concept, it *Item) generator.Problem {
 		// secret: the tests it points at never leave the server.
 		key := itemKey(c.ID, it.ID)
 		q := strings.TrimSpace(it.Prompt) + "\n\n```" + StarterFence + " task=" + key + "\n" + starter + "\n```"
-		exp := strings.TrimSpace(it.Explain) + "\n\nOne solution:\n\n```python\n" + strings.TrimRight(it.Solution, "\n") + "\n```\n\n" + book
+		exp := joinNonEmpty(strings.TrimSpace(it.Explain)+"\n\nOne solution:\n\n```python\n"+strings.TrimRight(it.Solution, "\n")+"\n```", book)
 		return generator.Problem{Question: q, Answer: prefixCode + key, Explanation: exp}
 	}
 }
@@ -210,6 +213,15 @@ func (t *Track) Grade(expected, answer string) grader.Result {
 			return grader.Result{Correct: true, Score: 1}
 		}
 		return grader.Result{Feedback: "That is not what the code prints"}
+	case strings.HasPrefix(expected, prefixRecall):
+		switch strings.ToLower(strings.TrimSpace(answer)) {
+		case "right":
+			return grader.Result{Correct: true, Score: 1}
+		case "wrong":
+			return grader.Result{Feedback: "Marked as missed"}
+		default:
+			return grader.Result{Feedback: "Reveal the answer, then mark whether you had it"}
+		}
 	case strings.HasPrefix(expected, prefixCode):
 		return t.gradeCode(strings.TrimPrefix(expected, prefixCode), answer)
 	default:
@@ -277,6 +289,16 @@ func (t *Track) verdict(res *Result) grader.Result {
 		Feedback:  b.String(),
 		Diagnosis: diag,
 	}
+}
+
+func joinNonEmpty(parts ...string) string {
+	var out []string
+	for _, p := range parts {
+		if strings.TrimSpace(p) != "" {
+			out = append(out, p)
+		}
+	}
+	return strings.Join(out, "\n\n")
 }
 
 func lastLine(s string) string {

@@ -12,11 +12,16 @@
 
 import { parseChoices } from './choices'
 
-export type PythonKind = 'code' | 'mc' | 'output'
+export type PythonKind = 'code' | 'mc' | 'output' | 'recall'
+
+// A recall card (a flashcard, e.g. imported from Anki): front, then this
+// marker, then the back. internal/pytrack/track.go RecallMarker.
+export const RECALL_MARKER = '<!--recall-back-->'
 
 const STARTER_RE = /\n*```python starter(?: task=([^\s`]+))?\n([\s\S]*?)\n```[ \t]*/
 
 export function pythonKind(question: string): PythonKind {
+  if (question.includes(RECALL_MARKER)) return 'recall'
   if (STARTER_RE.test(question)) return 'code'
   if (parseChoices(question)) return 'mc'
   return 'output'
@@ -42,6 +47,8 @@ const OPTIONS_RE = /\n\nA\)\s[\s\S]*$/
  * options into the choice buttons, so neither is printed twice.
  */
 export function displayQuestion(question: string): string {
+  const cut = question.indexOf(RECALL_MARKER)
+  if (cut >= 0) return question.slice(0, cut).trimEnd()
   let q = question.replace(STARTER_RE, '')
   if (parseChoices(q)) q = q.replace(OPTIONS_RE, '')
   return q.trimEnd()
@@ -56,8 +63,14 @@ export function plainAnswer(s: string): string {
  * The served answer as a learner should read it after answering. Code tasks have
  * no single answer (the explanation shows one solution), so they return ''.
  */
+/** A recall card's back, revealed on request. */
+export function recallBack(question: string): string {
+  const cut = question.indexOf(RECALL_MARKER)
+  return cut >= 0 ? question.slice(cut + RECALL_MARKER.length).trim() : ''
+}
+
 export function displayAnswer(answer: string): string {
-  if (answer.startsWith('code:')) return ''
+  if (answer.startsWith('code:') || answer.startsWith('recall:')) return ''
   if (answer.startsWith('mc:')) return answer.slice(3)
   if (answer.startsWith('out:')) return answer.slice(4)
   return answer
@@ -67,6 +80,8 @@ export function pythonHint(kind: PythonKind, timeLimit = 8): string {
   switch (kind) {
     case 'code':
       return `Run to try your code, then Check to grade it against hidden tests (${timeLimit}-second limit). Ctrl+Enter checks.`
+    case 'recall':
+      return 'Answer in your head, reveal the back, then say honestly whether you had it.'
     case 'mc':
       return 'Pick one option, then Check.'
     default:
@@ -74,4 +89,8 @@ export function pythonHint(kind: PythonKind, timeLimit = 8): string {
   }
 }
 
-export const isPythonGrading = (gradingType?: string | null) => gradingType === 'python'
+/**
+ * Question-bank concepts (internal/pytrack): the Python track and any module's
+ * banks, including imported recall cards. "python" is the type's original name.
+ */
+export const isPythonGrading = (gradingType?: string | null) => gradingType === 'bank' || gradingType === 'python'

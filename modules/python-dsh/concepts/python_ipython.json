@@ -4,7 +4,7 @@
     "label": "Help, docstrings and source with ? and ??",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_01_help_and_documentation",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [],
     "mastery_threshold": {
       "streak": 4,
@@ -16,7 +16,7 @@
     "label": "Tab completion and wildcard search",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_01_help_and_documentation",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [
       "py.ipy.help"
     ],
@@ -30,7 +30,7 @@
     "label": "Keyboard shortcuts and history search",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_02_shell_keyboard_shortcuts",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [
       "py.ipy.help"
     ],
@@ -44,7 +44,7 @@
     "label": "Magic commands: %run, %timeit, %lsmagic",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_03_magic_commands",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [
       "py.ipy.help"
     ],
@@ -58,7 +58,7 @@
     "label": "Input and output history: In, Out and _",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_04_input_output_history",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [
       "py.ipy.magics"
     ],
@@ -72,7 +72,7 @@
     "label": "Shell commands with ! and %cd",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_05_ipython_and_shell_commands",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [
       "py.ipy.magics"
     ],
@@ -86,7 +86,7 @@
     "label": "Tracebacks, %xmode and %debug",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_06_errors_and_debugging",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [
       "py.ipy.magics"
     ],
@@ -100,7 +100,7 @@
     "label": "Timing code with %timeit and %time",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_07_timing_and_profiling",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [
       "py.ipy.magics"
     ],
@@ -114,7 +114,7 @@
     "label": "Profiling with %prun, %lprun and %memit",
     "domain": "python_ipython",
     "subdomain": "python_ipython.01_07_timing_and_profiling",
-    "grading_type": "python",
+    "grading_type": "bank",
     "prerequisites": [
       "py.ipy.timing",
       "py.ipy.errors"

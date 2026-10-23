@@ -36,6 +36,19 @@ type DAG struct {
 	interferersOf map[string][]*Concept
 }
 
+// Empty is a graph with no concepts: the view of a track whose module is
+// enabled but contributes nothing to this graph.
+func Empty() *DAG {
+	return &DAG{
+		concepts:      map[string]*Concept{},
+		prereqsOf:     map[string][]*Concept{},
+		dependentsOf:  map[string][]*Concept{},
+		encompassedBy: map[string][]*Concept{},
+		encompassesOf: map[string][]*Concept{},
+		interferersOf: map[string][]*Concept{},
+	}
+}
+
 func (d *DAG) Concepts() map[string]*Concept {
 	c := make(map[string]*Concept, len(d.concepts))
 	for k, v := range d.concepts {

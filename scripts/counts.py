@@ -69,8 +69,7 @@ def compute() -> dict:
     by_domain: dict[str, int] = {}
     total = 0
     for f in sorted(glob.glob(os.path.join(ROOT, "data/concepts/*.json"))):
-        if os.path.basename(f) == "enrichment.json" or os.path.basename(f).startswith("python_"):
-            # The Python track is documented in FORK.md, not in the corpus tables.
+        if os.path.basename(f) == "enrichment.json":
             continue
         for c in json.load(open(f)):
             if "id" in c:

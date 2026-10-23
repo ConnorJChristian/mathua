@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -13,26 +12,12 @@ func TestLoad_Valid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected load error: %v", err)
 	}
-	// The mathematics corpus is pinned at 1250. The Python track's concepts
-	// (domains python_*) are generated from data/python by
-	// scripts/python_bank.py and grow chapter by chapter, so they are counted
-	// separately rather than folded into the pinned number.
-	math, python := 0, 0
-	for _, c := range d.Order() {
-		if strings.HasPrefix(c.Domain, "python_") {
-			python++
-		} else {
-			math++
-		}
+	if d.Count() != 1250 {
+		t.Errorf("expected 1250 concepts, got %d", d.Count())
 	}
-	if math != 1250 {
-		t.Errorf("expected 1250 mathematics concepts, got %d", math)
-	}
-	if d.Count() != math+python {
-		t.Errorf("expected %d concepts, got %d", math+python, d.Count())
-	}
-	if len(d.Order()) != d.Count() {
-		t.Errorf("expected %d in topo order, got %d", d.Count(), len(d.Order()))
+
+	if len(d.Order()) != 1250 {
+		t.Errorf("expected 1250 in topo order, got %d", len(d.Order()))
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/generator"
+	"github.com/chuma-beep/mathua/internal/modules"
 )
 
 func repoRoot(t *testing.T) string {
@@ -18,9 +19,18 @@ func repoRoot(t *testing.T) string {
 	return filepath.Join(filepath.Dir(file), "..", "..")
 }
 
+func repoModules(t *testing.T) *modules.Set {
+	t.Helper()
+	m, err := modules.Load(repoRoot(t))
+	if err != nil {
+		t.Fatalf("modules: %v", err)
+	}
+	return m
+}
+
 func loadTrack(t *testing.T) *Track {
 	t.Helper()
-	b, err := LoadBank()
+	b, err := LoadBank(repoModules(t).BankDirs()...)
 	if err != nil {
 		t.Fatalf("bank: %v", err)
 	}
@@ -34,25 +44,24 @@ func loadTrack(t *testing.T) *Track {
 // no questions or have questions nobody can reach.
 func TestBankMatchesConceptGraph(t *testing.T) {
 	tr := loadTrack(t)
-	dag, err := concepts.LoadDir(filepath.Join(repoRoot(t), "data", "concepts"))
+	mods := repoModules(t)
+	dag, err := concepts.LoadDirs(filepath.Join(repoRoot(t), "data", "concepts"), mods.ConceptDirs()...)
 	if err != nil {
 		t.Fatalf("graph: %v", err)
 	}
 	inGraph := map[string]bool{}
 	for _, c := range dag.Order() {
-		if !IsPythonDomain(c.Domain) {
+		if c.GradingType != "python" && c.GradingType != "bank" {
 			continue
 		}
 		inGraph[c.ID] = true
 		if tr.Bank.Concept(c.ID) == nil {
 			t.Errorf("graph concept %s has no question bank", c.ID)
 		}
-		if c.GradingType != "python" {
-			t.Errorf("%s: grading_type %q, want python", c.ID, c.GradingType)
-		}
+		track := mods.TrackOf(c.Domain)
 		for _, p := range c.Prerequisites {
-			if pc := dag.Concept(p); pc != nil && !IsPythonDomain(pc.Domain) {
-				t.Errorf("%s: prerequisite %s is outside the Python track; the track must stand on its own", c.ID, p)
+			if pc := dag.Concept(p); pc != nil && mods.TrackOf(pc.Domain) != track {
+				t.Errorf("%s: prerequisite %s is on another track; a track must stand on its own", c.ID, p)
 			}
 		}
 	}
@@ -79,7 +88,7 @@ func TestBankVariety(t *testing.T) {
 		if len(c.Items) < 4 {
 			t.Errorf("%s: %d questions, want at least 4", id, len(c.Items))
 		}
-		if kinds[KindChoice] == 0 || kinds[KindOutput] == 0 {
+		if kinds[KindRecall] == 0 && (kinds[KindChoice] == 0 || kinds[KindOutput] == 0) {
 			t.Errorf("%s: needs both multiple-choice and output questions (have %v)", id, kinds)
 		}
 		if strings.TrimSpace(c.Intro) == "" {
@@ -159,15 +168,6 @@ func TestNormalizeOutput(t *testing.T) {
 		if NormalizeOutput(c[0]) == NormalizeOutput(c[1]) {
 			t.Errorf("%q and %q should differ", c[0], c[1])
 		}
-	}
-}
-
-func TestTrackHelpers(t *testing.T) {
-	if !IsPythonDomain("python_numpy") || IsPythonDomain("statistics") {
-		t.Fatal("IsPythonDomain")
-	}
-	if NormalizeTrack("Python") != TrackPython || NormalizeTrack("") != TrackMath || NormalizeTrack("x") != TrackMath {
-		t.Fatal("NormalizeTrack")
 	}
 }
 

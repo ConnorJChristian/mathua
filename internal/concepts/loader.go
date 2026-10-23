@@ -26,6 +26,34 @@ func Load(path string) (*DAG, error) {
 // LoadDir reads all .json files from a directory, merges, validates, topo-sorts, and returns a DAG.
 // enrichment.json is merged as heuristics (Variants/Encompasses/InterferenceGroup/KeyPrerequisites) on top of base concepts.
 func LoadDir(dir string) (*DAG, error) {
+	return LoadDirs(dir)
+}
+
+// LoadDirs reads the base corpus folder and then each extra folder (the
+// concepts/ folders of enabled modules, internal/modules), and builds one DAG
+// over all of them. Only the base folder's enrichment.json is applied. A
+// module may name base concepts as prerequisites; a duplicate id anywhere is
+// an error, as it is within the base corpus.
+func LoadDirs(base string, extra ...string) (*DAG, error) {
+	raw, err := readConceptDir(base)
+	if err != nil {
+		return nil, err
+	}
+	// Merge enrichment heuristics (Variants, Encompasses, InterferenceGroup, KeyPrerequisites)
+	if err := mergeEnrichment(base, raw); err != nil {
+		return nil, err
+	}
+	for _, dir := range extra {
+		batch, err := readConceptDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		raw = append(raw, batch...)
+	}
+	return Build(raw)
+}
+
+func readConceptDir(dir string) ([]Concept, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("read concepts dir: %w", err)
@@ -44,15 +72,11 @@ func LoadDir(dir string) (*DAG, error) {
 		}
 		var batch []Concept
 		if err := json.Unmarshal(data, &batch); err != nil {
-			return nil, fmt.Errorf("parse %s: %w", e.Name(), err)
+			return nil, fmt.Errorf("parse %s: %w", filepath.Join(dir, e.Name()), err)
 		}
 		raw = append(raw, batch...)
 	}
-	// Merge enrichment heuristics (Variants, Encompasses, InterferenceGroup, KeyPrerequisites)
-	if err := mergeEnrichment(dir, raw); err != nil {
-		return nil, err
-	}
-	return Build(raw)
+	return raw, nil
 }
 
 // enrichmentEntry mirrors the loose schema in data/concepts/enrichment.json.
@@ -298,7 +322,9 @@ func validate(raw []Concept) error {
 		allowedGrading := map[string]bool{
 			"multiple_choice": true, "numeric": true, "symbolic": true, "complex": true,
 			"expression": true, "ordering": true, "tuple": true, "polynomial": true, "comparison": true,
-			"python": true,
+			// The question-bank grading type (internal/pytrack). "python" is its
+			// original name and stays valid for banks built before the rename.
+			"bank": true, "python": true,
 		}
 		if c.GradingType != "" && !allowedGrading[c.GradingType] {
 			return fmt.Errorf("concept %q has invalid grading_type %q", c.ID, c.GradingType)

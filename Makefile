@@ -6,8 +6,12 @@ build:
 
 # Build the UI against your own local server (not the upstream hosted API),
 # then start everything on http://localhost:8080 with a local SQLite database.
+# Includes your modules-local/ (internal/modules). It rewrites the bundled
+# concept list with them; run `go run ./scripts/merge_concepts` (no -local)
+# before committing, which test/moduleBundle.test.ts checks.
 local:
-	cd web/next-app && npm ci && rm -rf out && NEXT_PUBLIC_API_URL=http://localhost:8080 npx next build
+	go run ./scripts/merge_concepts -local
+	cd web/next-app && npm ci && rm -rf out && MATHUA_INCLUDE_LOCAL_MODULES=1 NEXT_PUBLIC_API_URL=http://localhost:8080 npx next build
 	DATABASE_URL=sqlite:mathua.db go run ./cmd/mathua --port 8080
 
 build-all:

@@ -267,9 +267,7 @@ def check_corpus_figures(rep: Report) -> None:
     # not the number any doc means by "concepts".
     n_concepts = 0
     for f in sorted((ROOT / "data/concepts").glob("*.json")):
-        if f.name == "enrichment.json" or f.name.startswith("python_"):
-            # The Python track (data/python, FORK.md) is documented on its own;
-            # these docs describe the mathematics corpus.
+        if f.name == "enrichment.json":
             continue
         data = json.loads(f.read_text(encoding="utf-8"))
         n_concepts += len(data if isinstance(data, list) else list(data.values()))
@@ -365,9 +363,7 @@ def check_course_reach(rep: Report) -> None:
 
     prereq: dict = {}
     for f in sorted((ROOT / "data/concepts").glob("*.json")):
-        if f.name == "enrichment.json" or f.name.startswith("python_"):
-            # The Python track (data/python, FORK.md) is documented on its own;
-            # these docs describe the mathematics corpus.
+        if f.name == "enrichment.json":
             continue
         for c in json.loads(f.read_text(encoding="utf-8")):
             prereq[c["id"]] = set(c.get("prerequisites") or [])
@@ -629,9 +625,7 @@ def check_target_table(rep: Report) -> None:
 
     held: dict[str, int] = {}
     for f in sorted((ROOT / "data/concepts").glob("*.json")):
-        if f.name == "enrichment.json" or f.name.startswith("python_"):
-            # The Python track (data/python, FORK.md) is documented on its own;
-            # these docs describe the mathematics corpus.
+        if f.name == "enrichment.json":
             continue
         for c in json.loads(f.read_text(encoding="utf-8")):
             if "id" in c:

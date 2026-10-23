@@ -1,8 +1,30 @@
-# Pinned to the 2026-10-21 security release (CVE-2026-111497, CVE-2026-106069,
+# The Go builder comes first: it also merges the enabled modules' concepts,
+# which the web build below bundles.
+#
+# Node pinned to the 2026-10-21 security release (CVE-2026-111497, CVE-2026-106069,
 # CVE-2026-105483, CVE-2026-105482, and the medium fixes). The major-only tag
 # `node:24-bookworm` is whatever the builder has cached, so a rebuild could ship
 # the previous, vulnerable patch. Node is build-time only; the runtime image
 # below does not contain it.
+FROM golang:1.27-bookworm AS builder
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libc6-dev libsqlite3-dev && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=1 go build -o /mathua ./cmd/mathua
+
+# Modules (internal/modules): the web app bundles the concept list, so the
+# enabled modules, your modules-local/ included, are merged here and handed to
+# the web build below. modules.local.json is optional; an empty one is made
+# when it is absent so the runtime stage can always copy it.
+RUN test -f modules.local.json || echo '{}' > modules.local.json \
+    && go run ./scripts/merge_concepts -local
+
 FROM node:24.22.1-bookworm AS webbuilder
 
 WORKDIR /app
@@ -10,6 +32,15 @@ COPY web/next-app/package.json web/next-app/package-lock.json ./web/next-app/
 RUN cd web/next-app && npm ci
 
 COPY web/next-app ./web/next-app
+# The merged concept and track lists from the builder stage (your modules
+# included), and the raw corpus and modules the graph layout reads.
+COPY --from=builder /app/web/next-app/data/concepts.json ./web/next-app/data/concepts.json
+COPY --from=builder /app/web/next-app/data/tracks.json ./web/next-app/data/tracks.json
+COPY --from=builder /app/modules.local.json ./modules.local.json
+COPY data/concepts/ ./data/concepts/
+COPY modules/ ./modules/
+COPY modules-local/ ./modules-local/
+ENV MATHUA_INCLUDE_LOCAL_MODULES=1
 # Stamp a unique service-worker version per image build so every deploy
 # migrates clients off older caches (see public/sw.js). Without this, a
 # static SW version lets browsers keep serving stale hashed JS forever.
@@ -26,18 +57,6 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_SAME_ORIGIN_API=1
 RUN cd web/next-app && npm run build
 
-FROM golang:1.27-bookworm AS builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libc6-dev libsqlite3-dev && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY . .
-RUN CGO_ENABLED=1 go build -o /mathua ./cmd/mathua
-
 # Python track bank check, on the same base and pins as the runtime image.
 FROM debian:bookworm-slim AS pybankcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -48,9 +67,9 @@ RUN python3 -m venv /opt/venv \
         -r /check/grading/requirements-python.txt
 COPY grading/pyrunner.py /check/grading/pyrunner.py
 COPY scripts/python_bank.py /check/scripts/python_bank.py
-COPY data/python/ /check/data/python/
-COPY data/concepts/ /check/data/concepts/
-COPY internal/pytrack/bank/ /check/internal/pytrack/bank/
+COPY modules/ /check/modules/
+COPY modules-local/ /check/modules-local/
+# Every authored bank, committed and local, is re-run against these pins.
 RUN mkdir -p /tmp/mpl && MPLCONFIGDIR=/tmp/mpl /opt/venv/bin/python3 -c "import matplotlib.pyplot" \
     && cd /check && MPLCONFIGDIR=/tmp/mpl /opt/venv/bin/python3 scripts/python_bank.py check \
     && touch /bankcheck.ok
@@ -87,6 +106,11 @@ COPY data/concepts/ /app/data/concepts/
 COPY data/lessons/ /app/data/lessons/
 COPY data/courses.json /app/data/courses.json
 COPY data/destinations.json /app/data/destinations.json
+# Modules: committed ones and your own (internal/modules). Concepts, question
+# banks, courses and readings are read at startup; files/ holds your PDFs.
+COPY modules/ /app/modules/
+COPY modules-local/ /app/modules-local/
+COPY --from=builder /app/modules.local.json /app/modules.local.json
 COPY --from=webbuilder /app/web/next-app/out /app/web/next-app/out
 COPY grading/sympy_service.py /app/grading/sympy_service.py
 COPY grading/pyrunner.py /app/grading/pyrunner.py

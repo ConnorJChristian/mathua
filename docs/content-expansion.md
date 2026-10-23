@@ -72,7 +72,7 @@ means a new thin concept cannot be added quietly.
 ### 4.1 The course catalog reaches 1250 of the 1250 concepts
 
 Courses carry target sets, and a target expands to its transitive prerequisite closure in
-`internal/planning/planner.go:64` (`collectChain`). Across the 28 courses those closures reach
+`internal/planning/planner.go:82` (`collectChain`). Across the 28 courses those closures reach
 1250 of the 1250 concepts: 0 of them have a node, a generator, a lesson and three KP shards and
 still sit outside every named course path. The wiring batch of 2026-10-19 moved the 149 that used
 to sit there into the courses that teach their subject, and the table stays as the measurement on
@@ -784,7 +784,7 @@ python3 scripts/check_docs.py
 
 Course reach and the grading-type mix need the DAG and the course targets read together; the
 reach number is the union of each course's prerequisite closure, computed the way
-`internal/planning/planner.go:64` computes it, and the checker in `scripts/check_docs.py`
+`internal/planning/planner.go:82` computes it, and the checker in `scripts/check_docs.py`
 recomputes it rather than trusting this file.
 
 ```bash

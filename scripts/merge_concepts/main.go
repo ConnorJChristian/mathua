@@ -12,10 +12,13 @@ package main
 // and it had quietly drifted 29 `grading_type` corrections behind the corpus.
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/chuma-beep/mathua/internal/modules"
 )
 
 // overlayFiles are id-keyed overlays, not concept lists.
@@ -74,18 +77,93 @@ func credits() map[string]string {
 }
 
 func main() {
-	entries, err := os.ReadDir("data/concepts")
+	// By default only committed modules are merged, so the files this writes
+	// (which are committed) never carry your modules-local/ content. The
+	// Docker build and `make local` pass -local, so the web app you run
+	// includes your own modules. MATHUA_INCLUDE_LOCAL_MODULES=1 does the same.
+	local := flag.Bool("local", os.Getenv("MATHUA_INCLUDE_LOCAL_MODULES") == "1", "also merge modules-local/")
+	flag.Parse()
+	public := new(bool)
+	*public = !*local
+
+	byConcept := credits()
+	all := readConceptDir("data/concepts", byConcept)
+
+	mods, err := modules.Load(".")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "modules: %v\n", err)
+		os.Exit(1)
+	}
+	type trackOut struct {
+		ID      string   `json:"id"`
+		Label   string   `json:"label"`
+		Domains []string `json:"domains"`
+	}
+	tracks := []trackOut{}
+	labels := map[string]string{}
+	used := 0
+	for _, m := range mods.Modules {
+		if *public && m.Local {
+			continue
+		}
+		used++
+		dir := filepath.Join(m.Dir, "concepts")
+		if st, err := os.Stat(dir); err == nil && st.IsDir() {
+			all = append(all, readConceptDir(dir, nil)...)
+		}
+		for d, l := range m.DomainLabels {
+			labels[d] = l
+		}
+	}
+	// Tracks from the modules that were merged, in the server's order.
+	merged := map[string]bool{}
+	for _, m := range mods.Modules {
+		if !(*public && m.Local) {
+			for _, t := range m.Tracks {
+				merged[t.ID] = true
+			}
+		}
+	}
+	for _, t := range mods.Tracks() {
+		if t.ID == modules.MathTrack || merged[t.ID] {
+			d := t.Domains
+			if d == nil {
+				d = []string{}
+			}
+			tracks = append(tracks, trackOut{ID: t.ID, Label: t.Label, Domains: d})
+		}
+	}
+
+	out, err := json.MarshalIndent(all, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "marshal: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile("web/next-app/data/concepts.json", out, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "write: %v\n", err)
+		os.Exit(1)
+	}
+	tj, _ := json.MarshalIndent(map[string]any{"tracks": tracks, "domain_labels": labels}, "", "  ")
+	if err := os.WriteFile("web/next-app/data/tracks.json", append(tj, '\n'), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "write tracks: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("OK: %d concepts merged into web/next-app/data/concepts.json (%d modules), %d with a per-page credit; %d tracks\n",
+		len(all), used, len(byConcept), len(tracks))
+}
+
+func readConceptDir(dir string, byConcept map[string]string) []any {
+	entries, err := os.ReadDir(dir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "read dir: %v\n", err)
 		os.Exit(1)
 	}
-	byConcept := credits()
 	var all []any
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") || overlayFiles[e.Name()] {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join("data/concepts", e.Name()))
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "read %s: %v\n", e.Name(), err)
 			os.Exit(1)
@@ -106,15 +184,5 @@ func main() {
 			all = append(all, c)
 		}
 	}
-	out, err := json.MarshalIndent(all, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "marshal: %v\n", err)
-		os.Exit(1)
-	}
-	if err := os.WriteFile("web/next-app/data/concepts.json", out, 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "write: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("OK: %d concepts merged into web/next-app/data/concepts.json, %d with a per-page credit\n",
-		len(all), len(byConcept))
+	return all
 }

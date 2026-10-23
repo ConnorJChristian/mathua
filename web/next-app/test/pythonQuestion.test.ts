@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { displayAnswer, displayQuestion, plainAnswer, pythonKind, starterCode, taskKey } from '../lib/pythonQuestion'
+import { displayAnswer, displayQuestion, plainAnswer, pythonKind, recallBack, starterCode, taskKey } from '../lib/pythonQuestion'
 import { prepareLessonMath } from '../lib/lessonMath'
-import { withTrack } from '../lib/track'
+import { TRACKS, trackOfDomain, withTrack } from '../lib/track'
 
 // The shapes internal/pytrack/track.go serves. Kept literal so a change to the
 // server's format fails here rather than as a blank code box in the browser.
@@ -35,6 +35,16 @@ describe('python question shapes', () => {
   })
 })
 
+describe('recall cards', () => {
+  const RECALL_Q = 'What does OLS minimise?\n\n<!--recall-back-->\n\nThe sum of squared residuals.'
+  it('shows the front, keeps the back for the reveal, and hides the key', () => {
+    expect(pythonKind(RECALL_Q)).toBe('recall')
+    expect(displayQuestion(RECALL_Q)).toBe('What does OLS minimise?')
+    expect(recallBack(RECALL_Q)).toBe('The sum of squared residuals.')
+    expect(displayAnswer('recall:anki.woo.ch02#n1')).toBe('')
+  })
+})
+
 describe('code in lesson Markdown', () => {
   it('leaves python fences untouched by the LaTeX passes', () => {
     const code = '```python\nprice = "$5"\nx = a[(b < 3) & (c > 1)]\ns = r"\\(x\\)"\n```'
@@ -47,9 +57,16 @@ describe('code in lesson Markdown', () => {
 })
 
 describe('track parameter', () => {
-  it('only marks Python requests, so Math requests are unchanged', () => {
+  it('only marks non-math requests, so math requests are unchanged', () => {
     expect(withTrack('/api/next', 'math')).toBe('/api/next')
     expect(withTrack('/api/next', 'python')).toBe('/api/next?track=python')
     expect(withTrack('/api/next?exclude=a', 'python')).toBe('/api/next?exclude=a&track=python')
+  })
+
+  it('takes its tracks from the enabled modules', () => {
+    expect(TRACKS[0].id).toBe('math')
+    expect(TRACKS.some(t => t.id === 'python')).toBe(true)
+    expect(trackOfDomain('python_numpy')).toBe('python')
+    expect(trackOfDomain('calculus')).toBe('math')
   })
 })
