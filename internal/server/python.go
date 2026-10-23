@@ -104,17 +104,7 @@ func (s *Server) moduleKPs(conceptID, label string) []map[string]interface{} {
 		if c.Book.Name != "" {
 			src = c.Book.Name + " › " + c.Book.Title
 		}
-		recall := 0
-		for _, it := range c.Items {
-			if it.Kind == pytrack.KindRecall {
-				recall++
-			}
-		}
-		body := fmt.Sprintf("**From:** %s\n\n%d cards.", src, len(c.Items))
-		if recall > 0 {
-			body += " For each card, answer in your head, reveal the back, then say whether you had it."
-		}
-		return step(c.Book.Title, body)
+		return step(c.Book.Title, fmt.Sprintf("**From:** %s\n\n%s", src, cardMix(c.Items)))
 	}
 	body := c.Intro
 	section := c.Book.Title
@@ -192,4 +182,53 @@ func (s *Server) handlePythonRun(w http.ResponseWriter, r *http.Request) {
 		"timed_out":        res.TimedOut,
 		"time_limit":       t.Runner.TimeLimit(),
 	})
+}
+
+// cardMix says how many cards a flashcard set has and how each kind is
+// answered: "57 cards: 41 you type, 2 you choose, 14 you flip."
+func cardMix(items []pytrack.Item) string {
+	var typed, choice, flip, other int
+	for _, it := range items {
+		switch it.Kind {
+		case pytrack.KindMath:
+			typed++
+		case pytrack.KindChoice:
+			choice++
+		case pytrack.KindRecall:
+			flip++
+		default:
+			other++
+		}
+	}
+	noun := func(n int) string {
+		if n == 1 {
+			return "1 card"
+		}
+		return fmt.Sprintf("%d cards", n)
+	}
+	var parts []string
+	if typed > 0 {
+		parts = append(parts, fmt.Sprintf("%d you type", typed))
+	}
+	if choice > 0 {
+		parts = append(parts, fmt.Sprintf("%d you choose", choice))
+	}
+	if flip > 0 {
+		parts = append(parts, fmt.Sprintf("%d you flip", flip))
+	}
+	out := noun(len(items)) + "."
+	if len(parts) > 1 || (len(parts) == 1 && other > 0) {
+		out = noun(len(items)) + ": " + strings.Join(parts, ", ") + "."
+	}
+	var how []string
+	if typed > 0 {
+		how = append(how, "Type an answer and Mathua checks it; any equivalent form counts.")
+	}
+	if flip > 0 {
+		how = append(how, "For a flip card, answer in your head, reveal the back, then say whether you had it.")
+	}
+	if len(how) > 0 {
+		out += " " + strings.Join(how, " ")
+	}
+	return out
 }

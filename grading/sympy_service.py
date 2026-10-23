@@ -35,6 +35,20 @@ COMMON_SYMBOLS = {
     'e': E,
     'E': E,
     'I': I,
+    # Letters SymPy would otherwise read as its own objects: Q is the
+    # assumptions module, S the singleton registry, N numerical evaluation and
+    # O big-O. As answers they are variables (Q is quantity in every economics
+    # question), and reading them as SymPy objects made any answer that used
+    # them a parse error.
+    'Q': Symbol('Q'),
+    'S': Symbol('S'),
+    'N': Symbol('N'),
+    'O': Symbol('O'),
+    # Greek names SymPy defines as functions (the beta, gamma and zeta
+    # functions). An answer naming one means the variable.
+    'beta': Symbol('beta'),
+    'gamma': Symbol('gamma'),
+    'zeta': Symbol('zeta'),
 }
 
 # Seed random for deterministic grading
@@ -43,6 +57,10 @@ random.seed(42)
 
 def preprocess(s: str) -> str:
     s = s.strip()
+
+    # Thousands separators: "425,000" is 425000. Only a comma followed by
+    # exactly three digits counts, so a list such as "1,2" is left alone.
+    s = re.sub(r"(?<=\d),(?=\d{3}(?!\d))", "", s)
 
     # Strip variable assignments: "y = ..." -> "..."
     s = re.sub(r"^[a-zA-Z_]\w*\s*=\s*", "", s)
@@ -175,7 +193,14 @@ def _numerical_check(ee, ea, num_points: int = 10) -> tuple[bool, str]:
     if not free_symbols:
         return ee == ea, "Not equivalent"
 
-    for _ in range(num_points):
+    # Compare by relative error, so large values are compared rather than
+    # skipped. Skipping them used to let a check where every sample was large,
+    # as for 70x^4(2x^5+9)^6 on [-5, 5], test nothing and report "equivalent"
+    # for any answer at all. A check that tests nothing now fails.
+    compared = 0
+    for _ in range(num_points * 3):
+        if compared >= num_points:
+            break
         subs = {}
         for sym in free_symbols:
             val = random.uniform(-5, 5)
@@ -186,16 +211,22 @@ def _numerical_check(ee, ea, num_points: int = 10) -> tuple[bool, str]:
         try:
             ee_val = complex(ee.subs(subs))
             ea_val = complex(ea.subs(subs))
-
-            if not (abs(ee_val) < 1e10 and abs(ea_val) < 1e10):
-                continue
-
-            if abs(ee_val - ea_val) > 1e-6:
-                return False, "Not equivalent"
         except Exception as ex:
             continue
+        if not all(map(_finite, (ee_val.real, ee_val.imag, ea_val.real, ea_val.imag))):
+            continue
+        compared += 1
+        scale = max(1.0, abs(ee_val), abs(ea_val))
+        if abs(ee_val - ea_val) > 1e-6 * scale:
+            return False, "Not equivalent"
 
+    if compared == 0:
+        return False, "Not equivalent"
     return True, ""
+
+
+def _finite(v: float) -> bool:
+    return v == v and abs(v) != float("inf")
 
 
 def grade(expected: str, answer: str) -> tuple[bool, str]:
@@ -216,6 +247,16 @@ def grade(expected: str, answer: str) -> tuple[bool, str]:
     correct, feedback = _symbolic_equal(ee, ea)
     if correct:
         return True, ""
+
+    # A difference that expands to a non-zero number is a certain answer: the
+    # two differ by a constant everywhere. Sampling cannot see that when the
+    # values are huge, since a relative tolerance hides a difference of 1.
+    try:
+        d = expand(ee - ea)
+        if d.is_number and d != 0 and not d.free_symbols:
+            return False, "Not equivalent"
+    except Exception:
+        pass
 
     return _numerical_check(ee, ea)
 

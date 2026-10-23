@@ -177,3 +177,28 @@ def test_exp_equivalence():
 def test_negative_constant_integration():
     r = grade_via_service("sin(x)+C", "sin(x)-C")
     assert r["correct"] is True, f"Expected True, got {r}"
+
+
+def test_economics_letters_are_variables():
+    # Q, S, N and O are SymPy objects unless the grader says otherwise.
+    for expected, answer in [("2Q+5", "5+2*Q"), ("1.5Q^2+4Q+46", "46+4Q+1.5Q^2"), ("N+S", "S+N"), ("gamma+1", "1+gamma")]:
+        r = grade_via_service(expected, answer)
+        assert r["correct"] is True, f"{expected} vs {answer}: {r}"
+    r = grade_via_service("2Q+5", "2Q+6")
+    assert r["correct"] is False, r
+
+
+def test_thousands_separator():
+    r = grade_via_service("15x+425000", "15x+425,000")
+    assert r["correct"] is True, r
+    r = grade_via_service("15x+425000", "15x+42,500")
+    assert r["correct"] is False, r
+
+
+def test_large_values_are_compared_not_skipped():
+    # Every sample of this expression on [-5, 5] is above 1e10. The check used
+    # to skip them all and accept any answer.
+    expected = "70x^4(2x^5+9)^6"
+    assert grade_via_service(expected, "70x^4(2x^5+9)^6")["correct"] is True
+    assert grade_via_service(expected, "70x^4(2x^5+9)^6+1")["correct"] is False
+    assert grade_via_service(expected, "70x^4(2x^5+9)^5")["correct"] is False

@@ -46,7 +46,26 @@ const (
 	KindCode   = "code"
 	// KindRecall is a flashcard: front, back, and the learner's own verdict.
 	KindRecall = "recall"
+	// KindMath is a question with one or more typed mathematical answers,
+	// graded by Mathua's own math graders (numeric, or SymPy equivalence),
+	// exactly as Mathua's generated questions are. Imported Anki practice
+	// problems use it (scripts/anki_typed.py).
+	KindMath = "math"
 )
+
+// Part is one typed answer of a math item: "x_0 = [60]".
+type Part struct {
+	// Label is shown before the input as "<label> =", in LaTeX. Required when
+	// an item has more than one part, so the learner knows which is which.
+	Label string `json:"label,omitempty"`
+	// Answer is the expected answer in the plain form the graders read, which
+	// is what the math editor produces from what the learner types.
+	Answer string `json:"answer"`
+	// Grading is the grader: "numeric" or "expression".
+	Grading string `json:"grading"`
+	// Tex is the answer as the source wrote it, shown after answering.
+	Tex string `json:"tex"`
+}
 
 // Item is one question.
 type Item struct {
@@ -71,8 +90,11 @@ type Item struct {
 	Solution string `json:"solution,omitempty"`
 	Tests    []Test `json:"tests,omitempty"`
 
-	// Recall card.
+	// Recall card, and the worked solution of a math item.
 	Back string `json:"back,omitempty"`
+
+	// Math item.
+	Parts []Part `json:"parts,omitempty"`
 
 	Explain string `json:"explain"`
 }
@@ -177,12 +199,12 @@ func validateConcept(c *Concept) error {
 		if strings.TrimSpace(it.Prompt) == "" {
 			return fmt.Errorf("%s: prompt is required", where)
 		}
-		if it.Kind != KindRecall && strings.TrimSpace(it.Explain) == "" {
+		if it.Kind != KindRecall && it.Kind != KindMath && strings.TrimSpace(it.Explain) == "" {
 			return fmt.Errorf("%s: explain is required", where)
 		}
 		switch it.Kind {
 		case KindChoice:
-			if strings.TrimSpace(it.Correct) == "" || len(it.Wrong) < 2 {
+			if strings.TrimSpace(it.Correct) == "" || len(it.Wrong) < 2 && !binaryChoice(it) {
 				return fmt.Errorf("%s: multiple choice needs correct and at least two wrong options", where)
 			}
 			for _, w := range it.Wrong {
@@ -215,11 +237,51 @@ func validateConcept(c *Concept) error {
 			if strings.Contains(it.Prompt, RecallMarker) {
 				return fmt.Errorf("%s: the front may not contain the recall marker", where)
 			}
+		case KindMath:
+			if len(it.Parts) == 0 || len(it.Parts) > MaxParts {
+				return fmt.Errorf("%s: a math item needs 1-%d parts", where, MaxParts)
+			}
+			labels := map[string]bool{}
+			for _, p := range it.Parts {
+				if strings.TrimSpace(p.Answer) == "" || strings.Contains(p.Answer, "\n") {
+					return fmt.Errorf("%s: every part needs a one-line answer", where)
+				}
+				if p.Grading != "numeric" && p.Grading != "expression" {
+					return fmt.Errorf("%s: part grading must be numeric or expression", where)
+				}
+				if len(it.Parts) > 1 && strings.TrimSpace(p.Label) == "" {
+					return fmt.Errorf("%s: every part of a multi-part item needs a label", where)
+				}
+				if labels[p.Label] {
+					return fmt.Errorf("%s: two parts share a label", where)
+				}
+				labels[p.Label] = true
+			}
+			if strings.Contains(it.Prompt, TypedMarker) {
+				return fmt.Errorf("%s: the prompt may not contain the typed-answer marker", where)
+			}
 		default:
 			return fmt.Errorf("%s: unknown kind %q", where, it.Kind)
 		}
 	}
 	return nil
+}
+
+// MaxParts is the most typed answers one math item may ask for.
+const MaxParts = 4
+
+// binaryChoice is a two-option question whose options are each other's
+// opposite (True/False, Yes/No), where a third option would be invented.
+func binaryChoice(it Item) bool {
+	if len(it.Wrong) != 1 {
+		return false
+	}
+	pair := strings.ToLower(it.Correct) + "/" + strings.ToLower(it.Wrong[0])
+	switch pair {
+	case "true/false", "false/true", "yes/no", "no/yes":
+		return true
+	}
+	return false
 }
 
 // Concept returns the bank entry for a concept, or nil.

@@ -19,7 +19,7 @@ import { countsAsMastered } from '../lib/progress'
 import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
 import PythonAnswer from './python/PythonAnswer'
-import { displayAnswer, displayQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../lib/pythonQuestion'
+import { displayAnswer, displayQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind, typedEcho } from '../lib/pythonQuestion'
 import { setTrack, trackOfDomain } from '../lib/track'
 
 // Append-only learning feed: intro once, then each submit locks its card and
@@ -798,7 +798,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                         ? 'checked against the hidden tests'
                         : pyKind === 'recall'
                           ? qe.answer === 'right' ? 'you had it' : 'you marked it missed'
-                          : `you answered “${isPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
+                          : `you answered “${pyKind === 'math' ? typedEcho(qe.q.question, qe.answer) : isPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
                   </p>
                   {pyKind === 'code' && (
                     <details className="mt-1.5" open={!qe.feedback.correct}>

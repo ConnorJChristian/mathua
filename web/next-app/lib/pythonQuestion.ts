@@ -12,7 +12,50 @@
 
 import { parseChoices } from './choices'
 
-export type PythonKind = 'code' | 'mc' | 'output' | 'recall'
+export type PythonKind = 'code' | 'mc' | 'output' | 'recall' | 'math'
+
+// A math item (e.g. an Anki practice problem): the prompt, then this marker,
+// a JSON list of answer fields and "-->". Each field is one math input, graded
+// on the server by Mathua's own math graders. internal/pytrack/track.go
+// TypedMarker.
+export const TYPED_MARKER = '<!--typed-answer '
+
+export interface TypedField {
+  /** LaTeX shown before the input as "label =". Empty for a single unlabelled answer. */
+  label: string
+  /** The grader, which also picks the math editor's keyboard: "numeric" or "expression". */
+  grading: string
+}
+
+/** The answer fields of a math item, or [] for any other question. */
+export function typedFields(question: string): TypedField[] {
+  const at = question.indexOf(TYPED_MARKER)
+  if (at < 0) return []
+  const end = question.indexOf('-->', at)
+  try {
+    const raw = JSON.parse(question.slice(at + TYPED_MARKER.length, end < 0 ? undefined : end))
+    if (!Array.isArray(raw)) return []
+    return raw.map((f: { label?: unknown; grading?: unknown }) => ({
+      label: typeof f.label === 'string' ? f.label : '',
+      grading: typeof f.grading === 'string' ? f.grading : 'expression',
+    }))
+  } catch {
+    return []
+  }
+}
+
+/** The answers of a math item, one per field: the submitted string holds one per line. */
+export function typedValues(value: string, n: number): string[] {
+  const parts = value.split('\n')
+  return Array.from({ length: n }, (_, i) => parts[i] ?? '')
+}
+
+/** A math item's submitted answers as one line: "x_0 = 60, y_0 = 40". */
+export function typedEcho(question: string, answer: string): string {
+  const fields = typedFields(question)
+  const vals = typedValues(answer, Math.max(fields.length, 1))
+  return vals.map((v, i) => (fields[i]?.label ? `${fields[i].label} = ${v}` : v)).join(', ')
+}
 
 // A recall card (a flashcard, e.g. imported from Anki): front, then this
 // marker, then the back. internal/pytrack/track.go RecallMarker.
@@ -21,6 +64,7 @@ export const RECALL_MARKER = '<!--recall-back-->'
 const STARTER_RE = /\n*```python starter(?: task=([^\s`]+))?\n([\s\S]*?)\n```[ \t]*/
 
 export function pythonKind(question: string): PythonKind {
+  if (question.includes(TYPED_MARKER)) return 'math'
   if (question.includes(RECALL_MARKER)) return 'recall'
   if (STARTER_RE.test(question)) return 'code'
   if (parseChoices(question)) return 'mc'
@@ -47,6 +91,8 @@ const OPTIONS_RE = /\n\nA\)\s[\s\S]*$/
  * options into the choice buttons, so neither is printed twice.
  */
 export function displayQuestion(question: string): string {
+  const typed = question.indexOf(TYPED_MARKER)
+  if (typed >= 0) return question.slice(0, typed).trimEnd()
   const cut = question.indexOf(RECALL_MARKER)
   if (cut >= 0) return question.slice(0, cut).trimEnd()
   let q = question.replace(STARTER_RE, '')
@@ -70,7 +116,7 @@ export function recallBack(question: string): string {
 }
 
 export function displayAnswer(answer: string): string {
-  if (answer.startsWith('code:') || answer.startsWith('recall:')) return ''
+  if (answer.startsWith('code:') || answer.startsWith('recall:') || answer.startsWith('math:')) return ''
   if (answer.startsWith('mc:')) return answer.slice(3)
   if (answer.startsWith('out:')) return answer.slice(4)
   return answer
@@ -82,6 +128,8 @@ export function pythonHint(kind: PythonKind, timeLimit = 8): string {
       return `Run to try your code, then Check to grade it against hidden tests (${timeLimit}-second limit). Ctrl+Enter checks.`
     case 'recall':
       return 'Answer in your head, reveal the back, then say honestly whether you had it.'
+    case 'math':
+      return 'Type your answer. Any equivalent form counts.'
     case 'mc':
       return 'Pick one option, then Check.'
     default:

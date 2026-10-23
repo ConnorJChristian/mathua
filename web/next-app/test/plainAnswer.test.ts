@@ -149,5 +149,14 @@ describe('fixFractionParens with a symbolic numerator', () => {
     // Unwrapping this would read as `x + 1/y`, which is a different answer.
     expect(toPlainAnswer('(x + 1)/(y)')).toBe('(x + 1)/(y)')
   })
+
+  it('keeps parentheses on a product in the denominator', () => {
+    // `2K/3L` reads as (2K/3)L, a different answer.
+    expect(toPlainAnswer('(-2K)/(3L)')).toBe('(-2K)/(3L)')
+    expect(toPlainAnswer('(1)/(xy)')).toBe('(1)/(xy)')
+    expect(toPlainAnswer('(2K)/(3)')).toBe('2K/3')
+    expect(toPlainAnswer('(x)/(y)')).toBe('x/y')
+    expect(toPlainAnswer('(3)/(2.5)')).toBe('3/2.5')
+  })
 })
 })

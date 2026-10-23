@@ -2,6 +2,7 @@ package pytrack
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
@@ -25,7 +26,18 @@ const (
 	prefixOutput = "out:"
 	prefixCode   = "code:"
 	prefixRecall = "recall:"
+	prefixMath   = "math:"
 )
+
+// TypedMarker introduces a math item's answer fields in the served question:
+// the prompt, then the marker followed by a JSON list of the fields, each
+// {"label": LaTeX shown before the input, "grading": the grader}, then "-->".
+// The client draws one math input per field and submits the answers one per
+// line. The expected answers stay on the server.
+const TypedMarker = "<!--typed-answer "
+
+// mathRouter grades math items with the graders Mathua's own questions use.
+var mathRouter = grader.NewRouter()
 
 // RecallMarker separates a recall card's front from its back in the served
 // question. The client shows the front, reveals the back on request, and
@@ -158,6 +170,36 @@ func (t *Track) Problem(c *Concept, it *Item) generator.Problem {
 			exp += "\n\nSource: " + c.Book.Title
 		}
 		return generator.Problem{Question: q, Answer: prefixRecall + itemKey(c.ID, it.ID), Explanation: exp}
+	case KindMath:
+		type field struct {
+			Label   string `json:"label"`
+			Grading string `json:"grading"`
+		}
+		fields := make([]field, len(it.Parts))
+		shown := make([]string, len(it.Parts))
+		for i, p := range it.Parts {
+			fields[i] = field{Label: p.Label, Grading: p.Grading}
+			if p.Label != "" {
+				shown[i] = "\\(" + p.Label + " = " + p.Tex + "\\)"
+			} else {
+				shown[i] = "\\(" + p.Tex + "\\)"
+			}
+		}
+		js, _ := json.Marshal(fields)
+		q := strings.TrimSpace(it.Prompt) + "\n\n" + TypedMarker + string(js) + "-->"
+		exp := "**Answer:** " + strings.Join(shown, ", ")
+		if b := strings.TrimSpace(it.Back); b != "" {
+			exp += "\n\n" + b
+		}
+		if strings.TrimSpace(it.Explain) != "" {
+			exp += "\n\n" + strings.TrimSpace(it.Explain)
+		}
+		if c.Book.URL != "" {
+			exp += "\n\n" + book
+		} else if c.Book.Title != "" {
+			exp += "\n\nSource: " + c.Book.Title
+		}
+		return generator.Problem{Question: q, Answer: prefixMath + itemKey(c.ID, it.ID), Explanation: exp}
 	default: // KindCode
 		starter := strings.TrimRight(it.Starter, "\n")
 		if starter == "" {
@@ -183,6 +225,13 @@ func (t *Track) Problem(c *Concept, it *Item) generator.Problem {
 // At most five options are kept, which is what the client can label.
 func stableOptions(conceptID string, it *Item) []string {
 	opts := append([]string{it.Correct}, it.Wrong...)
+	// True/False and Yes/No read in their usual order.
+	if binaryChoice(*it) {
+		if l := strings.ToLower(opts[0]); l == "false" || l == "no" {
+			opts[0], opts[1] = opts[1], opts[0]
+		}
+		return opts
+	}
 	if len(opts) > 5 {
 		opts = opts[:5]
 	}
@@ -224,9 +273,57 @@ func (t *Track) Grade(expected, answer string) grader.Result {
 		}
 	case strings.HasPrefix(expected, prefixCode):
 		return t.gradeCode(strings.TrimPrefix(expected, prefixCode), answer)
+	case strings.HasPrefix(expected, prefixMath):
+		return t.gradeMath(strings.TrimPrefix(expected, prefixMath), answer)
 	default:
 		return grader.Result{Feedback: "Unknown Python question type", Unavailable: true}
 	}
+}
+
+// gradeMath grades a math item: one answer per line, one line per part, each
+// with the part's own grader. The item is right when every part is.
+func (t *Track) gradeMath(key, answer string) grader.Result {
+	it := t.Bank.Item(key)
+	if it == nil || it.Kind != KindMath {
+		return grader.Result{Feedback: "This question is no longer in the question bank; load a new question", Unavailable: true}
+	}
+	lines := strings.Split(strings.ReplaceAll(answer, "\r\n", "\n"), "\n")
+	right := 0
+	var missed []string
+	for i, p := range it.Parts {
+		a := ""
+		if i < len(lines) {
+			a = strings.TrimSpace(lines[i])
+		}
+		name := p.Label
+		if name == "" {
+			name = "the answer"
+		} else {
+			name = "\\(" + name + "\\)"
+		}
+		if a == "" {
+			missed = append(missed, name+" is empty")
+			continue
+		}
+		res := mathRouter.Grade(grader.GradingType(p.Grading), p.Answer, a)
+		if res.Unavailable {
+			return res
+		}
+		if res.Correct {
+			right++
+		} else {
+			missed = append(missed, name+" is not right")
+		}
+	}
+	n := len(it.Parts)
+	if right == n {
+		return grader.Result{Correct: true, Score: 1}
+	}
+	fb := "Not equivalent to the expected answer"
+	if n > 1 {
+		fb = fmt.Sprintf("%d of %d right: %s", right, n, strings.Join(missed, ", "))
+	}
+	return grader.Result{Score: float64(right) / float64(n), Feedback: fb}
 }
 
 func (t *Track) gradeCode(key, code string) grader.Result {

@@ -122,12 +122,31 @@ before you commit. A test fails if local module content is committed.
 ### Anki cards
 
 `scripts/import_anki.py` turns an Anki export (`.colpkg` or `.apkg`) into a
-local module of recall cards:
+local module. Where a card allows it, the card becomes a Mathua question:
+
+- **Typed answer.** The answer at the top of the back is a formula or a
+  number, or a few labelled ones such as `x_0 = 60` and `y_0 = 40`. You type
+  each one in Mathua's math editor. Mathua's own graders check it, so any
+  equivalent form counts.
+- **Choice.** The back starts with True, False, Yes or No. You pick one.
+- **Flip card.** Every other card. You reveal the back and say whether you
+  had it.
+
+The import checks each typed answer before it keeps it. The book's answer,
+typed into the math editor, must grade correct. A wrong answer must grade
+wrong. A card that fails either check stays a flip card. An answer is also
+kept as a flip card when the question already shows an equal expression,
+for example "simplify" and "factor" questions.
 
 ```bash
-pip install zstandard
+pip install zstandard sympy "antlr4-python3-runtime==4.11.*"
+(cd web/next-app && npm ci)
 python3 scripts/import_anki.py collection.colpkg --config modules-local/anki/anki.json
 ```
+
+The typed-answer check needs Node with the web app's packages, Go and SymPy.
+Use `--no-typed` to import flip cards only. Use `--report rejects.json` to
+see which typed answers failed the check, and why.
 
 The config chooses which decks to import and which domain and track each
 becomes; the script's docstring shows the format. Each deck becomes a topic,

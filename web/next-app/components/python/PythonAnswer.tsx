@@ -6,6 +6,8 @@
 //   code task  -> a code box prefilled with the starter, with Run and Reset
 //   output     -> a monospace field for what the snippet prints
 //   recall     -> Show answer, then "I had it" / "I missed it" (self-graded)
+//   math       -> one math input per answer field, the same editor Mathua's
+//                 own questions use, graded by Mathua's math graders
 //   multiple choice -> nothing here; the host's ChoiceOptions is the input
 //
 // The code box is a plain textarea on purpose. It has to work on a phone, with
@@ -14,7 +16,8 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { runPython, type PythonRunRes } from '../../lib/api'
-import { pythonKind, recallBack, starterCode, taskKey } from '../../lib/pythonQuestion'
+import { pythonKind, recallBack, starterCode, taskKey, typedFields, typedValues } from '../../lib/pythonQuestion'
+import { MathAnswerInput, type MathFocusHandle } from '../math/MathInput'
 import { Play } from '../icons'
 import KatexContent from '../KatexContent'
 
@@ -32,6 +35,9 @@ const INDENT = '    '
 export default function PythonAnswer({ question, value, onChange, onSubmit, disabled, id }: Props) {
   const kind = useMemo(() => pythonKind(question), [question])
   if (kind === 'mc') return null
+  if (kind === 'math') {
+    return <TypedAnswer question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
+  }
   if (kind === 'recall') {
     return <RecallCard question={question} value={value} onChange={onChange} disabled={disabled} />
   }
@@ -39,6 +45,48 @@ export default function PythonAnswer({ question, value, onChange, onSubmit, disa
     return <OutputField value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
   }
   return <CodeBox question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
+}
+
+// One math input per answer field. The answers travel as one string, one per
+// line, so every host keeps a plain string in state as it does for any other
+// question. Enter moves to the next field, and checks from the last.
+function TypedAnswer({ question, value, onChange, onSubmit, disabled, id }: Props) {
+  const fields = useMemo(() => typedFields(question), [question])
+  // One focus handle per field, so Enter can move to the next one.
+  const handles = useMemo(() => fields.map(() => ({ current: null as MathFocusHandle | null })), [fields])
+  const values = typedValues(value, fields.length)
+  const set = (i: number, v: string) => {
+    const next = values.slice()
+    next[i] = v.replace(/\n/g, ' ')
+    onChange(fields.length > 1 ? next.join('\n') : next[0])
+  }
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-2">
+      {fields.map((f, i) => (
+        <div key={i} className="flex min-w-0 items-center gap-3">
+          {f.label ? (
+            <KatexContent className="shrink-0 font-mono text-sm text-mathua-primary">{`\\(${f.label} =\\)`}</KatexContent>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <MathAnswerInput
+              id={i === 0 ? id : id ? `${id}-${i}` : undefined}
+              value={values[i]}
+              onChange={v => set(i, v)}
+              onSubmit={() => {
+                if (i < fields.length - 1) handles[i + 1].current?.focus()
+                else onSubmit?.()
+              }}
+              gradingType={f.grading}
+              disabled={disabled}
+              placeholder="Your answer"
+              ariaLabel={f.label ? `Answer for ${f.label}` : 'Your answer'}
+              focusRef={handles[i]}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // A flashcard. The back is part of the served question (a flashcard has no

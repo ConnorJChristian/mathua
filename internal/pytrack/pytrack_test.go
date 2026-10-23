@@ -3,6 +3,7 @@ package pytrack
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -327,5 +328,111 @@ func TestRecallCards(t *testing.T) {
 	}
 	if _, err := LoadBank(dir); err == nil {
 		t.Error("a recall card without a back was accepted")
+	}
+}
+
+func TestMathItems(t *testing.T) {
+	dir := t.TempDir()
+	bank := `{"chapter":"x","title":"X","concepts":[{"id":"anki.x.m","book":{"name":"Deck","section":"","title":"Ch 12","url":""},"intro":"","items":[
+{"id":"n1c0","kind":"math","level":2,"prompt":"Find the stationary point.","parts":[
+ {"label":"x_0","answer":"15","grading":"numeric","tex":"15"},
+ {"label":"y_0","answer":"7/2","grading":"numeric","tex":"\\frac{7}{2}"}],
+ "back":"Set both partials to zero.","explain":""},
+{"id":"n2c0","kind":"mc","level":2,"prompt":"True or false: every convex function is concave.","correct":"False","wrong":["True"],"explain":"False."}]}]}`
+	if err := os.WriteFile(filepath.Join(dir, "x.json"), []byte(bank), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := LoadBank(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := &Track{Bank: b, Runner: NewRunner()}
+	c := b.Concept("anki.x.m")
+	p := tr.Problem(c, &c.Items[0])
+	want := "Find the stationary point.\n\n" + TypedMarker + `[{"label":"x_0","grading":"numeric"},{"label":"y_0","grading":"numeric"}]-->`
+	if p.Question != want {
+		t.Fatalf("question: %q", p.Question)
+	}
+	if strings.Contains(p.Question, "15") {
+		t.Error("the expected answer leaked into the question")
+	}
+	if !strings.HasPrefix(p.Explanation, `**Answer:** \(x_0 = 15\), \(y_0 = \frac{7}{2}\)`) || !strings.Contains(p.Explanation, "Set both partials") {
+		t.Errorf("explanation: %q", p.Explanation)
+	}
+	cases := []struct {
+		answer string
+		ok     bool
+	}{
+		{"15\n7/2", true},
+		{"15\n3.5", true},
+		{" 15 \r\n 3 1/2", true},
+		{"15\n4", false},
+		{"15", false},
+		{"14\n7/2", false},
+	}
+	for _, tc := range cases {
+		g := tr.Grade(p.Answer, tc.answer)
+		if g.Correct != tc.ok || g.Unavailable {
+			t.Errorf("%q: got %+v, want correct=%v", tc.answer, g, tc.ok)
+		}
+	}
+	if g := tr.Grade(p.Answer, "15\n4"); !strings.Contains(g.Feedback, "1 of 2 right") || g.Score != 0.5 {
+		t.Errorf("partial feedback: %+v", g)
+	}
+
+	// True/False keeps its usual order and needs only the one wrong option.
+	mc := tr.Problem(c, &c.Items[1])
+	if !strings.HasSuffix(mc.Question, "A) True\n\nB) False") {
+		t.Errorf("true/false order: %q", mc.Question)
+	}
+	if g := tr.Grade(mc.Answer, "False"); !g.Correct {
+		t.Error("False should be correct")
+	}
+
+	for name, bad := range map[string]string{
+		"no parts":        `"parts":[]`,
+		"bad grading":     `"parts":[{"answer":"1","grading":"tuple","tex":"1"}]`,
+		"unlabelled pair": `"parts":[{"answer":"1","grading":"numeric","tex":"1"},{"label":"y","answer":"2","grading":"numeric","tex":"2"}]`,
+		"empty answer":    `"parts":[{"answer":" ","grading":"numeric","tex":"1"}]`,
+	} {
+		s := strings.Replace(bank, bank[strings.Index(bank, `"parts":[`):strings.Index(bank, `,
+ "back"`)], bad, 1)
+		if err := os.WriteFile(filepath.Join(dir, "x.json"), []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := LoadBank(dir); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+func TestMathItemExpression(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 not available")
+	}
+	if out, err := exec.Command("python3", "-c", "import sympy").CombinedOutput(); err != nil {
+		t.Skipf("SymPy not available: %s", out)
+	}
+	dir := t.TempDir()
+	bank := `{"chapter":"x","title":"X","concepts":[{"id":"anki.x.e","book":{"name":"Deck","section":"","title":"Ch 2","url":""},"intro":"","items":[
+{"id":"n1c0","kind":"math","level":2,"prompt":"Given TR and TC, find the profit function.","parts":[
+ {"label":"\\pi","answer":"-x^2+30x-120","grading":"expression","tex":"-x^2 + 30x - 120"}],"back":"","explain":""}]}]}`
+	if err := os.WriteFile(filepath.Join(dir, "x.json"), []byte(bank), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := LoadBank(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := &Track{Bank: b, Runner: NewRunner()}
+	c := b.Concept("anki.x.e")
+	p := tr.Problem(c, &c.Items[0])
+	if g := tr.Grade(p.Answer, "30x-x^2-120"); g.Unavailable {
+		t.Skipf("SymPy grader unavailable here: %s", g.Feedback)
+	} else if !g.Correct {
+		t.Errorf("an equivalent form should be correct: %+v", g)
+	}
+	if g := tr.Grade(p.Answer, "-x^2+30x+120"); g.Correct {
+		t.Error("a different expression was accepted")
 	}
 }

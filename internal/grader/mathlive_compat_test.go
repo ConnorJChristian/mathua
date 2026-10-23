@@ -40,7 +40,9 @@ var (
 	mixedNumbersRE = regexp.MustCompile(`(-?\d+)\((\d+)\)/\((\d+)\)`)
 	// A single token per side, mirroring plainAnswer.ts: wide enough for `(pi)/(2)`,
 	// narrow enough to leave `(x + 1)/(y)` alone.
-	fractionParensRE = regexp.MustCompile(`\((-?[A-Za-z0-9.]+)\)/\((-?[A-Za-z0-9.]+)\)`)
+	// The denominator is one number, one letter or pi: `(2K)/(3L)` must keep
+	// its parentheses, or it reads as (2K/3)L.
+	fractionParensRE = regexp.MustCompile(`\((-?[A-Za-z0-9.]+)\)/\((-?(?:\d+(?:\.\d+)?|\.\d+|[A-Za-z]|pi))\)`)
 	nameSpacingRE    = regexp.MustCompile(`(?m)([\w)])\s+([(^])`)
 	letterRunRE      = regexp.MustCompile(`[A-Za-z](?: [A-Za-z])+`)
 	letterRunOffset  = regexp.MustCompile(`[A-Za-z]`)

@@ -33,7 +33,12 @@ const MIXED_RE = /(-?\d+)\((\d+)\)\/\((\d+)\)/
 // handled the first and missed the second. Restricting each side to one token is what
 // keeps this from mangling a real expression: `(x + 1)/(y)` must keep its parentheses,
 // because unwrapping it would read as `x + 1/y`.
-const FRACTION_PARENS_RE = /\((-?[A-Za-z0-9.]+)\)\/\((-?[A-Za-z0-9.]+)\)/g
+//
+// The denominator is narrower still: one number, one letter or pi. A product
+// such as `3L` reads correctly on top, since `2K/3` is (2K)/3, but not
+// underneath: `(2K)/(3L)` unwrapped to `2K/3L`, which every grader reads as
+// (2K/3)L, so a learner who typed the book's answer was marked wrong.
+const FRACTION_PARENS_RE = /\((-?[A-Za-z0-9.]+)\)\/\((-?(?:\d+(?:\.\d+)?|\.\d+|[A-Za-z]|pi))\)/g
 
 /** `4(1)/(10)` → `4 1/10`. Must run before `fixFractionParens`. */
 export function fixMixedNumbers(s: string): string {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { displayAnswer, displayQuestion, plainAnswer, pythonKind, recallBack, starterCode, taskKey } from '../lib/pythonQuestion'
+import { displayAnswer, displayQuestion, plainAnswer, pythonKind, recallBack, starterCode, taskKey, typedEcho, typedFields, typedValues } from '../lib/pythonQuestion'
 import { prepareLessonMath } from '../lib/lessonMath'
 import { TRACKS, trackOfDomain, withTrack } from '../lib/track'
 
@@ -68,5 +68,33 @@ describe('track parameter', () => {
     expect(TRACKS.some(t => t.id === 'python')).toBe(true)
     expect(trackOfDomain('python_numpy')).toBe('python')
     expect(trackOfDomain('calculus')).toBe('math')
+  })
+})
+
+describe('math items (typed answers)', () => {
+  const q = 'Find the stationary point.\n\n<!--typed-answer [{"label":"x_0","grading":"numeric"},{"label":"y_0","grading":"numeric"}]-->'
+
+  it('is recognised before any other kind', () => {
+    expect(pythonKind(q)).toBe('math')
+  })
+
+  it('reads the fields and hides the marker', () => {
+    expect(typedFields(q)).toEqual([
+      { label: 'x_0', grading: 'numeric' },
+      { label: 'y_0', grading: 'numeric' },
+    ])
+    expect(displayQuestion(q)).toBe('Find the stationary point.')
+    expect(typedFields('no marker here')).toEqual([])
+    expect(typedFields('x\n\n<!--typed-answer not json-->')).toEqual([])
+  })
+
+  it('keeps one answer per field, one per line', () => {
+    expect(typedValues('15\n7/2', 2)).toEqual(['15', '7/2'])
+    expect(typedValues('15', 2)).toEqual(['15', ''])
+    expect(typedEcho(q, '15\n7/2')).toBe('x_0 = 15, y_0 = 7/2')
+  })
+
+  it('never shows the served answer key', () => {
+    expect(displayAnswer('math:anki.x#n1c0')).toBe('')
   })
 })
