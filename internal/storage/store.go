@@ -71,6 +71,11 @@ type ConceptProgress struct {
 	// counts toward mastery, XP, the quiz gate or review. Placement is not
 	// evidence (ADR-008, ADR-050).
 	PlacementSeeded bool `json:"placement_seeded,omitempty"`
+	// ImplicitCredit is the fraction of this concept that work on concepts
+	// above it has already exercised (Math Academy style partial credit; see
+	// engine/credit.go). It accumulates from 0 and the concept is credited
+	// once it reaches 1.
+	ImplicitCredit float64 `json:"implicit_credit,omitempty"`
 }
 
 type Session struct {

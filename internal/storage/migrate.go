@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS concept_progress (
     mastered_at      TEXT,
     weakness_score   REAL    NOT NULL DEFAULT 0,
     placement_seeded INTEGER NOT NULL DEFAULT 0,
+    implicit_credit  REAL    NOT NULL DEFAULT 0,
     PRIMARY KEY (student_id, concept_id),
     FOREIGN KEY (student_id) REFERENCES students(id)
 );

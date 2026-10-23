@@ -66,11 +66,21 @@ Upstream refuses to serve a topic until its prerequisites are mastered. In this
 fork, a locked topic's page has a **Practice anyway** button, as in Math Academy.
 It applies only to the topic you picked by hand; recommendations are unchanged.
 
-Mastering a topic credits every prerequisite below it that you haven't mastered.
-Credited topics count as done for your plan, so you aren't sent back to drill
-them. Each correct answer on a topic also keeps its credited prerequisites
-fresh, so they only come back for review if you stop working above them.
-Topics you mastered yourself keep their own review schedule.
+Mastering a topic gives **partial credit** to the prerequisites below it, as
+in Math Academy:
+
+- A direct prerequisite gets half a credit. A topic two links down gets a
+  quarter, and one three links down gets an eighth. Anything further gets
+  nothing.
+- A topic that lists a prerequisite under `encompasses` passes it a full
+  credit, because practising the topic practises all of that prerequisite.
+- Credit adds up. A prerequisite reaches full credit when, for example, you
+  master two topics directly above it. It then counts as done for your plan,
+  so you are not sent back to drill it.
+
+A correct answer keeps credited prerequisites fresh only through a strong link
+(half a credit or more). Weakly linked credit comes back for review. Topics you
+mastered yourself keep their own review schedule.
 
 ## Not covered (use ISLR / course notes)
 
@@ -114,7 +124,8 @@ graph as one:
   to learn, this track's shelf offers it, marked **Needed next**.
 - When everything in a track waits on other tracks, the shelf offers the
   track's entry topics as **Jump in**. You can practise a locked topic.
-- Mastering a concept credits everything below it, in every track.
+- Mastering a concept gives partial credit to the concepts below it, in every
+  track. The credit halves with each link.
 - A goal (destination) plans and places across tracks. Its placement test
   covers the goal's prerequisites in every domain. It skips question-bank
   practice sets, such as flashcards and code tasks.
@@ -234,8 +245,8 @@ A question bank can also hold **recall cards**, which work like flashcards.
 You answer in your head, reveal the back, then mark whether you had it.
 
 The Python track has no placement test. Its first topics have no
-prerequisites. Mastering a topic credits the topics below it, as on the math
-side.
+prerequisites. Mastering a topic gives partial credit to the topics below it,
+as on the math side.
 
 ### How code runs
 

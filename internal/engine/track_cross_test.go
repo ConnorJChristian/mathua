@@ -104,11 +104,18 @@ func TestCrossTrack_EligibilityAndCreditCrossTracks(t *testing.T) {
 	if el, _ := e.EligibilityFor(st.ID, "x"); el.Eligible {
 		t.Fatal("x needs a, which is untouched: it should be locked")
 	}
-	// Mastering y credits everything below it, across the track boundary.
+	// Credit flows across the track boundary, weakening with distance: y is two
+	// links above math's a, so it gives a quarter; x, one link above, a half.
 	e.creditPrerequisites(st.ID, "y", true)
 	p, err := e.repo.GetProgress(st.ID, "a")
+	if err != nil || p == nil || p.ImplicitCredit != creditPrereqWeight*creditPrereqWeight || isCredited(p) {
+		t.Fatalf("mastering econ's y should give math's a a quarter credit: %+v %v", p, err)
+	}
+	e.creditPrerequisites(st.ID, "x", true)
+	e.creditPrerequisites(st.ID, "x", true)
+	p, err = e.repo.GetProgress(st.ID, "a")
 	if err != nil || !isCredited(p) {
-		t.Fatalf("mastering econ's y should credit math's a: %+v %v", p, err)
+		t.Fatalf("a quarter plus two halves should credit math's a: %+v %v", p, err)
 	}
 	if el, _ := e.EligibilityFor(st.ID, "x"); !el.Eligible {
 		t.Fatalf("x should be eligible once a is credited: %+v", el)

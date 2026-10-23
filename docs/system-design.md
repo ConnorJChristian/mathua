@@ -139,7 +139,7 @@ Eighteen tables. The five that carry the learning loop are `students`, `concept_
 ### Indexes
 
 - `concept_progress(student_id)`  --  Fast progress lookups
-- `concept_progress(student_id, status, mastered_at)`  --  Weekly leaderboard (`sqlite.go:1549` `GetWeeklyLeaderboard`)
+- `concept_progress(student_id, status, mastered_at)`  --  Weekly leaderboard (`sqlite.go:1556` `GetWeeklyLeaderboard`)
 - `sessions(student_id)`  --  Session history
 - `attempts(session_id)`  --  Attempts per session
 - `attempts(student_id, timestamp)`  --  Time-series queries
