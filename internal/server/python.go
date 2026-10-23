@@ -94,8 +94,27 @@ func (s *Server) moduleKPs(conceptID, label string) []map[string]interface{} {
 		return nil
 	}
 	c := t.Bank.Concept(conceptID)
-	if c == nil || strings.TrimSpace(c.Intro) == "" {
+	if c == nil {
 		return nil
+	}
+	if strings.TrimSpace(c.Intro) == "" {
+		// A bank with no note of its own, such as imported flashcards: say
+		// where the cards come from and how the set works.
+		src := c.Book.Title
+		if c.Book.Name != "" {
+			src = c.Book.Name + " › " + c.Book.Title
+		}
+		recall := 0
+		for _, it := range c.Items {
+			if it.Kind == pytrack.KindRecall {
+				recall++
+			}
+		}
+		body := fmt.Sprintf("**From:** %s\n\n%d cards.", src, len(c.Items))
+		if recall > 0 {
+			body += " For each card, answer in your head, reveal the back, then say whether you had it."
+		}
+		return step(c.Book.Title, body)
 	}
 	body := c.Intro
 	section := c.Book.Title

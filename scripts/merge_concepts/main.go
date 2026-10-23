@@ -89,7 +89,11 @@ func main() {
 	byConcept := credits()
 	all := readConceptDir("data/concepts", byConcept)
 
-	mods, err := modules.Load(".")
+	load := modules.Load
+	if *public {
+		load = modules.LoadPublic
+	}
+	mods, err := load(".")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "modules: %v\n", err)
 		os.Exit(1)
@@ -103,9 +107,6 @@ func main() {
 	labels := map[string]string{}
 	used := 0
 	for _, m := range mods.Modules {
-		if *public && m.Local {
-			continue
-		}
 		used++
 		dir := filepath.Join(m.Dir, "concepts")
 		if st, err := os.Stat(dir); err == nil && st.IsDir() {
@@ -115,23 +116,12 @@ func main() {
 			labels[d] = l
 		}
 	}
-	// Tracks from the modules that were merged, in the server's order.
-	merged := map[string]bool{}
-	for _, m := range mods.Modules {
-		if !(*public && m.Local) {
-			for _, t := range m.Tracks {
-				merged[t.ID] = true
-			}
-		}
-	}
 	for _, t := range mods.Tracks() {
-		if t.ID == modules.MathTrack || merged[t.ID] {
-			d := t.Domains
-			if d == nil {
-				d = []string{}
-			}
-			tracks = append(tracks, trackOut{ID: t.ID, Label: t.Label, Domains: d})
+		d := t.Domains
+		if d == nil {
+			d = []string{}
 		}
+		tracks = append(tracks, trackOut{ID: t.ID, Label: t.Label, Domains: d})
 	}
 
 	out, err := json.MarshalIndent(all, "", "  ")

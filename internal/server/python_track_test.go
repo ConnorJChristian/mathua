@@ -22,7 +22,7 @@ import (
 // handlers, so these tests see exactly what a learner on either track sees.
 func pythonServer(t *testing.T) *http.ServeMux {
 	t.Helper()
-	mods, err := modules.Load("../..")
+	mods, err := modules.LoadPublic("../..")
 	if err != nil {
 		t.Fatalf("modules: %v", err)
 	}

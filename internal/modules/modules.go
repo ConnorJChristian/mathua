@@ -94,7 +94,9 @@ var (
 	defaultErr  error
 )
 
-// Default discovers modules once per process. MATHUA_ROOT names the root;
+// Default discovers modules once per process. MATHUA_PUBLIC_MODULES_ONLY=1
+// leaves out modules-local/ (the test suites set it, so they pass the same on
+// every machine). MATHUA_ROOT names the root;
 // otherwise the nearest directory at or above the working directory (then
 // the executable) that has a modules/ or data/concepts/ folder is used, so
 // tests run from a package directory find the repository.
@@ -103,6 +105,10 @@ func Default() (*Set, error) {
 		root := os.Getenv("MATHUA_ROOT")
 		if root == "" {
 			root = findRoot()
+		}
+		if os.Getenv("MATHUA_PUBLIC_MODULES_ONLY") == "1" {
+			defaultSet, defaultErr = LoadPublic(root)
+			return
 		}
 		defaultSet, defaultErr = Load(root)
 	})
@@ -146,8 +152,14 @@ func isDir(p string) bool {
 	return err == nil && st.IsDir()
 }
 
-// Load discovers the enabled modules under root.
-func Load(root string) (*Set, error) {
+// Load discovers the enabled modules under root: modules/ and modules-local/.
+func Load(root string) (*Set, error) { return load(root, true) }
+
+// LoadPublic discovers only the committed modules (modules/). Tests use it,
+// so they pass the same on every machine whatever its modules-local/ holds.
+func LoadPublic(root string) (*Set, error) { return load(root, false) }
+
+func load(root string, withLocal bool) (*Set, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
@@ -177,6 +189,9 @@ func Load(root string) (*Set, error) {
 		dir   string
 		local bool
 	}{{"modules", false}, {"modules-local", true}} {
+		if area.local && !withLocal {
+			continue
+		}
 		entries, err := os.ReadDir(filepath.Join(abs, area.dir))
 		if err != nil {
 			continue

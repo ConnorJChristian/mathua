@@ -119,6 +119,24 @@ The rebuild is needed because the web app bundles the concept list.
 `web/next-app/data/concepts.json`, so run `go run ./scripts/merge_concepts`
 before you commit. A test fails if local module content is committed.
 
+### Anki cards
+
+`scripts/import_anki.py` turns an Anki export (`.colpkg` or `.apkg`) into a
+local module of recall cards:
+
+```bash
+pip install zstandard
+python3 scripts/import_anki.py collection.colpkg --config modules-local/anki/anki.json
+```
+
+The config chooses which decks to import and which domain and track each
+becomes; the script's docstring shows the format. Each deck becomes a topic,
+and large decks are split into sets of about 60 cards along your `topic::`
+tags. Card images are copied into the module's `files/media/`. Your Anki
+schedule is not imported: Mathua schedules the cards from your answers here.
+Re-run the import after you export again; it replaces the cards and keeps
+the rest of the module.
+
 ## Python for Data Science track
 
 The `python-dsh` module adds the **Python** side of the header switch. Same

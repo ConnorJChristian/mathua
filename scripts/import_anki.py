@@ -1,0 +1,438 @@
+#!/usr/bin/env python3
+"""Import Anki cards into a local Mathua module of recall cards.
+
+    python3 scripts/import_anki.py <export.colpkg|.apkg> --config modules-local/anki/anki.json
+
+The output is a module in modules-local/ (git-ignored, never pushed):
+
+    modules-local/<id>/module.json        tracks and domain labels from the config
+    modules-local/<id>/concepts/*.json    one topic per deck (large decks split)
+    modules-local/<id>/bank/*.json        one recall card per Anki card
+    modules-local/<id>/files/media/       the images the cards use
+
+Re-running replaces those generated folders and keeps anything else in the
+module (readings.json, files/ PDFs, src/ authored banks).
+
+Your Anki scheduling is not imported: Mathua schedules the cards itself from
+your answers here, and nothing is written back to Anki.
+
+The config chooses which decks become which domains:
+
+    {
+      "module": {"id": "anki", "name": "My Anki cards",
+                 "tracks": [{"id": "econometrics", "label": "Econometrics",
+                             "no_placement": true, "domains": ["anki_wooldridge"]}]},
+      "groups": [
+        {"deck": "Wooldridge - Introductory Econometrics 7e",
+         "domain": "anki_wooldridge", "label": "Anki · Wooldridge",
+         "book": "Wooldridge, Introductory Econometrics 7e"}
+      ],
+      "max_cards_per_topic": 60
+    }
+
+A deck matches a group when its name equals the group's "deck" or starts with
+it followed by "::". Decks no group matches are skipped, as are Image
+Occlusion notes and note types without a front and back.
+
+Needs the `zstandard` package for current exports (pip install zstandard).
+"""
+
+import argparse
+import html
+import json
+import os
+import re
+import shutil
+import sqlite3
+import sys
+import tempfile
+import zipfile
+from collections import OrderedDict, defaultdict
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RECALL_MARKER = "<!--recall-back-->"  # internal/pytrack/track.go RecallMarker
+SEP = "\x1f"
+
+
+# ---------------------------------------------------------------- reading the export
+
+def zstd_decompress(data):
+    try:
+        import zstandard
+    except ImportError:
+        sys.exit("This export is zstd-compressed: run `pip install zstandard` and try again.")
+    return zstandard.ZstdDecompressor().decompressobj().decompress(data)
+
+
+def is_zstd(data):
+    return data[:4] == b"\x28\xb5\x2f\xfd"
+
+
+def read_varint(buf, i):
+    shift = result = 0
+    while True:
+        b = buf[i]
+        i += 1
+        result |= (b & 0x7F) << shift
+        if not b & 0x80:
+            return result, i
+        shift += 7
+
+
+def parse_media_protobuf(buf):
+    """MediaEntries { repeated MediaEntry entries = 1; }
+    MediaEntry { string name = 1; uint32 size = 2; bytes sha1 = 3; optional uint32 legacy_zip_filename = 255; }"""
+    entries = []
+    i = 0
+    while i < len(buf):
+        key, i = read_varint(buf, i)
+        field, wire = key >> 3, key & 7
+        if wire == 2:
+            ln, i = read_varint(buf, i)
+            chunk, i = buf[i:i + ln], i + ln
+            if field == 1:
+                name, legacy = None, None
+                j = 0
+                while j < len(chunk):
+                    k, j = read_varint(chunk, j)
+                    f, w = k >> 3, k & 7
+                    if w == 2:
+                        l2, j = read_varint(chunk, j)
+                        if f == 1:
+                            name = chunk[j:j + l2].decode("utf-8")
+                        j += l2
+                    elif w == 0:
+                        v, j = read_varint(chunk, j)
+                        if f == 255:
+                            legacy = v
+                    else:
+                        raise ValueError("unexpected wire type in media map")
+                entries.append((name, legacy))
+        elif wire == 0:
+            _, i = read_varint(buf, i)
+        else:
+            raise ValueError("unexpected wire type in media map")
+    return entries
+
+
+def open_export(path, workdir):
+    """Returns (sqlite connection, {media name: zip member}, zipfile)."""
+    z = zipfile.ZipFile(path)
+    names = set(z.namelist())
+    db_path = os.path.join(workdir, "collection.db")
+    if "collection.anki21b" in names:
+        data = z.read("collection.anki21b")
+        open(db_path, "wb").write(zstd_decompress(data) if is_zstd(data) else data)
+    elif "collection.anki21" in names:
+        open(db_path, "wb").write(z.read("collection.anki21"))
+    elif "collection.anki2" in names:
+        open(db_path, "wb").write(z.read("collection.anki2"))
+    else:
+        sys.exit("No Anki collection found in %s" % path)
+    media = {}
+    if "media" in names:
+        raw = z.read("media")
+        if is_zstd(raw):
+            for idx, (name, legacy) in enumerate(parse_media_protobuf(zstd_decompress(raw))):
+                if name:
+                    media[name] = str(legacy if legacy is not None else idx)
+        else:
+            for k, v in json.loads(raw.decode("utf-8") or "{}").items():
+                media[v] = k
+    db = sqlite3.connect(db_path)
+    db.create_collation("unicase", lambda a, b: (a.lower() > b.lower()) - (a.lower() < b.lower()))
+    return db, media, z
+
+
+def load_notetypes(db):
+    out = {}
+    tables = {r[0] for r in db.execute("select name from sqlite_master where type='table'")}
+    if "notetypes" in tables:
+        for ntid, name in db.execute("select id, name from notetypes"):
+            fields = [f for (f,) in db.execute("select name from fields where ntid=? order by ord", (ntid,))]
+            out[ntid] = (name, fields)
+    else:  # legacy schema: models json in col
+        models = json.loads(db.execute("select models from col").fetchone()[0])
+        for mid, m in models.items():
+            out[int(mid)] = (m["name"], [f["name"] for f in m["flds"]])
+    return out
+
+
+def load_decks(db):
+    tables = {r[0] for r in db.execute("select name from sqlite_master where type='table'")}
+    if "decks" in tables:
+        return {did: name.replace(SEP, "::") for did, name in db.execute("select id, name from decks")}
+    decks = json.loads(db.execute("select decks from col").fetchone()[0])
+    return {int(k): v["name"] for k, v in decks.items()}
+
+
+# ---------------------------------------------------------------- card text
+
+CLOZE_RE = re.compile(r"\{\{c(\d+)::(.*?)(?:::(.*?))?\}\}", re.S)
+
+
+def cloze_side(text, n, reveal):
+    def sub(m):
+        num, body, hint = int(m.group(1)), m.group(2), m.group(3)
+        if num != n:
+            return body
+        if reveal:
+            return "<b>" + body + "</b>"
+        return "<b>[" + (hint or "...") + "]</b>"
+    # Nested clozes: resolve inner ones first.
+    prev = None
+    while prev != text:
+        prev = text
+        text = CLOZE_RE.sub(sub, text)
+    return text
+
+
+def media_src(module_id):
+    def fix(m):
+        name = html.unescape(m.group(2))
+        if re.match(r"^[a-z]+:", name):
+            return m.group(0)
+        return m.group(1) + "/api/modules/%s/files/media/%s" % (module_id, quote(name)) + m.group(3)
+    return fix
+
+
+def quote(name):
+    from urllib.parse import quote as q
+    return q(name, safe="")
+
+
+IMG_RE = re.compile(r'(<img[^>]*?\bsrc=")([^"]+)(")', re.I)
+
+
+def clean(text, module_id):
+    text = IMG_RE.sub(media_src(module_id), text)
+    text = text.replace(RECALL_MARKER, "")
+    # Anki's [sound:...] tags have no player here.
+    text = re.sub(r"\[sound:[^\]]+\]", "", text)
+    return text.strip()
+
+
+def referenced_media(text):
+    return [html.unescape(m.group(2)) for m in IMG_RE.finditer(text) if not re.match(r"^[a-z]+:", m.group(2))]
+
+
+def card_sides(nt_name, fields, flds, ord_):
+    f = dict(zip(fields, flds))
+    vals = flds + [""] * 4
+    if nt_name.startswith("Image Occlusion") or nt_name == "Study Path Reading":
+        return None
+    if "Cloze" in nt_name or "Text" in f and "{{c" in f.get("Text", ""):
+        text = f.get("Text", vals[0])
+        extra = f.get("Back Extra", f.get("Extra", ""))
+        n = ord_ + 1
+        if "{{c%d::" % n not in text:
+            return None
+        front = cloze_side(text, n, reveal=False)
+        back = cloze_side(text, n, reveal=True)
+        if extra.strip():
+            back += "<br><br>" + extra
+        return front, back
+    front, back = f.get("Front", vals[0]), f.get("Back", vals[1])
+    if ord_ == 1:  # the reversed card of a "(and reversed card)" note
+        front, back = back, front
+    if not front.strip() or not back.strip():
+        return None
+    return front, back
+
+
+# ---------------------------------------------------------------- topics
+
+def slug(s, n=40):
+    s = re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_")
+    return s[:n].strip("_") or "x"
+
+
+def topic_tag(tags):
+    for t in tags.split():
+        if t.lower().startswith("topic::"):
+            return t.split("::", 1)[1]
+    return ""
+
+
+def build(args):
+    cfg = json.load(open(args.config, encoding="utf-8"))
+    mod = cfg["module"]
+    module_id = mod["id"]
+    out = os.path.join(ROOT, "modules-local", module_id)
+    max_per = int(cfg.get("max_cards_per_topic", 60))
+    groups = cfg["groups"]
+
+    with tempfile.TemporaryDirectory() as work:
+        db, media_map, z = open_export(args.export, work)
+        notetypes = load_notetypes(db)
+        decks = load_decks(db)
+
+        def group_of(deck):
+            for g in groups:
+                if deck == g["deck"] or deck.startswith(g["deck"] + "::"):
+                    return g
+            return None
+
+        # One item per card, grouped by (group, sub-deck path). Cards in deck
+        # order, then by note and card order, so topics read like the deck.
+        rows = db.execute(
+            "select c.id, c.nid, c.ord, c.did, n.mid, n.flds, n.tags from cards c join notes n on n.id = c.nid order by c.did, n.id, c.ord"
+        ).fetchall()
+        by_topic = OrderedDict()
+        skipped = defaultdict(int)
+        media_used = set()
+        for cid, nid, ord_, did, mid, flds, tags in rows:
+            deck = decks.get(did, "")
+            g = group_of(deck)
+            if g is None:
+                skipped["deck not in config"] += 1
+                continue
+            nt_name, fields = notetypes.get(mid, ("?", []))
+            sides = card_sides(nt_name, fields, flds.split(SEP), ord_)
+            if sides is None:
+                skipped[nt_name] += 1
+                continue
+            front, back = sides
+            for t in (front, back):
+                media_used.update(referenced_media(t))
+            rel = deck[len(g["deck"]):].lstrip(":") or g.get("label", g["deck"])
+            key = (g["domain"], rel)
+            by_topic.setdefault(key, {"group": g, "rel": rel, "cards": []})["cards"].append(
+                {"id": "n%dc%d" % (nid, ord_), "front": clean(front, module_id), "back": clean(back, module_id), "tags": tags})
+
+        # Split large decks into practice sets of a sensible size. Cards keep
+        # deck order; runs that share a topic:: tag stay together where they
+        # fit, small runs are packed into one set, and an oversized run is cut
+        # into equal parts (60 + 60 + 4 becomes 42 + 41 + 41).
+        concepts = defaultdict(list)  # domain -> concept dicts
+        banks = defaultdict(list)
+        used_ids = set()
+
+        def even(cards):
+            k = -(-len(cards) // max_per)
+            size = -(-len(cards) // k)
+            return [cards[i:i + size] for i in range(0, len(cards), size)]
+
+        for (domain, rel), t in by_topic.items():
+            g = t["group"]
+            sets = []  # (cards, tags in it)
+            if len(t["cards"]) <= max_per:
+                sets.append((t["cards"], []))
+            else:
+                runs = OrderedDict()
+                for c in t["cards"]:
+                    runs.setdefault(topic_tag(c["tags"]), []).append(c)
+                cur, cur_tags = [], []
+                for tag, cards in runs.items():
+                    if len(cards) > max_per:
+                        if cur:
+                            sets.append((cur, cur_tags))
+                            cur, cur_tags = [], []
+                        for part in even(cards):
+                            sets.append((part, [tag] if tag else []))
+                        continue
+                    if len(cur) + len(cards) > max_per:
+                        sets.append((cur, cur_tags))
+                        cur, cur_tags = [], []
+                    cur = cur + cards
+                    if tag:
+                        cur_tags.append(tag)
+                if cur:
+                    sets.append((cur, cur_tags))
+            leaf = rel.split("::")[-1]
+            counts = defaultdict(int)
+            for _, tags in sets:
+                counts[tuple(tags)] += 1
+            seen_label = defaultdict(int)
+            for chunk, tags in sets:
+                label = leaf
+                if len(sets) > 1:
+                    if tags:
+                        names = [x.split("::")[-1].replace("_", " ") for x in tags]
+                        label += " · " + (", ".join(names[:2]) + (" and more" if len(names) > 2 else ""))
+                    seen_label[tuple(tags)] += 1
+                    if counts[tuple(tags)] > 1:
+                        label += " (%d of %d)" % (seen_label[tuple(tags)], counts[tuple(tags)])
+                    if not tags and counts[()] == 1:
+                        label += " (other)"
+                base = "anki.%s.%s" % (slug(domain.replace("anki_", ""), 20), slug(rel, 48))
+                cid = base
+                n = 1
+                while cid in used_ids:
+                    n += 1
+                    cid = "%s.%d" % (base, n)
+                used_ids.add(cid)
+                sub = slug(rel.split("::")[0], 40)
+                concepts[domain].append({
+                    "id": cid, "label": label, "domain": domain,
+                    "subdomain": domain + "." + sub, "grading_type": "bank",
+                    "prerequisites": [],
+                    "mastery_threshold": {"streak": 3, "avg_time_seconds": 90.0},
+                })
+                seen = set()
+                items = []
+                for c in chunk:
+                    if c["id"] in seen or not c["front"] or not c["back"]:
+                        continue
+                    seen.add(c["id"])
+                    items.append({"id": c["id"], "kind": "recall", "level": 2,
+                                  "prompt": c["front"], "back": c["back"], "explain": ""})
+                banks[domain].append({
+                    "id": cid,
+                    "book": {"name": g.get("book", g.get("label", "")), "section": "",
+                             "title": rel.replace("::", " › "), "url": ""},
+                    "intro": "", "items": items,
+                })
+
+        # Write: replace only what this importer owns.
+        for sub in ("concepts", "bank", os.path.join("files", "media")):
+            p = os.path.join(out, sub)
+            if os.path.isdir(p):
+                shutil.rmtree(p)
+            os.makedirs(p, exist_ok=True)
+        manifest = dict(mod)
+        labels = dict(manifest.get("domain_labels", {}))
+        for g in groups:
+            labels.setdefault(g["domain"], g.get("label", g["domain"]))
+        manifest["domain_labels"] = labels
+        manifest.setdefault("name", module_id)
+        json.dump(manifest, open(os.path.join(out, "module.json"), "w", encoding="utf-8"), indent=2, ensure_ascii=False)
+        n_items = 0
+        for domain in concepts:
+            json.dump(concepts[domain], open(os.path.join(out, "concepts", domain + ".json"), "w", encoding="utf-8"),
+                      indent=1, ensure_ascii=False)
+            bank = {"chapter": domain, "title": labels.get(domain, domain),
+                    "concepts": [b for b in banks[domain] if b["items"]]}
+            n_items += sum(len(b["items"]) for b in bank["concepts"])
+            json.dump(bank, open(os.path.join(out, "bank", domain + ".json"), "w", encoding="utf-8"),
+                      indent=1, ensure_ascii=False)
+        copied = 0
+        mdir = os.path.join(out, "files", "media")
+        for name in sorted(media_used):
+            member = media_map.get(name)
+            if member is None or "/" in name or "\\" in name or name.startswith("."):
+                continue
+            try:
+                data = z.read(member)
+            except KeyError:
+                continue
+            if is_zstd(data):
+                data = zstd_decompress(data)
+            open(os.path.join(mdir, name), "wb").write(data)
+            copied += 1
+
+    print("%s: %d topics, %d cards, %d images -> %s" % (
+        module_id, sum(len(v) for v in concepts.values()), n_items, copied, os.path.relpath(out, ROOT)))
+    for k, v in sorted(skipped.items(), key=lambda kv: -kv[1]):
+        print("  skipped %d cards: %s" % (v, k))
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("export", help=".colpkg or .apkg exported from Anki")
+    ap.add_argument("--config", required=True, help="the import config (see the module docstring)")
+    build(ap.parse_args())
+
+
+if __name__ == "__main__":
+    main()

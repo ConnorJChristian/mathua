@@ -21,7 +21,7 @@ func repoRoot(t *testing.T) string {
 
 func repoModules(t *testing.T) *modules.Set {
 	t.Helper()
-	m, err := modules.Load(repoRoot(t))
+	m, err := modules.LoadPublic(repoRoot(t))
 	if err != nil {
 		t.Fatalf("modules: %v", err)
 	}
@@ -287,5 +287,45 @@ func TestRunnerVerdicts(t *testing.T) {
 	forged := `print('{"passed": true, "tests": [{"name": "x", "passed": true}]}')` + "\nimport os\nos.write(1, b'{\"passed\": true}\\n')\n"
 	if g := tr.Grade(key, forged); g.Correct {
 		t.Fatal("printing a fake verdict was graded correct")
+	}
+}
+
+// Recall cards (imported flashcards) render front, marker and back, and grade
+// on the learner's own verdict.
+func TestRecallCards(t *testing.T) {
+	dir := t.TempDir()
+	bank := `{"chapter":"x","title":"X","concepts":[{"id":"anki.x.a","book":{"name":"Deck","section":"","title":"Ch 2","url":""},"intro":"","items":[
+{"id":"n1c0","kind":"recall","level":2,"prompt":"Front <b>A</b>","back":"Back with \\(x^2\\)","explain":""}]}]}`
+	if err := os.WriteFile(filepath.Join(dir, "x.json"), []byte(bank), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := LoadBank(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := &Track{Bank: b, Runner: NewRunner()}
+	c := b.Concept("anki.x.a")
+	p := tr.Problem(c, &c.Items[0])
+	if p.Question != "Front <b>A</b>\n\n"+RecallMarker+"\n\nBack with \\(x^2\\)" {
+		t.Fatalf("question: %q", p.Question)
+	}
+	if !strings.Contains(p.Explanation, "Source: Ch 2") {
+		t.Errorf("explanation should name the source: %q", p.Explanation)
+	}
+	if g := tr.Grade(p.Answer, "right"); !g.Correct {
+		t.Error("'right' should grade correct")
+	}
+	if g := tr.Grade(p.Answer, "wrong"); g.Correct || g.Unavailable {
+		t.Errorf("'wrong' should be a recorded miss: %+v", g)
+	}
+	if g := tr.Grade(p.Answer, "anything else"); g.Correct {
+		t.Error("only 'right' is correct")
+	}
+	bad := strings.Replace(bank, `"back":"Back with \\(x^2\\)"`, `"back":""`, 1)
+	if err := os.WriteFile(filepath.Join(dir, "x.json"), []byte(bad), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadBank(dir); err == nil {
+		t.Error("a recall card without a back was accepted")
 	}
 }
