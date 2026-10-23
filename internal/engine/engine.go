@@ -2498,6 +2498,11 @@ func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedA
 	if err := e.repo.UpsertProgress(progress); err != nil {
 		return mastery.Status(progress.Status), evidence, err
 	}
+	// Fork change: mastery credits the prerequisites below this concept, and any
+	// correct answer keeps already-credited ones fresh (see credit.go).
+	if o.correct {
+		e.creditPrerequisites(o.studentID, o.conceptID, newStatus == mastery.StatusMastered)
+	}
 	e.PropagateWeakness(o.studentID)
 	return newStatus, evidence, nil
 }

@@ -98,6 +98,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   // practice endpoint enforces this; the UI renders the explanation so a locked
   // topic never looks like a broken page or an empty question set.
   const [ineligible, setIneligible] = useState<ReadinessRes | null>(null)
+  // Fork change: the topic the learner chose to practise despite unmet
+  // prerequisites. Keyed by concept so it never carries over to another topic.
+  const [overrideFor, setOverrideFor] = useState<string | null>(null)
+  const override = overrideFor === conceptId
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const [buffer, setBuffer] = useState<PracticeQuestion[]>([])
   // Counts for the header, per *concept*. Not per knowledge point: this used to reset on
@@ -151,7 +155,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   }, [])
 
   const refill = useCallback(async (diff: number, exclude: string[]): Promise<PracticeQuestion[]> => {
-    const pr = await getLessonPractice(conceptId, 3, { seed: Date.now() % 100000, exclude, difficulty: diff })
+    const pr = await getLessonPractice(conceptId, 3, { seed: Date.now() % 100000, exclude, difficulty: diff, override })
     const fresh = pr.questions.filter(q => !exclude.includes(q.question))
     const answerable = fresh.length > 0 ? fresh : pr.questions
     const first = answerable[0]
@@ -159,7 +163,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       setServedFormat({ hint: first.answer_hint, inputMode: first.answer_input_mode === 'numeric' ? 'numeric' : 'text' })
     }
     return answerable
-  }, [conceptId])
+  }, [conceptId, override])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -172,11 +176,11 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       setReadiness(readyRes)
       // The server is the authority: if it says the topic's prerequisites are
       // unmet, do not fetch questions it would refuse. Show the path instead.
-      if (readyRes.eligible === false) {
+      if (readyRes.eligible === false && !override) {
         setIneligible(readyRes)
         return
       }
-      const pr = await getLessonPractice(conceptId, 3, { seed: Date.now() % 100000, difficulty: 0.4 })
+      const pr = await getLessonPractice(conceptId, 3, { seed: Date.now() % 100000, difficulty: 0.4, override })
       seenRef.current = pr.questions.map(q => q.question)
       setBuffer(pr.questions)
       const first = pr.questions[0]
@@ -189,7 +193,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     } finally {
       setLoading(false)
     }
-  }, [conceptId])
+  }, [conceptId, override])
 
   useEffect(() => {
     setEntries([])
@@ -381,7 +385,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     setEntry(key, { checking: true })
     const elapsed = Math.max(0.5, (Date.now() - entry.servedAt) / 1000)
     try {
-      const res = await submitStudyAnswer(conceptId, entry.answer.trim(), elapsed, entry.q.question)
+      const res = await submitStudyAnswer(conceptId, entry.answer.trim(), elapsed, entry.q.question, override)
       if (res.ungraded) {
         setEntry(key, { checking: false })
         return
@@ -511,6 +515,15 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           returnStack={prereqStack}
         />
         <div className="mt-4 flex flex-wrap gap-3">
+          {/* Fork change: practise anyway, the way Math Academy lets you pick a topic by hand.
+              Mastering it credits the prerequisites below it. */}
+          <button
+            type="button"
+            onClick={() => setOverrideFor(conceptId)}
+            className="border border-mathua-blue bg-mathua-blue px-4 py-2 font-mono text-[11px] text-white hover:opacity-90"
+          >
+            Practice anyway →
+          </button>
           <Link href="/domains" className="border border-mathua-border px-4 py-2 font-mono text-[11px] text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue">
             ← Choose another topic
           </Link>

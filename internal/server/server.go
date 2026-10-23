@@ -1908,10 +1908,15 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 	// UI explain this in advance; this is the enforcement behind that promise
 	// (invariant 3). Serving questions and anchoring answers for a locked
 	// concept would let the frontend's choice stand in for knowledge.
+	//
+	// Fork change: `override=1` lets a learner who chose this topic by hand
+	// practise it anyway (Math Academy allows the same). Recommendations never
+	// send it, so the gate still governs every automatic path.
+	override := r.URL.Query().Get("override") == "1"
 	if el, err := s.eng.EligibilityFor(s.lessonStudentID(r), conceptID); err != nil {
 		writeError(w, "unknown concept", 404)
 		return
-	} else if !el.Eligible {
+	} else if !el.Eligible && !override {
 		writeTopicLocked(w, el)
 		return
 	}
@@ -2943,6 +2948,8 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 		Elapsed   float64 `json:"elapsed"`
 		StudentID string  `json:"student_id"`
 		Question  string  `json:"question"`
+		// Fork change: set when the learner chose a locked topic by hand.
+		Override bool `json:"override"`
 	}
 	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, "invalid request", 400)
@@ -2994,7 +3001,7 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 	// Defense in depth behind the practice gate: an answer for a concept whose
 	// prerequisites are unmet is refused rather than recorded, so no path can
 	// turn a learner's choice into evidence for a topic they were not ready for.
-	if el, err := s.eng.EligibilityFor(studentID, req.ConceptID); err == nil && !el.Eligible {
+	if el, err := s.eng.EligibilityFor(studentID, req.ConceptID); err == nil && !el.Eligible && !req.Override {
 		writeTopicLocked(w, el)
 		return
 	}

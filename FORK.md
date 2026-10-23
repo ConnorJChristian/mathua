@@ -56,6 +56,18 @@ One quirk: upstream's graph routes logistic regression and KNN through a few
 neural-net basics (perceptron, forward pass, sigmoid activation, cross-entropy
 loss), so `statlearn` includes those four as prerequisites.
 
+## Practising locked topics
+
+Upstream refuses to serve a topic until its prerequisites are mastered. In this
+fork, a locked topic's page has a **Practice anyway** button, as in Math Academy.
+It applies only to the topic you picked by hand; recommendations are unchanged.
+
+Mastering a topic credits every prerequisite below it that you haven't mastered.
+Credited topics count as done for your plan, so you aren't sent back to drill
+them. Each correct answer on a topic also keeps its credited prerequisites
+fresh, so they only come back for review if you stop working above them.
+Topics you mastered yourself keep their own review schedule.
+
 ## Not covered (use ISLR / course notes)
 
 - Multiple regression in matrix form (β̂ = (X'X)⁻¹X'y) and coefficient inference

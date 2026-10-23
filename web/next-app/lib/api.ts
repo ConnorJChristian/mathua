@@ -1176,8 +1176,10 @@ export interface LessonKpsRes {
 	diagram?: string
 }
 
-export async function getLessonPractice(conceptId: string, count = 5, opts?: { seed?: number; exclude?: string[]; difficulty?: number }): Promise<LessonPracticeRes> {
+export async function getLessonPractice(conceptId: string, count = 5, opts?: { seed?: number; exclude?: string[]; difficulty?: number; override?: boolean }): Promise<LessonPracticeRes> {
 	const params = new URLSearchParams({ count: String(count) })
+	// Fork change: practise a locked topic the learner chose by hand.
+	if (opts?.override) params.set('override', '1')
 	if (opts?.seed) params.set('seed', String(opts.seed))
 	if (opts?.difficulty !== undefined) params.set('difficulty', String(opts.difficulty))
 	for (const ex of opts?.exclude ?? []) params.append('exclude', ex)
@@ -1365,6 +1367,7 @@ interface StudyAnswerBody {
 	elapsed: number
 	student_id?: string
 	question?: string
+	override?: boolean
 }
 
 // No `expected` is sent: the server anchors every served question against its
@@ -1372,10 +1375,11 @@ interface StudyAnswerBody {
 // grade itself. A 409 means the server has no record of this question (the
 // anchor's TTL expired, or the tab was left open too long) and the caller
 // should re-serve rather than resubmit.
-export async function submitStudyAnswer(conceptId: string, answer: string, elapsed: number, question?: string): Promise<StudyAnswerRes> {
+export async function submitStudyAnswer(conceptId: string, answer: string, elapsed: number, question?: string, override?: boolean): Promise<StudyAnswerRes> {
 	const { getGuestId } = await import('./auth')
 	const headers = { 'Content-Type': 'application/json', ...getAuthHeaders() } satisfies Record<string, string>
 	const body: StudyAnswerBody = { concept_id: conceptId, answer, elapsed, question }
+	if (override) body.override = true
 	const guestId = getGuestId()
 	if (guestId && !('Authorization' in headers)) {
 		body.student_id = guestId
