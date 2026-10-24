@@ -50,6 +50,9 @@ type Manifest struct {
 	Description  string            `json:"description"`
 	Tracks       []Track           `json:"tracks,omitempty"`
 	DomainLabels map[string]string `json:"domain_labels,omitempty"`
+	// NoLibrary keeps a module's online sources (wikis, guides) off the
+	// library shelves, which hold books (fork change).
+	NoLibrary bool `json:"no_library,omitempty"`
 }
 
 // Module is one discovered, enabled module.
@@ -130,6 +133,7 @@ type Set struct {
 	books       []BookMeta
 	videos      map[string][]Video
 	cards       map[string][]CardRef
+	noLibrary   map[string]bool // domains of no_library modules
 }
 
 const MathTrack = "math"
@@ -296,6 +300,12 @@ func load(root string, withLocal bool) (*Set, error) {
 			// Two modules may add domains to one track (a public chapter set and
 			// your own notes for the same subject, say).
 			for _, d := range t.Domains {
+				if m.NoLibrary {
+					if s.noLibrary == nil {
+						s.noLibrary = map[string]bool{}
+					}
+					s.noLibrary[d] = true
+				}
 				if owner, taken := s.domainTrack[d]; taken && owner != t.ID {
 					return nil, fmt.Errorf("domain %q is claimed by tracks %q and %q", d, owner, t.ID)
 				}
@@ -392,6 +402,10 @@ func readCards(m *Module) (map[string][]CardRef, error) {
 	}
 	return byTopic, nil
 }
+
+// LibraryHidden reports a domain whose module keeps its sources off the
+// library shelves (no_library).
+func (s *Set) LibraryHidden(domain string) bool { return s != nil && s.noLibrary[domain] }
 
 // Cards is every topic's filed cards (cards.json), keyed by topic id.
 func (s *Set) Cards() map[string][]CardRef {

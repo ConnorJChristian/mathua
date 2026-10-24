@@ -18,8 +18,9 @@ import (
 //
 //   - PDFs: your own files, from the modules' readings.json (and books.json
 //     for titles). Each section opens in the embedded reader at its page.
-//   - Online books and decks: the question banks' sources (the Python Data
-//     Science Handbook, the driver's handbook site, Anki decks...).
+//   - Online books: the question banks' sources that are books with section
+//     links (the Python Data Science Handbook, the Workday manuals). Not
+//     flashcard decks, and not a source that is one of the PDFs.
 //
 // GET /api/library
 
@@ -194,18 +195,45 @@ func (s *Server) library() []libraryBook {
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].Title < out[b].Title })
 
-	// Online books and decks, from the question banks, in bank order.
+	// Online books, from the question banks, in bank order. Only books: a
+	// flashcard deck (anki.*) is practice, not a source; a source with no
+	// section links is not a book you can open; a source that is one of the
+	// PDFs above is that book already; and a module may keep its online
+	// sources off the shelves (no_library). Fork change.
+	pdfTitles := make([]string, 0, len(out))
+	for _, b := range out {
+		pdfTitles = append(pdfTitles, normTitle(b.Title))
+	}
+	sameAsPDF := func(name string) bool {
+		n := normTitle(name)
+		for _, p := range pdfTitles {
+			if p == "" || n == "" {
+				continue
+			}
+			short := 24
+			if len(p) < short {
+				short = len(p)
+			}
+			if strings.Contains(n, p[:short]) || strings.Contains(p, n) {
+				return true
+			}
+		}
+		return false
+	}
 	if t, err := pytrack.Default(); err == nil {
 		webIdx := map[string]int{}
 		var web []libraryBook
 		for _, cid := range t.Bank.ConceptIDs() {
 			c := t.Bank.Concept(cid)
 			lb := label(cid)
-			if c == nil || lb == "" || hasPDF[cid] {
+			if c == nil || lb == "" || strings.HasPrefix(cid, "anki.") || c.Book.URL == "" {
+				continue
+			}
+			if dc := dag.Concept(cid); dc != nil && mods.LibraryHidden(dc.Domain) {
 				continue
 			}
 			name := bankBookName(c.Book)
-			if name == "" {
+			if name == "" || sameAsPDF(name) {
 				continue
 			}
 			bi, ok := webIdx[name]
@@ -259,6 +287,23 @@ func (s *Server) library() []libraryBook {
 		if out[i].Sections == nil {
 			out[i].Sections = []librarySection{}
 		}
+	}
+	return out
+}
+
+// normTitle lowercases a title and keeps only letters and digits, so
+// "An Introduction to Statistical Learning (Python)" and "James et al., An
+// Introduction to Statistical Learning with Python" compare by content.
+func normTitle(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	out := b.String()
+	for _, lead := range []string{"anintroductionto", "introductionto", "jamesetal", "the"} {
+		out = strings.TrimPrefix(out, lead)
 	}
 	return out
 }

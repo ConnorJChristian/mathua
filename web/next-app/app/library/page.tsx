@@ -47,7 +47,7 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
     <>
       <button type="button" onClick={onBack} className="font-mono text-xs text-mathua-secondary hover:text-mathua-blue">← Library</button>
       <div className="mt-4 mb-5">
-        <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">{book.kind === 'pdf' ? 'Your PDF' : 'Online / deck'}</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">{book.kind === 'pdf' ? 'Your PDF' : 'Online book'}</p>
         <h1 className="font-serif text-2xl text-mathua-primary mt-1 break-words">{book.title}</h1>
         {book.author && <p className="font-mono text-xs text-mathua-secondary mt-1">{book.author}</p>}
         <p className="font-mono text-[11px] text-mathua-muted mt-1">
@@ -187,7 +187,7 @@ function LibraryContent() {
                           className="h-full flex flex-col gap-1 border border-mathua-border bg-mathua-surface p-3 hover:border-mathua-blue min-w-0"
                         >
                           <span className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted">
-                            {b.kind === 'pdf' ? (b.available ? 'Your PDF' : 'PDF, not on this computer') : 'Online / deck'}
+                            {b.kind === 'pdf' ? (b.available ? 'Your PDF' : 'PDF, not on this computer') : 'Online book'}
                           </span>
                           <span className="font-mono text-xs text-mathua-primary break-words [overflow-wrap:anywhere]">{b.title}</span>
                           {b.author && <span className="font-mono text-[10px] text-mathua-secondary">{b.author}</span>}
