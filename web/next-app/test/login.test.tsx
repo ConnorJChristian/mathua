@@ -194,14 +194,14 @@ describe('LoginPage', () => {
     expect(signupMock).not.toHaveBeenCalled()
   })
 
-  it('routes to profile after a valid login', async () => {
+  it('routes to the Study tab after a valid login', async () => {
     loginMock.mockResolvedValue({ token: 't', student_id: 's1', name: 'Ada', diagnostic_completed: true })
     validateTokenMock.mockResolvedValue({ valid: true })
     render(<LoginPage />)
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'ada' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'Engine!n1' } })
     submitForm(screen.getByTestId('auth-submit'))
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/profile'))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/today'))
   })
 
   it('shows a disabled notice when the server has auth disabled', async () => {

@@ -142,9 +142,9 @@ describe('Header mobile nav menu', () => {
     const labels = items.map(i => i.textContent)
     // Whatever is left after the tab bar is subtracted out. Topics is not here: it holds the
     // tab the closed Study route occupied (a fork change), and Domains moved to the overflow.
-    expect(labels).toEqual(['Library', 'Domains', 'Leaderboard', 'Glossary', 'Contact', 'Login', 'Discord'])
+    expect(labels).toEqual(['Topics', 'Graph', 'Domains', 'Leaderboard', 'Glossary', 'Contact', 'Login', 'Discord'])
     const hrefs = items.map(i => (i as HTMLAnchorElement).getAttribute('href'))
-    expect(hrefs).toEqual(['/library', '/domains', '/leaderboard', '/glossary', '/contact', '/login', 'https://discord.gg/qXPeQ2jys'])
+    expect(hrefs).toEqual(['/topics', '/graph', '/domains', '/leaderboard', '/glossary', '/contact', '/login', 'https://discord.gg/qXPeQ2jys'])
     // The invariant behind the exact list: nothing appears twice on one screen.
     for (const href of hrefs) {
       expect(hrefs.filter(h => h === href)).toHaveLength(1)
@@ -191,7 +191,7 @@ describe('Header mobile nav menu', () => {
   it('closes on Escape', () => {
     render(<Header />)
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }))
-    expect(screen.getAllByRole('menuitem')).toHaveLength(7)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(8)
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryAllByRole('menuitem')).toHaveLength(0)
   })
@@ -200,11 +200,11 @@ describe('Header mobile nav menu', () => {
     render(<Header />)
     const button = screen.getByRole('button', { name: 'Open navigation menu' })
     fireEvent.click(button)
-    expect(screen.getAllByRole('menuitem')).toHaveLength(7)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(8)
     fireEvent.click(button)
     expect(screen.queryAllByRole('menuitem')).toHaveLength(0)
     fireEvent.click(button)
-    expect(screen.getAllByRole('menuitem')).toHaveLength(7)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(8)
   })
 
   it('closes when a link is clicked', () => {

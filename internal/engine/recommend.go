@@ -18,6 +18,13 @@ import (
 //
 // One definition, so "what should this learner do next" cannot answer differently depending on
 // which caller asked.
+// ConceptSnapshots is the scheduler's view of a learner's progress, for
+// surfaces that render eligibility themselves (the course view). progress may
+// be nil for a guest.
+func (e *Engine) ConceptSnapshots(studentID string, progress map[string]*storage.ConceptProgress) map[string]*scheduler.ConceptSnapshot {
+	return e.conceptSnapshotsFrom(studentID, progress)
+}
+
 func (e *Engine) conceptSnapshotsFrom(studentID string, progress map[string]*storage.ConceptProgress) map[string]*scheduler.ConceptSnapshot {
 	snapshots := make(map[string]*scheduler.ConceptSnapshot, len(progress))
 	for cid, p := range progress {

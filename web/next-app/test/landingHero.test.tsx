@@ -56,7 +56,7 @@ describe('landing hero', () => {
   it('still leaves a signed-in visitor on the landing page', async () => {
     localStorage.setItem('mathua_token', 't')
     render(<HomePage />)
-    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/profile'))
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/today'))
   })
 
   it('keeps the two hero actions on separate, non-conflicting backgrounds', async () => {

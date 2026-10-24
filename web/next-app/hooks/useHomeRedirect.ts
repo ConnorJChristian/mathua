@@ -18,7 +18,7 @@ export function useHomeRedirect(mounted: boolean): boolean {
   useEffect(() => {
     if (!mounted) return
     if (loggedIn) {
-      replace('/profile')
+      replace('/today')
       return
     }
     setChecked(true)

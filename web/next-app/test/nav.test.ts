@@ -16,12 +16,12 @@ describe('navigation order', () => {
     // Learn was previously logged-in-only, which meant a signed-out visitor
     // had no route to anything they could actually do.
     expect(desktopLinks(false).map(l => l.href)).toContain('/learn')
-    expect(order(desktopLinks(false))).toEqual(['/learn', '/topics', '/library', '/graph', '/domains', '/leaderboard', '/glossary', '/contact', '/login'])
+    expect(order(desktopLinks(false))).toEqual(['/today', '/courses', '/learn', '/topics', '/library', '/graph', '/domains', '/leaderboard', '/glossary', '/contact', '/login'])
   })
 
-  it('leads every surface with Learn', () => {
-    expect(desktopLinks(true)[0].href).toBe('/learn')
-    expect(desktopLinks(false)[0].href).toBe('/learn')
+  it('leads every surface with Study, then Courses, then Learn (fork)', () => {
+    expect(desktopLinks(true).slice(0, 3).map(l => l.href)).toEqual(['/today', '/courses', '/learn'])
+    expect(desktopLinks(false).slice(0, 3).map(l => l.href)).toEqual(['/today', '/courses', '/learn'])
   })
 
   it('shows Review beside Learn for a signed-in learner', () => {
@@ -65,12 +65,12 @@ describe('navigation order', () => {
   it('keeps the orientation surfaces in the tab bar, since Learn has no browse', () => {
     // Fork: Topics holds the slot Study held here. It orients a learner across the curriculum
     // and links every row onward into its lesson and into /learn. Domains moves to the overflow.
-    expect(TAB_HREFS.has('/topics')).toBe(true)
+    expect(TAB_HREFS.has('/courses')).toBe(true)
     expect(TAB_HREFS.has('/learn')).toBe(true)
   })
 
   it('exposes Learn as its own group for callers that want just it', () => {
-    expect(LEARN_LINKS.map(l => l.href)).toEqual(['/learn'])
+    expect(LEARN_LINKS.map(l => l.href)).toEqual(['/today', '/courses', '/learn'])
   })
 })
 
@@ -140,9 +140,11 @@ describe('the closed reference library stays closed', () => {
   it('is labelled nowhere', () => {
     // Catches a link that was retargeted to /learn but kept its old wording, which is the
     // half-finished version of this change: the route is unused, the invitation is not.
+    // Fork: the Study tab (/today) is the queue across your courses, not the old
+    // reference library, so that one label is allowed and must point at /today.
     for (const loggedIn of [true, false]) {
       for (const link of desktopLinks(loggedIn)) {
-        expect(link.label).not.toMatch(/study/i)
+        if (/study/i.test(link.label)) expect(link.href).toBe('/today')
       }
     }
   })

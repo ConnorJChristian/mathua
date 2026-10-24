@@ -105,6 +105,19 @@ type TOCEntry struct {
 	EndPage int    `json:"end_page,omitempty"`
 }
 
+// Video is a lecture or clip for a topic or a course (fork change):
+// videos.json maps a concept id or a course id to a list of these. URL is an
+// https link (YouTube or a direct video URL) or File is in the module's files/.
+type Video struct {
+	Title    string `json:"title"`
+	URL      string `json:"url,omitempty"`
+	File     string `json:"file,omitempty"`
+	Start    int    `json:"start,omitempty"`    // seconds into the video
+	Duration int    `json:"duration,omitempty"` // seconds, when known
+	Note     string `json:"note,omitempty"`
+	Module   string `json:"module,omitempty"`
+}
+
 // Set is the enabled modules of one installation.
 type Set struct {
 	Root     string // repository or install root
@@ -115,6 +128,8 @@ type Set struct {
 	domainTrack map[string]string
 	readings    map[string][]Reading
 	books       []BookMeta
+	videos      map[string][]Video
+	cards       map[string][]CardRef
 }
 
 const MathTrack = "math"
@@ -200,7 +215,7 @@ func load(root string, withLocal bool) (*Set, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Set{Root: abs, domainTrack: map[string]string{}, readings: map[string][]Reading{}}
+	s := &Set{Root: abs, domainTrack: map[string]string{}, readings: map[string][]Reading{}, videos: map[string][]Video{}, cards: map[string][]CardRef{}}
 	var cfg LocalConfig
 	if raw, err := os.ReadFile(filepath.Join(abs, "modules.local.json")); err == nil {
 		if err := json.Unmarshal(raw, &cfg); err != nil {
@@ -308,8 +323,91 @@ func load(root string, withLocal bool) (*Set, error) {
 			return nil, err
 		}
 		s.books = append(s.books, books...)
+		videos, err := readVideos(m)
+		if err != nil {
+			return nil, err
+		}
+		for id, vs := range videos {
+			for _, v := range vs {
+				v.Module = m.ID
+				s.videos[id] = append(s.videos[id], v)
+			}
+		}
+		cards, err := readCards(m)
+		if err != nil {
+			return nil, err
+		}
+		for topic, refs := range cards {
+			s.cards[topic] = append(s.cards[topic], refs...)
+		}
 	}
 	return s, nil
+}
+
+func readVideos(m *Module) (map[string][]Video, error) {
+	raw, err := os.ReadFile(filepath.Join(m.Dir, "videos.json"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var byID map[string][]Video
+	if err := json.Unmarshal(raw, &byID); err != nil {
+		return nil, fmt.Errorf("%s/videos.json: %w", m.ID, err)
+	}
+	for id, vs := range byID {
+		for _, v := range vs {
+			if v.File != "" && !safeRel(v.File) {
+				return nil, fmt.Errorf("%s/videos.json: %s: file %q must be a path inside files/", m.ID, id, v.File)
+			}
+			if v.File == "" && !strings.HasPrefix(v.URL, "https://") {
+				return nil, fmt.Errorf("%s/videos.json: %s: a video needs a file or an https url", m.ID, id)
+			}
+		}
+	}
+	return byID, nil
+}
+
+// CardRef names one question-bank item: the bank concept (a deck) and the
+// item id in it (fork change). cards.json maps a topic id to the cards that
+// are about it, so a card is practised with its topic rather than with the
+// whole deck it was imported in.
+type CardRef struct {
+	Deck string `json:"deck"`
+	Item string `json:"item"`
+}
+
+func readCards(m *Module) (map[string][]CardRef, error) {
+	raw, err := os.ReadFile(filepath.Join(m.Dir, "cards.json"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var byTopic map[string][]CardRef
+	if err := json.Unmarshal(raw, &byTopic); err != nil {
+		return nil, fmt.Errorf("%s/cards.json: %w", m.ID, err)
+	}
+	return byTopic, nil
+}
+
+// Cards is every topic's filed cards (cards.json), keyed by topic id.
+func (s *Set) Cards() map[string][]CardRef {
+	out := make(map[string][]CardRef, len(s.cards))
+	for k, v := range s.cards {
+		out[k] = append([]CardRef(nil), v...)
+	}
+	return out
+}
+
+// VideosFor lists the videos attached to a concept or course id (videos.json).
+func (s *Set) VideosFor(id string) []Video {
+	if s == nil {
+		return nil
+	}
+	return append([]Video(nil), s.videos[id]...)
 }
 
 func readBooks(m *Module) ([]BookMeta, error) {

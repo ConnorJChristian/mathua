@@ -10,6 +10,7 @@ const push = vi.fn()
 const replace = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace }),
+  useSearchParams: () => new URLSearchParams(),
 }))
 vi.mock('next/link', () => ({
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (

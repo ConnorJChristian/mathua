@@ -7,6 +7,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
+	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
 
@@ -61,5 +62,49 @@ func TestCardsServedInTopicPractice(t *testing.T) {
 	res := e.GradeAnswer("a", "42", "42")
 	if !res.Correct {
 		t.Fatalf("generated question still grades numerically: %+v", res)
+	}
+}
+
+type deckStub struct{ items map[string]string }
+
+func (d deckStub) Generate(generator.GeneratorContext) generator.Problem {
+	return generator.Problem{Question: "whole deck <!--recall-back--> x", Answer: "recall:deck#any"}
+}
+func (d deckStub) PlainText() bool { return true }
+func (d deckStub) ProblemFor(id string) (generator.Problem, bool) {
+	q, ok := d.items[id]
+	if !ok {
+		return generator.Problem{}, false
+	}
+	return generator.Problem{Question: q + " <!--recall-back--> back", Answer: "recall:deck#" + id}, true
+}
+
+// A topic with cards filed under it (cards.json) serves exactly those cards,
+// not the whole deck.
+func TestFiledCardsServeOnlyTheirTopic(t *testing.T) {
+	t.Setenv("MATHUA_CARD_SHARE", "1")
+	th := concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 60}
+	d, _ := concepts.Build([]concepts.Concept{
+		{ID: "a", Label: "A", Domain: "d", GradingType: "numeric", MasteryThreshold: th},
+		{ID: "b", Label: "B", Domain: "d", GradingType: "numeric", MasteryThreshold: th},
+		{ID: "anki.deck", Label: "Practice · deck", Domain: "d", GradingType: "bank", Prerequisites: []string{"a"}, MasteryThreshold: th},
+	})
+	reg := generator.NewRegistry()
+	reg.Register("a", &testGen{answer: "1"})
+	reg.Register("b", &testGen{answer: "2"})
+	reg.Register("anki.deck", deckStub{items: map[string]string{"c1": "card one", "c2": "card two"}})
+	attachCardsFrom(d, reg, map[string][]modules.CardRef{
+		"b": {{Deck: "anki.deck", Item: "c2"}, {Deck: "anki.deck", Item: "missing"}},
+	})
+	for i := 0; i < 5; i++ {
+		p, _ := reg.GenerateContext("b", generator.GeneratorContext{Difficulty: 0.5})
+		if p.Answer != "recall:deck#c2" {
+			t.Fatalf("b should serve only its filed card, got %q", p.Answer)
+		}
+	}
+	// a is not in cards.json, so the deck-level attachment still applies.
+	p, _ := reg.GenerateContext("a", generator.GeneratorContext{Difficulty: 0.5})
+	if p.Answer != "recall:deck#any" {
+		t.Fatalf("a should fall back to the whole deck, got %q", p.Answer)
 	}
 }

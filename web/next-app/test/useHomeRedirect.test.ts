@@ -15,10 +15,10 @@ describe('useHomeRedirect', () => {
     replaceMock.mockClear()
   })
 
-  it('bounces logged-in visits to /profile', async () => {
+  it('bounces logged-in visits to /today (the Study tab)', async () => {
     localStorage.setItem('mathua_token', 't')
     const { result } = renderHook(() => useHomeRedirect(true))
-    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/profile'))
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/today'))
     expect(result.current).toBe(false)
   })
 

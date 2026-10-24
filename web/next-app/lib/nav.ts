@@ -22,7 +22,13 @@ export type HeaderLink = NavLink
 
 // LEARN_LINKS is the doing group, and it is shown to everyone — a guest can
 // answer questions, they just cannot have them remembered.
-export const LEARN_LINKS: NavLink[] = [{ label: 'Learn', href: '/learn' }]
+// Fork change: Study (the queue across your courses) and Courses (your course
+// pages) lead; Learn stays the loop both of them hand off to.
+export const LEARN_LINKS: NavLink[] = [
+  { label: 'Study', href: '/today' },
+  { label: 'Courses', href: '/courses' },
+  { label: 'Learn', href: '/learn' },
+]
 
 // REVIEW_LINKS is a Learn sub-mode: it grades, awards XP and reschedules
 // memory, so it belongs beside Learn rather than looking like its own product.
@@ -72,11 +78,11 @@ export const ADMIN_LINKS: NavLink[] = [{ label: 'Admin', href: '/admin' }]
 // Review is deliberately absent: the tab bar stays at five, and Review reaches
 // the header row and the compass overflow instead.
 export const TAB_HREFS: ReadonlySet<string> = new Set([
-  '/',
+  '/today',
+  '/courses',
   '/learn',
-  '/topics',
+  '/library',
   '/profile',
-  '/graph',
 ])
 
 // Full desktop header row: Learn first, then the orientation surfaces, then the account links.

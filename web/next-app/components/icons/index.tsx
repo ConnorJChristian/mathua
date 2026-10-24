@@ -33,6 +33,7 @@ import {
   HandshakeIcon,
   HouseIcon,
   LayersIcon,
+  LayoutGridIcon,
   LogOutIcon,
   MailIcon,
   NetworkIcon,
@@ -122,6 +123,7 @@ export const FileText = wrap(FileTextIcon as never)
 export const Handshake = wrap(HandshakeIcon as never)
 export const House = wrap(HouseIcon as never)
 export const Layers = wrap(LayersIcon as never)
+export const LayoutGrid = wrap(LayoutGridIcon as never)
 export const LogOut = wrap(LogOutIcon as never)
 export const Network = wrap(NetworkIcon as never)
 export const Pause = wrap(PauseIcon as never)
@@ -166,6 +168,7 @@ export const ICON_NAMES = [
   'Handshake',
   'House',
   'Layers',
+  'LayoutGrid',
   'LogOut',
   'Network',
   'Pause',

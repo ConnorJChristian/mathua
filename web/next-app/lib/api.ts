@@ -2235,3 +2235,52 @@ export async function runPython(code: string, task?: string): Promise<PythonRunR
   if (!res.ok) await throwWithResponse(res, `Run failed: ${res.status}`)
   return res.json() as Promise<PythonRunRes>
 }
+
+// Fork: the course view (GET /api/courses/view?id=): one course's modules with
+// each topic's state, reading and videos, its texts, what to do next in it and
+// how many of its topics are due a review.
+export interface CourseVideo {
+  title: string
+  url: string
+  kind: 'youtube' | 'file' | 'link'
+  start?: number
+  duration?: number
+  note?: string
+}
+export interface CourseTopic {
+  id: string
+  label: string
+  status: 'unseen' | 'learning' | 'practicing' | 'mastered' | string
+  locked: boolean
+  due: boolean
+  attempts: number
+  reading?: ReadingText
+  texts?: ReadingText[]
+  videos?: CourseVideo[]
+  cards?: number
+}
+export interface CourseModule { title: string; topics: CourseTopic[]; mastered: number }
+export interface CourseText { key: string; title: string; kind: 'pdf' | 'web'; url?: string; library_id?: string }
+export interface CourseView {
+  id: string
+  name: string
+  term?: string
+  description: string
+  followed: boolean
+  modules: CourseModule[]
+  texts: CourseText[]
+  videos: CourseVideo[]
+  total: number
+  mastered: number
+  started: number
+  reviews_due: number
+  next_topic?: CourseTopic
+  prerequisites: CourseTopic[]
+  needs_placement: boolean
+}
+
+export async function getCourseView(id: string): Promise<CourseView | null> {
+  const res = await authedFetch(`${API_BASE}/api/courses/view?id=${encodeURIComponent(id)}`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })
+  if (!res.ok) return null
+  return res.json()
+}

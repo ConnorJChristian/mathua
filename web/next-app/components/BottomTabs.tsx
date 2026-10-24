@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
-import { BookOpen, House, Network, Play, User, type IconComponent } from './icons'
+import { BookOpen, FileText, LayoutGrid, Play, User, type IconComponent } from './icons'
 import { useChrome } from '../hooks/useChrome'
 import { useInertWhen } from '../hooks/useInertWhen'
 import { registerChromePart } from '../lib/chrome'
@@ -17,11 +17,11 @@ import Avatar from './Avatar'
 // each topic's lesson and practice a tap away) holds the orientation slot;
 // Domains moves to the overflow menu. Order is mirrored in lib/nav.ts.
 const TABS: { label: string; href: string; icon: IconComponent }[] = [
-  { label: 'Home', href: '/', icon: House },
-  { label: 'Learn', href: '/learn', icon: Play },
-  { label: 'Topics', href: '/topics', icon: BookOpen },
+  { label: 'Study', href: '/today', icon: Play },
+  { label: 'Courses', href: '/courses', icon: LayoutGrid },
+  { label: 'Learn', href: '/learn', icon: BookOpen },
+  { label: 'Library', href: '/library', icon: FileText },
   { label: 'Profile', href: '/profile', icon: User },
-  { label: 'Graph', href: '/graph', icon: Network },
 ]
 
 export default function BottomTabs() {

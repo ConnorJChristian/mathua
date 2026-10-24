@@ -200,7 +200,7 @@ function LoginInner() {
   // Safe post-login target: same-origin paths only (never protocol-relative).
   const ret = (() => {
     const r = searchParams.get('return')
-    return r && r.startsWith('/') && !r.startsWith('//') ? r : '/profile'
+    return r && r.startsWith('/') && !r.startsWith('//') ? r : '/today'
   })()
 
   // Already logged in → don't show the form.
@@ -282,7 +282,7 @@ function LoginInner() {
 
   const handleGoogleRedirect = () => {
     setGoogleError('')
-    window.location.href = `${API_BASE}/api/auth/google/login?return=${encodeURIComponent('/profile')}`
+    window.location.href = `${API_BASE}/api/auth/google/login?return=${encodeURIComponent('/today')}`
   }
 
   // Forgot-password + reset-token modes (separate from the tab reducer).

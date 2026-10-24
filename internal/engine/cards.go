@@ -9,6 +9,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
+	"github.com/chuma-beep/mathua/internal/modules"
 )
 
 // Fork change: your flashcards in the practice of the topics they are about.
@@ -38,14 +39,70 @@ func cardShare() float64 {
 	return 0.5
 }
 
-// attachCards wraps each generated topic that one or more decks cover.
+// itemServer is a bank generator that can serve one of its items by id
+// (pytrack's conceptGen).
+type itemServer interface {
+	ProblemFor(itemID string) (generator.Problem, bool)
+}
+
+// cardPick is one card filed under a topic: the deck's generator and the item.
+type cardPick struct {
+	gen  itemServer
+	item string
+}
+
+// attachCards wraps each generated topic that has cards: the ones filed
+// under it in a module's cards.json, or, failing that, every card of each
+// deck that lists it as a prerequisite.
 func attachCards(dag *concepts.DAG, reg *generator.Registry) {
+	attachCardsFrom(dag, reg, nil)
+}
+
+func attachCardsFrom(dag *concepts.DAG, reg *generator.Registry, filed map[string][]modules.CardRef) {
 	if dag == nil || reg == nil {
 		return
 	}
 	share := cardShare()
 	if share == 0 {
 		return
+	}
+	if filed == nil {
+		if mods, err := modules.Default(); err == nil && mods != nil {
+			filed = mods.Cards()
+		}
+	}
+	wrapped := map[string]bool{}
+	for topic, refs := range filed {
+		tc := dag.Concept(topic)
+		if tc == nil || tc.GradingType == "bank" || tc.GradingType == "python" {
+			continue
+		}
+		var picks []cardPick
+		for _, ref := range refs {
+			g, err := reg.Get(ref.Deck)
+			if err != nil {
+				continue
+			}
+			if is, ok := g.(itemServer); ok {
+				if _, found := is.ProblemFor(ref.Item); found {
+					picks = append(picks, cardPick{is, ref.Item})
+				}
+			}
+		}
+		if len(picks) == 0 {
+			continue
+		}
+		wrapped[topic] = true
+		reg.Wrap(topic, func(base generator.Generator) generator.Generator {
+			if _, done := base.(cardMixer); done {
+				return base
+			}
+			m := &mixGen{base: base, picks: picks, share: share}
+			if _, ok := base.(generator.GradedGenerator); ok {
+				return &mixGradedGen{m}
+			}
+			return m
+		})
 	}
 	decks := map[string][]string{} // topic -> decks covering it
 	for _, c := range dag.Order() {
@@ -54,7 +111,7 @@ func attachCards(dag *concepts.DAG, reg *generator.Registry) {
 		}
 		for _, p := range c.Prerequisites {
 			pc := dag.Concept(p)
-			if pc == nil || strings.HasPrefix(p, cardDeckPrefix) || pc.GradingType == "bank" || pc.GradingType == "python" {
+			if pc == nil || wrapped[p] || strings.HasPrefix(p, cardDeckPrefix) || pc.GradingType == "bank" || pc.GradingType == "python" {
 				continue
 			}
 			decks[p] = append(decks[p], c.ID)
@@ -88,7 +145,8 @@ type cardMixer interface{ mixesCards() }
 // mixGen serves a topic's generated questions and, share of the time, a card.
 type mixGen struct {
 	base  generator.Generator
-	cards []generator.Generator
+	cards []generator.Generator // whole decks (no cards.json for this topic)
+	picks []cardPick            // single cards filed under this topic
 	share float64
 }
 
@@ -96,7 +154,13 @@ func (m *mixGen) mixesCards() {}
 
 func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	if !ctx.NoCards && rand.Float64() < m.share {
-		p := m.cards[rand.Intn(len(m.cards))].Generate(ctx)
+		var p generator.Problem
+		if len(m.picks) > 0 {
+			pk := m.picks[rand.Intn(len(m.picks))]
+			p, _ = pk.gen.ProblemFor(pk.item)
+		} else {
+			p = m.cards[rand.Intn(len(m.cards))].Generate(ctx)
+		}
 		if p.Question != "" && grader.IsBankAnswer(p.Answer) {
 			p.Question = CardMarker + "\n" + p.Question
 			p.Raw = true

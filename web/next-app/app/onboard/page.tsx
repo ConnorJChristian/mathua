@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { useTheme } from '../../hooks/useTheme'
 import Header from '../../components/Header'
@@ -18,6 +18,7 @@ import {
   type GoalDiagStartRes,
   type GoalPlanRes,
   type DiagnosticProgress,
+  getCourseCatalog,
 } from '../../lib/api'
 import { getErrorMessage, getErrorStatus } from '../../lib/api'
 import { formatForGradingType, type AnswerFormat } from '../../lib/answerFormat'
@@ -48,8 +49,21 @@ const DIAG_KEY = 'mathua_diag_session_onboard'
 const DEMO_KEY = 'mathua_onboard_demo'
 
 export default function OnboardPage() {
+  return (
+    <Suspense fallback={<div style={{ background: 'var(--bg)', minHeight: '100vh' }} />}>
+      <OnboardContent />
+    </Suspense>
+  )
+}
+
+function OnboardContent() {
   const { mounted } = useTheme()
   const { push } = useRouter()
+  // Fork change: /onboard?course=plan.x places you for one course: the
+  // diagnostic is scoped to the course's plan (the server adds the
+  // prerequisites), skipping the domain picker.
+  const courseParam = useSearchParams().get('course') ?? ''
+  const courseStarted = useRef(false)
 
   const [step, setStep] = useState<Step>('welcome')
   const [loading, setLoading] = useState(false)
@@ -444,12 +458,47 @@ export default function OnboardPage() {
     if (step === 'diagnostic' && !lastResult && question) onboardInputRef.current?.focus()
   }, [step, lastResult, question])
 
+  useEffect(() => {
+    if (!mounted || !courseParam || courseStarted.current) return
+    courseStarted.current = true
+    ;(async () => {
+      setLoading(true)
+      try {
+        const { courses } = await getCourseCatalog()
+        const course = courses.find((c) => c.id === courseParam)
+        const ids = course?.plan?.length ? course.plan : course?.targets ?? []
+        if (ids.length === 0) {
+          toast.error('That course has no topics to place you in.')
+          return
+        }
+        const res = await startGoalDiagnostic(ids)
+        if (res.done) {
+          toast.error('No placement questions are available for this course; its first topics are open already.')
+          push(`/course?id=${encodeURIComponent(courseParam)}`)
+          return
+        }
+        setDemo(false)
+        setNeedsName(false)
+        beginSession(res)
+      } catch (err) {
+        if (getErrorStatus(err) === 401) {
+          setNeedsName(true)
+          return
+        }
+        toast.error('The placement test could not start.')
+      } finally {
+        setLoading(false)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, courseParam])
+
   function finishOnboarding() {
     const user = getUserInfo()
     if (user) {
       setUserInfo({ ...user, diagnostic_completed: true })
     }
-    push('/profile')
+    push(courseParam ? `/course?id=${encodeURIComponent(courseParam)}` : '/today')
   }
 
   if (!mounted) return <div style={{ background: 'var(--bg)', minHeight: '100vh' }} />

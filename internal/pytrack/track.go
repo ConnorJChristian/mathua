@@ -118,6 +118,17 @@ func levelDifficulty(level int) float64 {
 	}
 }
 
+// ProblemFor serves one item of this concept's bank by its id (fork change:
+// a module's cards.json files single cards under the topics they are about).
+func (g *conceptGen) ProblemFor(itemID string) (generator.Problem, bool) {
+	for i := range g.c.Items {
+		if g.c.Items[i].ID == itemID {
+			return g.track.Problem(g.c, &g.c.Items[i]), true
+		}
+	}
+	return generator.Problem{}, false
+}
+
 func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	items := g.c.Items
 	// Prefer questions near the requested difficulty, but never starve: a

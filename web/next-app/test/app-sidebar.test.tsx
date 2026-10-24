@@ -68,7 +68,8 @@ describe('AppSidebar', () => {
     renderSidebar()
     const sidebar = screen.getByTestId('profile-sidebar')
     expect(sidebar.querySelector('a[href="/study"]')).toBeNull()
-    expect(within(sidebar).queryByText('Study')).toBeNull()
+    // Fork: "Study" is the queue across your courses (/today), not the old library.
+    expect(within(sidebar).queryByText('Study')?.closest('a')?.getAttribute('href')).toBe('/today')
   })
 
   it('leads the rail with Learn, matching lib/nav.ts', () => {

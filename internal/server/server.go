@@ -2579,6 +2579,10 @@ func (s *Server) handleCourseRoute(w http.ResponseWriter, r *http.Request) {
 		s.handleActiveCourses(w, r)
 		return
 	}
+	if strings.TrimSuffix(path, "/") == "view" {
+		s.handleCourseView(w, r)
+		return
+	}
 	if strings.HasSuffix(path, "/diagnostic") {
 		s.handleCourseDiagnostic(w, r)
 		return

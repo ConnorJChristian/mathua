@@ -13,6 +13,7 @@ import {
   Handshake,
   House,
   Layers,
+  LayoutGrid,
   LogOut,
   Mail,
   Shield,
@@ -63,7 +64,9 @@ interface SidebarNavItem {
 }
 
 const NAV_ITEMS: SidebarNavItem[] = [
-  { label: 'Learn', href: '/learn', icon: Play },
+  { label: 'Study', href: '/today', icon: Play },
+  { label: 'Courses', href: '/courses', icon: LayoutGrid },
+  { label: 'Learn', href: '/learn', icon: BookOpen },
   { label: 'Topics', href: '/topics', icon: BookOpen },
   { label: 'Library', href: '/library', icon: FileText },
   { label: 'Graph', href: '/graph', icon: Network },
