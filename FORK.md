@@ -1,23 +1,56 @@
 # MA Economics fork
 
-This fork is upstream Mathua plus **modules**. The base install (engine, web
-app, mathematics corpus) is unchanged; everything this fork adds lives in a
-module folder that can be switched off. See "Modules" below.
+A fork of [Mathua](https://github.com/chuma-beep/mathua), an open-source
+adaptive learning engine (Go backend, Next.js frontend, a concept graph with
+prerequisites, spaced review, placement diagnostics), reshaped into a
+course-centred study app for a graduate economics programme. The engine and
+the mathematics corpus are upstream's; everything the fork adds lives in
+modules that can be switched off, plus the pages that present them.
 
-The `ma-econ` module adds two courses and one destination. It adds no new
-concepts or generators: everything uses the existing graph.
+What the fork adds:
+
+- **Courses, not destinations.** A course is a study plan (topics in teaching
+  order, split into modules), with its own page (Home, Modules, Readings,
+  Lectures, Grades), its texts and a due date. The **Study** tab is one queue
+  across every course you follow: due reviews first, then the topics you pinned
+  for this week, then the engine's picks, paced by each course's deadline.
+  Placement is course-scoped: the diagnostic covers the prerequisites of the
+  courses you follow.
+- **Question banks as modules.** A module folder carries concepts, a question
+  bank (multiple choice, typed answers, Python code graded by hidden tests,
+  flip cards as a last resort), readings into your own PDFs or online books,
+  lecture notes and videos. Public modules in this repository: `modules/ma-econ`
+  (Math for Economists and a Statistical Learning companion, built on the
+  upstream graph) and `modules/python-dsh` (the Python Data Science Handbook as
+  a track). The owner's own modules (textbook-derived cards, course lecture
+  notebooks, a political-economy reading course) live in `modules-local/`,
+  which is git-ignored.
+- **Library.** Every text the installed modules read from, as a shelf of books
+  with tables of contents that link to the topics; PDFs open in an embedded
+  reader at the right page.
+- **Importers and authoring tools.** An Anki collection importer that files
+  cards under topics and turns flip cards into answerable questions where it
+  can; a Python authoring API for question banks (`scripts/python_bank.py`).
+
+The `ma-econ` module adds two courses. It adds no new concepts or generators:
+everything uses the existing graph.
 
 | ID | Course | Targets | Concepts incl. prerequisites |
 |---|---|---|---|
 | `econ5153` | Math for Economists (ECON 5153) | 42 | 143 |
 | `statlearn` | Statistical Learning (ISLR companion) | 25 | 129 |
 
-Destination `ma-econ` chains both courses. Neither course pulls in any
-trigonometry. The only geometry prerequisite is plotting a point.
+Neither course pulls in any trigonometry. The only geometry prerequisite is
+plotting a point. The placement diagnostic credits prerequisites when you
+answer harder questions correctly, so arithmetic and algebra basics are
+skipped unless you miss something.
 
-The placement diagnostic credits prerequisites when you answer harder
-questions correctly, so arithmetic and algebra basics are skipped unless you
-miss something.
+## Licence
+
+MIT, the same as upstream (see `LICENSE`). Use it, copy it, change it,
+redistribute it, commercially or not, with attribution. The fork's own code
+and the public modules are published under the same terms. Material derived
+from copyrighted textbooks is deliberately kept out of the repository.
 
 ## Run it
 

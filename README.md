@@ -1,3 +1,14 @@
+> **This is Connor Christian's fork of [Mathua](https://github.com/chuma-beep/mathua)**, reshaped
+> into a course-centred study app for a graduate economics programme (branch `ma-econ`).
+> The upstream engine is unchanged; the fork adds modules, a Courses/Study interface
+> and local-content plumbing. **What it is, what it adds and how to run it: [FORK.md](FORK.md).**
+>
+> **Licence:** MIT, like upstream — see [LICENSE](LICENSE). Everything in this repository
+> (the engine, the fork's code, the public modules under `modules/`) may be used, copied,
+> modified and redistributed freely, for any purpose, with attribution. Personal study
+> material derived from textbooks and the owner's own flashcards is kept out of the
+> repository (`modules-local/`, git-ignored) and is not part of what is published here.
+
 <div align="center">
 
 <pre style="font-family: monospace; font-size: 11px; line-height: 1.2;">
