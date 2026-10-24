@@ -103,7 +103,7 @@ func (s *Server) library() []libraryBook {
 				b := libraryBook{ID: slug(key), Kind: "pdf", Title: rd.File,
 					URL: "/api/modules/" + url.PathEscape(rd.Module) + "/files/" + escapePath(rd.File)}
 				if mi, ok := meta[key]; ok {
-					b.Title, b.Author = books[mi].Title, books[mi].Author
+					b.Title, b.Author, b.Shelf = books[mi].Title, books[mi].Author, books[mi].Shelf
 				}
 				if p := mods.FilePath(rd.Module, rd.File); p != "" {
 					if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() {
