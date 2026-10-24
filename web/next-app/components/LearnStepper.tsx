@@ -20,7 +20,7 @@ import { countsAsMastered } from '../lib/progress'
 import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
 import PythonAnswer from './python/PythonAnswer'
-import { displayAnswer, displayQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind, typedEcho } from '../lib/pythonQuestion'
+import { displayAnswer, displayQuestion, isCardQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind, typedEcho } from '../lib/pythonQuestion'
 import { setTrack, trackOfDomain } from '../lib/track'
 
 // Append-only learning feed: intro once, then each submit locks its card and
@@ -753,13 +753,14 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           }
           const qe = e as QEntry
           const locked = qe.feedback !== null
-          const pyKind = isPy ? pythonKind(qe.q.question) : null
-          const shownAnswer = isPy ? displayAnswer(qe.q.answer) : qe.q.answer
+          const qPy = isPy || isCardQuestion(qe.q.question)
+          const pyKind = qPy ? pythonKind(qe.q.question) : null
+          const shownAnswer = qPy ? displayAnswer(qe.q.answer) : qe.q.answer
           return (
             <div key={qe.key} className={`border bg-mathua-surface p-6 ${qe.feedback?.correct ? 'border-mathua-green-faint' : qe.feedback ? 'border-mathua-red-faint' : 'border-mathua-border'}`}>
-              <KatexContent className="text-sm text-mathua-primary font-mono whitespace-pre-wrap">{isPy ? displayQuestion(qe.q.question) : qe.q.question}</KatexContent>
+              <KatexContent className="text-sm text-mathua-primary font-mono whitespace-pre-wrap">{qPy ? displayQuestion(qe.q.question) : qe.q.question}</KatexContent>
               <ChoiceOptions question={qe.q.question} value={qe.answer} onPick={v => setEntry(qe.key, { answer: v })} disabled={locked || qe.checking} />
-              {!locked && isPy && (
+              {!locked && qPy && (
                 <form onSubmit={ev => { ev.preventDefault(); handleCheck(qe.key) }} className="mt-3 flex flex-col gap-2">
                   <label htmlFor={`learn-answer-${qe.key}`} className="sr-only">Your answer</label>
                   <PythonAnswer
@@ -773,7 +774,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 self-end">{qe.checking && pyKind === 'code' ? 'Checking…' : 'Check'}</button>
                 </form>
               )}
-              {!locked && !isPy && (
+              {!locked && !qPy && (
                 <form onSubmit={ev => { ev.preventDefault(); handleCheck(qe.key) }} className="mt-3 flex flex-col sm:flex-row gap-2">
                   <label htmlFor={`learn-answer-${qe.key}`} className="sr-only">Your answer</label>
                   <MathAnswerInput
@@ -801,7 +802,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                         ? 'checked against the hidden tests'
                         : pyKind === 'recall'
                           ? qe.answer === 'right' ? 'you had it' : 'you marked it missed'
-                          : `you answered “${pyKind === 'math' ? typedEcho(qe.q.question, qe.answer) : isPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
+                          : `you answered “${pyKind === 'math' ? typedEcho(qe.q.question, qe.answer) : qPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
                   </p>
                   {pyKind === 'code' && (
                     <details className="mt-1.5" open={!qe.feedback.correct}>
@@ -835,7 +836,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                       <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">
                         {qe.feedback.correct ? 'Why' : 'How'}
                       </p>
-                      <KatexContent externalLinks={isPy} className="mt-1 text-xs font-mono text-mathua-secondary whitespace-pre-wrap">{qe.feedback.text}</KatexContent>
+                      <KatexContent externalLinks={qPy} className="mt-1 text-xs font-mono text-mathua-secondary whitespace-pre-wrap">{qe.feedback.text}</KatexContent>
                     </div>
                   )}
                 </div>
@@ -848,3 +849,4 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     </div>
   )
 }
+

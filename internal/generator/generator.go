@@ -5,6 +5,10 @@ import "github.com/chuma-beep/mathua/internal/grader"
 type GeneratorContext struct {
 	Difficulty float64
 	Seed       int64
+	// NoCards asks for the topic's generated questions only, never one of
+	// your flashcards (engine/cards.go): placement measures with questions
+	// that grade themselves, not self-graded cards.
+	NoCards bool
 }
 
 type Problem struct {
@@ -34,6 +38,11 @@ type Problem struct {
 	// and grading agree by construction — the registry fills this in, so no caller can
 	// generate a question and forget what it was generated at.
 	Difficulty *float64
+
+	// Raw marks a problem served exactly as generated, skipping the LaTeX
+	// canonicaliser and the solution schemas: a question-bank item (one of
+	// your flashcards) served on a generated concept. See engine/cards.go.
+	Raw bool
 }
 
 type Generator interface {

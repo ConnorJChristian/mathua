@@ -91,6 +91,7 @@ const OPTIONS_RE = /\n\nA\)\s[\s\S]*$/
  * options into the choice buttons, so neither is printed twice.
  */
 export function displayQuestion(question: string): string {
+  question = question.replace(CARD_MARKER, '').replace(/^\n/, '')
   const typed = question.indexOf(TYPED_MARKER)
   if (typed >= 0) return question.slice(0, typed).trimEnd()
   const cut = question.indexOf(RECALL_MARKER)
@@ -142,3 +143,14 @@ export function pythonHint(kind: PythonKind, timeLimit = 8): string {
  * banks, including imported recall cards. "python" is the type's original name.
  */
 export const isPythonGrading = (gradingType?: string | null) => gradingType === 'bank' || gradingType === 'python'
+
+/**
+ * One of your flashcards served in a generated topic's practice
+ * (internal/engine/cards.go). It takes the card's own input, whatever the
+ * topic's grading type.
+ */
+export const CARD_MARKER = '<!--card-->'
+export const isCardQuestion = (question?: string | null) => !!question && question.startsWith(CARD_MARKER)
+/** Whether a served question takes the question-bank inputs. */
+export const isBankServed = (gradingType?: string | null, question?: string | null) =>
+  isPythonGrading(gradingType) || isCardQuestion(question)

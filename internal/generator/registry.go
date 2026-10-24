@@ -85,6 +85,19 @@ func (r *Registry) Register(conceptID string, gen Generator) error {
 	return nil
 }
 
+// Wrap replaces a concept's generator with fn(current). It reports whether a
+// generator was registered to wrap.
+func (r *Registry) Wrap(conceptID string, fn func(Generator) Generator) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	gen, ok := r.gens[conceptID]
+	if !ok {
+		return false
+	}
+	r.gens[conceptID] = fn(gen)
+	return true
+}
+
 func (r *Registry) Get(conceptID string) (Generator, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -142,7 +155,7 @@ func isPlainText(gen Generator) bool {
 // finish applies the registry's post-processing to one generated problem.
 func (r *Registry) finish(conceptID string, gen Generator, p *Problem, ctx GeneratorContext, where string) {
 	p.Difficulty = difficultyOf(ctx.Difficulty)
-	if isPlainText(gen) {
+	if isPlainText(gen) || p.Raw {
 		return
 	}
 	p.Question = latex.Canonicalize(p.Question, latex.Generators)

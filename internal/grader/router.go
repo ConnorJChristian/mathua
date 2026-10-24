@@ -1,5 +1,7 @@
 package grader
 
+import "strings"
+
 type Router struct {
 	numeric    *numericGrader
 	choice     *choiceGrader
@@ -44,6 +46,19 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 }
 
 func (r *Router) Close() {}
+
+// IsBankAnswer reports whether an expected answer came from a question bank
+// (internal/pytrack): its kind prefix says so. A bank item can be served on a
+// generated concept (your flashcards in its practice), and must then be graded
+// as the bank item it is, whatever the concept's own grading type.
+func IsBankAnswer(expected string) bool {
+	for _, p := range []string{"mc:", "out:", "code:", "recall:", "math:"} {
+		if strings.HasPrefix(expected, p) {
+			return true
+		}
+	}
+	return false
+}
 
 // pythonGrader is installed by internal/pytrack at startup. It is a hook rather
 // than an import because pytrack depends on this package for Result.

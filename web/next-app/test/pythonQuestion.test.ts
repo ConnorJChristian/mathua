@@ -98,3 +98,14 @@ describe('math items (typed answers)', () => {
     expect(displayAnswer('math:anki.x#n1c0')).toBe('')
   })
 })
+
+describe('flashcards served on a generated topic', () => {
+  it('take the bank inputs and hide the marker', async () => {
+    const m = await import('../lib/pythonQuestion')
+    const q = m.CARD_MARKER + '\nFront of the card\n\n<!--recall-back-->\n\nBack'
+    expect(m.isBankServed('numeric', q)).toBe(true)
+    expect(m.isBankServed('numeric', 'What is 2+2?')).toBe(false)
+    expect(m.pythonKind(q)).toBe('recall')
+    expect(m.displayQuestion(q)).toBe('Front of the card')
+  })
+})

@@ -19,7 +19,7 @@ import SubmitErrorBlock, {
 import { concepts as conceptsData } from '../../lib/conceptData'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import PythonAnswer from '../../components/python/PythonAnswer'
-import { displayQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
+import { displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
 
 // 'failed' exists because 'done' used to carry two meanings. Any thrown request
 // set phase to 'done', and the done screen reads "No questions available" while
@@ -330,7 +330,7 @@ export default function QuizHost() {
     )
   }
 
-  const isPy = isPythonGrading(quizGradingType.current)
+  const isPy = isBankServed(quizGradingType.current, quizQuestion)
   const pyKind = isPy ? pythonKind(quizQuestion) : null
   return (
     <>

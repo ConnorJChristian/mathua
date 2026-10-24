@@ -219,7 +219,7 @@ const QuizGateXP = xppolicy.QuizGateXP
 const maxQuizRemedial = 10
 
 func New(repo storage.Repository, dag *concepts.DAG, reg *generator.Registry, ll *lessons.Loader, planner *planning.Planner) *Engine {
-	return &Engine{
+	e := &Engine{
 		dag:           dag,
 		repo:          repo,
 		sched:         scheduler.New(dag),
@@ -240,6 +240,8 @@ func New(repo storage.Repository, dag *concepts.DAG, reg *generator.Registry, ll
 		quizRemedial:  make(map[string][]string),
 		resetGen:      make(map[string]uint64),
 	}
+	attachCards(dag, reg)
+	return e
 }
 
 // Anchor is the server-side record of one served question: the answer it must
@@ -1048,7 +1050,13 @@ func (e *Engine) gradeAnswer(conceptID string, expectedAnswer, userAnswer string
 		gradingType = grader.GradingType(c.GradingType)
 	}
 	var res grader.Result
-	if gen, err := e.registry.Get(conceptID); err == nil {
+	// One of your flashcards served in this concept's practice grades as the
+	// card it is (engine/cards.go).
+	bankItem := grader.IsBankAnswer(expectedAnswer)
+	if bankItem {
+		gradingType = grader.GradingBank
+	}
+	if gen, err := e.registry.Get(conceptID); err == nil && !bankItem {
 		if gg, ok := gen.(generator.GradedGenerator); ok {
 			res = gg.Grade(expectedAnswer, userAnswer)
 		}

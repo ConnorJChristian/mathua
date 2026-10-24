@@ -429,7 +429,7 @@ func (e *Engine) NextQuestion(s *Session) (*generator.Problem, string, error) {
 	if s.probeCounts[cid] >= 3 {
 		difficulty = 0.8
 	}
-	p, err := e.registry.Generate(cid, difficulty)
+	p, err := e.registry.GenerateContext(cid, generator.GeneratorContext{Difficulty: clampDifficulty(difficulty), NoCards: true})
 	if err != nil {
 		return nil, "", err
 	}
@@ -831,4 +831,16 @@ func (e *Engine) KnowledgeConfidence(s *Session) map[string]float64 {
 		out[k] = v
 	}
 	return out
+}
+
+// clampDifficulty keeps a requested difficulty in the registry's 0-1 range,
+// as registry.Generate does.
+func clampDifficulty(d float64) float64 {
+	if d < 0 {
+		return 0
+	}
+	if d > 1 {
+		return 1
+	}
+	return d
 }

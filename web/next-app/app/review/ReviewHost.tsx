@@ -14,7 +14,7 @@ import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../components/SubmitErrorBlock'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import PythonAnswer from '../../components/python/PythonAnswer'
-import { displayQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
+import { displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
 
 type Phase = 'loading' | 'intro' | 'run' | 'done'
 
@@ -228,7 +228,7 @@ export default function ReviewHost() {
     )
   }
 
-  const isPy = isPythonGrading(reviewGradingType.current)
+  const isPy = isBankServed(reviewGradingType.current, reviewQuestion)
   const pyKind = isPy ? pythonKind(reviewQuestion) : null
   return (
     <>
