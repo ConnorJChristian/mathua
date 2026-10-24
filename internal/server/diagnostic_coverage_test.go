@@ -272,22 +272,16 @@ func TestGoalDiagnosticRetry(t *testing.T) {
 		t.Fatalf("expected CAT to move to b, got %q", c2)
 	}
 
-	code, ans2 := answer(c2, "4")
+	// A first miss on b, served at base difficulty, may be a slip: the
+	// session stays open (b is re-probed once) and a retry is offered. Fork
+	// change: a right answer now settles a concept, so the miss comes on b's
+	// first probe rather than on a re-probe after two right answers.
+	code, ans2 := answer(c2, "999")
 	if code != 200 || ans2["done"] == true {
 		t.Fatalf("answer2: %d %v", code, ans2)
 	}
-	c3, _ := ans2["concept_id"].(string)
-	if c3 != "b" {
-		t.Fatalf("expected re-probe of b, got %q", c3)
-	}
-
-	// Miss on established knowledge while cover stays open: retry offered.
-	code, ans3 := answer(c3, "999")
-	if code != 200 || ans3["done"] == true {
-		t.Fatalf("answer3: %d %v", code, ans3)
-	}
-	if ans3["retry_available"] != true {
-		t.Fatalf("expected retry_available after surprising miss, got %v", ans3)
+	if ans2["retry_available"] != true {
+		t.Fatalf("expected retry_available after a base-difficulty miss, got %v", ans2)
 	}
 
 	code, retried := postJSON(t, mux, "/api/goal/diagnostic/retry",
@@ -308,8 +302,8 @@ func TestGoalDiagnosticRetry(t *testing.T) {
 	sess.Lock()
 	n := len(sess.Attempts)
 	sess.Unlock()
-	if n != 2 {
-		t.Errorf("expected voided slip (2 attempts), got %d", n)
+	if n != 1 {
+		t.Errorf("expected voided slip (1 attempt left: a), got %d", n)
 	}
 
 	// Once per question.

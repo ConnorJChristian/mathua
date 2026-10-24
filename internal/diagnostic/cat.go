@@ -54,6 +54,19 @@ const (
 	conditionalStripFactor = 0.8
 	// maxSupplementalProbes caps extra re-probes per concept.
 	maxSupplementalProbes = 1
+	// inferKnown / inferUnknown: a cover concept never asked whose belief
+	// evidence elsewhere has pushed past these is settled by inference
+	// (fork change).
+	inferKnown   = 0.85
+	inferUnknown = 0.15
+	// ancestorEvidenceWeight: a correct answer is evidence for every
+	// prerequisite below it, not just the direct ones (fork change: one
+	// level of propagation at 0.15 left arithmetic at 0.5 under a correct
+	// calculus answer, so it was asked).
+	ancestorEvidenceWeight = 0.35
+	// dependentEvidenceWeight: a miss is evidence against everything built
+	// on it, decaying with distance (fork change).
+	dependentEvidenceWeight = 0.3
 )
 
 type Session struct {
@@ -90,6 +103,10 @@ type Session struct {
 	// retryUsed marks that the pending question's "silly mistake" retry was
 	// consumed; reset whenever NextQuestion serves a new problem.
 	retryUsed bool
+	// targets are the goal concepts of a placement (a course's plan topics),
+	// fork change: the cover samples them so the test probes the material
+	// the learner is placing into, not just the foundations under it.
+	targets map[string]bool
 }
 
 type Attempt struct {
@@ -163,6 +180,7 @@ type Snapshot struct {
 	SupplementalCount map[string]int     `json:"supplemental_count"`
 	TotalAsked        int                `json:"total_asked"`
 	RetryUsed         bool               `json:"retry_used"`
+	Targets           []string           `json:"targets,omitempty"`
 }
 
 // Encode renders the session for storage. The lock is held across marshaling,
@@ -207,6 +225,10 @@ func (s *Session) Encode() ([]byte, error) {
 		TotalAsked:        s.totalAsked,
 		RetryUsed:         s.retryUsed,
 	}
+	for id := range s.targets {
+		snap.Targets = append(snap.Targets, id)
+	}
+	sort.Strings(snap.Targets)
 	return json.Marshal(snap)
 }
 
@@ -259,6 +281,12 @@ func (e *Engine) Decode(data []byte) (*Session, error) {
 		supplementalCount: orZeroInt(snap.SupplementalCount),
 		totalAsked:        snap.TotalAsked,
 		retryUsed:         snap.RetryUsed,
+	}
+	if len(snap.Targets) > 0 {
+		s.targets = make(map[string]bool, len(snap.Targets))
+		for _, id := range snap.Targets {
+			s.targets[id] = true
+		}
 	}
 	return s, nil
 }
@@ -313,35 +341,36 @@ func (e *Engine) StartWithPath(path []*concepts.Concept) *Session {
 	return s
 }
 
-// compressedCover returns the smallest covering set: roots + evenly spaced
-// concepts across the topo order at coverSize granularity.
+// StartWithGoal begins a placement over path toward goal concepts (a
+// course's plan topics), fork change. The goal topics are sampled into the
+// covering set so the test probes the material being placed into; without
+// them the cover was every root of the path plus evenly spaced concepts, and
+// a graduate course's path has dozens of roots (single-digit addition, the
+// number line), which is where a quarter of the questions went.
+func (e *Engine) StartWithGoal(path []*concepts.Concept, goal []string) *Session {
+	s := e.StartWithPath(path)
+	if s.State == StateDone || len(goal) == 0 {
+		return s
+	}
+	inPath := make(map[string]bool, len(path))
+	for _, c := range path {
+		inPath[c.ID] = true
+	}
+	s.targets = map[string]bool{}
+	for _, id := range goal {
+		if inPath[id] {
+			s.targets[id] = true
+		}
+	}
+	if len(s.targets) == 0 {
+		s.targets = nil
+	}
+	return s
+}
+
+// compressedCover returns the smallest covering set (see coverOf).
 func (e *Engine) compressedCover(s *Session) []*concepts.Concept {
-	if len(s.order) <= coverSize {
-		return s.order
-	}
-	step := int(math.Ceil(float64(len(s.order)) / float64(coverSize)))
-	// Root concepts (no prerequisites within the path) are always covered.
-	isRoot := func(c *concepts.Concept) bool {
-		return len(c.Prerequisites) == 0
-	}
-	var out []*concepts.Concept
-	seen := make(map[string]bool)
-	add := func(c *concepts.Concept) {
-		if !seen[c.ID] {
-			seen[c.ID] = true
-			out = append(out, c)
-		}
-	}
-	for i := 0; i < len(s.order); i += step {
-		add(s.order[i])
-	}
-	for _, c := range s.order {
-		if isRoot(c) {
-			add(c)
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return s.index(out[i].ID) < s.index(out[j].ID) })
-	return out
+	return s.compressedCoverSafe()
 }
 
 func (s *Session) index(id string) int {
@@ -371,10 +400,24 @@ func (e *Engine) infoGain(s *Session, c *concepts.Concept, coverSet map[string]b
 			influence += 0.25
 		}
 	}
-	for _, pr := range e.dag.PrereqsOf(c.ID) {
-		if coverSet[pr.ID] {
-			influence += 0.25
+	// A right answer settles everything below it, so a concept with many
+	// unsettled cover concepts beneath it is worth asking first (fork change).
+	seen := map[string]bool{c.ID: true}
+	stack := e.dag.PrereqsOf(c.ID)
+	for len(stack) > 0 {
+		pr := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if seen[pr.ID] {
+			continue
 		}
+		seen[pr.ID] = true
+		if coverSet[pr.ID] && !s.doneSet[pr.ID] {
+			influence += 0.15
+		}
+		stack = append(stack, e.dag.PrereqsOf(pr.ID)...)
+	}
+	if s.targets[c.ID] {
+		influence += 0.25
 	}
 	return unc * influence
 }
@@ -470,10 +513,20 @@ func (e *Engine) retryEligibleForLocked(s *Session, missedCID, nextCID string) b
 	if prior, ok := last.BeliefSnapshot[last.ConceptID]; ok && prior >= confidenceThreshold {
 		return true
 	}
-	if nextCID != "" && s.index(nextCID) < s.index(missedCID) {
+	// A level drop counts only when the model leaned towards "known": after
+	// a miss the placement now descends by design (fork change), so a drop
+	// after a miss on a concept it had no opinion about is not a surprise.
+	if nextCID != "" && s.index(nextCID) < s.index(missedCID) && last.BeliefSnapshot[last.ConceptID] > 0.5 {
 		return true
 	}
-	return s.probeCounts[missedCID] <= 1
+	// When the staged next question re-probes the missed concept, staging
+	// already counted that probe; the missed one is the probe before it
+	// (fork fix: a first miss re-probed at once never qualified).
+	probes := s.probeCounts[missedCID]
+	if nextCID == missedCID {
+		probes--
+	}
+	return probes <= 1
 }
 
 // RetryAvailableFor reports whether the missed concept's latest miss may be
@@ -650,12 +703,29 @@ func (e *Engine) recordTimed(s *Session, conceptID string, correct bool, elapsed
 	// barely-passing "conditional" credit from prerequisites.
 	e.propagateEvidence(s, conceptID, correct, slowFactor)
 
-	// Confidence: 2 probes settle a concept.
-	s.confidence[conceptID] = math.Min(1.0, float64(s.probeCounts[conceptID])*0.5)
+	// Confidence: 2 probes settle a concept; a probed concept answered right
+	// every time is settled with enough confidence to skip the supplemental
+	// re-probe (fork change: correct answers were all asked a second time).
+	conf := float64(s.probeCounts[conceptID]) * 0.5
+	if s.probeCounts[conceptID] >= 1 && s.correctCount[conceptID] == s.totalCount[conceptID] {
+		conf += 0.25
+	}
+	s.confidence[conceptID] = math.Min(1.0, conf)
 
-	// Settle concepts at 2 probes; low-confidence ones are revisited by
-	// supplementalDiagnostic (up to maxSupplementalProbes extra each).
-	s.doneSet[conceptID] = s.totalCount[conceptID] >= 2
+	// Settle a concept at 2 probes, or at its first answer when that answer
+	// agrees with what the model expected: a right answer, or a miss on a
+	// concept it did not already believe known. Only a surprising miss (the
+	// model believed it known) gets a second probe, since that may be a slip
+	// (fork change: every miss used to cost two questions). Low-confidence
+	// ones are revisited by supplementalDiagnostic.
+	expectedKnown := false
+	if n := len(s.Attempts); n > 0 && s.Attempts[n-1].BeliefSnapshot != nil {
+		expectedKnown = s.Attempts[n-1].BeliefSnapshot[conceptID] >= beliefThreshold
+	}
+	s.doneSet[conceptID] = s.totalCount[conceptID] >= 2 ||
+		(correct && s.correctCount[conceptID] == s.totalCount[conceptID]) ||
+		(!correct && !expectedKnown && s.probeCounts[conceptID] >= 1)
+	s.inferredSettled()
 
 	if s.shouldStop() {
 		s.State = StateDone
@@ -666,19 +736,49 @@ func (e *Engine) recordTimed(s *Session, conceptID string, correct bool, elapsed
 // conflictDiscount damping both directions when prior evidence conflicts.
 func (e *Engine) propagateEvidence(s *Session, conceptID string, correct bool, slowFactor float64) {
 	if correct {
-		for _, pr := range e.dag.PrereqsOf(conceptID) {
-			if pr.ID == conceptID {
-				continue
+		// Every prerequisite below a correct answer is evidence-weighted,
+		// the direct ones most, decaying with distance (fork change).
+		seen := map[string]bool{conceptID: true}
+		level := e.dag.PrereqsOf(conceptID)
+		w := ancestorEvidenceWeight * slowFactor
+		for len(level) > 0 {
+			var next []*concepts.Concept
+			for _, pr := range level {
+				if seen[pr.ID] {
+					continue
+				}
+				seen[pr.ID] = true
+				if _, onPath := s.beliefs[pr.ID]; onPath {
+					s.beliefs[pr.ID] += w * (1 - s.beliefs[pr.ID])
+				}
+				next = append(next, e.dag.PrereqsOf(pr.ID)...)
 			}
-			s.beliefs[pr.ID] += evidenceCorrectWeight * slowFactor * (1 - s.beliefs[pr.ID]) * conflictDiscount
+			level = next
+			w *= 0.9
 		}
 		return
 	}
-	for _, dep := range e.dag.DependentsOf(conceptID) {
-		if dep.ID == conceptID {
-			continue
+	// A miss is evidence against everything built on it, the direct
+	// dependents most, decaying with distance (fork change: one level at
+	// 0.15 left a weak learner's whole course unsettled, so the test spent
+	// its budget failing plan topics instead of finding where they stand).
+	seen := map[string]bool{conceptID: true}
+	level := e.dag.DependentsOf(conceptID)
+	w := dependentEvidenceWeight
+	for len(level) > 0 {
+		var next []*concepts.Concept
+		for _, dep := range level {
+			if seen[dep.ID] {
+				continue
+			}
+			seen[dep.ID] = true
+			if _, onPath := s.beliefs[dep.ID]; onPath {
+				s.beliefs[dep.ID] *= (1 - w)
+			}
+			next = append(next, e.dag.DependentsOf(dep.ID)...)
 		}
-		s.beliefs[dep.ID] *= (1 - evidenceIncorrectWeight*conflictDiscount)
+		level = next
+		w *= 0.85
 	}
 	// MA fall-back: a miss also strips "conditionally completed" credit
 	// from barely-passed prerequisites — the frontier falls backwards
@@ -703,6 +803,9 @@ func (e *Engine) supplementalDiagnostic(s *Session) string {
 	for _, c := range cover {
 		if !s.doneSet[c.ID] {
 			continue
+		}
+		if s.totalCount[c.ID] == 0 {
+			continue // settled by inference, never asked
 		}
 		if s.confidence[c.ID] >= confidenceThreshold {
 			continue
@@ -735,13 +838,18 @@ func (s *Session) shouldStop() bool {
 	return false
 }
 
-// compressedCoverSafe mirrors compressedCover without an Engine receiver
-// (session-only helper for stop conditions).
+// compressedCoverSafe is the covering set, a session-only computation
+// (no Engine needed, for the stop condition and progress).
+//
+// Without goal topics: roots of the path plus evenly spaced concepts across
+// its topological order (upstream behaviour). With goal topics (a course
+// placement, fork change): half the cover is the goal topics, evenly sampled
+// in path order, and half is evenly spaced across the path; roots are not
+// forced in, because a correct answer above them settles them by inference.
 func (s *Session) compressedCoverSafe() []*concepts.Concept {
 	if len(s.order) <= coverSize {
 		return s.order
 	}
-	step := int(math.Ceil(float64(len(s.order)) / float64(coverSize)))
 	var out []*concepts.Concept
 	seen := make(map[string]bool)
 	add := func(c *concepts.Concept) {
@@ -750,6 +858,31 @@ func (s *Session) compressedCoverSafe() []*concepts.Concept {
 			out = append(out, c)
 		}
 	}
+	if len(s.targets) > 0 {
+		var goal []*concepts.Concept
+		for _, c := range s.order {
+			if s.targets[c.ID] {
+				goal = append(goal, c)
+			}
+		}
+		half := coverSize / 2
+		if len(goal) <= half {
+			for _, c := range goal {
+				add(c)
+			}
+		} else {
+			for i := 0; i < half; i++ {
+				add(goal[i*len(goal)/half])
+			}
+		}
+		step := int(math.Ceil(float64(len(s.order)) / float64(coverSize-len(out))))
+		for i := step / 2; i < len(s.order); i += step {
+			add(s.order[i])
+		}
+		sort.Slice(out, func(i, j int) bool { return s.index(out[i].ID) < s.index(out[j].ID) })
+		return out
+	}
+	step := int(math.Ceil(float64(len(s.order)) / float64(coverSize)))
 	for i := 0; i < len(s.order); i += step {
 		add(s.order[i])
 	}
@@ -758,7 +891,24 @@ func (s *Session) compressedCoverSafe() []*concepts.Concept {
 			add(c)
 		}
 	}
+	sort.Slice(out, func(i, j int) bool { return s.index(out[i].ID) < s.index(out[j].ID) })
 	return out
+}
+
+// inferredSettled marks cover concepts whose belief evidence elsewhere has
+// made decisive (fork change): a correct answer two levels above single-digit
+// addition settles it without asking. They count as covered and are never
+// picked; they carry no probe, so the supplemental pass leaves them alone.
+// Caller holds s.Lock.
+func (s *Session) inferredSettled() {
+	for _, c := range s.compressedCoverSafe() {
+		if s.doneSet[c.ID] || s.totalCount[c.ID] > 0 {
+			continue
+		}
+		if b := s.beliefs[c.ID]; b >= inferKnown || b <= inferUnknown {
+			s.doneSet[c.ID] = true
+		}
+	}
 }
 
 func (e *Engine) IsComplete(s *Session) bool {

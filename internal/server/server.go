@@ -1461,18 +1461,30 @@ func (s *Server) handleGoalPlan(w http.ResponseWriter, r *http.Request) {
 	weakByDomain := make(map[string][]map[string]interface{})
 	strongByDomain := make(map[string][]string)
 
+	// One verdict per concept (fork fix): a concept is weak when the learner
+	// missed it on its last attempt, strong otherwise. A correct answer that
+	// was merely unhurried is not a weakness, and a concept asked twice is
+	// listed once; the summary used to call "single-digit addition",
+	// answered right twice, a weak area, twice.
+	lastCorrect := map[string]bool{}
+	var conceptOrder []string
 	for _, att := range attempts {
-		c := s.eng.GetDAG().Concept(att.ConceptID)
+		if _, ok := lastCorrect[att.ConceptID]; !ok {
+			conceptOrder = append(conceptOrder, att.ConceptID)
+		}
+		lastCorrect[att.ConceptID] = att.Correct
+	}
+	for _, id := range conceptOrder {
+		c := s.eng.GetDAG().Concept(id)
 		domain := "unknown"
-		label := att.ConceptID
+		label := id
 		if c != nil {
 			domain = c.Domain
 			label = c.Label
 		}
-		isWeak := (!att.Correct || !att.Fast)
-		if isWeak {
+		if !lastCorrect[id] {
 			weakByDomain[domain] = append(weakByDomain[domain], map[string]interface{}{
-				"id":    att.ConceptID,
+				"id":    id,
 				"label": label,
 			})
 		} else {

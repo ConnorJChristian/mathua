@@ -384,3 +384,59 @@ func TestJourney_LeaveAndReturnWithoutDuplication(t *testing.T) {
 		t.Fatalf("progress attempts = %+v, want 2 recorded attempts", prog["a"])
 	}
 }
+
+// Fork fix: the placement summary judges each concept once. It used to add an
+// entry per attempt and call every unhurried right answer weak, so a concept
+// answered right twice could be listed as weak twice.
+func TestJourney_PlacementSummaryListsEachConceptOnce(t *testing.T) {
+	mux, _ := journeyAuthedServer(t)
+	token, _ := guestTokenAndID(t, mux)
+
+	code, start := journeyPost(t, mux, token, "/api/goal/diagnostic", `{"concept_ids":["a","b"]}`)
+	if code != 200 {
+		t.Fatalf("diag start: %d %v", code, start)
+	}
+	dsid, _ := start["session_id"].(string)
+	cid, _ := start["concept_id"].(string)
+	done := false
+	for i := 0; i < 60 && !done; i++ {
+		code, ans := journeyPost(t, mux, token, "/api/goal/diagnostic/answer",
+			fmt.Sprintf(`{"session_id":"%s","concept_id":"%s","answer":"4","elapsed":99.0}`, dsid, cid))
+		if code != 200 {
+			t.Fatalf("diag answer %d: %d %v", i, code, ans)
+		}
+		done, _ = ans["done"].(bool)
+		cid, _ = ans["concept_id"].(string)
+		if !done && cid == "" {
+			t.Fatalf("diagnostic stalled at answer %d", i)
+		}
+	}
+	code, plan := journeyPost(t, mux, token, "/api/goal/plan", `{"session_id":"`+dsid+`"}`)
+	if code != 200 {
+		t.Fatalf("plan: %d %v", code, plan)
+	}
+	listed := map[string]string{}
+	weak, _ := plan["weak_areas"].(map[string]interface{})
+	for _, items := range weak {
+		for _, it := range items.([]interface{}) {
+			label, _ := it.(map[string]interface{})["label"].(string)
+			if prev, ok := listed[label]; ok {
+				t.Errorf("%q listed twice (%s, weak)", label, prev)
+			}
+			listed[label] = "weak"
+		}
+	}
+	strong, _ := plan["strong_areas"].(map[string]interface{})
+	for _, items := range strong {
+		for _, it := range items.([]interface{}) {
+			label, _ := it.(string)
+			if prev, ok := listed[label]; ok {
+				t.Errorf("%q listed twice (%s, strong)", label, prev)
+			}
+			listed[label] = "strong"
+		}
+	}
+	if len(listed) == 0 {
+		t.Fatalf("summary listed nothing: %v", plan)
+	}
+}

@@ -2064,7 +2064,9 @@ func (e *Engine) StartGoalDiagnostic(studentID string, conceptIDs []string) (*di
 			placeable = append(placeable, c)
 		}
 	}
-	session := e.diag.StartWithPath(placeable)
+	// The goal topics (a course's plan) are sampled into the cover so the
+	// test probes the course itself, not only its foundations (fork change).
+	session := e.diag.StartWithGoal(placeable, conceptIDs)
 	if session.State == diagnostic.StateDone || len(placeable) == 0 {
 		return session, nil, nil
 	}

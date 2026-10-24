@@ -278,33 +278,42 @@ func (c *Course) DueDate() (time.Time, bool) {
 const DefaultHorizonDays = 120
 
 // PlansOrderPaced merges the courses' path orders by pace (fork change): each
-// course's k-th remaining topic is placed at time k / pace, where pace is the
-// topics per day the course needs to finish by its due date, so a course that
-// is behind for its date gets proportionally more of the queue. A mastered
-// topic keeps its rank but is not counted as remaining. isDone says which
-// topics are mastered; now is the pacing date.
+// course's remaining plan topics are spread over the days left before its
+// due date, and the merged order follows that timeline, so a course that is
+// behind for its date gets proportionally more of the queue.
+//
+// Pace counts a course's own plan topics only. A prerequisite the plan pulls
+// in is placed at the time of the plan topic that needs it (the path lists
+// prerequisites just before their plan topic), so a course that rests on many
+// prerequisites is not paced as if each of them were a topic of its own: that
+// used to make the main math course (53 plan topics, 171 on its path) crowd
+// out a course with a nearer date. A course without a plan counts its whole
+// path. isDone says which topics are mastered; now is the pacing date.
 func (p *Planner) PlansOrderPaced(courseIDs []string, isDone func(id string) bool, now time.Time) map[string]int {
 	type entry struct {
 		id string
 		t  float64
 	}
+	done := func(id string) bool { return isDone != nil && isDone(id) }
 	var all []entry
 	n := 0
 	for _, cid := range courseIDs {
-		o := p.PlanOrder(cid)
-		if o == nil {
+		c := p.byID[cid]
+		if c == nil {
+			continue
+		}
+		path, err := p.planPath(c)
+		if err != nil || len(path.Concepts) == 0 || len(c.Plan) == 0 {
 			continue
 		}
 		n++
-		c := p.byID[cid]
-		ids := make([]string, 0, len(o))
-		for id := range o {
-			ids = append(ids, id)
+		inPlan := make(map[string]bool, len(c.Plan))
+		for _, id := range c.Plan {
+			inPlan[id] = true
 		}
-		sort.Slice(ids, func(i, j int) bool { return o[ids[i]] < o[ids[j]] })
 		remaining := 0
-		for _, id := range ids {
-			if isDone == nil || !isDone(id) {
+		for _, cc := range path.Concepts {
+			if inPlan[cc.ID] && !done(cc.ID) {
 				remaining++
 			}
 		}
@@ -312,19 +321,33 @@ func (p *Planner) PlansOrderPaced(courseIDs []string, isDone func(id string) boo
 		if due, ok := c.DueDate(); ok {
 			days = due.Sub(now).Hours() / 24
 			if days < 7 {
-				days = 7 // a course past or at its date still gets a full-tilt pace, not a division by zero
+				days = 7 // at or past its date: full tilt, not a division by zero
 			}
 		}
-		pace := float64(remaining) / days
-		if pace <= 0 {
-			pace = 1.0 / days
+		if remaining == 0 {
+			remaining = 1
 		}
+		step := days / float64(remaining) // days per remaining plan topic
 		k := 0
-		for _, id := range ids {
-			if isDone == nil || !isDone(id) {
+		var pending []string // prerequisites waiting for the plan topic they serve
+		for _, cc := range path.Concepts {
+			if !inPlan[cc.ID] {
+				pending = append(pending, cc.ID)
+				continue
+			}
+			if !done(cc.ID) {
 				k++
 			}
-			all = append(all, entry{id, float64(k) / pace})
+			t := float64(k) * step
+			// The prerequisites just before this plan topic come right before it.
+			for i, id := range pending {
+				all = append(all, entry{id, t - step*0.5 + float64(i)*1e-6})
+			}
+			pending = pending[:0]
+			all = append(all, entry{cc.ID, t})
+		}
+		for i, id := range pending {
+			all = append(all, entry{id, float64(k+1)*step + float64(i)*1e-6})
 		}
 	}
 	if n == 0 {

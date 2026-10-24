@@ -75,10 +75,16 @@ func TestRetry_Triggers(t *testing.T) {
 		return s
 	}
 
-	// Level drop: low-belief miss on "c", staged next "a" sits earlier.
-	// (testDAG is a linear a→b→c→d… chain.)
-	if s := newMiss("c", 0.4, 2, false); !e.RetryAvailableFor(s, "c", "a") {
-		t.Error("level drop should qualify a low-belief miss")
+	// Level drop: a miss on "c" the model leaned towards knowing, staged
+	// next "a" sits earlier. (testDAG is a linear a→b→c→d… chain.)
+	if s := newMiss("c", 0.55, 2, false); !e.RetryAvailableFor(s, "c", "a") {
+		t.Error("level drop should qualify a miss the model leaned towards knowing")
+	}
+	// Fork change: a level drop after a miss the model had no opinion about
+	// (belief at or below the 0.5 prior) is the placement descending by
+	// design, not a surprise, so it does not offer a retry.
+	if s := newMiss("c", 0.4, 2, false); e.RetryAvailableFor(s, "c", "a") {
+		t.Error("a level drop after an unsurprising miss must not qualify")
 	}
 	// Same miss staged forward: no trigger fires.
 	if s := newMiss("c", 0.4, 2, false); e.RetryAvailableFor(s, "c", "d") {
