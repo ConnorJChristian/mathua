@@ -66,8 +66,32 @@ type Reading struct {
 	Note   string `json:"note,omitempty"` // optional short original note
 	File   string `json:"file,omitempty"` // "hoy-3e.pdf"
 	Page   int    `json:"page,omitempty"` // PDF page to open at
-	URL    string `json:"url,omitempty"`  // or an https link
-	Module string `json:"-"`
+	// EndPage is the PDF page the section ends on, so the embedded reader can
+	// say where to stop (fork change).
+	EndPage int    `json:"end_page,omitempty"`
+	URL     string `json:"url,omitempty"` // or an https link
+	Module  string `json:"-"`
+}
+
+// Book names the text a reading is in: "<module>/<file>" for a file, "" for
+// a link. Courses list their authority texts by this key (fork change).
+func (r Reading) Book() string {
+	if r.File == "" {
+		return ""
+	}
+	return r.Module + "/" + r.File
+}
+
+// BookMeta describes a file in a module's files/ folder for the library
+// (fork change): books.json maps a file name to its title and author.
+// SourcePrefix is trimmed from the front of each reading's source when the
+// library lists it as a section ("Hoy " leaves "5.4 Rules of ...").
+type BookMeta struct {
+	Title        string `json:"title"`
+	Author       string `json:"author,omitempty"`
+	SourcePrefix string `json:"source_prefix,omitempty"`
+	Module       string `json:"-"`
+	File         string `json:"-"`
 }
 
 // Set is the enabled modules of one installation.
@@ -78,7 +102,8 @@ type Set struct {
 
 	tracks      []Track
 	domainTrack map[string]string
-	readings    map[string]Reading
+	readings    map[string][]Reading
+	books       []BookMeta
 }
 
 const MathTrack = "math"
@@ -164,7 +189,7 @@ func load(root string, withLocal bool) (*Set, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Set{Root: abs, domainTrack: map[string]string{}, readings: map[string]Reading{}}
+	s := &Set{Root: abs, domainTrack: map[string]string{}, readings: map[string][]Reading{}}
 	var cfg LocalConfig
 	if raw, err := os.ReadFile(filepath.Join(abs, "modules.local.json")); err == nil {
 		if err := json.Unmarshal(raw, &cfg); err != nil {
@@ -259,12 +284,57 @@ func load(root string, withLocal bool) (*Set, error) {
 		if err != nil {
 			return nil, err
 		}
-		for cid, r := range readings {
-			r.Module = m.ID
-			s.readings[cid] = r
+		// A concept may have readings in several texts (from one module or
+		// several). They are kept in module order; a course picks its own.
+		for cid, rs := range readings {
+			for _, r := range rs {
+				r.Module = m.ID
+				s.readings[cid] = append(s.readings[cid], r)
+			}
 		}
+		books, err := readBooks(m)
+		if err != nil {
+			return nil, err
+		}
+		s.books = append(s.books, books...)
 	}
 	return s, nil
+}
+
+func readBooks(m *Module) ([]BookMeta, error) {
+	raw, err := os.ReadFile(filepath.Join(m.Dir, "books.json"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var byFile map[string]BookMeta
+	if err := json.Unmarshal(raw, &byFile); err != nil {
+		return nil, fmt.Errorf("%s/books.json: %w", m.ID, err)
+	}
+	var out []BookMeta
+	for f, b := range byFile {
+		if !safeRel(f) {
+			return nil, fmt.Errorf("%s/books.json: file %q must be a path inside files/", m.ID, f)
+		}
+		b.Module, b.File = m.ID, f
+		out = append(out, b)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].File < out[j].File })
+	return out, nil
+}
+
+// Books lists the described files of every enabled module (books.json).
+func (s *Set) Books() []BookMeta { return append([]BookMeta(nil), s.books...) }
+
+// Readings is every concept's readings, keyed by concept id.
+func (s *Set) Readings() map[string][]Reading {
+	out := make(map[string][]Reading, len(s.readings))
+	for k, v := range s.readings {
+		out[k] = append([]Reading(nil), v...)
+	}
+	return out
 }
 
 func readModule(dir string) (*Module, error) {
@@ -293,7 +363,9 @@ func readModule(dir string) (*Module, error) {
 	return &Module{Manifest: man, Dir: dir}, nil
 }
 
-func readReadings(m *Module) (map[string]Reading, error) {
+// readReadings reads readings.json: concept id to one reading, or to a list
+// of readings in different texts.
+func readReadings(m *Module) (map[string][]Reading, error) {
 	raw, err := os.ReadFile(filepath.Join(m.Dir, "readings.json"))
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -301,17 +373,33 @@ func readReadings(m *Module) (map[string]Reading, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out map[string]Reading
-	if err := json.Unmarshal(raw, &out); err != nil {
+	var entries map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &entries); err != nil {
 		return nil, fmt.Errorf("%s/readings.json: %w", m.ID, err)
 	}
-	for cid, r := range out {
-		if r.Source == "" {
-			return nil, fmt.Errorf("%s/readings.json: %s has no source", m.ID, cid)
+	out := make(map[string][]Reading, len(entries))
+	for cid, e := range entries {
+		var list []Reading
+		if t := strings.TrimSpace(string(e)); strings.HasPrefix(t, "[") {
+			if err := json.Unmarshal(e, &list); err != nil {
+				return nil, fmt.Errorf("%s/readings.json: %s: %w", m.ID, cid, err)
+			}
+		} else {
+			var one Reading
+			if err := json.Unmarshal(e, &one); err != nil {
+				return nil, fmt.Errorf("%s/readings.json: %s: %w", m.ID, cid, err)
+			}
+			list = []Reading{one}
 		}
-		if r.File != "" && !safeRel(r.File) {
-			return nil, fmt.Errorf("%s/readings.json: %s: file %q must be a path inside files/", m.ID, cid, r.File)
+		for _, r := range list {
+			if r.Source == "" {
+				return nil, fmt.Errorf("%s/readings.json: %s has no source", m.ID, cid)
+			}
+			if r.File != "" && !safeRel(r.File) {
+				return nil, fmt.Errorf("%s/readings.json: %s: file %q must be a path inside files/", m.ID, cid, r.File)
+			}
 		}
+		out[cid] = list
 	}
 	return out, nil
 }
@@ -406,10 +494,36 @@ func (s *Set) DomainLabel(domain string) string {
 	return ""
 }
 
-// Reading returns the reading pointer for a concept, if a module has one.
+// Reading returns a concept's first reading, if a module has one.
 func (s *Set) Reading(conceptID string) (Reading, bool) {
-	r, ok := s.readings[conceptID]
-	return r, ok
+	rs := s.readings[conceptID]
+	if len(rs) == 0 {
+		return Reading{}, false
+	}
+	return rs[0], true
+}
+
+// ReadingsFor lists every reading a concept has, one per text.
+func (s *Set) ReadingsFor(conceptID string) []Reading {
+	return append([]Reading(nil), s.readings[conceptID]...)
+}
+
+// PickReading chooses a concept's reading for a learner working through
+// courses whose authority texts are `texts`, in priority order: the first
+// text that has a reading wins, and with none of them, the first reading.
+func (s *Set) PickReading(conceptID string, texts []string) (Reading, bool) {
+	rs := s.readings[conceptID]
+	if len(rs) == 0 {
+		return Reading{}, false
+	}
+	for _, t := range texts {
+		for _, r := range rs {
+			if r.Book() == t {
+				return r, true
+			}
+		}
+	}
+	return rs[0], true
 }
 
 // Module returns an enabled module by id.

@@ -23,6 +23,10 @@ type Course struct {
 	// offers new topics in path order. A course with a plan and no targets
 	// targets its plan.
 	Plan []string `json:"plan,omitempty"`
+	// Texts are the course's authority texts, in priority order, as
+	// "<module>/<file>" (fork change). A topic reached through the course
+	// opens its reading in the first of these that covers it.
+	Texts []string `json:"texts,omitempty"`
 }
 
 type Path struct {

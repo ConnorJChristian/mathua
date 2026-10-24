@@ -162,3 +162,4 @@ modules.local.json
 # Your own compose additions (the database snapshot for learning reports) and their output
 docker-compose.override.yml
 local-data/
+web/next-app/public/pdfjs/

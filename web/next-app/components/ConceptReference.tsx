@@ -5,6 +5,7 @@ import KatexContent from './KatexContent'
 import LessonCredits from './LessonCredits'
 import LessonDiagram from './LessonDiagram'
 import ReportMenu from './ReportMenu'
+import ReadingPanel from './ReadingPanel'
 import { getLessonBody, getLessonKPs, getLessons, type LessonKpsRes } from '../lib/api'
 import { getUserInfo } from '../lib/auth'
 import { buildExampleBlocks, type ExampleBlock } from '../lib/lessonBlocks'
@@ -108,6 +109,7 @@ export default function ConceptReference({ conceptId, variant = 'panel', emptyAc
   }, [wantsArticle, conceptId])
 
   const label = concepts.find(c => c.id === conceptId)?.label || conceptId
+  const readingKp = shard?.kps.find(k => k.reading || k.texts)
   // Nothing to render: no shard content, no article. Say so honestly rather than showing a
   // titled empty panel, which reads as a finished lesson with nothing in it.
   const unavailable = shard !== null && !failed && blocks.length === 0 && body === ''
@@ -130,6 +132,9 @@ export default function ConceptReference({ conceptId, variant = 'panel', emptyAc
           {emptyActions && <div className="mt-4 flex flex-wrap gap-3">{emptyActions}</div>}
         </>
       )}
+
+      {/* Fork change: a topic read from your own PDF opens it here too, at the section. */}
+      {variant === 'page' && readingKp && <div className="mb-6"><ReadingPanel reading={readingKp.reading} texts={readingKp.texts} /></div>}
 
       {blocks.length > 0 && (
         <div data-testid="reference-blocks">

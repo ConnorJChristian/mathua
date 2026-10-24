@@ -173,6 +173,9 @@ function TopicsContent() {
   const btn = 'shrink-0 border px-3 py-1.5 font-mono text-[11px] min-h-[32px] inline-flex items-center justify-center'
   const input = 'border border-mathua-border bg-mathua-surface text-mathua-primary font-mono text-xs px-3 py-2 min-h-[36px] min-w-0'
 
+  // Opened from a study plan, a topic reads in that plan's own texts first.
+  const withCourse = (href: string) => (plan ? `${href}&course=${encodeURIComponent(plan.id)}` : href)
+
   let lastDomain = ''
   return (
     <>
@@ -182,6 +185,7 @@ function TopicsContent() {
         <p className="font-mono text-[11px] text-mathua-secondary mb-6">
           Every topic, with its lesson one click away. <b>Read</b> opens the lesson and what it builds on;{' '}
           <b>Practise</b> starts questions. Reading earns nothing on its own; mastery comes from practice.
+          Browse by book in the <Link href="/library" className="underline hover:text-mathua-blue">Library</Link>.
         </p>
 
         {signedIn && plans.length > 0 && (
@@ -314,7 +318,7 @@ function TopicsContent() {
                       {plan && <span className="shrink-0 w-7 text-right font-mono text-[11px] text-mathua-muted tabular-nums">{n + 1}</span>}
                       <div className="min-w-0">
                         <Link
-                          href={studyConceptPath(c.id)}
+                          href={withCourse(studyConceptPath(c.id))}
                           className={`font-mono text-xs break-words [overflow-wrap:anywhere] hover:text-mathua-blue ${planned || !plan ? 'text-mathua-primary' : 'text-mathua-secondary'} ${planned ? 'font-semibold' : ''}`}
                         >
                           {c.label}
@@ -327,10 +331,10 @@ function TopicsContent() {
                       </div>
                     </div>
                     <div className="flex gap-2 sm:shrink-0">
-                      <Link href={studyConceptPath(c.id)} className={`${btn} flex-1 sm:flex-none border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue`}>
+                      <Link href={withCourse(studyConceptPath(c.id))} className={`${btn} flex-1 sm:flex-none border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue`}>
                         Read
                       </Link>
-                      <Link href={learnConceptPath(c.id)} className={`${btn} flex-1 sm:flex-none border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>
+                      <Link href={withCourse(learnConceptPath(c.id))} className={`${btn} flex-1 sm:flex-none border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>
                         Practise
                       </Link>
                     </div>

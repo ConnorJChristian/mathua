@@ -222,6 +222,24 @@ A local module can author code tasks the same way the Python track does:
 `statsmodels`, the `wooldridge` data sets and `ISLP` (data and model helpers
 only), so tasks can use real econometrics data with no network.
 
+## Library, readings and course texts
+
+- **Library** (`/library`): every book and source your topics come from,
+  shelved by track. A book's contents list its sections and the topics each
+  teaches; your PDFs open beside the contents at the section.
+- **Embedded reader:** a topic with a reading in one of your PDFs opens it
+  inside the lesson at the section's first page (pdf.js, so it works on
+  phones too), with the pages to read.
+- **Several texts per topic:** a module's `readings.json` may give a concept
+  a list of readings, one per text. A course lists its authority texts in
+  priority order (`"texts": ["ma-program/hoy-3e.pdf", "web:Statistical
+  Learning"]`); a topic reached through that course (from Topics with the
+  plan selected, or as one of the plans you follow) opens in that text, and
+  the others are one click away. `web:` keys match online books and decks by
+  name.
+- A module's `books.json` names its PDFs: `{"file.pdf": {"title": ...,
+  "author": ..., "source_prefix": ...}}`.
+
 ## Learning reports
 
 `scripts/learning_report.py` reads a copy of the app's database and writes a

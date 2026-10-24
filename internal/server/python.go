@@ -57,41 +57,190 @@ func (s *Server) handleModuleFile(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, p)
 }
 
-// readingText is a module reading as a teaching step: what to read, and a
-// link that opens your own copy of the book at that page.
-type readingText struct{ Source, Body string }
+// readingText is a concept's reading as a teaching step: what to read, and
+// where. PDF, when set, lets the lesson embed the book at that page; Texts
+// lists every text the concept is read in, so the lesson can switch between
+// them (fork change).
+type readingText struct {
+	Source, Body string
+	PDF          *readingPDF
+	Texts        []readingOption
+}
+
+// readingPDF is what the lesson's embedded reader needs: the file, the PDF
+// page the section starts on, and (when known) the page it ends on.
+type readingPDF struct {
+	Title   string `json:"title"`
+	URL     string `json:"url"`
+	Page    int    `json:"page,omitempty"`
+	EndPage int    `json:"end_page,omitempty"`
+}
+
+// readingOption is one text a concept can be read in: your own file (a
+// module reading) or an online book (a question bank's source). Key matches
+// a course's authority texts: "<module>/<file>" or "web:<book name>".
+type readingOption struct {
+	Key      string `json:"key"`
+	Kind     string `json:"kind"` // pdf, file, link or web
+	Book     string `json:"book"`
+	Source   string `json:"source"`
+	URL      string `json:"url,omitempty"`
+	Page     int    `json:"page,omitempty"`
+	EndPage  int    `json:"end_page,omitempty"`
+	Selected bool   `json:"selected,omitempty"`
+}
+
+// bankBookName is the name a question bank gives its source.
+func bankBookName(b pytrack.Book) string {
+	if b.Name == "" && strings.Contains(b.URL, "PythonDataScienceHandbook") {
+		return "Python Data Science Handbook"
+	}
+	return b.Name
+}
+
+// textMatches reports whether an authority-text key names this option. A
+// "web:" key matches any online book whose name contains it, so a course can
+// say "web:Statistical Learning" for every ISLP-based source.
+func textMatches(key string, o readingOption) bool {
+	if strings.HasPrefix(key, "web:") {
+		return o.Kind == "web" && strings.Contains(strings.ToLower(o.Book), strings.ToLower(strings.TrimPrefix(key, "web:")))
+	}
+	return key == o.Key
+}
+
+// readingOptions lists the texts a concept is read in: module readings first,
+// then the question bank's own source.
+func (s *Server) readingOptions(conceptID string) []readingOption {
+	mods := s.eng.Modules()
+	titles := map[string]string{}
+	for _, b := range mods.Books() {
+		titles[b.Module+"/"+b.File] = b.Title
+	}
+	var out []readingOption
+	for _, rd := range mods.ReadingsFor(conceptID) {
+		o := readingOption{Source: rd.Source, Page: rd.Page, EndPage: rd.EndPage}
+		switch {
+		case rd.File != "":
+			o.Key = rd.Book()
+			o.Book = titles[o.Key]
+			if o.Book == "" {
+				o.Book = rd.File
+			}
+			o.URL = "/api/modules/" + url.PathEscape(rd.Module) + "/files/" + escapePath(rd.File)
+			o.Kind = "file"
+			if strings.EqualFold(path.Ext(rd.File), ".pdf") {
+				o.Kind = "pdf"
+			}
+		case rd.URL != "":
+			o.Key, o.Kind, o.Book, o.URL = "link:"+rd.URL, "link", rd.Source, rd.URL
+		default:
+			continue
+		}
+		out = append(out, o)
+	}
+	if t, err := pytrack.Default(); err == nil {
+		if c := t.Bank.Concept(conceptID); c != nil {
+			if name := bankBookName(c.Book); name != "" {
+				src := c.Book.Title
+				if c.Book.Section != "" {
+					src += ", " + c.Book.Section
+				}
+				dup := false
+				for _, o := range out {
+					dup = dup || o.Book == name
+				}
+				if !dup {
+					out = append(out, readingOption{Key: "web:" + name, Kind: "web", Book: name, Source: src, URL: c.Book.URL})
+				}
+			}
+		}
+	}
+	return out
+}
 
 // readingStep is the "read this section first" step for a concept that a
 // module gives a reading, whether the concept is a module's or the base
-// graph's.
-func (s *Server) readingStep(conceptID string) (readingText, bool) {
-	rd, ok := s.eng.Modules().Reading(conceptID)
-	if !ok {
+// graph's. With several texts, `texts` (the authority texts of the courses
+// the learner reached the topic through, in priority order) picks the one
+// shown first; the rest stay one click away.
+func (s *Server) readingStep(conceptID string, texts []string) (readingText, bool) {
+	if len(s.eng.Modules().ReadingsFor(conceptID)) == 0 {
 		return readingText{}, false
 	}
-	var b strings.Builder
-	if rd.Note != "" {
-		b.WriteString(rd.Note + "\n\n")
+	opts := s.readingOptions(conceptID)
+	if len(opts) == 0 {
+		return readingText{}, false
 	}
-	fmt.Fprintf(&b, "**Read first:** %s", rd.Source)
-	switch {
-	case rd.File != "":
-		link := "/api/modules/" + url.PathEscape(rd.Module) + "/files/" + escapePath(rd.File)
-		if rd.Page > 0 {
-			link += fmt.Sprintf("#page=%d", rd.Page)
+	pick := 0
+	found := false
+	for _, t := range texts {
+		for i, o := range opts {
+			if textMatches(t, o) {
+				pick, found = i, true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	opts[pick].Selected = true
+	o := opts[pick]
+
+	var b strings.Builder
+	note := ""
+	if rd, ok := s.eng.Modules().Reading(conceptID); ok {
+		note = rd.Note
+	}
+	if note == "" {
+		// A module concept's own bank note still teaches; keep it above the reading.
+		if t, err := pytrack.Default(); err == nil {
+			if c := t.Bank.Concept(conceptID); c != nil {
+				note = strings.TrimSpace(c.Intro)
+			}
+		}
+	}
+	if note != "" {
+		b.WriteString(note + "\n\n")
+	}
+	var pdf *readingPDF
+	switch o.Kind {
+	case "pdf":
+		fmt.Fprintf(&b, "**Read first:** %s", o.Source)
+		link := o.URL
+		if o.Page > 0 {
+			link += fmt.Sprintf("#page=%d", o.Page)
+		}
+		pdf = &readingPDF{Title: o.Source, URL: o.URL, Page: o.Page, EndPage: o.EndPage}
+		fmt.Fprintf(&b, "\n\nThe section is open below. [Open it in a new tab](%s)", link)
+	case "web":
+		fmt.Fprintf(&b, "**Read first:** %s, in %s", o.Source, o.Book)
+		if o.URL != "" {
+			fmt.Fprintf(&b, "\n\n[Open section](%s)", o.URL)
+		}
+	default:
+		fmt.Fprintf(&b, "**Read first:** %s", o.Source)
+		link := o.URL
+		if o.Page > 0 {
+			link += fmt.Sprintf("#page=%d", o.Page)
 		}
 		fmt.Fprintf(&b, "\n\n[Open section](%s)", link)
-	case rd.URL != "":
-		fmt.Fprintf(&b, "\n\n[Open section](%s)", rd.URL)
+	}
+	if len(opts) > 1 {
+		b.WriteString("\n\nOther texts cover this too: switch below.")
 	}
 	b.WriteString("\n\nPress Next when you have read it.")
-	return readingText{Source: rd.Source, Body: b.String()}, true
+	rt := readingText{Source: o.Source, Body: b.String(), PDF: pdf}
+	if len(opts) > 1 {
+		rt.Texts = opts
+	}
+	return rt, true
 }
 
 // moduleKPs is the teaching step for a module concept, which has no lesson
 // corpus: the question bank's original note, or a pointer to the section of
 // your own book to read (a module's readings.json), opened from your files.
-func (s *Server) moduleKPs(conceptID, label string) []map[string]interface{} {
+func (s *Server) moduleKPs(conceptID, label string, texts []string) []map[string]interface{} {
 	step := func(section, body string) []map[string]interface{} {
 		return []map[string]interface{}{{
 			"label":          label,
@@ -101,8 +250,15 @@ func (s *Server) moduleKPs(conceptID, label string) []map[string]interface{} {
 			"assets":         []interface{}{},
 		}}
 	}
-	if rd, ok := s.readingStep(conceptID); ok {
-		return step(rd.Source, rd.Body)
+	if rd, ok := s.readingStep(conceptID, texts); ok {
+		kp := step(rd.Source, rd.Body)
+		if rd.PDF != nil {
+			kp[0]["reading"] = rd.PDF
+		}
+		if rd.Texts != nil {
+			kp[0]["texts"] = rd.Texts
+		}
+		return kp
 	}
 	t, err := pytrack.Default()
 	if err != nil {

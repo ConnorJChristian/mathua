@@ -482,6 +482,29 @@ export interface CourseStatus {
   progress?: CourseProgress
 }
 
+// Fork: the library: every book and source the topics are drawn from, with a
+// table of contents whose entries link to the topics.
+export interface LibraryTopic { id: string; label: string }
+export interface LibrarySection { title: string; page?: number; end_page?: number; url?: string; topics: LibraryTopic[] }
+export interface LibraryBook {
+  id: string
+  kind: 'pdf' | 'web'
+  track: string
+  title: string
+  author?: string
+  url?: string
+  available: boolean
+  sections: LibrarySection[]
+  topic_count: number
+}
+
+export async function getLibrary(): Promise<LibraryBook[]> {
+  const res = await authedFetch(`${API_BASE}/api/library`, { cache: 'no-store' })
+  if (!res.ok) return []
+  const data = await res.json()
+  return data.books ?? []
+}
+
 // Fork: the course catalog with the learner's active course (the study plan
 // the shelf follows). Progress comes from the transcript when signed in.
 export async function getCourseCatalog(): Promise<{ courses: CourseStatus[]; active: string; activeIds: string[] }> {
@@ -1203,6 +1226,21 @@ export interface KpInfo {
 	// an authored asset_ids list on the shard). `/learn` shows these; `/study` shows the
 	// whole lesson. Optional so a response from a build predating the field still renders.
 	assets?: LessonAsset[]
+	/** Fork: the step's reading in your own PDF, shown in an embedded reader. */
+	reading?: { title: string; url: string; page?: number; end_page?: number }
+	/** Fork: every text the topic is read in; `selected` is the course's default. */
+	texts?: ReadingText[]
+}
+
+export interface ReadingText {
+	key: string
+	kind: 'pdf' | 'file' | 'link' | 'web'
+	book: string
+	source: string
+	url?: string
+	page?: number
+	end_page?: number
+	selected?: boolean
 }
 
 export interface LessonKpsRes {
@@ -1234,16 +1272,20 @@ export async function getLessonPractice(conceptId: string, count = 5, opts?: { s
 const lessonKPsInFlight = new Map<string, Promise<LessonKpsRes>>()
 
 export function getLessonKPs(conceptId: string): Promise<LessonKpsRes> {
-	const existing = lessonKPsInFlight.get(conceptId)
+	// Fork: a topic opened from a course (`?course=` on the page) reads in that course's texts.
+	const course = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('course') : null
+	const key = course ? `${conceptId}|${course}` : conceptId
+	const existing = lessonKPsInFlight.get(key)
 	if (existing) return existing
+	const q = course ? `?course=${encodeURIComponent(course)}` : ''
 	const p = (async () => {
-		const res = await authedFetch(`${API_BASE}/api/lessons/${encodeURIComponent(conceptId)}/kp`, { cache: 'no-store' })
+		const res = await authedFetch(`${API_BASE}/api/lessons/${encodeURIComponent(conceptId)}/kp${q}`, { cache: 'no-store' })
 		if (!res.ok) return { concept_id: conceptId, kps: [] }
 		return res.json() as Promise<LessonKpsRes>
 	})().finally(() => {
-		lessonKPsInFlight.delete(conceptId)
+		lessonKPsInFlight.delete(key)
 	})
-	lessonKPsInFlight.set(conceptId, p)
+	lessonKPsInFlight.set(key, p)
 	return p
 }
 

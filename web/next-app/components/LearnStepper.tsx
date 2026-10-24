@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import KatexContent from './KatexContent'
 import LessonDiagram from './LessonDiagram'
+import ReadingPanel from './ReadingPanel'
 import LessonAssets from './LessonAssets'
 import ChoiceOptions from './ChoiceOptions'
 import ConceptReference from './ConceptReference'
@@ -627,6 +628,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                     not come with it; selecting them per knowledge point is what keeps the
                     shorter surface shorter without discarding instruction. */}
                 <LessonAssets assets={ikp?.assets} />
+                {(ikp?.reading || ikp?.texts) && <ReadingPanel reading={ikp.reading} texts={ikp.texts} />}
                 {diagram && (
                   <figure className="mt-4">
                     <LessonDiagram src={diagram} alt={`Diagram for ${ikp?.label || 'this topic'}`} />
@@ -663,6 +665,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   <summary className="font-mono text-[11px] uppercase tracking-wider text-mathua-blue cursor-pointer">Next: {ikp?.label || `Knowledge point ${e.kpIndex + 1}`} (worked example)</summary>
                   <KatexContent className="mt-2 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || ''}</KatexContent>
                   <LessonAssets assets={ikp?.assets} />
+                  {(ikp?.reading || ikp?.texts) && <ReadingPanel reading={ikp.reading} texts={ikp.texts} />}
                 </details>
               </div>
             )

@@ -35,6 +35,8 @@ export const REVIEW_LINKS: NavLink[] = [{ label: 'Review', href: '/review' }]
 export const DISPLAY_LINKS: NavLink[] = [
   // Fork change: the topic library, every topic a click from its lesson and practice.
   { label: 'Topics', href: '/topics' },
+  // Fork change: the library of books and sources, each with its table of contents.
+  { label: 'Library', href: '/library' },
   { label: 'Graph', href: '/graph' },
   // Not a bottom tab on every surface — the tab bar stays at five — so /domains reaches mobile
   // through the tab bar and the compass overflow, derived from this list minus TAB_HREFS.

@@ -500,6 +500,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/lessons/body", logRequest(cors(s.optionalAuthMiddleware(s.handleLessonBody))))
 	mux.HandleFunc("/api/lessons/", logRequest(cors(s.optionalAuthMiddleware(s.handleLessonConcept))))
 	mux.HandleFunc("/api/modules/", logRequest(cors(s.handleModuleFile)))
+	mux.HandleFunc("/api/library", logRequest(cors(s.handleLibrary)))
 	mux.HandleFunc("/api/python/run", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handlePythonRun))))))
 	mux.HandleFunc("/api/study/answer", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handleStudyAnswer))))))
 	// Report creation only. Listing and resolving reports is administration now and lives under
@@ -1863,7 +1864,7 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 		if len(kps) == 0 {
 			// A module concept's teaching step: its bank note or its reading.
 			if c := s.eng.GetDAG().Concept(conceptID); c != nil {
-				if steps := s.moduleKPs(conceptID, c.Label); len(steps) > 0 {
+				if steps := s.moduleKPs(conceptID, c.Label, s.courseTexts(r, conceptID)); len(steps) > 0 {
 					writeJSON(w, map[string]interface{}{
 						"concept_id": conceptID,
 						"kps":        steps,
@@ -1879,14 +1880,16 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 			Subgoals      []string        `json:"subgoals"`
 			WorkedExample string          `json:"worked_example"`
 			Assets        []lessons.Asset `json:"assets"`
+			Reading       *readingPDF     `json:"reading,omitempty"`
+			Texts         []readingOption `json:"texts,omitempty"`
 		}
 		out := make([]kpInfo, 0, len(kps)+1)
 		// Fork change: a module may point a base-graph concept at the section
 		// of your own book to read; that comes before the lesson's steps.
 		if c := s.eng.GetDAG().Concept(conceptID); c != nil {
-			if rd, ok := s.readingStep(conceptID); ok {
+			if rd, ok := s.readingStep(conceptID, s.courseTexts(r, conceptID)); ok {
 				out = append(out, kpInfo{Label: c.Label, Section: rd.Source, Subgoals: []string{},
-					WorkedExample: rd.Body, Assets: []lessons.Asset{}})
+					WorkedExample: rd.Body, Assets: []lessons.Asset{}, Reading: rd.PDF, Texts: rd.Texts})
 			}
 		}
 		for _, kp := range kps {
