@@ -121,6 +121,20 @@ type Video struct {
 	Module   string `json:"module,omitempty"`
 }
 
+// Note is a page of lecture notes (fork change): notes.json maps a concept
+// id or a course id to a list of these. File is an HTML page in the module's
+// files/ (a lecture notebook rendered to HTML, say) or URL an https link.
+// Unit names the lecture the page belongs to, Seq its place in that unit.
+type Note struct {
+	Title   string `json:"title"`
+	Unit    string `json:"unit,omitempty"`
+	UnitSeq int    `json:"unit_seq,omitempty"` // the unit's place in the course
+	Seq     int    `json:"seq,omitempty"`
+	URL     string `json:"url,omitempty"`
+	File    string `json:"file,omitempty"`
+	Module  string `json:"module,omitempty"`
+}
+
 // Set is the enabled modules of one installation.
 type Set struct {
 	Root     string // repository or install root
@@ -132,6 +146,7 @@ type Set struct {
 	readings    map[string][]Reading
 	books       []BookMeta
 	videos      map[string][]Video
+	notes       map[string][]Note
 	cards       map[string][]CardRef
 	noLibrary   map[string]bool // domains of no_library modules
 }
@@ -219,7 +234,7 @@ func load(root string, withLocal bool) (*Set, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Set{Root: abs, domainTrack: map[string]string{}, readings: map[string][]Reading{}, videos: map[string][]Video{}, cards: map[string][]CardRef{}}
+	s := &Set{Root: abs, domainTrack: map[string]string{}, readings: map[string][]Reading{}, videos: map[string][]Video{}, notes: map[string][]Note{}, cards: map[string][]CardRef{}}
 	var cfg LocalConfig
 	if raw, err := os.ReadFile(filepath.Join(abs, "modules.local.json")); err == nil {
 		if err := json.Unmarshal(raw, &cfg); err != nil {
@@ -343,6 +358,16 @@ func load(root string, withLocal bool) (*Set, error) {
 				s.videos[id] = append(s.videos[id], v)
 			}
 		}
+		notes, err := readNotes(m)
+		if err != nil {
+			return nil, err
+		}
+		for id, ns := range notes {
+			for _, n := range ns {
+				n.Module = m.ID
+				s.notes[id] = append(s.notes[id], n)
+			}
+		}
 		cards, err := readCards(m)
 		if err != nil {
 			return nil, err
@@ -414,6 +439,40 @@ func (s *Set) Cards() map[string][]CardRef {
 		out[k] = append([]CardRef(nil), v...)
 	}
 	return out
+}
+
+func readNotes(m *Module) (map[string][]Note, error) {
+	raw, err := os.ReadFile(filepath.Join(m.Dir, "notes.json"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var byID map[string][]Note
+	if err := json.Unmarshal(raw, &byID); err != nil {
+		return nil, fmt.Errorf("%s/notes.json: %w", m.ID, err)
+	}
+	for id, ns := range byID {
+		for _, n := range ns {
+			if n.File != "" && !safeRel(n.File) {
+				return nil, fmt.Errorf("%s/notes.json: %s: file %q must be a path inside files/", m.ID, id, n.File)
+			}
+			if n.File == "" && !strings.HasPrefix(n.URL, "https://") {
+				return nil, fmt.Errorf("%s/notes.json: %s: a note needs a file or an https url", m.ID, id)
+			}
+		}
+	}
+	return byID, nil
+}
+
+// NotesFor lists the lecture notes attached to a concept or course id
+// (notes.json), fork change.
+func (s *Set) NotesFor(id string) []Note {
+	if s == nil {
+		return nil
+	}
+	return append([]Note(nil), s.notes[id]...)
 }
 
 // VideosFor lists the videos attached to a concept or course id (videos.json).

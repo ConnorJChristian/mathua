@@ -10,8 +10,10 @@ import Loading from '../../components/Loading'
 import PdfReader from '../../components/PdfReader'
 import VideoPlayer, { formatDuration } from '../../components/VideoPlayer'
 import { useTheme } from '../../hooks/useTheme'
-import { getCourseView, setActiveCourses, getCourseCatalog, type CourseTopic, type CourseView, type CourseVideo } from '../../lib/api'
+import { getCourseView, setActiveCourses, getCourseCatalog, getPins, setPins, type CourseNote, type CourseTopic, type CourseView, type CourseVideo } from '../../lib/api'
+import { API_BASE } from '../../lib/apiBase'
 import { getUserInfo } from '../../lib/auth'
+import { formatDue } from '../../lib/dates'
 
 // Fork change: a course's own page, laid out like a course site: Home (what
 // to do next, progress), Modules (its topics in teaching order, each with its
@@ -24,9 +26,15 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'modules', label: 'Modules' },
   { id: 'readings', label: 'Readings' },
-  { id: 'videos', label: 'Videos' },
+  { id: 'videos', label: 'Lectures' },
   { id: 'grades', label: 'Grades' },
 ]
+
+// A lecture page served by the module files endpoint is a bare path; a link
+// stays as given.
+function noteHref(n: CourseNote): string {
+  return n.url.startsWith('/') ? `${API_BASE}${n.url}` : n.url
+}
 
 function statusWord(t: CourseTopic): string {
   if (t.status === 'mastered') return 'Mastered'
@@ -43,18 +51,30 @@ function statusClass(t: CourseTopic): string {
   return 'text-mathua-muted'
 }
 
-function TopicRow({ t, courseId, onRead, onWatch }: { t: CourseTopic; courseId: string; onRead: (t: CourseTopic) => void; onWatch: (v: CourseVideo[]) => void }) {
+function TopicRow({ t, courseId, onRead, onWatch, pinned, onPin }: { t: CourseTopic; courseId: string; onRead: (t: CourseTopic) => void; onWatch: (v: CourseVideo[]) => void; pinned?: boolean; onPin?: (id: string, on: boolean) => void }) {
   const learn = `/learn?concept=${encodeURIComponent(t.id)}&course=${encodeURIComponent(courseId)}`
   const btn = 'shrink-0 border px-2.5 min-h-[30px] inline-flex items-center font-mono text-[11px]'
   return (
-    <li className="py-2 px-3 flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-      <span className={`w-2 h-2 shrink-0 rounded-full ${t.status === 'mastered' ? 'bg-mathua-green' : t.attempts > 0 ? 'bg-mathua-blue' : t.locked ? 'bg-mathua-border' : 'bg-mathua-muted'}`} aria-hidden />
+    <li className={`py-2 px-3 flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 ${pinned ? 'bg-mathua-blue-faint' : ''}`}>
+      {onPin && t.status !== 'mastered' ? (
+        <button type="button" onClick={() => onPin(t.id, !pinned)} aria-pressed={!!pinned} aria-label={pinned ? `Unpin ${t.label} from this week` : `Pin ${t.label} for this week`} title={pinned ? 'Pinned for this week — click to unpin' : 'Pin for this week: keep it in your Study queue'}
+          className={`shrink-0 w-6 h-6 inline-flex items-center justify-center font-mono text-[13px] leading-none border ${pinned ? 'border-mathua-blue text-mathua-blue bg-mathua-surface' : 'border-transparent text-mathua-muted hover:text-mathua-blue hover:border-mathua-border'}`}>
+          {pinned ? '●' : '○'}
+        </button>
+      ) : (
+        <span className={`w-2 h-2 shrink-0 rounded-full ${t.status === 'mastered' ? 'bg-mathua-green' : t.attempts > 0 ? 'bg-mathua-blue' : t.locked ? 'bg-mathua-border' : 'bg-mathua-muted'}`} aria-hidden />
+      )}
       <Link href={`/study?concept=${encodeURIComponent(t.id)}`} className="min-w-0 flex-1 basis-40 font-mono text-xs text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.label}</Link>
       <span className={`font-mono text-[10px] ${statusClass(t)}`}>{statusWord(t)}</span>
       {t.cards ? <span className="font-mono text-[10px] text-mathua-muted" title="Your flashcards cover this topic">{t.cards} deck{t.cards === 1 ? '' : 's'}</span> : null}
       <span className="flex items-center gap-1.5 ml-auto">
         {t.reading && <button type="button" onClick={() => onRead(t)} className={`${btn} border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue`}>Read</button>}
         {t.videos && t.videos.length > 0 && <button type="button" onClick={() => onWatch(t.videos!)} className={`${btn} border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue`}>Watch</button>}
+        {t.notes && t.notes.length > 0 && (
+          <a href={noteHref(t.notes[0])} target="_blank" rel="noreferrer" title={t.notes.map((n) => n.title).join(' · ')} className={`${btn} border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue`}>
+            Notes{t.notes.length > 1 ? ` (${t.notes.length})` : ''}
+          </a>
+        )}
         <Link href={learn} className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>{t.due ? 'Review' : t.attempts > 0 ? 'Practise' : 'Start'}</Link>
       </span>
     </li>
@@ -72,13 +92,47 @@ function CourseContent() {
   const [watching, setWatching] = useState<CourseVideo[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [signedIn, setSignedIn] = useState(false)
+  const [pins, setPinsState] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    setSignedIn(!!getUserInfo()?.student_id)
+    const sid = getUserInfo()?.student_id
+    setSignedIn(!!sid)
     if (!id) { setView(null); return }
     getCourseView(id).then(setView).catch(() => setView(null))
+    if (sid) getPins().then((ps) => setPinsState(new Set(ps.map((p) => p.concept)))).catch(() => {})
   }, [id])
 
+  // Fork change: pin a topic for this week. The Study tab serves pinned
+  // topics right after due reviews; the engine fills the rest of the queue.
+  const togglePin = async (cid: string, on: boolean) => {
+    const next = new Set(pins)
+    if (on) next.add(cid)
+    else next.delete(cid)
+    setPinsState(next)
+    try {
+      const saved = await setPins([...next])
+      setPinsState(new Set(saved.map((p) => p.concept)))
+    } catch {
+      setPinsState(pins)
+    }
+  }
+
+  // Lecture notes grouped by unit, in the server's order (fork change).
+  const noteUnits = useMemo(() => {
+    const out: [string, CourseNote[]][] = []
+    for (const n of view?.notes ?? []) {
+      const last = out[out.length - 1]
+      if (last && last[0] === (n.unit ?? '')) last[1].push(n)
+      else out.push([n.unit ?? '', [n]])
+    }
+    return out
+  }, [view])
+  const topicLabel = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const mod of view?.modules ?? []) for (const t of mod.topics) m.set(t.id, t.label)
+    for (const t of view?.prerequisites ?? []) m.set(t.id, t.label)
+    return m
+  }, [view])
   const allVideos = useMemo(() => {
     if (!view) return []
     const out: { topic?: string; v: CourseVideo }[] = view.videos.map((v) => ({ v }))
@@ -128,7 +182,11 @@ function CourseContent() {
         <Link href="/courses" className="font-mono text-xs text-mathua-secondary hover:text-mathua-blue">← Your courses</Link>
         <div className="mt-3 mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            {view.term && <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">{view.term}</p>}
+            {(view.term || view.due) && (
+              <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">
+                {view.term}{view.due ? `${view.term ? ' · ' : ''}due ${formatDue(view.due)}${view.days_left !== undefined ? ` (${view.days_left < 0 ? 'past' : `${view.days_left} days`})` : ''}` : ''}
+              </p>
+            )}
             <h1 className="font-serif text-2xl text-mathua-primary break-words [overflow-wrap:anywhere]">{name}</h1>
           </div>
           <button type="button" disabled={busy || !signedIn} onClick={() => void toggleFollow()} className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue px-3 min-h-[32px] font-mono text-[11px] disabled:opacity-40">
@@ -215,6 +273,11 @@ function CourseContent() {
         {tab === 'modules' && (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
             <div className="min-w-0 space-y-4">
+              {signedIn && (
+                <p className="font-mono text-[11px] text-mathua-secondary">
+                  Pin this week&apos;s topics with <span className="text-mathua-muted">○</span> → <span className="text-mathua-blue">●</span>. Pinned topics lead your <Link href="/today" className="underline hover:text-mathua-blue">Study</Link> queue after due reviews{pins.size ? ` · ${pins.size} pinned` : ''}.
+                </p>
+              )}
               {view.prerequisites.length > 0 && (
                 <details className="border border-mathua-border bg-mathua-surface">
                   <summary className="cursor-pointer px-3 py-2.5 flex items-center justify-between gap-2 font-mono text-xs text-mathua-secondary">
@@ -222,7 +285,7 @@ function CourseContent() {
                     {view.needs_placement && <Link href={`/onboard?course=${encodeURIComponent(view.id)}`} className="shrink-0 text-mathua-blue hover:underline text-[11px]">Place me →</Link>}
                   </summary>
                   <ol className="border-t border-mathua-border divide-y divide-mathua-border max-h-[50vh] overflow-auto">
-                    {view.prerequisites.map((t) => <TopicRow key={t.id} t={t} courseId={view.id} onRead={setReading} onWatch={setWatching} />)}
+                    {view.prerequisites.map((t) => <TopicRow key={t.id} t={t} courseId={view.id} onRead={setReading} onWatch={setWatching} pinned={pins.has(t.id)} onPin={signedIn ? togglePin : undefined} />)}
                   </ol>
                 </details>
               )}
@@ -233,7 +296,7 @@ function CourseContent() {
                     <span className="shrink-0 text-mathua-muted text-[11px]">{m.mastered}/{m.topics.length}</span>
                   </summary>
                   <ol className="border-t border-mathua-border divide-y divide-mathua-border">
-                    {m.topics.map((t) => <TopicRow key={t.id} t={t} courseId={view.id} onRead={setReading} onWatch={setWatching} />)}
+                    {m.topics.map((t) => <TopicRow key={t.id} t={t} courseId={view.id} onRead={setReading} onWatch={setWatching} pinned={pins.has(t.id)} onPin={signedIn ? togglePin : undefined} />)}
                   </ol>
                 </details>
               ))}
@@ -294,6 +357,32 @@ function CourseContent() {
           </div>
         )}
 
+        {tab === 'videos' && view.notes.length > 0 && (
+          <section className="mb-6">
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted mb-2">Lecture notes</h2>
+            <div className="space-y-2">
+              {noteUnits.map(([unit, notes]) => (
+                <details key={unit} className="border border-mathua-border bg-mathua-surface">
+                  <summary className="cursor-pointer px-3 py-2 flex items-center justify-between gap-2 font-mono text-xs text-mathua-primary">
+                    <span className="min-w-0 break-words [overflow-wrap:anywhere]">{unit || 'Notes'}</span>
+                    <span className="shrink-0 text-mathua-muted text-[11px]">{notes.length} page{notes.length === 1 ? '' : 's'}</span>
+                  </summary>
+                  <ol className="border-t border-mathua-border divide-y divide-mathua-border">
+                    {notes.map((n, i) => {
+                      const topic = n.topic ? topicLabel.get(n.topic) : undefined
+                      return (
+                        <li key={i} className="px-3 py-1.5 font-mono text-[11px] flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+                          <a href={noteHref(n)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 basis-48 text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{n.seq ? `${n.seq}. ` : ''}{n.title} ↗</a>
+                          {topic ? <Link href={`/learn?concept=${encodeURIComponent(n.topic!)}&course=${encodeURIComponent(view.id)}`} className="text-mathua-muted hover:text-mathua-blue truncate max-w-[50%]" title={topic}>{topic}</Link> : <span className="text-mathua-muted">course-level</span>}
+                        </li>
+                      )
+                    })}
+                  </ol>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
         {tab === 'videos' && (
           allVideos.length === 0 ? (
             <div className="border border-mathua-border bg-mathua-surface p-4 font-mono text-xs text-mathua-secondary leading-relaxed">

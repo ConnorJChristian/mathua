@@ -68,6 +68,9 @@ const (
 	bucketPractice bucket = "practice"
 	bucketNew      bucket = "new"
 	bucketResume   bucket = "resume"
+	// bucketPinned: a topic the learner pinned for this week (fork change),
+	// or an open prerequisite of one.
+	bucketPinned bucket = "pinned"
 )
 
 // Recommendation is one worthwhile task.
@@ -90,6 +93,10 @@ type Recommendation struct {
 	Badge  string `json:"badge"`
 	Detail string `json:"detail"`
 	CTA    string `json:"cta"`
+	// Pinned marks this week's pinned work (fork change); PinnedFor names the
+	// pinned topic when this one is a prerequisite standing in for it.
+	Pinned    bool   `json:"pinned,omitempty"`
+	PinnedFor string `json:"pinnedFor,omitempty"`
 
 	bucket bucket
 }
@@ -137,7 +144,21 @@ type RecommendInput struct {
 	// prerequisites): they come first among non-review work (fork fix; the
 	// queue used to be kept and never read).
 	Remedial map[string]bool
+	// Pinned names the topics the learner has pinned for this week (fork
+	// change): C picks the present week's topics by hand and the algorithm
+	// serves the rest. A pinned topic comes right after a due review,
+	// outside the per-bucket caps; a pinned topic that is still locked is
+	// represented by its open prerequisites, labelled as being for it.
+	Pinned map[string]bool
 }
+
+// MaxPinned caps the pinned topics shown at once; the rest wait their turn.
+const MaxPinned = 3
+
+// pinnedBonus ranks pinned work above any plan topic (planBonus tops out
+// at 3.9) wherever recommendations are taken by priority alone (the
+// alternatives beside the placement test); the bucket does the rest.
+const pinnedBonus = 4.0
 
 // remedialBonus puts a missed mastery-test topic ahead of plan work and
 // behind a due review.
@@ -295,12 +316,72 @@ func (s *Scheduler) selectTasks(in RecommendInput, now time.Time) []Recommendati
 	if in.DueReviews > 0 {
 		take(bucketReview, 1)
 	}
+	// This week's pinned topics (fork change): retention first, then what
+	// the learner chose, then the algorithm's picks.
+	take(bucketPinned, MaxPinned)
 	take(bucketPractice, MaxConceptWeakness)
 	take(bucketNew, MaxConceptNew)
 	take(bucketResume, MaxConceptResume)
 
-	if len(out) > MaxRecommendations {
-		out = out[:MaxRecommendations]
+	limit := MaxRecommendations
+	if n := len(buckets[bucketPinned]); n > 0 {
+		if n > MaxPinned {
+			n = MaxPinned
+		}
+		limit += n
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
+
+// pinnedFor maps every candidate that stands for a pinned topic to the pinned
+// topic's label ("" when it is the pinned topic itself): the pinned topic when
+// it is open, or else its unmet prerequisites that are, so pinning a topic you
+// cannot start yet still moves you towards it.
+func (s *Scheduler) pinnedFor(in RecommendInput, cands []Candidate) map[string]string {
+	if len(in.Pinned) == 0 {
+		return nil
+	}
+	open := map[string]bool{}
+	for _, c := range cands {
+		open[c.Concept.ID] = true
+	}
+	out := map[string]string{}
+	ids := make([]string, 0, len(in.Pinned))
+	for id := range in.Pinned {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		c := s.dag.Concept(id)
+		if c == nil {
+			continue
+		}
+		if open[id] {
+			out[id] = ""
+			continue
+		}
+		seen := map[string]bool{id: true}
+		stack := append([]string(nil), c.Prerequisites...)
+		for len(stack) > 0 {
+			pid := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if seen[pid] {
+				continue
+			}
+			seen[pid] = true
+			if open[pid] {
+				if _, ok := out[pid]; !ok {
+					out[pid] = c.Label
+				}
+				continue
+			}
+			if pc := s.dag.Concept(pid); pc != nil {
+				stack = append(stack, pc.Prerequisites...)
+			}
+		}
 	}
 	return out
 }
@@ -314,6 +395,7 @@ func (s *Scheduler) conceptRecommendations(in RecommendInput, now time.Time, cap
 	}
 
 	cands := buildCandidates(s.dag, in.Snapshots, now, "")
+	pinned := s.pinnedFor(in, cands)
 	ranked := make([]Recommendation, 0, len(cands))
 	for _, c := range cands {
 		if excluded[c.Concept.ID] {
@@ -354,6 +436,20 @@ func (s *Scheduler) conceptRecommendations(in RecommendInput, now time.Time, cap
 		}
 		if in.Remedial[c.Concept.ID] {
 			r.Badge, r.Detail, r.CTA = "From your test", "Missed on your last mastery test — shore it up", "Practise →"
+		}
+		if forLabel, ok := pinned[c.Concept.ID]; ok && b != bucketReview {
+			b = bucketPinned
+			r.Priority += pinnedBonus
+			r.Badge = "This week"
+			if forLabel != "" {
+				r.Detail = "Needed for " + forLabel + ", which you pinned for this week"
+			} else if kind == KindPractice {
+				r.Detail = "Pinned for this week — keep it in circulation"
+			} else {
+				r.Detail = "Pinned for this week"
+			}
+			r.Pinned = true
+			r.PinnedFor = forLabel
 		}
 		r.bucket = b
 		ranked = append(ranked, r)

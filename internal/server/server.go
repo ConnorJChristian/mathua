@@ -478,6 +478,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/account/reset", logRequest(cors(s.writeLimiter.middleware(s.authMiddleware(s.handleAccountReset)))))
 	mux.HandleFunc("/api/account", logRequest(cors(s.writeLimiter.middleware(s.authMiddleware(s.handleAccountDelete)))))
 	mux.HandleFunc("/api/settings", logRequest(cors(s.authMiddleware(s.handleSettings))))
+	mux.HandleFunc("/api/pins", logRequest(cors(s.authMiddleware(s.handlePins))))
 	mux.HandleFunc("/api/avatar", logRequest(cors(s.writeLimiter.middleware(s.authMiddleware(s.handleAvatar)))))
 	mux.HandleFunc("/api/avatar/me", logRequest(cors(s.authMiddleware(s.handleAvatarMe))))
 	// Public per-student photo for leaderboard avatars (custom uploads are
@@ -2147,6 +2148,21 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		if err := decodeJSON(w, r, &req); err != nil {
 			writeError(w, "invalid request", 400)
 			return
+		}
+		// Keys the settings page does not own survive a save from it (fork
+		// change): the week's pins are set through /api/pins.
+		if _, ok := req["pins"]; !ok {
+			if old, err := s.repo.GetSettings(studentID); err == nil && old != "" {
+				var prev map[string]interface{}
+				if json.Unmarshal([]byte(old), &prev) == nil {
+					if v, ok := prev["pins"]; ok {
+						if req == nil {
+							req = map[string]interface{}{}
+						}
+						req["pins"] = v
+					}
+				}
+			}
 		}
 		bytes, err := json.Marshal(req)
 		if err != nil {

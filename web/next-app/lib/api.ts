@@ -1316,6 +1316,8 @@ export interface Recommendation {
   badge: string
   detail: string
   cta: string
+  pinned?: boolean
+  pinnedFor?: string
 }
 
 /**
@@ -1345,7 +1347,7 @@ export interface RecommendationRes {
  * exists to state, and the honest failure state cannot be reached at all
  * because the error never leaves this function.
  */
-export async function getNext(exclude?: string[]): Promise<RecommendationRes> {
+export async function getNext(exclude?: string[], allTracks = false): Promise<RecommendationRes> {
   const fallback: RecommendationRes = {
     primary: {
       id: 'graph',
@@ -1364,8 +1366,12 @@ export async function getNext(exclude?: string[]): Promise<RecommendationRes> {
   }
   const params = new URLSearchParams()
   if (exclude?.length) params.set('exclude', exclude.join(','))
+  // Fork change: the Study tab asks for every track at once, so its queue
+  // spans the learner's courses whichever side of the site they are on.
+  if (allTracks) params.set('track', 'all')
   const qs = params.toString()
-  const res = await authedFetch(withTrack(`${API_BASE}/api/next${qs ? `?${qs}` : ''}`), { cache: 'no-store' })
+  const url = `${API_BASE}/api/next${qs ? `?${qs}` : ''}`
+  const res = await authedFetch(allTracks ? url : withTrack(url), { cache: 'no-store' })
   if (!res.ok) await throwWithResponse(res, 'Could not load what to study next')
   const data = (await res.json()) as Partial<RecommendationRes>
   if (!data.primary) return fallback
@@ -2257,19 +2263,26 @@ export interface CourseTopic {
   reading?: ReadingText
   texts?: ReadingText[]
   videos?: CourseVideo[]
+  notes?: CourseNote[]
   cards?: number
+  pinned?: boolean
 }
+// Fork change: a page of lecture notes (a notebook rendered to HTML, or a link).
+export interface CourseNote { title: string; unit?: string; unit_seq?: number; seq?: number; url: string; topic?: string }
 export interface CourseModule { title: string; topics: CourseTopic[]; mastered: number }
 export interface CourseText { key: string; title: string; kind: 'pdf' | 'web'; url?: string; library_id?: string }
 export interface CourseView {
   id: string
   name: string
   term?: string
+  due?: string
+  days_left?: number
   description: string
   followed: boolean
   modules: CourseModule[]
   texts: CourseText[]
   videos: CourseVideo[]
+  notes: CourseNote[]
   total: number
   mastered: number
   started: number
@@ -2277,6 +2290,27 @@ export interface CourseView {
   next_topic?: CourseTopic
   prerequisites: CourseTopic[]
   needs_placement: boolean
+}
+
+// Fork change: this week's pins. The learner picks the present week's topics
+// by hand on a course's Modules tab; the Study tab serves them right after
+// due reviews and lets the engine fill the rest.
+export interface Pin { concept: string; label: string; since: string }
+
+export async function getPins(): Promise<Pin[]> {
+  const res = await authedFetch(`${API_BASE}/api/pins`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })
+  if (!res.ok) return []
+  return ((await res.json()).pins ?? []) as Pin[]
+}
+
+export async function setPins(concepts: string[]): Promise<Pin[]> {
+  const res = await authedFetch(`${API_BASE}/api/pins`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+    body: JSON.stringify({ concepts }),
+  })
+  if (!res.ok) throw new Error(`Save pins failed: ${res.status}`)
+  return ((await res.json()).pins ?? []) as Pin[]
 }
 
 export async function getCourseView(id: string): Promise<CourseView | null> {

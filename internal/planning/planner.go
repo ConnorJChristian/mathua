@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/mastery"
@@ -32,6 +33,10 @@ type Course struct {
 	TopicTexts map[string][]string `json:"topic_texts,omitempty"`
 	// Term names when the course runs ("Fall 2026"); shown on its card.
 	Term string `json:"term,omitempty"`
+	// Due is the date the course must be done by ("2026-12-06": the final,
+	// the test date), fork change. Courses with a due date share the study
+	// queue in proportion to the pace each needs (topics left per day left).
+	Due string `json:"due,omitempty"`
 	// Modules split the plan into the units the course is taught in (weeks,
 	// chapters), each naming a slice of plan topics (fork change). A course
 	// without modules is shown as one unit.
@@ -251,6 +256,86 @@ func (p *Planner) PlansOrder(courseIDs []string) map[string]int {
 	sort.Slice(ids, func(i, j int) bool { return rank[ids[i]] < rank[ids[j]] })
 	for i, id := range ids {
 		rank[id] = i
+	}
+	return rank
+}
+
+// DueDate parses Due; ok is false when the course has none.
+func (c *Course) DueDate() (time.Time, bool) {
+	if c == nil || c.Due == "" {
+		return time.Time{}, false
+	}
+	t, err := time.Parse("2006-01-02", c.Due)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
+// DefaultHorizonDays is the pace horizon for a course with no due date: it
+// is paced as if due in this many days, so it keeps a share of the queue
+// without crowding out a course whose date is near.
+const DefaultHorizonDays = 120
+
+// PlansOrderPaced merges the courses' path orders by pace (fork change): each
+// course's k-th remaining topic is placed at time k / pace, where pace is the
+// topics per day the course needs to finish by its due date, so a course that
+// is behind for its date gets proportionally more of the queue. A mastered
+// topic keeps its rank but is not counted as remaining. isDone says which
+// topics are mastered; now is the pacing date.
+func (p *Planner) PlansOrderPaced(courseIDs []string, isDone func(id string) bool, now time.Time) map[string]int {
+	type entry struct {
+		id string
+		t  float64
+	}
+	var all []entry
+	n := 0
+	for _, cid := range courseIDs {
+		o := p.PlanOrder(cid)
+		if o == nil {
+			continue
+		}
+		n++
+		c := p.byID[cid]
+		ids := make([]string, 0, len(o))
+		for id := range o {
+			ids = append(ids, id)
+		}
+		sort.Slice(ids, func(i, j int) bool { return o[ids[i]] < o[ids[j]] })
+		remaining := 0
+		for _, id := range ids {
+			if isDone == nil || !isDone(id) {
+				remaining++
+			}
+		}
+		days := float64(DefaultHorizonDays)
+		if due, ok := c.DueDate(); ok {
+			days = due.Sub(now).Hours() / 24
+			if days < 7 {
+				days = 7 // a course past or at its date still gets a full-tilt pace, not a division by zero
+			}
+		}
+		pace := float64(remaining) / days
+		if pace <= 0 {
+			pace = 1.0 / days
+		}
+		k := 0
+		for _, id := range ids {
+			if isDone == nil || !isDone(id) {
+				k++
+			}
+			all = append(all, entry{id, float64(k) / pace})
+		}
+	}
+	if n == 0 {
+		return nil
+	}
+	sort.SliceStable(all, func(i, j int) bool { return all[i].t < all[j].t })
+	rank := make(map[string]int, len(all))
+	for _, e := range all {
+		if _, ok := rank[e.id]; !ok {
+			rank[e.id] = len(rank)
+		}
 	}
 	return rank
 }

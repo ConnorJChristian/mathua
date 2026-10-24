@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,7 +29,9 @@ type courseTopic struct {
 	Reading  *readingOption  `json:"reading,omitempty"`
 	Texts    []readingOption `json:"texts,omitempty"`
 	Videos   []courseVideo   `json:"videos,omitempty"`
-	Cards    int             `json:"cards,omitempty"` // flashcard decks that cover it
+	Notes    []courseNote    `json:"notes,omitempty"`  // lecture notes (fork change)
+	Cards    int             `json:"cards,omitempty"`  // flashcard decks that cover it
+	Pinned   bool            `json:"pinned,omitempty"` // pinned for this week (fork change)
 }
 
 type courseModule struct {
@@ -46,6 +49,16 @@ type courseVideo struct {
 	Note     string `json:"note,omitempty"`
 }
 
+// courseNote is a page of lecture notes (fork change).
+type courseNote struct {
+	Title   string `json:"title"`
+	Unit    string `json:"unit,omitempty"`
+	UnitSeq int    `json:"unit_seq,omitempty"`
+	Seq     int    `json:"seq,omitempty"`
+	URL     string `json:"url"`
+	Topic   string `json:"topic,omitempty"` // the topic it is attached to, in the course-level list
+}
+
 type courseText struct {
 	Key       string `json:"key"`
 	Title     string `json:"title"`
@@ -55,9 +68,12 @@ type courseText struct {
 }
 
 type courseView struct {
-	ID          string         `json:"id"`
-	Name        string         `json:"name"`
-	Term        string         `json:"term,omitempty"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Term string `json:"term,omitempty"`
+	// Due and DaysLeft: the course's date (fork change), when it has one.
+	Due         string         `json:"due,omitempty"`
+	DaysLeft    *int           `json:"days_left,omitempty"`
 	Description string         `json:"description"`
 	Followed    bool           `json:"followed"`
 	Modules     []courseModule `json:"modules"`
@@ -67,11 +83,14 @@ type courseView struct {
 	Prerequisites []courseTopic `json:"prerequisites"`
 	Texts         []courseText  `json:"texts"`
 	Videos        []courseVideo `json:"videos"`
-	Total         int           `json:"total"`
-	Mastered      int           `json:"mastered"`
-	Started       int           `json:"started"`
-	ReviewsDue    int           `json:"reviews_due"`
-	NextTopic     *courseTopic  `json:"next_topic,omitempty"`
+	// Notes: every page of lecture notes in the course, in lecture order
+	// (the course's own, then each topic's), fork change.
+	Notes      []courseNote `json:"notes"`
+	Total      int          `json:"total"`
+	Mastered   int          `json:"mastered"`
+	Started    int          `json:"started"`
+	ReviewsDue int          `json:"reviews_due"`
+	NextTopic  *courseTopic `json:"next_topic,omitempty"`
 	// NeedsPlacement: no plan topic is open yet and the plan rests on
 	// prerequisites the learner has not shown; the placement test is the way
 	// in (a module with no placement never sets it).
@@ -122,13 +141,21 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 	mods := s.eng.Modules()
 	decks := s.deckCounts()
 
-	out := &courseView{ID: c.ID, Name: c.Name, Term: c.Term, Description: c.Description, Followed: followed}
+	out := &courseView{ID: c.ID, Name: c.Name, Term: c.Term, Due: c.Due, Description: c.Description, Followed: followed}
+	if due, ok := c.DueDate(); ok {
+		d := int(due.Sub(now).Hours() / 24)
+		out.DaysLeft = &d
+	}
+	pinned := map[string]bool{}
+	for _, p := range s.eng.Pins(studentID) {
+		pinned[p.Concept] = true
+	}
 	topic := func(cid string) *courseTopic {
 		cc := s.eng.GetDAG().Concept(cid)
 		if cc == nil {
 			return nil
 		}
-		t := &courseTopic{ID: cid, Label: cc.Label, Status: "unseen", Cards: decks[cid]}
+		t := &courseTopic{ID: cid, Label: cc.Label, Status: "unseen", Cards: decks[cid], Pinned: pinned[cid]}
 		if p := progress[cid]; p != nil && p.Attempts > 0 {
 			t.Status = strings.ToLower(p.Status)
 			t.Attempts = p.Attempts
@@ -156,6 +183,7 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 			t.Texts = opts
 		}
 		t.Videos = courseVideos(mods, cid)
+		t.Notes = courseNotes(mods, cid)
 		return t
 	}
 
@@ -271,11 +299,53 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		out.Texts = append(out.Texts, ct)
 	}
 	out.Videos = courseVideos(mods, c.ID)
+	// Lecture notes: the course's own pages, then every topic's, each once,
+	// in unit order and sequence.
+	out.Notes = courseNotes(mods, c.ID)
+	seenNote := map[string]bool{}
+	for _, n := range out.Notes {
+		seenNote[n.URL] = true
+	}
+	for _, m := range out.Modules {
+		for _, t := range m.Topics {
+			for _, n := range t.Notes {
+				if !seenNote[n.URL] {
+					seenNote[n.URL] = true
+					n.Topic = t.ID
+					out.Notes = append(out.Notes, n)
+				}
+			}
+		}
+	}
+	// Units in course order (unit_seq), unnumbered ones in first-seen order
+	// after them; pages by seq inside a unit.
+	unitOrder := map[string]int{}
+	for _, n := range out.Notes {
+		if n.UnitSeq > 0 {
+			unitOrder[n.Unit] = n.UnitSeq
+		}
+	}
+	next := 1 << 20
+	for _, n := range out.Notes {
+		if _, ok := unitOrder[n.Unit]; !ok {
+			unitOrder[n.Unit] = next
+			next++
+		}
+	}
+	sort.SliceStable(out.Notes, func(a, b int) bool {
+		if ua, ub := unitOrder[out.Notes[a].Unit], unitOrder[out.Notes[b].Unit]; ua != ub {
+			return ua < ub
+		}
+		return out.Notes[a].Seq < out.Notes[b].Seq
+	})
 	if out.Texts == nil {
 		out.Texts = []courseText{}
 	}
 	if out.Videos == nil {
 		out.Videos = []courseVideo{}
+	}
+	if out.Notes == nil {
+		out.Notes = []courseNote{}
 	}
 	return out, nil
 }
@@ -294,6 +364,18 @@ func (s *Server) deckCounts() map[string]int {
 				out[p]++
 			}
 		}
+	}
+	return out
+}
+
+func courseNotes(mods *modules.Set, id string) []courseNote {
+	var out []courseNote
+	for _, n := range mods.NotesFor(id) {
+		cn := courseNote{Title: n.Title, Unit: n.Unit, UnitSeq: n.UnitSeq, Seq: n.Seq, URL: n.URL}
+		if n.File != "" {
+			cn.URL = "/api/modules/" + url.PathEscape(n.Module) + "/files/" + escapePath(n.File)
+		}
+		out = append(out, cn)
 	}
 	return out
 }

@@ -116,7 +116,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	track = e.NormalizeTrack(track)
 	// A track whose module says it has no placement (the Python track's first
 	// topics are open from the start) is never offered the diagnostic.
-	noPlacement := !e.Modules().HasPlacement(track)
+	noPlacement := track != AllTracks && !e.Modules().HasPlacement(track)
 	// The offer view: the track's concepts plus the outside concepts they
 	// directly need, so sequencing crosses tracks (see trackViews).
 	sched := e.offerScheduler(track)
@@ -179,10 +179,19 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		if st.DiagnosticCompleted {
 			diagnosticCompleted = true
 		}
-		// A course with a study plan orders the new topics it offers.
+		// A course with a study plan orders the new topics it offers; several
+		// courses share the queue by the pace each needs for its due date.
 		if st.CourseID != "" && e.planner != nil {
-			pathOrder = e.planner.PlansOrder(ActiveCourses(st.CourseID))
+			done := func(id string) bool {
+				p := progress[id]
+				return p != nil && mastery.EffectiveStatus(mastery.Status(p.Status), daysSinceReview(p.LastReviewed), mastery.DecayDays) == mastery.StatusMastered
+			}
+			pathOrder = e.planner.PlansOrderPaced(ActiveCourses(st.CourseID), done, time.Now())
 		}
+	}
+	pinned := map[string]bool{}
+	for _, pin := range e.Pins(studentID) {
+		pinned[pin.Concept] = true
 	}
 
 	remedial := map[string]bool{}
@@ -201,6 +210,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		ExcludeConceptIds:   exclude,
 		DiagnosticCompleted: diagnosticCompleted,
 		PathOrder:           pathOrder,
+		Pinned:              pinned,
 	})
 	e.labelBridges(&res, track)
 	if res.Primary != nil && res.Primary.ID == "graph" {

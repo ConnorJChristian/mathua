@@ -485,13 +485,19 @@ def build(args):
         # One item per card, grouped by (group, sub-deck path). Cards in deck
         # order, then by note and card order, so topics read like the deck.
         rows = db.execute(
-            "select c.id, c.nid, c.ord, c.did, n.mid, n.flds, n.tags from cards c join notes n on n.id = c.nid order by c.did, n.id, c.ord"
+            "select c.id, c.nid, c.ord, c.did, n.mid, n.flds, n.tags, c.flags from cards c join notes n on n.id = c.nid order by c.did, n.id, c.ord"
         ).fetchall()
+        # Anki's turquoise flag (6) is C's own mark for a card with a bad cut
+        # (the answer leaking onto the front). Such a card is imported but
+        # kept out of practice through bank/skip.json until it is fixed.
+        flagged = {}
         by_topic = OrderedDict()
         skipped = defaultdict(int)
         media_used = set()
-        for cid, nid, ord_, did, mid, flds, tags in rows:
+        for cid, nid, ord_, did, mid, flds, tags, flag in rows:
             deck = decks.get(did, "")
+            if (flag or 0) & 7 == 6:
+                flagged["n%dc%d" % (nid, ord_)] = "turquoise flag in Anki: bad question/answer cut"
             g = group_of(deck)
             if g is None:
                 skipped["deck not in config"] += 1
@@ -686,9 +692,17 @@ def build(args):
             if os.path.isdir(p):
                 shutil.rmtree(p)
             os.makedirs(p, exist_ok=True)
-        if skip_raw is not None:
-            with open(keep_skip, "wb") as f:
-                f.write(skip_raw)
+        skip = json.loads(skip_raw) if skip_raw else {}
+        # Rule-based reasons (tools/quarantine.py) are regenerated; flags are
+        # the collection's current ones.
+        skip = {k: v for k, v in skip.items() if "turquoise" not in v}
+        skip.update(flagged)
+        if skip:
+            with open(keep_skip, "w", encoding="utf-8") as f:
+                json.dump(dict(sorted(skip.items())), f, indent=1, ensure_ascii=False)
+                f.write("\n")
+        if flagged:
+            print("  %d turquoise-flagged cards kept out of practice (bank/skip.json)" % len(flagged))
         manifest = dict(mod)
         labels = dict(manifest.get("domain_labels", {}))
         if not subjects:

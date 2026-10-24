@@ -8,8 +8,9 @@ import Footer from '../../components/Footer'
 import Loading from '../../components/Loading'
 import SectionHeader from '../../components/SectionHeader'
 import { useTheme } from '../../hooks/useTheme'
-import { getCourseCatalog, getCourseView, getNext, getScores, type CourseView, type Recommendation } from '../../lib/api'
+import { getCourseCatalog, getCourseView, getNext, getPins, getScores, setPins, type CourseView, type Pin, type Recommendation } from '../../lib/api'
 import { getUserInfo } from '../../lib/auth'
+import { formatDue } from '../../lib/dates'
 import { hrefConceptId } from '../../lib/nextUp'
 
 // Fork change: the Study tab. One queue across every course you follow, the
@@ -17,6 +18,10 @@ import { hrefConceptId } from '../../lib/nextUp'
 // alternatives, each tagged with the course it belongs to, with the mastery
 // test and the review session surfaced when they are due. Nothing here is
 // decided in the browser: the order is /api/next's, the counts are the server's.
+//
+// "This week" is the learner's own hand on the queue: topics pinned on a
+// course's Modules tab lead the queue after due reviews, and the engine
+// (placement, sequencing, the courses' due dates) serves the rest.
 
 type Row = Recommendation & { courses: string[] }
 
@@ -27,21 +32,42 @@ export default function TodayPage() {
   const [quizDue, setQuizDue] = useState(false)
   const [xp, setXp] = useState<{ since: number; gate: number } | null>(null)
   const [failed, setFailed] = useState(false)
+  const [pins, setPinList] = useState<Pin[]>([])
+  const [signedIn, setSignedIn] = useState(false)
+
+  const unpin = async (cid: string) => {
+    const next = pins.filter((p) => p.concept !== cid)
+    setPinList(next)
+    try {
+      setPinList(await setPins(next.map((p) => p.concept)))
+      setRows(await loadRows())
+    } catch { /* keep the optimistic state */ }
+  }
+
+  const [byConcept, setByConcept] = useState<Map<string, string[]>>(new Map())
+  const loadRows = async (map?: Map<string, string[]>) => {
+    const next = await getNext(undefined, true)
+    const m = map ?? byConcept
+    const list = [next.primary, ...next.alternatives].filter((r): r is Recommendation => !!r)
+    return list.map((r) => ({ ...r, courses: m.get(r.conceptId || hrefConceptId(r.action.href) || '') ?? [] }))
+  }
 
   useEffect(() => {
     const sid = getUserInfo()?.student_id
+    setSignedIn(!!sid)
     ;(async () => {
       try {
-        const [{ activeIds }, next] = await Promise.all([getCourseCatalog(), getNext()])
+        const [{ activeIds }, ps] = await Promise.all([getCourseCatalog(), sid ? getPins().catch(() => []) : Promise.resolve([])])
+        setPinList(ps)
         const vs = (await Promise.all(activeIds.map((id) => getCourseView(id)))).filter((v): v is CourseView => !!v)
         setViews(vs)
-        const byConcept = new Map<string, string[]>()
+        const map = new Map<string, string[]>()
         for (const v of vs) {
           const name = v.name.replace(/: study plan$/, '')
-          for (const m of v.modules) for (const t of m.topics) byConcept.set(t.id, [...(byConcept.get(t.id) ?? []), name])
+          for (const m of v.modules) for (const t of m.topics) map.set(t.id, [...(map.get(t.id) ?? []), name])
         }
-        const list = [next.primary, ...next.alternatives].filter((r): r is Recommendation => !!r)
-        setRows(list.map((r) => ({ ...r, courses: byConcept.get(r.conceptId || hrefConceptId(r.action.href) || '') ?? [] })))
+        setByConcept(map)
+        setRows(await loadRows(map))
         if (sid) {
           const s = await getScores(sid).catch(() => null)
           if (s) {
@@ -58,7 +84,8 @@ export default function TodayPage() {
 
   if (!mounted || rows === null) return <Loading label="Working out what to study" full />
   const reviewsDue = views.reduce((n, v) => n + v.reviews_due, 0)
-  const kindLabel = (r: Recommendation) => r.kind === 'review' ? 'Review' : r.kind === 'practice' ? 'Practise' : r.kind === 'mastery_check' ? 'Mastery test' : r.reason === 'prerequisite' ? 'Prerequisite' : 'New topic'
+  const kindLabel = (r: Recommendation) => r.pinned ? (r.pinnedFor ? `This week · for ${r.pinnedFor}` : 'This week') : r.kind === 'review' ? 'Review' : r.badge === 'New' ? 'New topic' : r.kind === 'practice' ? 'Practise' : r.kind === 'mastery_check' ? 'Mastery test' : r.reason === 'prerequisite' ? 'Prerequisite' : 'New topic'
+  const pinCourses = (cid: string) => byConcept.get(cid) ?? []
 
   return (
     <>
@@ -87,6 +114,35 @@ export default function TodayPage() {
               </Link>
             )}
           </div>
+        )}
+
+        {signedIn && (
+          <section className="mb-6 border border-mathua-border bg-mathua-surface p-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">This week</h2>
+              <p className="font-mono text-[10px] text-mathua-muted">Your picks lead the queue after due reviews; the rest is the engine&apos;s.</p>
+            </div>
+            {pins.length === 0 ? (
+              <p className="mt-2 font-mono text-[11px] text-mathua-secondary">
+                Nothing pinned. Open a course&apos;s <span className="text-mathua-primary">Modules</span> tab and pin the topics you are covering this week{views.length ? <> — e.g. <Link href={`/course?id=${encodeURIComponent(views[0].id)}&tab=modules`} className="underline hover:text-mathua-blue">{views[0].name.replace(/: study plan$/, '')}</Link></> : null}.
+              </p>
+            ) : (
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {pins.map((p) => {
+                  const age = Math.floor((Date.now() - new Date(`${p.since}T12:00:00`).getTime()) / 86400000)
+                  const stale = age >= 7
+                  return (
+                    <li key={p.concept} className={`inline-flex items-center gap-1 border px-2 min-h-[28px] font-mono text-[11px] ${stale ? 'border-mathua-border text-mathua-secondary' : 'border-mathua-blue text-mathua-primary'}`} title={stale ? `Pinned ${age} days ago — still this week's?` : `Pinned ${p.since}`}>
+                      <Link href={`/learn?concept=${encodeURIComponent(p.concept)}`} className="hover:text-mathua-blue break-words [overflow-wrap:anywhere]">● {p.label}</Link>
+                      {pinCourses(p.concept).length ? <span className="text-mathua-muted">· {pinCourses(p.concept)[0]}</span> : null}
+                      {stale && <span className="text-amber-600 dark:text-amber-400">· {age}d</span>}
+                      <button type="button" onClick={() => void unpin(p.concept)} aria-label={`Unpin ${p.label}`} className="ml-0.5 text-mathua-muted hover:text-mathua-red">×</button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
         )}
 
         <ol className="space-y-2">
@@ -121,6 +177,11 @@ export default function TodayPage() {
                   <p className="font-mono text-[10px] text-mathua-muted mt-1">
                     {v.mastered}/{v.total} mastered{v.reviews_due ? ` · ${v.reviews_due} due` : ''}{v.next_topic ? ` · next: ${v.next_topic.label}` : ''}
                   </p>
+                  {v.due && (
+                    <p className={`font-mono text-[10px] mt-0.5 ${v.days_left !== undefined && v.days_left < 14 ? 'text-amber-600 dark:text-amber-400' : 'text-mathua-muted'}`}>
+                      Due {formatDue(v.due)}{v.days_left !== undefined ? ` · ${v.days_left < 0 ? 'past due' : `${v.days_left} days`}` : ''}{v.days_left !== undefined && v.days_left > 0 && v.total - v.mastered > 0 ? ` · ${((v.total - v.mastered) / Math.max(v.days_left, 1) * 7).toFixed(1)} topics/week to finish` : ''}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

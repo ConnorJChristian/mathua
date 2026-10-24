@@ -38,6 +38,8 @@ type trackViews struct {
 	sched   map[string]*scheduler.Scheduler
 	offer   map[string]*scheduler.Scheduler
 	bridges map[string]map[string]bool
+	allOnce sync.Once
+	all     *scheduler.Scheduler // every track at once (AllTracks)
 }
 
 // SetModules sets the module set the engine's tracks come from. Without it
@@ -96,8 +98,20 @@ func (e *Engine) views() *trackViews {
 // to the math track rather than to no engine.
 func (e *Engine) tracksFallbackRoot() string { return "/nonexistent-mathua-root" }
 
-// NormalizeTrack maps a request parameter onto a known track.
-func (e *Engine) NormalizeTrack(track string) string { return e.views().mods.Normalize(track) }
+// AllTracks is the Study tab's view (fork change): every track at once, so
+// one queue spans the learner's courses whichever side of the site they
+// are on. It is a view for the recommender only; the header switch, reviews
+// and the quiz still work per track.
+const AllTracks = "all"
+
+// NormalizeTrack maps a request parameter onto a known track. AllTracks is
+// kept as is.
+func (e *Engine) NormalizeTrack(track string) string {
+	if track == AllTracks {
+		return AllTracks
+	}
+	return e.views().mods.Normalize(track)
+}
 
 // Tracks lists the tracks this install offers, math first.
 func (e *Engine) Tracks() []modules.Track { return e.views().mods.Tracks() }
@@ -107,6 +121,9 @@ func (e *Engine) Modules() *modules.Set { return e.views().mods }
 
 // TrackDAG is the concept graph of one track (an unknown track is math).
 func (e *Engine) TrackDAG(track string) *concepts.DAG {
+	if track == AllTracks {
+		return e.dag
+	}
 	v := e.views()
 	return v.dags[v.mods.Normalize(track)]
 }
@@ -120,18 +137,28 @@ func (e *Engine) trackScheduler(track string) *scheduler.Scheduler {
 // outside concepts they directly need (see trackViews).
 func (e *Engine) offerScheduler(track string) *scheduler.Scheduler {
 	v := e.views()
+	if track == AllTracks {
+		v.allOnce.Do(func() { v.all = scheduler.New(e.dag) })
+		return v.all
+	}
 	return v.offer[v.mods.Normalize(track)]
 }
 
 // IsBridge reports whether a concept is offered in a track it does not belong
 // to, because one of the track's concepts needs it.
 func (e *Engine) IsBridge(conceptID, track string) bool {
+	if track == AllTracks {
+		return false
+	}
 	v := e.views()
 	return v.bridges[v.mods.Normalize(track)][conceptID]
 }
 
 // InTrack reports whether a concept belongs to a track.
 func (e *Engine) InTrack(conceptID, track string) bool {
+	if track == AllTracks {
+		return true
+	}
 	v := e.views()
 	c := e.dag.Concept(conceptID)
 	if c == nil {

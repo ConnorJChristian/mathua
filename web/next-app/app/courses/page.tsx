@@ -10,6 +10,7 @@ import SectionHeader from '../../components/SectionHeader'
 import { useTheme } from '../../hooks/useTheme'
 import { getCourseCatalog, getCourseView, setActiveCourses, type CourseStatus, type CourseView } from '../../lib/api'
 import { getUserInfo } from '../../lib/auth'
+import { formatDue } from '../../lib/dates'
 
 // Fork change: the dashboard. Your courses as cards, the way a course site
 // shows them: each with its progress, what is due and the next topic, one
@@ -38,6 +39,11 @@ function CourseCard({ course, view, accent, onUnfollow }: { course: CourseStatus
               {view.mastered} of {view.total} topics mastered{view.started > view.mastered ? ` · ${view.started - view.mastered} in progress` : ''}
             </p>
             {view.reviews_due > 0 && <p className="font-mono text-[11px] text-amber-600 dark:text-amber-400">{view.reviews_due} review{view.reviews_due === 1 ? '' : 's'} due</p>}
+            {view.due && (
+              <p className={`font-mono text-[11px] ${view.days_left !== undefined && view.days_left < 14 ? 'text-amber-600 dark:text-amber-400' : 'text-mathua-muted'}`}>
+                Due {formatDue(view.due)}{view.days_left !== undefined ? ` · ${view.days_left < 0 ? 'past due' : `${view.days_left} days left`}` : ''}
+              </p>
+            )}
             {view.next_topic && (
               <p className="font-mono text-[11px] text-mathua-muted truncate" title={view.next_topic.label}>Next: {view.next_topic.label}</p>
             )}
