@@ -25,6 +25,9 @@ import (
 // A card keeps its own form (a recall flashcard, a typed math answer, a
 // multiple choice) and grades as the card it is (grader.IsBankAnswer); the
 // question carries CardMarker so every answer host shows the card's input.
+// A topic that is itself a question bank (an authored ma-program bank, a
+// Python Data Science Handbook section) takes cards the same way; only a
+// deck (anki.*) never does.
 
 // CardMarker opens a flashcard served on a generated topic.
 const CardMarker = "<!--card-->"
@@ -74,7 +77,7 @@ func attachCardsFrom(dag *concepts.DAG, reg *generator.Registry, filed map[strin
 	wrapped := map[string]bool{}
 	for topic, refs := range filed {
 		tc := dag.Concept(topic)
-		if tc == nil || tc.GradingType == "bank" || tc.GradingType == "python" {
+		if tc == nil || strings.HasPrefix(topic, cardDeckPrefix) {
 			continue
 		}
 		var picks []cardPick
@@ -111,7 +114,7 @@ func attachCardsFrom(dag *concepts.DAG, reg *generator.Registry, filed map[strin
 		}
 		for _, p := range c.Prerequisites {
 			pc := dag.Concept(p)
-			if pc == nil || wrapped[p] || strings.HasPrefix(p, cardDeckPrefix) || pc.GradingType == "bank" || pc.GradingType == "python" {
+			if pc == nil || wrapped[p] || strings.HasPrefix(p, cardDeckPrefix) {
 				continue
 			}
 			decks[p] = append(decks[p], c.ID)
