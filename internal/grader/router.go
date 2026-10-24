@@ -1,6 +1,10 @@
 package grader
 
-import "strings"
+import (
+	"math"
+	"regexp"
+	"strings"
+)
 
 type Router struct {
 	numeric    *numericGrader
@@ -23,13 +27,44 @@ func NewRouter() *Router {
 }
 
 func (r *Router) Grade(gradingType GradingType, expected, answer string) Result {
+	answer = lenient(gradingType, expected, answer)
 	switch gradingType {
 	case GradingNumeric:
-		return r.numeric.grade(expected, answer)
+		res := r.numeric.grade(expected, answer)
+		if !res.Correct && !res.Unavailable {
+			// A fraction answered as a rounded decimal (61/3 as 20.333): the
+			// same number to three places is the same answer (fork fix).
+			if ev, ok := constEvalNumeric(expected); ok {
+				if av, ok2 := constEvalNumeric(answer); ok2 && strings.Contains(expected, "/") && strings.Contains(answer, ".") {
+					if math.Abs(ev-av) <= 0.0006+1e-9 {
+						return Result{Correct: true, Score: 1}
+					}
+				}
+			}
+		}
+		return res
 	case GradingPolynomial, GradingExpression, GradingSymbolic:
+		// A word answer ("decreasing") compares case-insensitively (fork fix).
+		if strings.EqualFold(strings.TrimSpace(expected), strings.TrimSpace(answer)) || samePhrase(expected, answer) {
+			return Result{Correct: true, Score: 1}
+		}
 		return gradeSymPy(expected, answer)
 	case GradingMultipleChoice:
-		return r.choice.grade(expected, answer)
+		res := r.choice.grade(expected, answer)
+		if !res.Correct && strings.HasPrefix(strings.TrimSpace(expected), "[") &&
+			strings.ReplaceAll(expected, " ", "") == strings.ReplaceAll(answer, " ", "") {
+			return Result{Correct: true, Score: 1}
+		}
+		if !res.Correct && looksLikeMath(expected) {
+			// A free-form expression declared as a choice (an ODE's general
+			// solution, a set, a log identity) is compared as mathematics,
+			// not as text: spaces, "y =" and the names of the arbitrary
+			// constants do not matter (fork fix).
+			if sym := gradeSymPy(canonConstants(expected), canonConstants(answer)); sym.Correct {
+				return sym
+			}
+		}
+		return res
 	case GradingComparison:
 		return r.comparison.grade(expected, answer)
 	case GradingOrdering:
@@ -46,6 +81,49 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 }
 
 func (r *Router) Close() {}
+
+// leadingAssignRe matches a learner's "x = ", "y=", "f'(x) =", "dy/dx =" in
+// front of an answer whose expected form has no equals sign.
+var leadingAssignRe = regexp.MustCompile(`^\s*(?:[a-zA-Z]\w*(?:\([a-zA-Z]\))?'*|d[a-zA-Z]/d[a-zA-Z])\s*=\s*`)
+
+// lenient normalises what a learner typed in the ways that never change the
+// answer: a leading "x =" when the expected answer has none, and spaces inside
+// a bracketed tuple or matrix (fork fix: "x = 6" and "[[9, 6], [0, 0]]" used to
+// grade wrong where "6" and "[[9,6],[0,0]]" graded right).
+func lenient(gradingType GradingType, expected, answer string) string {
+	a := strings.TrimSpace(answer)
+	e := strings.TrimSpace(expected)
+	if !strings.Contains(e, "=") && leadingAssignRe.MatchString(a) {
+		if rest := strings.TrimSpace(leadingAssignRe.ReplaceAllString(a, "")); rest != "" {
+			a = rest
+		}
+	}
+	if gradingType == GradingTuple && strings.HasPrefix(e, "[") && strings.HasPrefix(a, "[") {
+		a = strings.ReplaceAll(a, " ", "")
+	}
+	return a
+}
+
+// looksLikeMath reports an expected "choice" that is an expression rather
+// than an option label or a word.
+func looksLikeMath(expected string) bool {
+	e := strings.TrimSpace(expected)
+	if len(e) <= 1 || wordPhraseRe.MatchString(e) {
+		return false
+	}
+	return strings.ContainsAny(e, "=^+/{}\\")
+}
+
+// canonConstants strips a leading "y =" and renames the arbitrary constants
+// of a general solution (C, C1, C2, c, K) to one spelling, so SymPy sees two
+// general solutions that differ only in constant names as equal.
+func canonConstants(s string) string {
+	s = strings.TrimSpace(s)
+	s = leadingAssignRe.ReplaceAllString(s, "")
+	s = regexp.MustCompile(`\b[cCkK]_?(\d)\b`).ReplaceAllString(s, "C$1")
+	s = regexp.MustCompile(`\b[cCkK]\b`).ReplaceAllString(s, "C1")
+	return s
+}
 
 // IsBankAnswer reports whether an expected answer came from a question bank
 // (internal/pytrack): its kind prefix says so. A bank item can be served on a

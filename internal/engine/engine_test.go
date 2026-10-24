@@ -1014,12 +1014,13 @@ func TestEngine_QuizMiss_EnqueuesRemedial(t *testing.T) {
 	if got := e.QuizRemedial(st.ID); len(got) != 2 {
 		t.Errorf("expected queued remedial len 2, got %v", got)
 	}
-	// Correct answers never enqueue.
+	// Correct answers never enqueue; a correct answer on a queued topic is
+	// its remedy and takes it off the queue (fork fix).
 	if _, err := e.SubmitQuizAnswer(st.ID, "a", "42", "42", 5.0, "", nil); err != nil {
 		t.Fatalf("submit correct: %v", err)
 	}
-	if got := e.QuizRemedial(st.ID); len(got) != 2 {
-		t.Errorf("expected queue unchanged after correct, got %v", got)
+	if got := e.QuizRemedial(st.ID); len(got) != 1 || got[0] != "b" {
+		t.Errorf("expected [b] after remedying a, got %v", got)
 	}
 	e.ClearQuizRemedial(st.ID)
 	if got := e.QuizRemedial(st.ID); len(got) != 0 {

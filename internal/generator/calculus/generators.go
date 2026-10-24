@@ -389,9 +389,13 @@ func (g *derivChainRuleGen) Generate(ctx generator.GeneratorContext) generator.P
 	coef := n * a
 	inExp := n - 1
 	inner := fmt.Sprintf("%dx+%d", a, b)
+	if a == 1 {
+		inner = fmt.Sprintf("x+%d", b)
+	}
 	answer := fmt.Sprintf("%d(%s)^%d", coef, inner, inExp)
 	return generator.Problem{
-		Question:    fmt.Sprintf("Find \\(f'(x)\\) if \\(f(x)=%s^{%d}\\).", inner, n),
+		// Fork fix: the base is parenthesised ("(2x+1)^3", not "2x+1^3").
+		Question:    fmt.Sprintf("Find \\(f'(x)\\) if \\(f(x)=(%s)^{%d}\\).", inner, n),
 		Answer:      answer,
 		Explanation: fmt.Sprintf("Chain rule: f'(x)=%d·(%s)^%d·%d = %s.", n, inner, inExp, a, answer),
 	}

@@ -21,6 +21,10 @@ type Session struct {
 	LastConceptID string
 	// Difficulties holds weakness→difficulty per concept (80% target, 0.3-1.0).
 	Difficulties map[string]float64
+	// Avoid is question text served in the learner's recent tests; a
+	// regeneration is tried before serving one of them again (fork fix: the
+	// same code task came up in three tests running).
+	Avoid map[string]bool
 }
 
 type Attempt struct {
@@ -71,6 +75,11 @@ func (e *Engine) NextQuestion(s *Session) (*generator.Problem, string, error) {
 	p, err := e.registry.Generate(c.ID, difficulty)
 	if err != nil {
 		return nil, "", err
+	}
+	for i := 0; i < 6 && s.Avoid[p.Question]; i++ {
+		if p2, err2 := e.registry.Generate(c.ID, difficulty); err2 == nil {
+			p = p2
+		}
 	}
 	s.LastProblem = &p
 	s.LastConceptID = c.ID

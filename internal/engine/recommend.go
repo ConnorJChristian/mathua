@@ -185,7 +185,12 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		}
 	}
 
+	remedial := map[string]bool{}
+	for _, id := range e.QuizRemedial(studentID) {
+		remedial[id] = true
+	}
 	res := sched.Recommend(scheduler.RecommendInput{
+		Remedial:            remedial,
 		Snapshots:           snapshots,
 		Now:                 time.Now(),
 		Weakness:            weakness,

@@ -988,12 +988,14 @@ func (g *eqOneStepAddGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	scale := int(1 + ctx.Difficulty*5)
 	x := rand.Intn(scale*4) + 1
 	b := rand.Intn(scale*5) - scale*2
-	a := x - b
+	// Fork fix: the right-hand side is x + b. It used to be computed as
+	// (x - b) + b = x, so "x + 1 = 7" expected 7.
+	rhs := x + b
 	return generator.Problem{
-		Question:    fmt.Sprintf("Solve: \\(x + %d = %d\\)", b, a+b),
+		Question:    fmt.Sprintf("Solve: \\(x + %d = %d\\)", b, rhs),
 		Answer:      fmt.Sprintf("%d", x),
-		Explanation: fmt.Sprintf("\\(x + %d = %d\\), subtract %d: \\(x = %d\\)", b, a+b, b, x),
-		Facts:       map[string]string{"b": strconv.Itoa(b), "rhs": strconv.Itoa(a + b), "x": strconv.Itoa(x)},
+		Explanation: fmt.Sprintf("\\(x + %d = %d\\), subtract %d: \\(x = %d\\)", b, rhs, b, x),
+		Facts:       map[string]string{"b": strconv.Itoa(b), "rhs": strconv.Itoa(rhs), "x": strconv.Itoa(x)},
 	}
 }
 

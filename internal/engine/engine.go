@@ -1715,6 +1715,20 @@ func (e *Engine) QuizRemedial(studentID string) []string {
 	return append([]string(nil), e.quizRemedial[studentID]...)
 }
 
+// dropQuizRemedial takes one topic off the remedial queue: a correct answer
+// on it anywhere is the remedy (fork fix).
+func (e *Engine) dropQuizRemedial(studentID, conceptID string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	q := e.quizRemedial[studentID]
+	for i, id := range q {
+		if id == conceptID {
+			e.quizRemedial[studentID] = append(q[:i:i], q[i+1:]...)
+			return
+		}
+	}
+}
+
 // ClearQuizRemedial drains the queue (called when Study serves it).
 func (e *Engine) ClearQuizRemedial(studentID string) {
 	e.mu.Lock()
@@ -2695,11 +2709,12 @@ func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedA
 		progress.LastReviewed = &now
 		nextReview := now.AddDate(0, 0, nextSM2.Interval)
 		progress.NextReviewDue = &nextReview
-	} else if o.review && newStatus == mastery.StatusMastered {
+	} else if newStatus == mastery.StatusMastered && (o.review || !o.correct) {
 		// Fork fix: a review of a mastered topic always reschedules it. A
 		// correct answer pushes the next review out by the SM-2 interval; a
-		// miss brings the topic back tomorrow (it stays MASTERED: decay is a
-		// question about retention, and tomorrow's review answers it).
+		// miss anywhere (a review, a mastery test, practice) brings the topic
+		// back tomorrow (it stays MASTERED: decay is a question about
+		// retention, and tomorrow's review answers it).
 		now := nowUTC()
 		if o.correct {
 			progress.LastReviewed = &now
@@ -2722,6 +2737,7 @@ func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedA
 	// correct answer keeps already-credited ones fresh (see credit.go).
 	if o.correct {
 		e.creditPrerequisites(o.studentID, o.conceptID, newStatus == mastery.StatusMastered)
+		e.dropQuizRemedial(o.studentID, o.conceptID)
 	}
 	e.PropagateWeakness(o.studentID)
 	return newStatus, evidence, nil

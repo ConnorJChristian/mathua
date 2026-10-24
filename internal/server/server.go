@@ -1969,6 +1969,18 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	// Fork fix: what the learner answered recently on this topic is not
+	// served again while the topic can produce something else, whether or
+	// not the client remembered to exclude it.
+	if sid := s.lessonStudentID(r); sid != "" {
+		if recent, err := s.repo.GetRecentAttemptsForConcept(sid, conceptID, 12); err == nil {
+			for _, a := range recent {
+				if a.Question != "" {
+					excluded[a.Question] = true
+				}
+			}
+		}
+	}
 
 	type qInfo struct {
 		Question        string `json:"question"`
@@ -3357,6 +3369,22 @@ func (s *Server) handleQuizSession(w http.ResponseWriter, r *http.Request) {
 	}
 	sess.ID = newUUID()
 	sess.StudentID = studentID
+	// Fork fix: a question served in the learner's recent tests is not
+	// served again while the topic can produce another.
+	if studentID != "" {
+		for _, c := range quizConcepts {
+			if recent, err := s.repo.GetRecentAttemptsForConcept(studentID, c.ID, 12); err == nil {
+				for _, a := range recent {
+					if a.Question != "" {
+						if sess.Avoid == nil {
+							sess.Avoid = map[string]bool{}
+						}
+						sess.Avoid[a.Question] = true
+					}
+				}
+			}
+		}
+	}
 	s.mu.Lock()
 	s.quizSessions[sess.ID] = sess
 	s.quizCreated[sess.ID] = time.Now()

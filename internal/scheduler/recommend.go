@@ -133,7 +133,15 @@ type RecommendInput struct {
 	// earlier on the path are preferred; reviews and practice on topics
 	// already attempted are ranked as before.
 	PathOrder map[string]int
+	// Remedial names topics missed on the last mastery test (and their key
+	// prerequisites): they come first among non-review work (fork fix; the
+	// queue used to be kept and never read).
+	Remedial map[string]bool
 }
+
+// remedialBonus puts a missed mastery-test topic ahead of plan work and
+// behind a due review.
+const remedialBonus = 4.5
 
 // planBonus puts the learner's courses first. A topic on a followed course's
 // path (its plan and the prerequisites the plan needs) outranks any topic off
@@ -322,11 +330,31 @@ func (s *Scheduler) conceptRecommendations(in RecommendInput, now time.Time, cap
 			// ranking term rather than a second selection pass.
 			priority += layeringBonus(c.Concept, in.Weakness)
 		}
-		// Every task but a review ranks by course first (planBonus).
+		// Every task but a review ranks by course first (planBonus), and a
+		// topic the last mastery test caught out comes before the rest.
 		if b != bucketReview {
 			priority += planBonus(in.PathOrder, c.Concept.ID)
+			if in.Remedial[c.Concept.ID] {
+				priority += remedialBonus
+				if b == bucketNew || b == bucketResume {
+					b, kind, reason = bucketPractice, KindPractice, ReasonNeedsPractice
+				}
+			}
 		}
 		r := s.render(c.Concept, kind, reason, priority)
+		// Fork fix: the wording follows what the learner has done. An
+		// untouched topic classed as practice (the weakness map defaults it)
+		// is still new to them, and a started topic is not "new".
+		if snap := in.Snapshots[c.Concept.ID]; snap == nil || snap.LastAttempted.IsZero() {
+			if kind == KindPractice && !in.Remedial[c.Concept.ID] {
+				r.Badge, r.Detail, r.CTA = "New", "Ready to learn — everything it needs, you have done", "Start →"
+			}
+		} else if kind == KindLearn && reason != ReasonPrerequisite {
+			r.Badge, r.Detail, r.CTA = "Continue", "You have started this one — pick it back up", "Continue →"
+		}
+		if in.Remedial[c.Concept.ID] {
+			r.Badge, r.Detail, r.CTA = "From your test", "Missed on your last mastery test — shore it up", "Practise →"
+		}
 		r.bucket = b
 		ranked = append(ranked, r)
 	}
