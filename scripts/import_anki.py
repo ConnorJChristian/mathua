@@ -280,7 +280,50 @@ def clean(text, module_id):
     text = text.replace(RECALL_MARKER, "")
     # Anki's [sound:...] tags have no player here.
     text = re.sub(r"\[sound:[^\]]+\]", "", text)
-    return text.strip()
+    return tidy_html(text).strip()
+
+
+MATH_RE = re.compile(r"(\\\((?:.|\n)*?\\\)|\\\[(?:.|\n)*?\\\]|\$\$(?:.|\n)*?\$\$)")
+TYPOS = {
+    "elmination": "elimination", "betwen": "between", "eficient": "efficient",
+    "unitialized": "uninitialized", "fillled": "filled", "ovestimate": "overestimate",
+    "succint": "succinct", "succintly": "succinctly", "differnce": "difference",
+    "indefininite": "indefinite", "ocurrence": "occurrence", "expresssed": "expressed",
+    "caracter": "character", "aross": "across", "substraction": "subtraction",
+    "propogates": "propagates", "desribed": "described", "acording": "according",
+    "frequence": "frequency", "newasis": "newaxis", "styte": "style", "performant": "efficient",
+    "foolproofs": "makes foolproof", "neighbourhood": "neighborhood", "behavioural": "behavioral",
+}
+TYPO_RE = re.compile(r"\b(" + "|".join(map(re.escape, TYPOS)) + r")\b")
+
+
+def tidy_html(text):
+    """Strip the editor residue Anki leaves in a card (fork change).
+
+    Inside LaTeX, HTML entities are turned back into characters: an aligned
+    environment exported as `&amp;` would otherwise render "amp;" in every
+    column. Outside it, non-breaking spaces become spaces, inline font and
+    alignment styling (fonts, colours, sizes) and empty spans go, doubled
+    spaces collapse, and a few misspellings that recur across the scans are
+    corrected. Structure (br, div, b, i, ol, ul, img, tables) is kept.
+    """
+    parts = MATH_RE.split(text)
+    out = []
+    for i, part in enumerate(parts):
+        if i % 2 == 1:  # math
+            part = html.unescape(part.replace("&nbsp;", " "))
+            part = re.sub(r"<br\s*/?>", " ", part)
+            out.append(part)
+            continue
+        part = part.replace("&nbsp;", " ").replace("\u00a0", " ")
+        part = re.sub(r"</?(font|span|u)(\s[^>]*)?>", "", part)
+        part = re.sub(r'\s+style="[^"]*"', "", part)
+        part = re.sub(r'\s+class="(?!src)[^"]*"', "", part)
+        part = re.sub(r"<div>\s*</div>", "", part)
+        part = re.sub(r"[ \t]{2,}", " ", part)
+        part = TYPO_RE.sub(lambda m: TYPOS[m.group(1)], part)
+        out.append(part)
+    return "".join(out)
 
 
 def referenced_media(text):
