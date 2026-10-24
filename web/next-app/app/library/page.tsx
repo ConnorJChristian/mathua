@@ -71,10 +71,10 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
           />
           <ol className="border border-mathua-border divide-y divide-mathua-border bg-mathua-surface lg:max-h-[78vh] lg:overflow-auto">
             {sections.map(({ s, i }) => (
-              <li key={i} className={`px-3 py-2.5 min-w-0 ${i === current ? 'bg-mathua-blue-faint' : ''}`}>
+              <li key={i} className={`py-2.5 min-w-0 ${s.level ? 'pl-7 pr-3' : 'px-3'} ${i === current ? 'bg-mathua-blue-faint' : ''}`}>
                 <div className="flex items-start gap-2 justify-between min-w-0">
                   {book.kind === 'pdf' && book.available ? (
-                    <button type="button" onClick={() => open(i)} className="text-left min-w-0 font-mono text-xs text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]" aria-current={i === current}>
+                    <button type="button" onClick={() => open(i)} className={`text-left min-w-0 font-mono hover:text-mathua-blue break-words [overflow-wrap:anywhere] ${s.level ? 'text-[11px] text-mathua-secondary' : 'text-xs text-mathua-primary'}`} aria-current={i === current}>
                       {s.title}
                     </button>
                   ) : s.url ? (
@@ -86,7 +86,7 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
                   )}
                 </div>
                 {pages(s) && <div className="font-mono text-[10px] text-mathua-muted">{pages(s)}</div>}
-                <ul className="mt-1.5 space-y-1">
+                {s.topics.length > 0 && <ul className="mt-1.5 space-y-1">
                   {s.topics.map((t) => {
                     const st = masteryState(progress[t.id])
                     return (
@@ -98,7 +98,7 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
                       </li>
                     )
                   })}
-                </ul>
+                </ul>}
               </li>
             ))}
           </ol>
@@ -134,16 +134,22 @@ function LibraryContent() {
   const shelves = useMemo(() => {
     const order = TRACKS.map((t) => t.id)
     const byTrack = new Map<string, LibraryBook[]>()
+    // A book's own shelf ("Econometrics") wins; otherwise it shelves by track.
+    const shelfOf = (b: LibraryBook) => b.shelf || TRACKS.find((t) => t.id === b.track)?.label || b.track
+    const trackRank = new Map<string, number>()
     for (const b of books ?? []) {
-      const list = byTrack.get(b.track) ?? []
+      const sh = shelfOf(b)
+      const list = byTrack.get(sh) ?? []
       list.push(b)
-      byTrack.set(b.track, list)
+      byTrack.set(sh, list)
+      const r = order.indexOf(b.track)
+      trackRank.set(sh, Math.min(trackRank.get(sh) ?? 99, r < 0 ? 99 : r))
     }
     return [...byTrack.entries()]
-      .sort((a, b) => (order.indexOf(a[0]) + 1 || 99) - (order.indexOf(b[0]) + 1 || 99))
-      .map(([track, list]) => ({
-        track,
-        label: TRACKS.find((t) => t.id === track)?.label ?? track,
+      .sort((a, b) => (trackRank.get(a[0]) ?? 99) - (trackRank.get(b[0]) ?? 99) || a[0].localeCompare(b[0]))
+      .map(([label, list]) => ({
+        track: label,
+        label,
         books: list.sort((a, b) => (a.kind === b.kind ? b.topic_count - a.topic_count : a.kind === 'pdf' ? -1 : 1)),
       }))
   }, [books])

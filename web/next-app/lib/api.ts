@@ -485,11 +485,12 @@ export interface CourseStatus {
 // Fork: the library: every book and source the topics are drawn from, with a
 // table of contents whose entries link to the topics.
 export interface LibraryTopic { id: string; label: string }
-export interface LibrarySection { title: string; page?: number; end_page?: number; url?: string; topics: LibraryTopic[] }
+export interface LibrarySection { title: string; level?: number; page?: number; end_page?: number; url?: string; topics: LibraryTopic[] }
 export interface LibraryBook {
   id: string
   kind: 'pdf' | 'web'
   track: string
+  shelf?: string
   title: string
   author?: string
   url?: string

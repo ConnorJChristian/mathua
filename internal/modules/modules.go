@@ -90,8 +90,19 @@ type BookMeta struct {
 	Title        string `json:"title"`
 	Author       string `json:"author,omitempty"`
 	SourcePrefix string `json:"source_prefix,omitempty"`
-	Module       string `json:"-"`
-	File         string `json:"-"`
+	// Shelf groups the book in the library ("Econometrics"); empty uses the track.
+	Shelf string `json:"shelf,omitempty"`
+	// TOC is the book's table of contents (PDF pages), for the library.
+	TOC    []TOCEntry `json:"toc,omitempty"`
+	Module string     `json:"-"`
+	File   string     `json:"-"`
+}
+
+// TOCEntry is one line of a book's table of contents.
+type TOCEntry struct {
+	Title   string `json:"title"`
+	Page    int    `json:"page"`
+	EndPage int    `json:"end_page,omitempty"`
 }
 
 // Set is the enabled modules of one installation.

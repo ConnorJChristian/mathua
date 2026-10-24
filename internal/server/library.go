@@ -30,6 +30,7 @@ type libraryTopic struct {
 
 type librarySection struct {
 	Title   string         `json:"title"`
+	Level   int            `json:"level"` // 0: a chapter from the book's contents; 1: a section inside one
 	Page    int            `json:"page,omitempty"`
 	EndPage int            `json:"end_page,omitempty"`
 	URL     string         `json:"url,omitempty"`
@@ -38,8 +39,9 @@ type librarySection struct {
 
 type libraryBook struct {
 	ID        string           `json:"id"`
-	Kind      string           `json:"kind"`  // "pdf" or "web"
-	Track     string           `json:"track"` // the track most of its topics are on
+	Kind      string           `json:"kind"`            // "pdf" or "web"
+	Track     string           `json:"track"`           // the track most of its topics are on
+	Shelf     string           `json:"shelf,omitempty"` // a books.json shelf, when set
 	Title     string           `json:"title"`
 	Author    string           `json:"author,omitempty"`
 	URL       string           `json:"url,omitempty"` // the PDF itself, for kind pdf
@@ -126,11 +128,48 @@ func (s *Server) library() []libraryBook {
 			out[bi].Sections[si].Topics = append(out[bi].Sections[si].Topics, libraryTopic{cid, lb})
 		}
 	}
+	// Lay each PDF's own contents underneath: chapters become level-0 rows
+	// (taking the topics of a reading that is the chapter itself), and the
+	// finer reading sections sit inside them at level 1.
+	for i := range out {
+		key := ""
+		for k, bi := range pdfIdx {
+			if bi == i {
+				key = k
+			}
+		}
+		mi, ok := meta[key]
+		if !ok || len(books[mi].TOC) == 0 {
+			continue
+		}
+		var merged []librarySection
+		used := map[int]bool{}
+		for _, t := range books[mi].TOC {
+			row := librarySection{Title: t.Title, Page: t.Page, EndPage: t.EndPage}
+			for si, sct := range out[i].Sections {
+				if !used[si] && sct.Page == t.Page && (sct.EndPage == t.EndPage || strings.Contains(sct.Title, t.Title) || strings.Contains(t.Title, sct.Title)) {
+					row.Topics = append(row.Topics, sct.Topics...)
+					used[si] = true
+				}
+			}
+			merged = append(merged, row)
+		}
+		for si, sct := range out[i].Sections {
+			if !used[si] {
+				sct.Level = 1
+				merged = append(merged, sct)
+			}
+		}
+		out[i].Sections = merged
+	}
 	for i := range out {
 		sort.SliceStable(out[i].Sections, func(a, b int) bool {
 			sa, sb := out[i].Sections[a], out[i].Sections[b]
 			if sa.Page != sb.Page {
 				return sa.Page < sb.Page
+			}
+			if sa.Level != sb.Level {
+				return sa.Level < sb.Level
 			}
 			return sa.Title < sb.Title
 		})
@@ -141,8 +180,11 @@ func (s *Server) library() []libraryBook {
 		if _, ok := pdfIdx[key]; ok || !strings.EqualFold(path.Ext(b.File), ".pdf") {
 			continue
 		}
-		lb := libraryBook{ID: slug(key), Kind: "pdf", Title: b.Title, Author: b.Author,
+		lb := libraryBook{ID: slug(key), Kind: "pdf", Title: b.Title, Author: b.Author, Shelf: b.Shelf,
 			URL: "/api/modules/" + url.PathEscape(b.Module) + "/files/" + escapePath(b.File), Sections: []librarySection{}}
+		for _, t := range b.TOC {
+			lb.Sections = append(lb.Sections, librarySection{Title: t.Title, Page: t.Page, EndPage: t.EndPage, Topics: []libraryTopic{}})
+		}
 		if p := mods.FilePath(b.Module, b.File); p != "" {
 			if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() {
 				lb.Available = true
@@ -190,6 +232,11 @@ func (s *Server) library() []libraryBook {
 	for i := range out {
 		n := 0
 		votes := map[string]int{}
+		for si := range out[i].Sections {
+			if out[i].Sections[si].Topics == nil {
+				out[i].Sections[si].Topics = []libraryTopic{}
+			}
+		}
 		for _, sct := range out[i].Sections {
 			n += len(sct.Topics)
 			for _, tp := range sct.Topics {
