@@ -135,15 +135,21 @@ type RecommendInput struct {
 	PathOrder map[string]int
 }
 
-// planBonus prefers earlier topics on a planned course's path. It stays below
-// one, so it orders new topics among themselves without outranking a review
-// (+5) or the layering bonus (+2).
+// planBonus puts the learner's courses first. A topic on a followed course's
+// path (its plan and the prerequisites the plan needs) outranks any topic off
+// it (+3 clears the layering bonus of +2 and every base priority an untouched
+// topic can have), and earlier path topics come first among themselves. A due
+// review (+5) still outranks a new path topic: retention before progress.
+//
+// Fork fix: the bonus used to stay below one, so once a learner's plan
+// topics opened up, off-plan foundations with a little weakness kept
+// outranking them and the course was never recommended.
 func planBonus(order map[string]int, id string) float64 {
 	rank, ok := order[id]
 	if !ok || len(order) == 0 {
 		return 0
 	}
-	return 0.9 * (1 - float64(rank)/float64(len(order)))
+	return 3 + 0.9*(1-float64(rank)/float64(len(order)))
 }
 
 // RecommendCaps bound the set. Five is the number of cards the existing shelf shows, so the
@@ -316,9 +322,8 @@ func (s *Scheduler) conceptRecommendations(in RecommendInput, now time.Time, cap
 			// ranking term rather than a second selection pass.
 			priority += layeringBonus(c.Concept, in.Weakness)
 		}
-		// A topic the learner has not touched can be classed as practice when
-		// the weakness map defaults it, so "untouched" counts as new here.
-		if snap := in.Snapshots[c.Concept.ID]; b == bucketNew || b == bucketResume || snap == nil || snap.LastAttempted.IsZero() {
+		// Every task but a review ranks by course first (planBonus).
+		if b != bucketReview {
 			priority += planBonus(in.PathOrder, c.Concept.ID)
 		}
 		r := s.render(c.Concept, kind, reason, priority)

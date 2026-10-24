@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"log"
+	"math"
 	"sort"
 	"strings"
 	"sync"
@@ -585,6 +586,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 		return nil, fmt.Errorf("load progress: %w", err)
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
+	e.ensureActivePath(studentID)
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -1223,6 +1225,8 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 		correct:        gr.Correct,
 		questionText:   sessionFields.questionText,
 		difficulty:     difficultyOrNil(sessionFields.questionDifficulty),
+		review:         sessionFields.isReview,
+		selfGraded:     isSelfGraded(sessionFields.expectedAnswer),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("save progress: %w", err)
@@ -1271,7 +1275,7 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 	// PR 1.5: consecutive-miss tracking — halt after 2 (XP=0) + remedial queue.
 	halted := false
 	var remedial []string
-	if !gr.Correct {
+	if !gr.Correct && !isSelfGraded(sessionFields.expectedAnswer) {
 		as.consecutiveMisses++
 		if as.consecutiveMisses >= 2 && !as.halted {
 			halted = true
@@ -1292,7 +1296,7 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 			as.remedialQueue = append(as.remedialQueue, sessionFields.conceptID)
 			remedial = append(remedial, sessionFields.conceptID)
 		}
-	} else {
+	} else if gr.Correct {
 		as.consecutiveMisses = 0
 		// Remedial recovery: clear the halt once the queue is drained.
 		if as.halted && len(as.remedialQueue) == 0 {
@@ -1484,6 +1488,7 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 		correct:        gr.Correct,
 		questionText:   questionText,
 		difficulty:     difficulty,
+		selfGraded:     isSelfGraded(expected),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("save progress: %w", err)
@@ -2019,6 +2024,54 @@ func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session)
 	session.Unlock()
 	batch := make([]*storage.ConceptProgress, 0, len(attempts))
 	now := time.Now().UTC()
+	// Fork fix: a correct answer places the learner above everything the
+	// concept rests on, so its prerequisite closure is seeded too (as
+	// reachability only, like the concept itself). The diagnostic tests a
+	// few dozen topics; without this the frontier it found counted for
+	// nothing and the recommender started again from arithmetic. A wrong
+	// answer seeds nothing: a topic answered wrong is not a frontier.
+	seeded := map[string]bool{}
+	var inferred []string
+	for _, att := range attempts {
+		if !att.Correct {
+			continue
+		}
+		stack := []string{att.ConceptID}
+		for len(stack) > 0 {
+			id := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			for _, p := range e.dag.PrereqsOf(id) {
+				if !seeded[p.ID] {
+					seeded[p.ID] = true
+					inferred = append(inferred, p.ID)
+					stack = append(stack, p.ID)
+				}
+			}
+		}
+	}
+	tested := map[string]bool{}
+	for _, att := range attempts {
+		tested[att.ConceptID] = true
+	}
+	for _, id := range inferred {
+		if tested[id] {
+			continue
+		}
+		existing, err := e.repo.GetProgress(studentID, id)
+		if err != nil {
+			return fmt.Errorf("load diagnostic progress %s: %w", id, err)
+		}
+		if existing == nil {
+			existing = &storage.ConceptProgress{StudentID: studentID, ConceptID: id, SM2EFactor: 2.5}
+		} else if existing.Status != string(mastery.StatusUnseen) && existing.Status != "" {
+			continue
+		}
+		existing.Status = string(mastery.StatusLearning)
+		existing.WeaknessScore = 0.3
+		existing.PlacementSeeded = true
+		existing.LastAttempted = &now
+		batch = append(batch, existing)
+	}
 	for _, att := range attempts {
 		// The diagnostic seeds placement; it must not destroy existing mastery.
 		// UpsertProgressBatch overwrites every column, so load the current row
@@ -2055,16 +2108,20 @@ func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session)
 		// successors may be started. It is never MASTERED here, never counts as
 		// mastery, and never affects XP, the quiz gate or review (ADR-008,
 		// ADR-050). LastAttempted is stamped so the concept is a resumable
-		// candidate rather than an untouched one.
-		existing.PlacementSeeded = true
+		// candidate rather than an untouched one. A topic answered wrong is
+		// recorded as weak but does not open what builds on it (fork fix).
+		existing.PlacementSeeded = att.Correct
 		existing.LastAttempted = &now
 		batch = append(batch, existing)
 	}
 	if err := e.repo.UpsertProgressBatch(batch); err != nil {
 		return fmt.Errorf("save diagnostic progress: %w", err)
 	}
-	// Set active path to the diagnostic's concept set for focused practice
-	if len(session.Attempts) > 0 {
+	// Set active path to the diagnostic's concept set for focused practice,
+	// unless the learner follows courses: their paths stay the focus (fork
+	// fix; the diagnostic's few dozen topics used to replace them, and the
+	// recommender then saw nothing else).
+	if len(session.Attempts) > 0 && !e.restoreCoursePath(studentID) {
 		e.mu.Lock()
 		pathSet := make(map[string]bool)
 		for _, att := range session.Attempts {
@@ -2074,6 +2131,53 @@ func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session)
 		e.mu.Unlock()
 	}
 	return nil
+}
+
+// ensureActivePath restores a learner's course path after a restart (the
+// active path is held in memory): a learner who follows courses always has
+// their paths as the focus (fork fix).
+func (e *Engine) ensureActivePath(studentID string) {
+	e.mu.Lock()
+	_, ok := e.activePath[studentID]
+	e.mu.Unlock()
+	if !ok {
+		if !e.restoreCoursePath(studentID) {
+			e.mu.Lock()
+			e.activePath[studentID] = nil // looked up once; nothing to restore
+			e.mu.Unlock()
+		}
+	}
+}
+
+// restoreCoursePath sets the active path to the union of the learner's
+// followed courses' paths. It reports false when they follow none.
+func (e *Engine) restoreCoursePath(studentID string) bool {
+	if e.planner == nil {
+		return false
+	}
+	st, err := e.repo.GetStudent(studentID)
+	if err != nil || st == nil {
+		return false
+	}
+	ids := ActiveCourses(st.CourseID)
+	if len(ids) == 0 {
+		return false
+	}
+	set := map[string]bool{}
+	for _, id := range ids {
+		if path, err := e.planner.PathForCourse(id); err == nil {
+			for _, c := range path.Concepts {
+				set[c.ID] = true
+			}
+		}
+	}
+	if len(set) == 0 {
+		return false
+	}
+	e.mu.Lock()
+	e.activePath[studentID] = set
+	e.mu.Unlock()
+	return true
 }
 
 func (e *Engine) WeaknessMap(studentID string) map[string]float64 {
@@ -2406,6 +2510,10 @@ func (e *Engine) buildEvidenceWindow(studentID, conceptID string, current master
 	return mastery.BuildEvidence(window, opts)
 }
 
+// isSelfGraded reports a recall flashcard: the learner's own verdict is the
+// answer, so it is practice rather than evidence (see gradedAttempt).
+func isSelfGraded(expected string) bool { return strings.HasPrefix(expected, "recall:") }
+
 // gradedAttempt is what one graded answer contributes to a concept's progress.
 type gradedAttempt struct {
 	studentID      string
@@ -2415,6 +2523,15 @@ type gradedAttempt struct {
 	elapsed        float64
 	correct        bool
 	questionText   string
+	// review marks an answer given in a review session (fork fix): a correct
+	// one reschedules the topic's next review from SM-2 however short the
+	// streak, and a miss brings it back tomorrow.
+	review bool
+	// selfGraded marks a flashcard the learner graded themselves (a recall
+	// card's "right"/"wrong"). It is practice, not evidence: it never moves
+	// the mastery ladder, never counts as a miss toward a halt, and never
+	// reschedules a review (fork change, engine/cards.go).
+	selfGraded bool
 	// difficulty the question that produced this attempt was generated at, or nil when it
 	// is genuinely unknown. A pointer, not a float64 with 0 meaning unknown: 0 is not a
 	// difficulty the engine ever serves, so overloading it would let a forgotten value and
@@ -2440,6 +2557,21 @@ type gradedAttempt struct {
 // `new_status`, and the evidence is what lets a client render progress from the same
 // number rather than keeping a second copy of the formula.
 func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedAttempt) (mastery.Status, mastery.Evidence, error) {
+	if o.selfGraded {
+		// A self-graded card touches the record (so the topic counts as
+		// studied and its weakness moves a little) and nothing else.
+		progress.Attempts++
+		progress.LastAttempted = ptrTime(nowUTC())
+		if o.correct {
+			progress.WeaknessScore *= 0.8
+		} else {
+			progress.WeaknessScore = math.Min(1, progress.WeaknessScore+0.1)
+		}
+		if err := e.repo.UpsertProgress(progress); err != nil {
+			return mastery.Status(progress.Status), mastery.Evidence{}, err
+		}
+		return mastery.Status(progress.Status), mastery.Evidence{}, nil
+	}
 	progress.Attempts++
 	progress.LastAttempted = ptrTime(nowUTC())
 	// AvgResponseTime reflects every attempt, not just correct ones; excluding
@@ -2506,8 +2638,10 @@ func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedA
 	}
 
 	// SM-2 update — PR 1.2 student model: scale interval by per-topic learningSpeed
+	// A review answer is a retention check: being right is what SM-2 scores,
+	// whatever the streak (fork fix).
 	quality := mastery.SM2Quality(
-		o.correct && progress.Streak >= o.requiredStreak,
+		o.correct && (o.review || progress.Streak >= o.requiredStreak),
 		progress.AvgResponseTime/o.timeThreshold,
 	)
 	prevSM2 := scheduler.SM2{
@@ -2561,6 +2695,24 @@ func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedA
 		progress.LastReviewed = &now
 		nextReview := now.AddDate(0, 0, nextSM2.Interval)
 		progress.NextReviewDue = &nextReview
+	} else if o.review && newStatus == mastery.StatusMastered {
+		// Fork fix: a review of a mastered topic always reschedules it. A
+		// correct answer pushes the next review out by the SM-2 interval; a
+		// miss brings the topic back tomorrow (it stays MASTERED: decay is a
+		// question about retention, and tomorrow's review answers it).
+		now := nowUTC()
+		if o.correct {
+			progress.LastReviewed = &now
+			days := nextSM2.Interval
+			if days < 1 {
+				days = 1
+			}
+			nextReview := now.AddDate(0, 0, days)
+			progress.NextReviewDue = &nextReview
+		} else {
+			nextReview := now.AddDate(0, 0, 1)
+			progress.NextReviewDue = &nextReview
+		}
 	}
 
 	if err := e.repo.UpsertProgress(progress); err != nil {

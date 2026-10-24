@@ -158,6 +158,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		}
 	}
 
+	e.ensureActivePath(studentID)
 	e.mu.Lock()
 	if path := e.activePath[studentID]; len(path) > 0 {
 		for cid := range snapshots {

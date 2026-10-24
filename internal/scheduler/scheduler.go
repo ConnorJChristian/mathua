@@ -181,7 +181,10 @@ func buildCandidates(dag *concepts.DAG, snapshots map[string]*ConceptSnapshot, n
 		}
 		snap := snapshots[c.ID]
 		effStatus, isReview := effectiveState(snap, now)
-		if effStatus == mastery.StatusMastered {
+		// Fork fix: a mastered topic whose review is due is a review
+		// candidate. It used to be skipped here before isReview was read, so
+		// the due count grew while the review session served nothing.
+		if effStatus == mastery.StatusMastered && !isReview {
 			continue
 		}
 		if !prereqsMet(dag, c, snapshots, now) {
