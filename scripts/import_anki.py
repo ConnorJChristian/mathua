@@ -58,6 +58,7 @@ from collections import OrderedDict, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import anki_typed  # noqa: E402
+import anki_choice  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RECALL_MARKER = "<!--recall-back-->"  # internal/pytrack/track.go RecallMarker
@@ -697,6 +698,14 @@ def build(args):
         manifest.setdefault("name", module_id)
         json.dump(manifest, open(os.path.join(out, "module.json"), "w", encoding="utf-8"), indent=2, ensure_ascii=False)
         n_items = 0
+        # Flip cards become multiple choice where they honestly can
+        # (scripts/anki_choice.py): the flip card is the last resort.
+        all_bank = [b for d in banks for b in banks[d]]
+        if not args.no_typed:
+            choice_stats = {}
+            n_choice = anki_choice.convert(all_bank, choice_stats)
+            stats["kind mc"] += n_choice
+            stats["kind recall"] -= n_choice
         for domain in concepts:
             fname = domain if domain.startswith("anki_") else "anki_" + domain
             json.dump(concepts[domain], open(os.path.join(out, "concepts", fname + ".json"), "w", encoding="utf-8"),
