@@ -537,7 +537,7 @@ func (g *lhopitalGen) Generate(ctx generator.GeneratorContext) generator.Problem
 	a := claims[rand.Intn(len(claims))]
 	answer := decimal6(float64(a*a) / 2)
 	return generator.Problem{
-		Question: "Using L'Hôpital's rule, find the limit of (1 − cos(" + strconv.Itoa(a) + "x))/x² as x tends to 0. (enter a decimal)",
+		Question:    "Using L'Hôpital's rule, find the limit of (1 − cos(" + strconv.Itoa(a) + "x))/x² as x tends to 0. (enter a decimal)",
 		Answer:      answer,
 		Explanation: "Both numerator and denominator tend to zero; differentiating twice gives a²cos(ax)/2, and cos(0) = 1, so the limit is a²/2 = " + answer + ".",
 		Facts: map[string]string{
