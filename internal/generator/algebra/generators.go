@@ -1385,16 +1385,80 @@ func (g *funcInverseGen) Generate(ctx generator.GeneratorContext) generator.Prob
 
 type monotonicityGen struct{}
 
+// Fork change: several families of functions, not only f(x) = ax, so the
+// topic tests reading monotonicity off a slope, a derivative, a base or a
+// domain rather than the sign of one coefficient.
 func (g *monotonicityGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	a := rand.Intn(5) + 1
-	if rand.Intn(2) == 0 {
-		a = -a
+	dirWord := func(up bool) string {
+		if up {
+			return "increasing"
+		}
+		return "decreasing"
 	}
+	a := rand.Intn(5) + 1
+	b := rand.Intn(9) - 4
+	var fn, domain, why string
+	var up bool
+	switch rand.Intn(7) {
+	case 0:
+		if rand.Intn(2) == 0 {
+			a = -a
+		}
+		fn, domain, up = fmt.Sprintf("%dx", a), "\\mathbb{R}", a > 0
+		why = fmt.Sprintf("a line through the origin with slope %d", a)
+	case 1:
+		if rand.Intn(2) == 0 {
+			a = -a
+		}
+		sign := "+"
+		if b < 0 {
+			sign, b = "-", -b
+		}
+		fn, domain, up = fmt.Sprintf("%dx %s %d", a, sign, b), "\\mathbb{R}", a > 0
+		why = fmt.Sprintf("a line with slope %d; the intercept does not change the direction", a)
+	case 2:
+		if rand.Intn(2) == 0 {
+			fn, domain, up = fmt.Sprintf("%dx^{2}", a), "[0, \\infty)", true
+			why = fmt.Sprintf("f'(x) = %dx > 0 for x > 0", 2*a)
+		} else {
+			fn, domain, up = fmt.Sprintf("%dx^{2}", a), "(-\\infty, 0]", false
+			why = fmt.Sprintf("f'(x) = %dx < 0 for x < 0", 2*a)
+		}
+	case 3:
+		base := []string{"2", "3", "5", "e"}[rand.Intn(4)]
+		if rand.Intn(2) == 0 {
+			fn, domain, up = fmt.Sprintf("%s^{x}", base), "\\mathbb{R}", true
+			why = fmt.Sprintf("an exponential with base %s > 1 grows", base)
+		} else {
+			fn, domain, up = fmt.Sprintf("%s^{-x}", base), "\\mathbb{R}", false
+			why = fmt.Sprintf("%s^{-x} = (1/%s)^{x}, a base between 0 and 1, which decays", base, base)
+		}
+	case 4:
+		fn, domain, up = fmt.Sprintf("\\frac{%d}{x}", a), "(0, \\infty)", false
+		why = fmt.Sprintf("f'(x) = -%d/x^{2} < 0 for every x > 0", a)
+	case 5:
+		if rand.Intn(2) == 0 {
+			fn, domain, up = "x^{3}", "\\mathbb{R}", true
+			why = "f'(x) = 3x^{2} \\ge 0, zero only at x = 0, so f rises everywhere"
+		} else {
+			fn, domain, up = "-x^{3}", "\\mathbb{R}", false
+			why = "f'(x) = -3x^{2} \\le 0, so f falls everywhere"
+		}
+	default:
+		if rand.Intn(2) == 0 {
+			fn, domain, up = fmt.Sprintf("\\ln(x) + %d", a), "(0, \\infty)", true
+			why = "f'(x) = 1/x > 0 on the domain"
+		} else {
+			fn, domain, up = fmt.Sprintf("\\sqrt{x}"), "[0, \\infty)", true
+			why = "f'(x) = 1/(2\\sqrt{x}) > 0 for x > 0"
+		}
+	}
+	dir := dirWord(up)
 	return generator.Problem{
-		Question:    fmt.Sprintf("Is \\(f(x) = %dx\\) increasing or decreasing on \\(\\mathbb{R}\\)?", a),
-		Answer:      map[bool]string{true: "increasing", false: "decreasing"}[a > 0],
-		Explanation: fmt.Sprintf("Slope = %d. %s slope means the function is %s.", a, map[bool]string{true: "Positive", false: "Negative"}[a > 0], map[bool]string{true: "increasing", false: "decreasing"}[a > 0]),
-		Facts:       map[string]string{"a": strconv.Itoa(a), "dir": map[bool]string{true: "increasing", false: "decreasing"}[a > 0], "sign": map[bool]string{true: "positive", false: "negative"}[a > 0]},
+		Question:    fmt.Sprintf("Is \\(f(x) = %s\\) increasing or decreasing on \\(%s\\)?", fn, domain),
+		Answer:      dir,
+		Explanation: fmt.Sprintf("\\(f(x) = %s\\) is %s on \\(%s\\): %s.", fn, dir, domain, why),
+		Facts:       map[string]string{"fn": fn, "domain": domain, "why": why, "dir": dir, "a": strconv.Itoa(a), "sign": map[bool]string{true: "positive", false: "negative"}[up]},
 	}
 }
 

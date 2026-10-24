@@ -1,29 +1,73 @@
 [
   {
-    "label": "Substitution Method",
-    "section": "Substitution Method",
+    "label": "Characteristic equation",
+    "section": "Characteristic equation",
     "subgoals": [
-      "Recognize dy/dx = F(y/x) form",
-      "Substitute y = vx with dy/dx = v + x dv/dx",
-      "Separate x dv/dx = F(v) - v"
-    ]
+      "Write a y'' + b y' + c y = 0",
+      "Try y = e^{rx} to get a r^2 + b r + c = 0",
+      "Solve for r"
+    ],
+    "slice": {
+      "rule": "For $a y'' + b y' + c y = 0$ with constant coefficients, try $y = e^{rx}$: it works exactly when $r$ solves the characteristic equation $a r^2 + b r + c = 0$. Two independent solutions span every solution.",
+      "examples": [
+        {
+          "item": "$y'' - 5y' + 6y = 0$",
+          "says": "$r^2 - 5r + 6 = (r - 2)(r - 3) = 0$, so $r = 2, 3$"
+        },
+        {
+          "item": "$y'' + 4y = 0$",
+          "says": "$r^2 + 4 = 0$, so $r = \\pm 2i$"
+        }
+      ],
+      "note": "This is the linear homogeneous case ($Q(x) = 0$), not the first-order 'homogeneous' $y/x$ substitution; the word is used for both."
+    }
   },
   {
-    "label": "Worked homogeneous solve",
-    "section": "Substitution Method",
+    "label": "Three cases for the roots",
+    "section": "Three cases for the roots",
     "subgoals": [
-      "Rewrite (x^2+y^2)/xy as 1/v + v",
-      "Separate to v dv = dx/x",
-      "Integrate back to y^2 = x^2 ln(Cx^2)"
-    ]
+      "Distinct real roots: y = C1 e^{r1 x} + C2 e^{r2 x}",
+      "Repeated root: y = (C1 + C2 x) e^{rx}",
+      "Complex roots p ± qi: y = e^{px}(C1 cos qx + C2 sin qx)"
+    ],
+    "slice": {
+      "rule": "The general solution depends on the discriminant $b^2 - 4ac$. Distinct real roots $r_1, r_2$: $y = C_1 e^{r_1 x} + C_2 e^{r_2 x}$. A repeated root $r$: $y = (C_1 + C_2 x)e^{rx}$. Complex roots $p \\pm qi$: $y = e^{px}(C_1 \\cos qx + C_2 \\sin qx)$.",
+      "examples": [
+        {
+          "item": "$y'' - 5y' + 6y = 0$",
+          "says": "$y = C_1 e^{2x} + C_2 e^{3x}$"
+        },
+        {
+          "item": "$y'' - 4y' + 4y = 0$",
+          "says": "$(r - 2)^2 = 0$, so $y = (C_1 + C_2 x)e^{2x}$"
+        },
+        {
+          "item": "$y'' + 2y' + 5y = 0$",
+          "says": "$r = -1 \\pm 2i$, so $y = e^{-x}(C_1 \\cos 2x + C_2 \\sin 2x)$"
+        }
+      ]
+    }
   },
   {
-    "label": "Radical homogeneous case",
-    "section": "Substitution Method",
+    "label": "Initial value problems",
+    "section": "Initial value problems",
     "subgoals": [
-      "Divide by x to expose v + sqrt(1+v^2)",
-      "Cancel v to get x dv/dx = sqrt(1+v^2)",
-      "Separate and integrate in v"
-    ]
+      "Write the general solution",
+      "Differentiate it once",
+      "Use y(x0) and y'(x0) to find C1 and C2"
+    ],
+    "slice": {
+      "rule": "Two initial conditions, $y(x_0)$ and $y'(x_0)$, fix the two constants: substitute into the general solution and its derivative and solve the pair of linear equations.",
+      "examples": [
+        {
+          "item": "$y'' - 5y' + 6y = 0$, $y(0) = 1$, $y'(0) = 0$",
+          "says": "$C_1 + C_2 = 1$, $2C_1 + 3C_2 = 0$, so $C_1 = 3$, $C_2 = -2$: $y = 3e^{2x} - 2e^{3x}$"
+        },
+        {
+          "item": "$y'' + 4y = 0$, $y(0) = 2$, $y'(0) = 6$",
+          "says": "$C_1 = 2$, $2C_2 = 6$: $y = 2\\cos 2x + 3\\sin 2x$"
+        }
+      ]
+    }
   }
 ]

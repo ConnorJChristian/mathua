@@ -1,29 +1,64 @@
 [
   {
     "label": "Center of mass formula",
-    "section": "Center of mass",
+    "section": "",
     "subgoals": [
-      "Write x̄ = (1/M)∫x·ρdx",
-      "Compute total mass first",
-      "Check uniform rod gives midpoint"
-    ]
+      "Write moment over mass",
+      "Set up both integrals with the density",
+      "Interpret the balance point"
+    ],
+    "slice": {
+      "rule": "A rod on $[a, b]$ with density $\\rho(x)$ balances at $\\bar{x} = \\dfrac{\\int_a^b x\\,\\rho(x)\\,dx}{\\int_a^b \\rho(x)\\,dx}$: the moment about the origin divided by the total mass.",
+      "examples": [
+        {
+          "item": "$\\rho(x) = x$ on $[0, 2]$",
+          "says": "mass $= 2$, moment $= \\frac{8}{3}$, so $\\bar{x} = \\frac{4}{3}$"
+        }
+      ]
+    }
   },
   {
     "label": "Uniform rods",
-    "section": "Center of mass",
+    "section": "",
     "subgoals": [
-      "Place x̄ at the midpoint",
-      "Verify [0,2] gives 1, [0,4] gives 2",
-      "Note density cancels when uniform"
-    ]
+      "Cancel a constant density",
+      "See the midpoint appear",
+      "Compute for an off-origin rod"
+    ],
+    "slice": {
+      "rule": "If $\\rho$ is constant it cancels from the quotient, and the centre of mass is the midpoint $\\bar{x} = \\dfrac{a + b}{2}$ whatever the density.",
+      "examples": [
+        {
+          "item": "Uniform rod on $[0, 6]$",
+          "says": "$\\bar{x} = 3$"
+        },
+        {
+          "item": "Uniform rod on $[2, 10]$",
+          "says": "$\\bar{x} = 6$"
+        }
+      ]
+    }
   },
   {
     "label": "Variable density",
-    "section": "Center of mass",
+    "section": "",
     "subgoals": [
-      "Integrate ρ(x) = x over [0,1]",
-      "Find mass 1/2 and moment 1/3",
-      "Confirm x̄ = 2/3 shifts right"
-    ]
+      "Integrate x times rho and rho separately",
+      "Expect the balance point toward the heavy end",
+      "Check the answer lies inside the rod"
+    ],
+    "slice": {
+      "rule": "With density that grows along the rod the balance point shifts toward the heavy end; always compute both integrals and check $a \\le \\bar{x} \\le b$.",
+      "examples": [
+        {
+          "item": "$\\rho(x) = 1 + x$ on $[0, 1]$",
+          "says": "mass $= \\frac32$, moment $= \\frac12 + \\frac13 = \\frac56$, so $\\bar{x} = \\frac59$"
+        },
+        {
+          "item": "$\\rho(x) = x^2$ on $[0, 3]$",
+          "says": "mass $= 9$, moment $= \\frac{81}{4}$, so $\\bar{x} = \\frac94$"
+        }
+      ]
+    }
   }
 ]

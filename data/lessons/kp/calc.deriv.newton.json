@@ -1,29 +1,74 @@
 [
   {
     "label": "Newton iteration formula",
-    "section": "Newton's method",
+    "section": "",
     "subgoals": [
       "State x(n+1) = x(n) - f/f'",
       "See each step as a tangent-line root",
       "Require f'(x(n)) nonzero"
-    ]
+    ],
+    "slice": {
+      "rule": "From a guess $x_n$, follow the tangent line at $(x_n, f(x_n))$ down to the axis: $x_{n+1} = x_n - \\dfrac{f(x_n)}{f'(x_n)}$, valid while $f'(x_n) \\neq 0$. Each step is the root of the linearization of $f$ at $x_n$.",
+      "examples": [
+        {
+          "item": "$f(x) = x^2 - 2$, $x_n = 1$",
+          "says": "$x_{n+1} = 1 - \\frac{1 - 2}{2} = 1.5$"
+        },
+        {
+          "item": "$f(x) = \\cos x - x$, $x_n = 1$",
+          "says": "$x_{n+1} = 1 - \\frac{\\cos 1 - 1}{-\\sin 1 - 1} \\approx 0.750$"
+        }
+      ],
+      "note": "The sign matters: it is minus $f/f'$. A plus sign walks away from the root."
+    }
   },
   {
     "label": "Worked Newton steps",
-    "section": "Newton's method",
+    "section": "",
     "subgoals": [
       "Step x^2-2 from x(0) = 1 to 1.5",
       "Step again to approx 1.4167",
       "Watch digits double per step"
-    ]
+    ],
+    "slice": {
+      "rule": "Near a simple root the method converges quadratically: the number of correct digits roughly doubles each step, so three or four steps usually give calculator precision.",
+      "examples": [
+        {
+          "item": "$x^2 - 2$ from $x_0 = 1$",
+          "says": "$1 \\to 1.5 \\to 1.4167 \\to 1.41422$; $\\sqrt2 = 1.41421\\ldots$"
+        },
+        {
+          "item": "$x^3 - 5$ from $x_0 = 2$",
+          "says": "$2 \\to 1.75 \\to 1.7109 \\to 1.7100$"
+        }
+      ]
+    }
   },
   {
     "label": "Newton failure modes",
-    "section": "Newton's method",
+    "section": "",
     "subgoals": [
       "Spot zero-derivative iterates",
       "Avoid guesses far from roots",
       "Detect cycling behavior"
-    ]
+    ],
+    "slice": {
+      "rule": "The method has no root to find when $f'(x_n) = 0$ (a horizontal tangent never meets the axis), it can jump far away from a poor starting guess, and it can cycle between values without settling.",
+      "examples": [
+        {
+          "item": "$f(x) = x^3 - 2x + 2$ from $x_0 = 0$",
+          "says": "the iterates alternate $0, 1, 0, 1, \\ldots$"
+        },
+        {
+          "item": "$f(x) = x^2 + 1$",
+          "says": "no real root at all: the iterates wander forever"
+        },
+        {
+          "item": "$f(x) = \\sqrt[3]{x}$ from any $x_0 \\neq 0$",
+          "says": "each step doubles the distance from the root $0$"
+        }
+      ],
+      "note": "Check $|x_{n+1} - x_n|$ shrinking; if it grows or repeats, change the starting guess."
+    }
   }
 ]

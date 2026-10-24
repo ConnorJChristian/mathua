@@ -1,29 +1,69 @@
 [
   {
     "label": "Solution Method",
-    "section": "Solution Method",
+    "section": "",
     "subgoals": [
-      "Factor dy/dx into f(x) g(y)",
-      "Separate to dy/g(y) = f(x) dx",
-      "Integrate both sides"
-    ]
+      "Write dy/dx = g(x) h(y)",
+      "Move h(y) under dy and g(x) with dx",
+      "Integrate each side in its own variable"
+    ],
+    "slice": {
+      "rule": "An equation is separable when it can be written $\\dfrac{dy}{dx} = g(x)\\,h(y)$. Divide by $h(y)$, multiply by $dx$, and integrate: $\\int \\dfrac{dy}{h(y)} = \\int g(x)\\,dx + C$.",
+      "examples": [
+        {
+          "item": "$\\dfrac{dy}{dx} = xy$",
+          "says": "$\\int \\frac{dy}{y} = \\int x\\,dx$, so $\\ln|y| = \\frac{x^2}{2} + C$"
+        },
+        {
+          "item": "$\\dfrac{dy}{dx} = \\dfrac{x}{y}$",
+          "says": "$\\int y\\,dy = \\int x\\,dx$, so $y^2 = x^2 + C$"
+        }
+      ],
+      "note": "Check for constant solutions where $h(y) = 0$; dividing by $h(y)$ loses them."
+    }
   },
   {
     "label": "Worked separable solve",
-    "section": "Solution Method",
+    "section": "",
     "subgoals": [
-      "Separate dy/dx = 2xy to dy/y = 2x dx",
-      "Integrate to ln|y| = x^2 + C",
-      "Exponentiate to y = Ae^{x^2}"
-    ]
+      "Separate",
+      "Integrate both sides",
+      "Solve for y where possible"
+    ],
+    "slice": {
+      "rule": "After integrating, solve for $y$ if you can, absorbing constants: $e^{C}$ becomes a new constant $A$.",
+      "examples": [
+        {
+          "item": "$\\dfrac{dy}{dx} = xy$",
+          "says": "$y = A e^{x^2/2}$ with $A = \\pm e^{C}$"
+        },
+        {
+          "item": "$\\dfrac{dy}{dx} = 3y^2$",
+          "says": "$-\\frac{1}{y} = 3x + C$, so $y = -\\dfrac{1}{3x + C}$"
+        }
+      ]
+    }
   },
   {
     "label": "Initial value version",
-    "section": "Solution Method",
+    "section": "",
     "subgoals": [
-      "Separate dy/dx = y^2 with y(0) = 1",
-      "Integrate to y = -1/(x + C)",
-      "Apply y(0) = 1 to get y = 1/(1-x)"
-    ]
+      "Find the general solution",
+      "Substitute the initial condition",
+      "Pick the branch that contains it"
+    ],
+    "slice": {
+      "rule": "Substitute $y(x_0) = y_0$ into the general solution to fix the constant; if solving for $y$ needed a square root or sign choice, take the branch through the initial point.",
+      "examples": [
+        {
+          "item": "$\\dfrac{dy}{dx} = xy$, $y(0) = 2$",
+          "says": "$A = 2$, so $y = 2e^{x^2/2}$"
+        },
+        {
+          "item": "$y^2 = x^2 + C$, $y(0) = -3$",
+          "says": "$C = 9$ and the negative branch: $y = -\\sqrt{x^2 + 9}$"
+        }
+      ]
+    }
   }
 ]

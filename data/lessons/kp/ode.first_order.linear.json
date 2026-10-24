@@ -1,29 +1,69 @@
 [
   {
     "label": "Integrating Factor Method",
-    "section": "Integrating Factor Method",
+    "section": "",
     "subgoals": [
-      "Put the ODE in dy/dx + P(x)y = Q(x) form",
-      "Build mu = e^{int P dx}",
-      "Collapse to d(mu y)/dx and integrate"
-    ]
+      "Write the equation as y' + P(x) y = Q(x)",
+      "Compute mu = exp(integral of P)",
+      "Multiply through so the left side is (mu y)'"
+    ],
+    "slice": {
+      "rule": "Put the equation in the form $y' + P(x)\\,y = Q(x)$. The integrating factor $\\mu(x) = e^{\\int P(x)\\,dx}$ makes the left side an exact derivative: $(\\mu y)' = \\mu Q$. Then $y = \\dfrac{1}{\\mu}\\left(\\int \\mu Q\\,dx + C\\right)$.",
+      "examples": [
+        {
+          "item": "$y' + 2y = e^{x}$",
+          "says": "$\\mu = e^{2x}$; $(e^{2x} y)' = e^{3x}$"
+        },
+        {
+          "item": "$x y' + y = x^2$, divide by $x$",
+          "says": "$y' + \\frac{1}{x} y = x$, $\\mu = e^{\\ln x} = x$"
+        }
+      ],
+      "note": "Divide by the coefficient of $y'$ first; $P$ is read off only from the standard form."
+    }
   },
   {
     "label": "Worked linear solve",
-    "section": "Integrating Factor Method",
+    "section": "",
     "subgoals": [
-      "Read P = 2 for mu = e^{2x}",
-      "Multiply through to d(e^{2x} y)/dx = 6e^{3x}",
-      "Integrate to y = 2e^x + Ce^{-2x}"
-    ]
+      "Find mu",
+      "Integrate mu Q",
+      "Divide back by mu and keep C"
+    ],
+    "slice": {
+      "rule": "After multiplying by $\\mu$, integrate both sides, then divide by $\\mu$; the constant stays inside the bracket, so it gets divided by $\\mu$ too.",
+      "examples": [
+        {
+          "item": "$y' + 2y = e^{x}$",
+          "says": "$e^{2x} y = \\int e^{3x}\\,dx = \\tfrac13 e^{3x} + C$, so $y = \\tfrac13 e^{x} + C e^{-2x}$"
+        },
+        {
+          "item": "$y' - y = 1$",
+          "says": "$\\mu = e^{-x}$; $e^{-x} y = -e^{-x} + C$, so $y = -1 + C e^{x}$"
+        }
+      ]
+    }
   },
   {
     "label": "Initial value version",
-    "section": "Integrating Factor Method",
+    "section": "",
     "subgoals": [
-      "Solve generally with mu = e^{3x}",
-      "Apply y(0) = 1 to fix C",
-      "Check the solution satisfies the ODE"
-    ]
+      "Solve for the general solution",
+      "Substitute the initial condition",
+      "Solve for C"
+    ],
+    "slice": {
+      "rule": "An initial condition $y(x_0) = y_0$ fixes $C$: substitute after finding the general solution.",
+      "examples": [
+        {
+          "item": "$y' + 2y = e^{x}$, $y(0) = 1$",
+          "says": "$\\tfrac13 + C = 1$, so $C = \\tfrac23$ and $y = \\tfrac13 e^{x} + \\tfrac23 e^{-2x}$"
+        },
+        {
+          "item": "$y' - y = 1$, $y(0) = 0$",
+          "says": "$-1 + C = 0$, so $y = e^{x} - 1$"
+        }
+      ]
+    }
   }
 ]

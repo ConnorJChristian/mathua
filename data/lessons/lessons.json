@@ -1337,7 +1337,7 @@
   },
   {
     "concept_id": "ode.second_order.homogeneous",
-    "source": "teaching/ode.homogeneous.md"
+    "source": "teaching/ode.second_order_homogeneous.md"
   },
   {
     "concept_id": "ode.second_order.nonhomogeneous",

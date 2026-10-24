@@ -44,7 +44,9 @@ func Register(reg *generator.Registry) {
 type pointsLinesGen struct{}
 
 func (g *pointsLinesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	items := []string{"point", "line", "ray", "line segment"}
+	// Fork change: more of the vocabulary of points and lines, so the topic
+	// has more than four questions.
+	items := []string{"point", "line", "ray", "line segment", "plane", "angle", "parallel lines", "perpendicular lines", "midpoint", "intersecting lines", "collinear points", "vertex"}
 	// Predicates, not noun phrases, because the stem supplies the noun. The
 	// earlier stem was `What is: %s?` with `has two endpoints`, which asked
 	// "What is: has two endpoints?" — a sentence with its subject missing, on a
@@ -55,8 +57,16 @@ func (g *pointsLinesGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		"goes forever in two directions",
 		"has one endpoint and goes forever",
 		"has two endpoints",
+		"is a flat surface that extends forever in every direction",
+		"is formed by two rays that share an endpoint",
+		"lie in the same plane and never meet, however far they go",
+		"meet at a right angle",
+		"is the point of a segment that is the same distance from both endpoints",
+		"share exactly one point",
+		"all lie on one line",
+		"is the common endpoint of the two rays of an angle",
 	}
-	i := rand.Intn(4)
+	i := rand.Intn(len(items))
 	return generator.Problem{
 		Question:    fmt.Sprintf("Which geometric term describes something that %s?", descs[i]),
 		Answer:      items[i],

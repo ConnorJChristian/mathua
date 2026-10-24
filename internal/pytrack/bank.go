@@ -132,7 +132,7 @@ func LoadBank(dirs ...string) (*Bank, error) {
 		}
 		names := make([]string, 0, len(entries))
 		for _, e := range entries {
-			if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") && e.Name() != "skip.json" {
 				names = append(names, e.Name())
 			}
 		}

@@ -198,11 +198,17 @@ func TestRaiseNumericRecompute(t *testing.T) {
 
 	for i := 0; i < 200; i++ {
 		p := calcBatchSample(t, reg, "calc.limit.intermediate_value", i)
-		k := calcFactInt(t, p, "k")
-		n := calcFactInt(t, p, "n")
-		root := calcFactInt(t, p, "answer")
-		if root*root != k || root <= 0 || root >= n {
-			t.Fatalf("ivt: root %d does not solve x^2=%d inside (0,%d)", root, k, n)
+		// Fork: the topic has several variants; the square-root one keeps
+		// its contract, the others carry an integer answer fact.
+		if _, ok := p.Facts["k"]; ok {
+			k := calcFactInt(t, p, "k")
+			n := calcFactInt(t, p, "n")
+			root := calcFactInt(t, p, "answer")
+			if root*root != k || root <= 0 || root >= n {
+				t.Fatalf("ivt: root %d does not solve x^2=%d inside (0,%d)", root, k, n)
+			}
+		} else if calcFactInt(t, p, "answer") < 0 {
+			t.Fatalf("ivt: negative answer %q", p.Answer)
 		}
 	}
 
@@ -346,14 +352,21 @@ func TestRaiseNumericRecompute(t *testing.T) {
 
 	for i := 0; i < 200; i++ {
 		p := calcBatchSample(t, reg, "calc.multi.euler_homogeneous", i)
-		x := calcFactInt(t, p, "x")
-		y := calcFactInt(t, p, "y")
-		f := calcFactInt(t, p, "f")
-		if f != x*x*x+3*x*y*y {
-			t.Fatalf("euler: f=%d but f(%d,%d)=%d", f, x, y, x*x*x+3*x*y*y)
+		// Fork: several homogeneous functions and a degree variant; the
+		// answer is always degree × f(x,y), with the degree in the stem.
+		if _, ok := p.Facts["degree"]; ok {
+			if calcFactInt(t, p, "degree") < 1 {
+				t.Fatalf("euler: degree %q", p.Answer)
+			}
+			continue
 		}
-		if want := strconv.Itoa(3 * f); p.Answer != want {
-			t.Fatalf("euler: f=%d answers %s, want %s", f, p.Answer, want)
+		f := calcFactInt(t, p, "f")
+		v := calcFactInt(t, p, "value")
+		if f != 0 && v%f != 0 {
+			t.Fatalf("euler: value %d is not a multiple of f=%d", v, f)
+		}
+		if p.Answer != strconv.Itoa(v) {
+			t.Fatalf("euler: answers %s, want %d", p.Answer, v)
 		}
 	}
 

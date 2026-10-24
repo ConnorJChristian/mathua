@@ -1,29 +1,69 @@
 [
   {
     "label": "Differential error formula",
-    "section": "Error propagation with differentials",
+    "section": "",
     "subgoals": [
-      "State Dy approx f'(x) Dx",
-      "Read f'(x) as amplification",
-      "Check x^2 at 3 +- 0.1 gives 0.6"
-    ]
+      "Write dy = f'(x) dx",
+      "Treat dx as the measurement error",
+      "Read f'(x) as the amplification factor"
+    ],
+    "slice": {
+      "rule": "An error $\\Delta x$ in a measured input passes through $y = f(x)$ as $\\Delta y \\approx f'(x)\\,\\Delta x$: the differential $dy = f'(x)\\,dx$ evaluated at the error. The derivative is the amplification factor.",
+      "examples": [
+        {
+          "item": "$y = x^2$ at $x = 3 \\pm 0.1$",
+          "says": "$\\Delta y \\approx 2 \\cdot 3 \\cdot 0.1 = 0.6$, so $y = 9 \\pm 0.6$"
+        },
+        {
+          "item": "$y = 5x$ at any $x$, $\\Delta x = 0.2$",
+          "says": "$\\Delta y \\approx 5 \\cdot 0.2 = 1$"
+        }
+      ]
+    }
   },
   {
     "label": "Root-function errors",
-    "section": "Error propagation with differentials",
+    "section": "",
     "subgoals": [
-      "Differentiate sqrt(x)",
-      "Evaluate at x = 100 +- 1",
-      "Check the propagated error is 0.05"
-    ]
+      "Differentiate sqrt(x) to 1/(2 sqrt x)",
+      "Scale the input error",
+      "Note roots shrink errors"
+    ],
+    "slice": {
+      "rule": "For $y = \\sqrt{x}$, $f'(x) = \\dfrac{1}{2\\sqrt{x}}$ is small when $x$ is large, so a root function shrinks the input error.",
+      "examples": [
+        {
+          "item": "$y = \\sqrt{x}$ at $x = 100 \\pm 1$",
+          "says": "$\\Delta y \\approx \\frac{1}{20} \\cdot 1 = 0.05$, so $y = 10 \\pm 0.05$"
+        },
+        {
+          "item": "$y = \\sqrt[3]{x}$ at $x = 8 \\pm 0.3$",
+          "says": "$f'(8) = \\frac{1}{3 \\cdot 4} = \\frac{1}{12}$, so $\\Delta y \\approx 0.025$"
+        }
+      ]
+    }
   },
   {
     "label": "Reciprocal errors",
-    "section": "Error propagation with differentials",
+    "section": "",
     "subgoals": [
-      "Differentiate 1/x",
-      "Evaluate at x = 2 +- 0.1",
-      "Report magnitude 0.025"
-    ]
+      "Differentiate 1/x to -1/x^2",
+      "Take absolute value for the error size",
+      "Note small x magnifies errors"
+    ],
+    "slice": {
+      "rule": "For $y = 1/x$, $f'(x) = -1/x^2$; the size of the output error is $|\\Delta y| \\approx \\Delta x / x^2$, which blows up for small $x$. Relative errors are cleaner: $\\dfrac{\\Delta y}{y} \\approx \\dfrac{x f'(x)}{f(x)} \\cdot \\dfrac{\\Delta x}{x}$.",
+      "examples": [
+        {
+          "item": "$y = 1/x$ at $x = 2 \\pm 0.1$",
+          "says": "$|\\Delta y| \\approx 0.1/4 = 0.025$"
+        },
+        {
+          "item": "$y = 1/x$ at $x = 0.1 \\pm 0.01$",
+          "says": "$|\\Delta y| \\approx 0.01/0.01 = 1$, a 10% error in $x$ becomes 10% in $y$ but on a value of 10"
+        }
+      ],
+      "note": "The minus sign says the output moves the other way; the error size is the absolute value."
+    }
   }
 ]

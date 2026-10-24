@@ -1,29 +1,69 @@
 [
   {
     "label": "Work by a variable force",
-    "section": "Work by a variable force",
+    "section": "",
     "subgoals": [
-      "Write W as ∫F(x)dx",
-      "Integrate 2x over [0,3] to 9",
-      "Reduce to F·d for constant force"
-    ]
+      "Write W = integral of F(x) dx",
+      "Set limits from the displacement",
+      "Keep units consistent"
+    ],
+    "slice": {
+      "rule": "When a force varies with position along a line, the work it does moving an object from $x = a$ to $x = b$ is $W = \\int_a^b F(x)\\,dx$: force times a tiny displacement, summed.",
+      "examples": [
+        {
+          "item": "$F(x) = 3x$ from $0$ to $4$",
+          "says": "$W = \\int_0^4 3x\\,dx = 24$"
+        },
+        {
+          "item": "$F(x) = 10$ (constant) from $1$ to $6$",
+          "says": "$W = 10 \\cdot 5 = 50$, the familiar force × distance"
+        }
+      ]
+    }
   },
   {
     "label": "Power-law forces",
-    "section": "Work by a variable force",
+    "section": "",
     "subgoals": [
-      "Integrate x^2 over [1,2] to 7/3",
-      "Track units in joules",
-      "Check endpoints carefully"
-    ]
+      "Integrate F = k x^n",
+      "Handle inverse-square laws",
+      "Compute work to infinity when finite"
+    ],
+    "slice": {
+      "rule": "A force $F(x) = kx^n$ gives $W = k\\dfrac{b^{n+1} - a^{n+1}}{n+1}$ for $n \\neq -1$. Inverse-square forces ($n = -2$) do finite work even out to infinity, which is why escape velocity exists.",
+      "examples": [
+        {
+          "item": "$F(x) = 2x^2$ from $1$ to $3$",
+          "says": "$W = 2 \\cdot \\frac{27 - 1}{3} = \\frac{52}{3}$"
+        },
+        {
+          "item": "$F(x) = \\dfrac{k}{x^2}$ from $R$ to $\\infty$",
+          "says": "$W = \\int_R^\\infty k x^{-2}\\,dx = \\dfrac{k}{R}$"
+        }
+      ]
+    }
   },
   {
     "label": "Spring work",
-    "section": "Work by a variable force",
+    "section": "",
     "subgoals": [
-      "Apply Hooke's law F = kx",
-      "Integrate 4x over [0,2] to 8",
-      "Confirm W = kL^2/2 pattern"
-    ]
+      "Use Hooke's law F = kx",
+      "Find k from a given stretch",
+      "Integrate from one stretch to another"
+    ],
+    "slice": {
+      "rule": "Hooke's law gives $F(x) = kx$ for a spring stretched $x$ past its natural length, so the work to stretch it from $a$ to $b$ is $W = \\tfrac{1}{2}k(b^2 - a^2)$. Find $k$ first from any force–stretch pair you are given.",
+      "examples": [
+        {
+          "item": "A 10 N force holds a spring 0.2 m stretched; work from 0 to 0.5 m",
+          "says": "$k = 50$, so $W = \\tfrac12 \\cdot 50 \\cdot 0.25 = 6.25$ J"
+        },
+        {
+          "item": "Same spring, from 0.2 m to 0.4 m",
+          "says": "$W = 25(0.16 - 0.04) = 3$ J"
+        }
+      ],
+      "note": "Measure $x$ from the natural length, not from the current stretched position."
+    }
   }
 ]

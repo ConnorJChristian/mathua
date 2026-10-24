@@ -26,6 +26,7 @@ package calculus
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -144,17 +145,85 @@ func calcPickMC(claims []calcMCClaim) generator.Problem {
 
 type ivtValueGen struct{}
 
+// Fork change: the theorem is about locating a root from signs, so the
+// questions ask where a sign change puts a root (a cubic, an equation with
+// e^x or cos x), or how many roots a table of signs guarantees; the "find
+// the square root" form stays as one variant.
 func (g *ivtValueGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	root := 2 + rand.Intn(6) // 2..7
-	k := root * root
-	n := root + 1 + rand.Intn(2)
-	answer := strconv.Itoa(root)
-	return generator.Problem{
-		Question: fmt.Sprintf("The function \\(f(x) = x^{2} - %d\\) is continuous, and \\(f(0) < 0 < f(%d)\\). By the intermediate value theorem it has a root between 0 and %d. What is that root? (enter a number)", k, n, n),
-		Answer:   answer,
-		Explanation: fmt.Sprintf("The root solves \\(x^{2} = %d\\), so \\(x = %d\\); it lies between 0 and %d, so the intermediate value theorem picks it out.",
-			k, root, n),
-		Facts: map[string]string{"k": strconv.Itoa(k), "n": strconv.Itoa(n), "answer": answer},
+	switch rand.Intn(4) {
+	case 0:
+		root := 2 + rand.Intn(6) // 2..7
+		k := root * root
+		n := root + 1 + rand.Intn(2)
+		answer := strconv.Itoa(root)
+		return generator.Problem{
+			Question: fmt.Sprintf("The function \\(f(x) = x^{2} - %d\\) is continuous, and \\(f(0) < 0 < f(%d)\\). By the intermediate value theorem it has a root between 0 and %d. What is that root? (enter a number)", k, n, n),
+			Answer:   answer,
+			Explanation: fmt.Sprintf("The root solves \\(x^{2} = %d\\), so \\(x = %d\\); it lies between 0 and %d, so the intermediate value theorem picks it out.",
+				k, root, n),
+			Facts: map[string]string{"k": strconv.Itoa(k), "n": strconv.Itoa(n), "answer": answer},
+		}
+	case 1:
+		// f(x) = x^3 - m x - k: find the unit interval [n, n+1] with f(n) < 0 < f(n+1).
+		for tries := 0; tries < 20; tries++ {
+			m := 1 + rand.Intn(4)
+			k := 1 + rand.Intn(9)
+			f := func(x int) int { return x*x*x - m*x - k }
+			for n := 0; n <= 4; n++ {
+				if f(n) < 0 && f(n+1) > 0 {
+					return generator.Problem{
+						Question: fmt.Sprintf("\\(f(x) = x^{3} - %dx - %d\\) is continuous. Its values at the integers are \\(f(0)=%d, f(1)=%d, f(2)=%d, f(3)=%d, f(4)=%d, f(5)=%d\\). The intermediate value theorem guarantees a root in one interval \\([n, n+1]\\) between consecutive integers. Enter \\(n\\).",
+							m, k, f(0), f(1), f(2), f(3), f(4), f(5)),
+						Answer:      strconv.Itoa(n),
+						Explanation: fmt.Sprintf("\\(f(%d) = %d < 0\\) and \\(f(%d) = %d > 0\\); a continuous function that changes sign on \\([%d, %d]\\) is zero somewhere inside, so \\(n = %d\\).", n, f(n), n+1, f(n+1), n, n+1, n),
+						Facts:       map[string]string{"n": strconv.Itoa(n), "answer": strconv.Itoa(n)},
+					}
+				}
+			}
+		}
+		fallthrough
+	case 2:
+		// How many roots does a table of signs guarantee?
+		signs := make([]int, 6)
+		changes := 0
+		for {
+			changes = 0
+			for i := range signs {
+				signs[i] = 2*rand.Intn(2) - 1
+			}
+			for i := 1; i < len(signs); i++ {
+				if signs[i] != signs[i-1] {
+					changes++
+				}
+			}
+			if changes >= 1 {
+				break
+			}
+		}
+		parts := make([]string, len(signs))
+		for i, s := range signs {
+			parts[i] = fmt.Sprintf("f(%d) %s 0", i, map[int]string{1: ">", -1: "<"}[s])
+		}
+		return generator.Problem{
+			Question:    fmt.Sprintf("A continuous function \\(f\\) on \\([0, 5]\\) satisfies \\(%s\\). How many roots does the intermediate value theorem guarantee on \\([0, 5]\\) at least? (enter a number)", strings.Join(parts, ",\\ ")),
+			Answer:      strconv.Itoa(changes),
+			Explanation: fmt.Sprintf("Every sign change between consecutive integers forces a root in that unit interval, and the intervals are disjoint. There are %d sign changes, so at least %d roots.", changes, changes),
+			Facts:       map[string]string{"changes": strconv.Itoa(changes), "answer": strconv.Itoa(changes)},
+		}
+	default:
+		// e^x = c - x: the unique root sits in [n, n+1] where g(x) = e^x + x - c changes sign.
+		c := 3 + rand.Intn(20)
+		g := func(x float64) float64 { return math.Exp(x) + x - float64(c) }
+		n := 0
+		for g(float64(n+1)) < 0 {
+			n++
+		}
+		return generator.Problem{
+			Question:    fmt.Sprintf("The equation \\(e^{x} = %d - x\\) has exactly one real solution. Using \\(g(x) = e^{x} + x - %d\\) and the intermediate value theorem, between which consecutive integers \\(n\\) and \\(n+1\\) does it lie? Enter \\(n\\).", c, c),
+			Answer:      strconv.Itoa(n),
+			Explanation: fmt.Sprintf("\\(g(%d) \\approx %.2f < 0\\) and \\(g(%d) \\approx %.2f > 0\\); \\(g\\) is continuous and increasing, so its only zero is in \\([%d, %d]\\).", n, g(float64(n)), n+1, g(float64(n+1)), n, n+1),
+			Facts:       map[string]string{"n": strconv.Itoa(n), "answer": strconv.Itoa(n)},
+		}
 	}
 }
 
@@ -733,17 +802,43 @@ func (g *iteratedLimitsGen) Generate(ctx generator.GeneratorContext) generator.P
 
 type eulerHomogeneousGen struct{}
 
+// Fork change: several homogeneous functions, and two kinds of question:
+// the value of x f_x + y f_y from the degree, or the degree itself.
 func (g *eulerHomogeneousGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	type fn struct {
+		tex    string
+		degree int
+		eval   func(x, y int) int
+	}
+	fns := []fn{
+		{"x^{3} + 3xy^{2}", 3, func(x, y int) int { return x*x*x + 3*x*y*y }},
+		{"x^{2}y", 3, func(x, y int) int { return x * x * y }},
+		{"x^{2} + xy + y^{2}", 2, func(x, y int) int { return x*x + x*y + y*y }},
+		{"xy", 2, func(x, y int) int { return x * y }},
+		{"x^{4} - y^{4}", 4, func(x, y int) int { return x*x*x*x - y*y*y*y }},
+		{"2x + 5y", 1, func(x, y int) int { return 2*x + 5*y }},
+		{"x^{2}y^{2}", 4, func(x, y int) int { return x * x * y * y }},
+		{"x^{3} - xy^{2}", 3, func(x, y int) int { return x*x*x - x*y*y }},
+	}
+	f := fns[rand.Intn(len(fns))]
 	x := 1 + rand.Intn(3)
 	y := 1 + rand.Intn(3)
-	f := x*x*x + 3*x*y*y
-	value := 3 * f
+	if rand.Intn(3) == 0 {
+		return generator.Problem{
+			Question:    fmt.Sprintf("\\(f(x,y) = %s\\) is homogeneous. Of what degree? (Euler: \\(x f_x + y f_y = k f\\); enter \\(k\\))", f.tex),
+			Answer:      strconv.Itoa(f.degree),
+			Explanation: fmt.Sprintf("Every term of \\(%s\\) has total degree %d, so \\(f(tx, ty) = t^{%d} f(x, y)\\) and \\(k = %d\\).", f.tex, f.degree, f.degree, f.degree),
+			Facts:       map[string]string{"degree": strconv.Itoa(f.degree), "value": strconv.Itoa(f.degree)},
+		}
+	}
+	v := f.eval(x, y)
+	value := f.degree * v
 	answer := strconv.Itoa(value)
 	return generator.Problem{
-		Question:    fmt.Sprintf("The function \\(f(x,y) = x^{3} + 3xy^{2}\\) is homogeneous of degree 3, so Euler's theorem gives \\(x f_x + y f_y = 3f\\). What is \\(x f_x + y f_y\\) at \\((x,y) = (%d,%d)\\)? (enter a number)", x, y),
+		Question:    fmt.Sprintf("The function \\(f(x,y) = %s\\) is homogeneous of degree %d, so Euler's theorem gives \\(x f_x + y f_y = %d f\\). What is \\(x f_x + y f_y\\) at \\((x,y) = (%d,%d)\\)? (enter a number)", f.tex, f.degree, f.degree, x, y),
 		Answer:      answer,
-		Explanation: fmt.Sprintf("\\(f(%d,%d) = %d\\) and the sum is three times it, %d.", x, y, f, value),
-		Facts:       map[string]string{"x": strconv.Itoa(x), "y": strconv.Itoa(y), "f": strconv.Itoa(f), "value": answer},
+		Explanation: fmt.Sprintf("\\(f(%d,%d) = %d\\) and the sum is %d times it, %d.", x, y, v, f.degree, value),
+		Facts:       map[string]string{"x": strconv.Itoa(x), "y": strconv.Itoa(y), "f": strconv.Itoa(v), "value": answer},
 	}
 }
 
