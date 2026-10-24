@@ -44,7 +44,9 @@ function CourseCard({ course, view, accent, onUnfollow }: { course: CourseStatus
                 Due {formatDue(view.due)}{view.days_left !== undefined ? ` · ${view.days_left < 0 ? 'past due' : `${view.days_left} days left`}` : ''}
               </p>
             )}
-            {view.next_topic && (
+            {view.needs_placement ? (
+              <p className="font-mono text-[11px] text-mathua-muted">Next: place yourself (a short test)</p>
+            ) : view.next_topic && (
               <p className="font-mono text-[11px] text-mathua-muted truncate" title={view.next_topic.label}>Next: {view.next_topic.label}</p>
             )}
           </>
@@ -52,7 +54,11 @@ function CourseCard({ course, view, accent, onUnfollow }: { course: CourseStatus
           <p className="font-mono text-[11px] text-mathua-muted">{course.plan?.length ?? course.targets.length} topics</p>
         )}
         <div className="mt-auto pt-2 flex items-center gap-2 flex-wrap">
-          {view?.next_topic && (
+          {view?.needs_placement ? (
+            <Link href={`/onboard?course=${encodeURIComponent(course.id)}`} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-3 min-h-[32px] inline-flex items-center font-mono text-[11px]">
+              Place me →
+            </Link>
+          ) : view?.next_topic && (
             <Link href={`/learn?concept=${encodeURIComponent(view.next_topic.id)}&course=${encodeURIComponent(course.id)}`} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-3 min-h-[32px] inline-flex items-center font-mono text-[11px]">
               Continue →
             </Link>

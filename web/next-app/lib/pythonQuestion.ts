@@ -151,6 +151,13 @@ export const isPythonGrading = (gradingType?: string | null) => gradingType === 
  */
 export const CARD_MARKER = '<!--card-->'
 export const isCardQuestion = (question?: string | null) => !!question && question.startsWith(CARD_MARKER)
+/** A bank answer carries its kind as a prefix (grader.IsBankAnswer), so a
+ * served question can be recognised as bank-served even when the concept is
+ * missing from the bundled concept list (a module the bundle was built
+ * without), fork change. */
+export const isBankAnswer = (answer?: string | null) =>
+  !!answer && /^(mc|out|code|recall|math):/.test(answer)
+
 /** Whether a served question takes the question-bank inputs. */
-export const isBankServed = (gradingType?: string | null, question?: string | null) =>
-  isPythonGrading(gradingType) || isCardQuestion(question)
+export const isBankServed = (gradingType?: string | null, question?: string | null, answer?: string | null) =>
+  isPythonGrading(gradingType) || isCardQuestion(question) || isBankAnswer(answer)

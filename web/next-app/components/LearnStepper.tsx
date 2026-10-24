@@ -20,7 +20,7 @@ import { countsAsMastered } from '../lib/progress'
 import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
 import PythonAnswer from './python/PythonAnswer'
-import { displayAnswer, displayQuestion, isCardQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind, typedEcho } from '../lib/pythonQuestion'
+import { displayAnswer, displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind, typedEcho } from '../lib/pythonQuestion'
 
 // Append-only learning feed: intro once, then each submit locks its card and
 // the next question opens below. Scrollback IS the performance history —
@@ -746,7 +746,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           }
           const qe = e as QEntry
           const locked = qe.feedback !== null
-          const qPy = isPy || isCardQuestion(qe.q.question)
+          const qPy = isBankServed(isPy ? 'bank' : null, qe.q.question, qe.q.answer)
           const pyKind = qPy ? pythonKind(qe.q.question) : null
           const shownAnswer = qPy ? displayAnswer(qe.q.answer) : qe.q.answer
           return (

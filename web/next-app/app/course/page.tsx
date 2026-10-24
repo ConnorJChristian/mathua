@@ -373,7 +373,7 @@ function CourseContent() {
                       return (
                         <li key={i} className="px-3 py-1.5 font-mono text-[11px] flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
                           <a href={noteHref(n)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 basis-48 text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{n.seq ? `${n.seq}. ` : ''}{n.title} ↗</a>
-                          {topic ? <Link href={`/learn?concept=${encodeURIComponent(n.topic!)}&course=${encodeURIComponent(view.id)}`} className="text-mathua-muted hover:text-mathua-blue truncate max-w-[50%]" title={topic}>{topic}</Link> : <span className="text-mathua-muted">course-level</span>}
+                          {topic ? <Link href={`/learn?concept=${encodeURIComponent(n.topic!)}&course=${encodeURIComponent(view.id)}`} className="text-mathua-muted hover:text-mathua-blue truncate max-w-[50%]" title={topic}>{topic}</Link> : <span className="text-mathua-muted">whole course</span>}
                         </li>
                       )
                     })}

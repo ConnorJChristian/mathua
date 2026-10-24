@@ -175,7 +175,7 @@ export default function TodayPage() {
                   <Link href={`/course?id=${encodeURIComponent(v.id)}`} className="font-mono text-xs text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{v.name.replace(/: study plan$/, '')}</Link>
                   <div className="mt-1.5 h-1 bg-mathua-code overflow-hidden"><div className="h-full bg-mathua-blue" style={{ width: `${v.total ? Math.round((v.mastered / v.total) * 100) : 0}%` }} /></div>
                   <p className="font-mono text-[10px] text-mathua-muted mt-1">
-                    {v.mastered}/{v.total} mastered{v.reviews_due ? ` · ${v.reviews_due} due` : ''}{v.next_topic ? ` · next: ${v.next_topic.label}` : ''}
+                    {v.mastered}/{v.total} mastered{v.reviews_due ? ` · ${v.reviews_due} due` : ''}{v.needs_placement ? ' · place yourself first' : v.next_topic ? ` · next: ${v.next_topic.label}` : ''}
                   </p>
                   {v.due && (
                     <p className={`font-mono text-[10px] mt-0.5 ${v.days_left !== undefined && v.days_left < 14 ? 'text-amber-600 dark:text-amber-400' : 'text-mathua-muted'}`}>

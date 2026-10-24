@@ -73,7 +73,7 @@ function LearnEntry() {
     <div className="mt-6 mb-16 px-4">
       <div className="max-w-2xl mx-auto">
         <NextUpCard shelf={shelf} />
-        <Link href="/profile" className="mt-4 inline-block font-mono text-xs text-mathua-secondary hover:text-mathua-blue">← Profile</Link>
+        <Link href="/today" className="mt-4 inline-block font-mono text-xs text-mathua-secondary hover:text-mathua-blue">← Study</Link>
       </div>
     </div>
   )
@@ -83,6 +83,10 @@ function LearnContent() {
   const searchParams = useSearchParams()
   const concept = searchParams.get('concept') || ''
   const returnStack = parseReturnStack(searchParams)
+  // Fork change: a topic opened from a course goes back to that course.
+  const course = searchParams.get('course') || ''
+  const backHref = course ? `/course?id=${encodeURIComponent(course.split(',')[0])}&tab=modules` : '/today'
+  const backLabel = course ? '← Back to the course' : '← Study'
 
   if (!concept) {
     return <LearnEntry />
@@ -91,7 +95,7 @@ function LearnContent() {
   return (
     <div className="mt-6 mb-16 px-4">
       <div className="max-w-2xl mx-auto mb-4">
-        <Link href="/profile" className="font-mono text-xs text-mathua-secondary hover:text-mathua-blue">← Profile</Link>
+        <Link href={backHref} className="font-mono text-xs text-mathua-secondary hover:text-mathua-blue">{backLabel}</Link>
       </div>
       <LearnStepper conceptId={concept} returnStack={returnStack} />
       <div className="max-w-2xl mx-auto">

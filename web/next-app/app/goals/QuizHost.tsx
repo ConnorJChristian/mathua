@@ -340,7 +340,7 @@ export default function QuizHost() {
           <span className={quizAccuracy.correct / Math.max(quizAccuracy.total, 1) >= 0.7 ? 'text-mathua-green' : ''}>{quizAccuracy.correct}/{quizAccuracy.total} correct</span>
           {quizLastResult?.xp ? <span className="text-yellow-400">+{quizLastResult.xp} XP (TaskQuiz 20)</span> : null}
           {quizClosedBook ? <span className="text-mathua-muted">Closed book</span> : null}
-          {quizCourses.length > 0 ? <span className="text-mathua-muted break-words [overflow-wrap:anywhere]">Covers: {quizCourses.join(' · ')}</span> : null}
+          {quizCourses.length > 0 ? <span className="text-mathua-muted break-words [overflow-wrap:anywhere]">Covers: {quizCourses.map((c) => c.replace(/: study plan$/, '')).join(' · ')}</span> : null}
         </div>
         <div className={`bg-mathua-surface border rounded-none p-4 sm:p-6 mb-6 transition-colors w-full max-w-full min-w-0 overflow-hidden ${quizLastResult ? (quizLastResult.correct ? 'border-mathua-green-faint' : 'border-mathua-red-faint') : 'border-mathua-border'}`}>
           {isPy ? (
