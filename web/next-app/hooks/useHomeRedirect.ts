@@ -11,18 +11,18 @@ import { useAuthState } from './useAuthState'
 // /docs, /how-it-works, and /note, which never bounce.
 // Returns true once the decision has been made (safe to render).
 export function useHomeRedirect(mounted: boolean): boolean {
-  const { loggedIn } = useAuthState()
+  const { loggedIn, ready } = useAuthState()
   const { replace } = useRouter()
   const [checked, setChecked] = useState(false)
 
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted || !ready) return
     if (loggedIn) {
       replace('/today')
       return
     }
     setChecked(true)
-  }, [mounted, loggedIn, replace])
+  }, [mounted, ready, loggedIn, replace])
 
   return checked
 }

@@ -66,7 +66,7 @@ describe('AssistantDock', () => {
 		expect(trigger).toBeInTheDocument()
 		expect(await screen.findByText(/assistant is unavailable right now/i)).toBeInTheDocument()
 		// The panel still routes a visitor somewhere useful, without a provider.
-		expect(screen.getByRole('link', { name: 'Start learning' })).toHaveAttribute('href', '/learn')
+		expect(screen.getByRole('link', { name: 'Study' })).toHaveAttribute('href', '/today')
 		// And it does not offer an input that cannot answer.
 		expect(screen.queryByLabelText('Your question')).toBeNull()
 	})

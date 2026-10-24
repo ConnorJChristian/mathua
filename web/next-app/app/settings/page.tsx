@@ -9,7 +9,6 @@ import SectionHeader from '../../components/SectionHeader'
 import DangerZone from '../../components/DangerZone'
 import DeleteAccount from '../../components/DeleteAccount'
 import DailyGoalControl from '../../components/DailyGoalControl'
-import PlanEditor from '../../components/PlanEditor'
 import { Input } from '@/components/ui/input'
 import Footer from '../../components/Footer'
 import { getSettings, getScores, updateSettings, updateProfileName, changePassword, uploadAvatar, deleteAvatar, avatarImageUrl, getIdentities, deleteIdentity, createLinkToken, requestEmailVerification, startOAuthLogin, getConfig, OAUTH_LABELS, type OAuthProvider, enableShare, disableShare, type UserSettings } from '../../lib/api'
@@ -404,20 +403,10 @@ export default function SettingsPage() {
               <div className="border-t border-mathua-border pt-6 min-w-0">
                 <span className="font-mono text-sm text-mathua-primary">Daily XP target</span>
                 <p className="text-mathua-muted text-xs mt-1">
-                  How much you aim to earn each day. See finish-date estimates in <Link href="/plan" className="text-mathua-blue hover:text-mathua-blue-hover">Plan</Link>.
+                  How much you aim to earn each day. Pacing toward each course&apos;s due date is on <Link href="/courses" className="text-mathua-blue hover:text-mathua-blue-hover">Courses</Link>.
                 </p>
                 <div className="mt-3">
                   <DailyGoalControl current={dailyGoal} onSaved={setDailyGoal} bare />
-                </div>
-              </div>
-
-              <div className="border-t border-mathua-border pt-6 min-w-0">
-                <span className="font-mono text-sm text-mathua-primary">Learning plan</span>
-                <p className="text-mathua-muted text-xs mt-1">
-                  Destination, pace, and rest days. Full workload estimates live in <Link href="/plan" className="text-mathua-blue hover:text-mathua-blue-hover">Plan</Link>.
-                </p>
-                <div className="mt-2">
-                  <PlanEditor compact />
                 </div>
               </div>
 

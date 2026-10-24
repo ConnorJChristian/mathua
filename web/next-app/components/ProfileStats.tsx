@@ -96,9 +96,7 @@ export default function ProfileStats({ name, scores, avatarSeed, avatarUrl, avat
           )}
 
           <div className="min-w-0">
-            <a href="/leaderboard" className="font-mono text-[11px] text-mathua-muted hover:text-mathua-blue no-underline inline-flex items-center min-h-[20px]">
-              WEEKLY →
-            </a>
+            <div className="font-mono text-[11px] text-mathua-muted">WEEKLY</div>
             <div className="font-mono text-[16px] text-mathua-primary">
               {scores.weekly_score.toLocaleString()}
             </div>

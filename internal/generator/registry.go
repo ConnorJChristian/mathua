@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/chuma-beep/mathua/internal/latex"
@@ -160,6 +161,18 @@ func (r *Registry) finish(conceptID string, gen Generator, p *Problem, ctx Gener
 	}
 	p.Question = latex.Canonicalize(p.Question, latex.Generators)
 	p.Explanation = r.explain(conceptID, *p)
+	if !keepsSignedOperands(conceptID) {
+		q := Tidy(p.Question)
+		// An answer printed among the options in the question is tidied with
+		// it, so the option the learner picks is the answer stored. Only when
+		// the tidy option is really there: otherwise the answer stays as the
+		// generator wrote it and its grader decides.
+		if a := Tidy(p.Answer); a != p.Answer && strings.Contains(p.Question, p.Answer) && strings.Contains(q, a) {
+			p.Answer = a
+		}
+		p.Question = q
+		p.Explanation = Tidy(p.Explanation)
+	}
 	for _, w := range latex.Validate(p.Question+"\n"+p.Explanation, latex.Generators) {
 		fmt.Printf("latex warning in generator %q%s: %s\n", conceptID, where, w)
 	}

@@ -835,10 +835,14 @@ func (g *sturmLiouvilleGen) Generate(ctx generator.GeneratorContext) generator.P
 			e: fmt.Sprintf("Eigenfunctions sin(nx) give λ_%d = %d^2 = %d.", n, n, n*n),
 		})
 	} else {
+		mode := fmt.Sprintf("sin(%dx)", n)
+		if n == 1 {
+			mode = "sin(x)"
+		}
 		easy = append(easy, entry{
 			q: fmt.Sprintf("For y'' + λy = 0 with y(0) = y(π) = 0 and λ_%d = %d, what is the eigenfunction? (type like sin(2x))", n, n*n),
-			a: fmt.Sprintf("sin(%dx)", n),
-			e: fmt.Sprintf("The mode with λ_%d = %d is sin(%dx).", n, n*n, n),
+			a: mode,
+			e: fmt.Sprintf("The mode with λ_%d = %d is %s.", n, n*n, mode),
 		})
 	}
 	hard := []entry{{"Does SL on [a,b] with separated BC have discrete spectrum? (yes/no)", "yes", "Eigenvalues infinite discrete."}, {"Is Sturm-Liouville operator self-adjoint? (yes/no)", "yes", "SL is self-adjoint under weight."}, {"Does completeness of eigenfunctions hold? (yes/no)", "yes", "Expand in eigenfunctions."}}

@@ -65,9 +65,8 @@ const SUGGESTIONS = ['What is Mathua?', 'Where should I start?']
 // routes the app owns regardless of AI, so the dock is useful in a deployment
 // with no provider — which is every fresh checkout until a key is set.
 const AREAS = [
-	{ label: 'Start learning', href: '/learn' },
-	{ label: 'Take the diagnostic', href: '/diagnose' },
-	{ label: 'Plan a goal', href: '/plan' },
+	{ label: 'Study', href: '/today' },
+	{ label: 'Your courses', href: '/courses' },
 	{ label: 'Concept graph', href: '/graph' },
 	{ label: 'Glossary', href: '/glossary' },
 ]

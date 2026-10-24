@@ -202,7 +202,7 @@ export default function Footer({ className = '' }: FooterProps) {
               </div>
             </div>
             <p className="mt-3 text-sm leading-relaxed text-[var(--footer-ink-muted)]">
-              Open-source adaptive math learning engine.
+              Adaptive study across your own courses. A personal fork of Mathua.
             </p>
           </div>
 
@@ -213,7 +213,6 @@ export default function Footer({ className = '' }: FooterProps) {
                 <li><Link href="/topics" className={linkClass}>Topics</Link></li>
                 <li><Link href="/library" className={linkClass}>Library</Link></li>
                 <li><Link href="/domains" className={linkClass}>Domains</Link></li>
-                <li><Link href="/leaderboard" className={linkClass}>Leaderboard</Link></li>
                 <li><Link href="/graph" className={linkClass}>Concept graph</Link></li>
               </ul>
             </nav>
@@ -225,15 +224,14 @@ export default function Footer({ className = '' }: FooterProps) {
                 <li><Link href="/docs" className={linkClass}>Docs</Link></li>
                 <li><Link href="/docs/contributing" className={linkClass}>Contributing</Link></li>
                 <li><Link href="/note" className={linkClass}>Creator&apos;s Note</Link></li>
-                <li><Link href="/contact" className={linkClass}>Contact admins</Link></li>
                 <li>
                   <a
-                    href="https://discord.gg/qXPeQ2jys"
+                    href="https://github.com/ConnorJChristian/mathua"
                     target="_blank"
                     rel="noreferrer"
                     className={linkClass}
                   >
-                    Discord
+                    GitHub
                   </a>
                 </li>
                 <li>
@@ -243,7 +241,7 @@ export default function Footer({ className = '' }: FooterProps) {
                     rel="noreferrer"
                     className={linkClass}
                   >
-                    GitHub
+                    Upstream Mathua
                   </a>
                 </li>
               </ul>

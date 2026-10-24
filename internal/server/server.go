@@ -2082,6 +2082,11 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 	// answering.
 	if len(fresh) == 0 && len(problems) > 0 {
 		fresh = problems
+		// Still only what was asked for: the batch is count+excluded+5 long,
+		// so a small pool came back as 5–7 repeats for count=3 (Q13).
+		if len(fresh) > count {
+			fresh = fresh[:count]
+		}
 	}
 	problems = fresh
 	if len(problems) == 0 {

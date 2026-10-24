@@ -302,6 +302,8 @@ export async function getGraph(): Promise<GraphRes> {
 
 export interface DomainSummary {
   id: string
+  /** A module's own label for the domain, when it declares one. */
+  label?: string
   conceptCount: number
   masteredCount: number
   unlockedCount: number

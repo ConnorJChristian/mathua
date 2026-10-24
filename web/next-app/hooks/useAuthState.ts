@@ -3,14 +3,23 @@
 import { useState, useEffect } from 'react'
 import { isLoggedIn, getUserInfo, fetchMe, type UserInfo } from '../lib/auth'
 
+// The first render is always logged-out, and the stored session is read after
+// mount. The pages are a static export, so the HTML every visitor receives was
+// rendered with no session; reading localStorage during the first client render
+// produced a different header and React threw away the server markup (errors
+// #418/#423 on every page, and a flash of the logged-out header besides).
+// `ready` says the stored session has been read, for callers that must not act
+// on the logged-out first render (redirects).
 export function useAuthState() {
-  const [loggedIn, setLoggedIn] = useState(() => typeof window !== 'undefined' && isLoggedIn())
-  const [user, setUser] = useState<UserInfo | null>(() => (typeof window !== 'undefined' ? getUserInfo() : null))
+  const [loggedIn, setLoggedIn] = useState(false)
+  const [user, setUser] = useState<UserInfo | null>(null)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     const sync = () => {
       setLoggedIn(isLoggedIn())
       setUser(getUserInfo())
+      setReady(true)
     }
     sync()
     window.addEventListener('auth-changed', sync)
@@ -43,5 +52,5 @@ export function useAuthState() {
     return () => { cancelled = true }
   }, [])
 
-  return { loggedIn, user }
+  return { loggedIn, user, ready }
 }

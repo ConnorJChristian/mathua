@@ -1945,6 +1945,10 @@ func TestPracticeNeverReturnsEmptyOnceEveryVariantHasBeenSeen(t *testing.T) {
 		t.Fatal("practice returned no questions after every variant was excluded — the Learn " +
 			"feed treats an empty list as success and stops appending, stranding the learner")
 	}
+	// Repeats, but only as many as were asked for (Q13: count=3 returned 7).
+	if len(set.Questions) > 3 {
+		t.Errorf("count=3 with every variant excluded returned %d questions", len(set.Questions))
+	}
 	// And they must still be answerable: a repeat with no anchor is a 409 waiting to happen.
 	for _, q := range set.Questions {
 		if q.Answer == "" {

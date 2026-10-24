@@ -142,9 +142,9 @@ describe('Header mobile nav menu', () => {
     const labels = items.map(i => i.textContent)
     // Whatever is left after the tab bar is subtracted out. Topics is not here: it holds the
     // tab the closed Study route occupied (a fork change), and Domains moved to the overflow.
-    expect(labels).toEqual(['Topics', 'Graph', 'Domains', 'Leaderboard', 'Glossary', 'Contact', 'Login', 'Discord'])
+    expect(labels).toEqual(['Topics', 'Graph', 'Domains', 'Glossary', 'Login'])
     const hrefs = items.map(i => (i as HTMLAnchorElement).getAttribute('href'))
-    expect(hrefs).toEqual(['/topics', '/graph', '/domains', '/leaderboard', '/glossary', '/contact', '/login', 'https://discord.gg/qXPeQ2jys'])
+    expect(hrefs).toEqual(['/topics', '/graph', '/domains', '/glossary', '/login'])
     // The invariant behind the exact list: nothing appears twice on one screen.
     for (const href of hrefs) {
       expect(hrefs.filter(h => h === href)).toHaveLength(1)
@@ -168,7 +168,7 @@ describe('Header mobile nav menu', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }))
     const menu = screen.getByRole('menu', { name: 'Site navigation' })
     const labels = within(menu).getAllByRole('menuitem').map(i => i.textContent)
-    expect(labels).toEqual(['Graph', 'Docs', 'Architecture', 'Contributing', 'Note', 'Discord'])
+    expect(labels).toEqual(['Graph', 'Docs', 'Architecture', 'Contributing', 'Note'])
   })
 
   it('marks the current page with aria-current', () => {
@@ -191,7 +191,7 @@ describe('Header mobile nav menu', () => {
   it('closes on Escape', () => {
     render(<Header />)
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }))
-    expect(screen.getAllByRole('menuitem')).toHaveLength(8)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(5)
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryAllByRole('menuitem')).toHaveLength(0)
   })
@@ -200,17 +200,17 @@ describe('Header mobile nav menu', () => {
     render(<Header />)
     const button = screen.getByRole('button', { name: 'Open navigation menu' })
     fireEvent.click(button)
-    expect(screen.getAllByRole('menuitem')).toHaveLength(8)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(5)
     fireEvent.click(button)
     expect(screen.queryAllByRole('menuitem')).toHaveLength(0)
     fireEvent.click(button)
-    expect(screen.getAllByRole('menuitem')).toHaveLength(8)
+    expect(screen.getAllByRole('menuitem')).toHaveLength(5)
   })
 
   it('closes when a link is clicked', () => {
     render(<Header />)
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation menu' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Leaderboard' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Glossary' }))
     expect(screen.queryAllByRole('menuitem')).toHaveLength(0)
   })
 
@@ -385,12 +385,12 @@ describe('Header compass menu and the Admin entry', () => {
     render(<Header />)
     openCompass()
 
-    const leaderboard = screen.getByRole('menuitem', { name: 'Leaderboard' })
+    const leaderboard = screen.getByRole('menuitem', { name: 'Glossary' })
     fireEvent.mouseDown(leaderboard)
     expect(screen.queryByRole('menu', { name: 'Site navigation' })).not.toBeNull()
     // Still the same element, still attached, still pointing where it did.
     expect(document.body.contains(leaderboard)).toBe(true)
-    expect(leaderboard.getAttribute('href')).toBe('/leaderboard')
+    expect(leaderboard.getAttribute('href')).toBe('/glossary')
   })
 })
 

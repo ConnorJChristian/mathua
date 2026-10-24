@@ -13,7 +13,11 @@ import (
 // is derived from the DAG and the learner's snapshots through the scheduler's
 // eligibility rule, so the browser never reconstructs a state from raw progress.
 type DomainSummary struct {
-	ID              string `json:"id"`
+	ID string `json:"id"`
+	// Label is a module's own name for its domain, when it declares one. The
+	// page's static label table only knows the modules present when the
+	// frontend was built, so a local module's domains showed as raw ids.
+	Label           string `json:"label,omitempty"`
 	ConceptCount    int    `json:"conceptCount"`
 	MasteredCount   int    `json:"masteredCount"`
 	UnlockedCount   int    `json:"unlockedCount"`
@@ -49,8 +53,12 @@ func (e *Engine) CurriculumDomainsTrack(studentID, track string) ([]DomainSummar
 	dag := e.TrackDAG(track)
 	now := time.Now()
 	byID := make(map[string]*DomainSummary, len(dag.Domains()))
+	mods := e.Modules()
 	for _, id := range dag.Domains() {
 		byID[id] = &DomainSummary{ID: id}
+		if mods != nil {
+			byID[id].Label = mods.DomainLabel(id)
+		}
 	}
 	for _, c := range dag.Order() {
 		d := byID[c.Domain]

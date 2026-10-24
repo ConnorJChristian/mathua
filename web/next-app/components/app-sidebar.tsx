@@ -22,7 +22,6 @@ import {
   Play,
   Settings,
   SunMoon,
-  Trophy,
   type IconComponent,
   type IconHandle,
 } from './icons'
@@ -71,7 +70,6 @@ const NAV_ITEMS: SidebarNavItem[] = [
   { label: 'Library', href: '/library', icon: FileText },
   { label: 'Graph', href: '/graph', icon: Network },
   { label: 'Domains', href: '/domains', icon: Layers },
-  { label: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   { label: 'History', href: '/history', icon: ChartNoAxesColumn },
   { label: 'Settings', href: '/settings', icon: Settings },
 ]

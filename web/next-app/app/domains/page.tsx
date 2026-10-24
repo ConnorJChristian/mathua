@@ -222,7 +222,7 @@ export default function DomainsPage() {
                   >
                     <span className="flex items-baseline justify-between gap-3 min-w-0">
                       <span className="font-mono text-xs text-mathua-primary truncate">
-                        {domainLabel(d.id)}
+                        {d.label || domainLabel(d.id)}
                       </span>
                       <span className="shrink-0 font-mono text-[11px] text-mathua-secondary">
                         {available(d)} / {d.conceptCount} concepts available
@@ -245,7 +245,7 @@ export default function DomainsPage() {
             <div className="mt-4">
               <SectionHeader
                 label="Curriculum"
-                title={selectedRow ? domainLabel(selectedRow.id) : selected}
+                title={selectedRow ? selectedRow.label || domainLabel(selectedRow.id) : selected}
               />
             </div>
 

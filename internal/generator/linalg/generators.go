@@ -829,6 +829,42 @@ func (g *parametricGen) Generate(ctx generator.GeneratorContext) generator.Probl
 	}
 }
 
+// Grade accepts each equation in any equivalent form: "x=3+t, y=t" for the
+// stored "x=3+1t,y=0+1t", in either order, with or without spaces. The tuple
+// grader compared the strings, so the tidy form the explanation shows was
+// marked wrong.
+func (g *parametricGen) Grade(expected, userAnswer string) grader.Result {
+	want, ok1 := parametricSides(expected)
+	got, ok2 := parametricSides(userAnswer)
+	if !ok1 || !ok2 || len(got) != len(want) {
+		return grader.Result{Correct: false, Feedback: "Give both equations, e.g. x=1+2t, y=3-t"}
+	}
+	r := grader.NewRouter()
+	for v, rhs := range want {
+		u, ok := got[v]
+		if !ok || !r.Grade(grader.GradingExpression, rhs, u).Correct {
+			return grader.Result{Correct: false}
+		}
+	}
+	return grader.Result{Correct: true, Score: 1}
+}
+
+func parametricSides(s string) (map[string]string, bool) {
+	s = strings.NewReplacer(" ", "", "(", "", ")", "", ";", ",").Replace(strings.ToLower(s))
+	out := map[string]string{}
+	for _, part := range strings.Split(s, ",") {
+		if part == "" {
+			continue
+		}
+		kv := strings.SplitN(part, "=", 2)
+		if len(kv) != 2 || (kv[0] != "x" && kv[0] != "y") || kv[1] == "" {
+			return nil, false
+		}
+		out[kv[0]] = kv[1]
+	}
+	return out, len(out) == 2
+}
+
 type innerProductGen struct{}
 
 func (g *innerProductGen) Generate(ctx generator.GeneratorContext) generator.Problem {
