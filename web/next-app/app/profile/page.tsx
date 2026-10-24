@@ -140,6 +140,15 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!mounted) return
 
+    // Requests started here outlive the page. When a learner navigates away — or a
+    // test file's last case finishes — a `.then` that lands after teardown calls
+    // setState on a document that no longer exists, and React resolves that through
+    // `window` and throws `ReferenceError: window is not defined`. Vitest counts an
+    // unhandled error as a failure even when every test passes, so the guard is what
+    // keeps a correct suite from going red, and it also closes the same warning for
+    // a learner who leaves mid-load.
+    let alive = true
+
     const info = getUserInfo()
     setUser(info)
     // Ensure guest has an ephemeral id so profile/diagnostic works without account
@@ -162,12 +171,14 @@ export default function ProfilePage() {
         setAvatarPreset(resolved.preset ?? null)
         setAvatarUrl(resolved.url)
       }
-      getSettings().then(hydrateAvatar).catch(() => {
-        if (info?.avatar_url) setAvatarUrl(info.avatar_url)
+      getSettings().then(s => {
+        if (alive) hydrateAvatar(s)
+      }).catch(() => {
+        if (alive && info?.avatar_url) setAvatarUrl(info.avatar_url)
       })
       // Surprise DiceBear combo for photo-less users (all auth flows land here).
       ensureDicebearAvatar().then(pick => {
-        if (pick) hydrateAvatar({ avatar_dicebear: { style: pick.style, seed: pick.seed } })
+        if (alive && pick) hydrateAvatar({ avatar_dicebear: { style: pick.style, seed: pick.seed } })
       }).catch(() => {})
 
      async function fetchData() {
@@ -180,32 +191,37 @@ export default function ProfilePage() {
           const sid = info.student_id
           getActivity()
             .catch(() => [] as DailyActivity[])
-            .then(a => { setActivity(a); setActivityLoaded(true) })
-          getProgress(sid).then(setProgress).catch(() => {})
+            .then(a => { if (alive) { setActivity(a); setActivityLoaded(true) } })
+          getProgress(sid).then(p => { if (alive) setProgress(p) }).catch(() => {})
           getWeaknesses()
             .catch(() => ({ by_domain: {} } as WeaknessRes))
-            .then(setWeaknesses)
-          getDueReviews().then(r => setDueReviews(r.count)).catch(() => {})
-          getEfficacy().then(setEfficacy).catch(() => {})
+            .then(w => { if (alive) setWeaknesses(w) })
+          getDueReviews().then(r => { if (alive) setDueReviews(r.count) }).catch(() => {})
+          getEfficacy().then(x => { if (alive) setEfficacy(x) }).catch(() => {})
           // Placement from the server. The client must not infer diagnostic
           // completion from the displayed question or from local storage.
-          getMe().then(me => setPlacementCompleted(me.diagnostic_completed ?? false)).catch(() => {
-            setPlacementCompleted(info?.diagnostic_completed ?? false)
+          getMe().then(me => {
+            if (alive) setPlacementCompleted(me.diagnostic_completed ?? false)
+          }).catch(() => {
+            if (alive) setPlacementCompleted(info?.diagnostic_completed ?? false)
           })
           // The recommendation is the engine's answer, not a re-ranking of the fetches above.
           // Fetched beside them rather than derived from them: the report's numbers and the
           // recommendation come from one authority each, and neither is computed from the other.
           fetchShelf()
             .then((next) => {
+              if (!alive) return
               setShelf(next)
               setShelfFailed(false)
             })
             .catch(() => {
+              if (!alive) return
               setShelf(null)
               setShelfFailed(true)
             })
           let scoresErr: unknown = null
           const scoresRes = await getScores(sid).catch((e: unknown) => { scoresErr = e; return null as Scores | null })
+          if (!alive) return
           if (!scoresRes) {
             // A 401 means the token is no longer good (JWT_SECRET rotated, expired);
             // anything else is the server or the network, and Retry is the remedy.
@@ -223,19 +239,24 @@ export default function ProfilePage() {
             getActivity().catch(() => [] as DailyActivity[]),
             guestId ? getProgress(guestId).catch(() => ({} as Record<string, ConceptProgress>)) : Promise.resolve({} as Record<string, ConceptProgress>),
           ])
+          if (!alive) return
           setActivity(activityRes as DailyActivity[])
           setScores(null)
           setProgress(progressRes as Record<string, ConceptProgress>)
           setWeaknesses(null)
         }
       } catch {
-        if (info) setError('Failed to load profile data')
+        if (alive && info) setError('Failed to load profile data')
       } finally {
-        setLoading(false)
+        if (alive) setLoading(false)
       }
     }
 
     fetchData()
+
+    return () => {
+      alive = false
+    }
   }, [mounted])
 
 
