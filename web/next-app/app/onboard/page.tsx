@@ -539,7 +539,7 @@ function OnboardContent() {
                 ))}
               </ul>
               <p className="font-mono text-[10px] text-mathua-muted mt-3">
-                Courses whose questions are flashcards or code (Workday, DMV, Python) have no placement; their first topics are open already.
+                Courses whose questions come from a question bank (Workday, DMV, Python, political economy) have no placement; their first topics are open already.
               </p>
               <div className="mt-8 flex flex-wrap gap-3 justify-center">
                 <button type="button" disabled={loading} onClick={() => void startCoursePlacement()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint h-11 px-6 font-mono text-xs disabled:opacity-50">
