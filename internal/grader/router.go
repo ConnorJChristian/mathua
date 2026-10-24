@@ -27,7 +27,12 @@ func NewRouter() *Router {
 }
 
 func (r *Router) Grade(gradingType GradingType, expected, answer string) Result {
-	answer = lenient(gradingType, expected, answer)
+	// A bank answer is graded by the bank (code against hidden tests, a
+	// choice against its key): the learner's text must reach it untouched.
+	// lenient() used to strip a leading "query = " from SQL tasks (fork fix).
+	if !IsBankAnswer(expected) {
+		answer = lenient(gradingType, expected, answer)
+	}
 	switch gradingType {
 	case GradingNumeric:
 		res := r.numeric.grade(expected, answer)

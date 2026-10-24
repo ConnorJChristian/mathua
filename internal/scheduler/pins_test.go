@@ -3,6 +3,8 @@ package scheduler
 import (
 	"testing"
 	"time"
+
+	"github.com/chuma-beep/mathua/internal/mastery"
 )
 
 // Fork change: this week's pins (miniDAG: a -> b, a -> c, b+c -> d).
@@ -64,5 +66,45 @@ func TestRecommend_DueReviewStillOutranksPins(t *testing.T) {
 	}
 	if len(got.Alternatives) == 0 || got.Alternatives[0].ConceptID != "b" {
 		t.Errorf("pinned b should follow the review, got %+v", got.Alternatives)
+	}
+}
+
+func TestRecommend_PlacementSeededRowsAreNotOfferedAsWork(t *testing.T) {
+	s := New(miniDAG(t))
+	now := time.Now()
+	got := s.Recommend(RecommendInput{
+		Now: now, AttemptedDays: 1, DiagnosticCompleted: true,
+		Snapshots: map[string]*ConceptSnapshot{
+			// a: answered right in the diagnostic (seeded, never practised); b, c open because of it.
+			"a": {Status: mastery.StatusLearning, LastAttempted: now, Placement: true, Attempts: 0},
+		},
+		Weakness: map[string]float64{},
+	})
+	for _, r := range all(got) {
+		if r.ConceptID == "a" {
+			t.Fatalf("placement-seeded, never-practised a was offered: %+v", r)
+		}
+	}
+	if got.Primary == nil || (got.Primary.ConceptID != "b" && got.Primary.ConceptID != "c") {
+		t.Fatalf("want b or c (opened by the placement), got %+v", got.Primary)
+	}
+}
+
+func TestRecommend_MasteredPinDoesNotPullInItsPrerequisites(t *testing.T) {
+	s := New(miniDAG(t))
+	now := time.Now()
+	got := s.Recommend(RecommendInput{
+		Now: now, AttemptedDays: 5, ConceptsMastered: 1, DiagnosticCompleted: true,
+		Snapshots: map[string]*ConceptSnapshot{
+			"a": {Status: mastery.StatusLearning, LastAttempted: now, Placement: true}, // seeded, open
+			"b": masteredAt(now),                                                       // the pin, done
+		},
+		Weakness: map[string]float64{},
+		Pinned:   map[string]bool{"b": true},
+	})
+	for _, r := range all(got) {
+		if r.Pinned {
+			t.Errorf("a mastered pin produced a 'This week' item: %+v", r)
+		}
 	}
 }

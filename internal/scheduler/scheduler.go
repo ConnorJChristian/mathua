@@ -46,6 +46,9 @@ type ConceptSnapshot struct {
 	// It is not mastery and is never used to decide mastery, XP, the quiz gate or
 	// review (ADR-008, ADR-050).
 	Placement bool
+	// Attempts is how many times the learner has actually answered on the
+	// concept; a placement-seeded row has none.
+	Attempts int
 }
 
 // Next picks the next concept for a student to work on.

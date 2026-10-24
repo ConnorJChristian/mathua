@@ -44,6 +44,7 @@ func (e *Engine) conceptSnapshotsFrom(studentID string, progress map[string]*sto
 			TimeThreshold:  timeThresh,
 			WeaknessScore:  p.WeaknessScore,
 			Placement:      p.PlacementSeeded,
+			Attempts:       p.Attempts,
 		}
 	}
 	// Concepts never attempted still need a snapshot: prereqsMet returns false for a missing
@@ -95,10 +96,12 @@ func (e *Engine) ReviewsDueTrack(studentID, track string) (int, error) {
 		}
 		// A stored MASTERED row with a due review IS due a review — scheduler.effectiveState
 		// says so explicitly, which is what put it in the review bucket in the first place.
-		// The old guard skipped exactly those rows, so the count and the candidates disagreed
-		// and selectTasks never took the review bucket for a learner whose only debt was a
-		// decayed concept. Any NextReviewDue at or before now is a due review; that is the
-		// whole condition.
+		// A LEARNING or PRACTICING row also carries a NextReviewDue (practice
+		// sets one), but the review session never serves it: counting it
+		// made "8 topics due" banners for an empty session (fork fix).
+		if mastery.Status(p.Status) != mastery.StatusMastered {
+			continue
+		}
 		count++
 	}
 	return count, nil

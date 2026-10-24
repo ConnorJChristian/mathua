@@ -52,9 +52,11 @@ func TestReviewsDue_IncludesDecayedMasteredConcepts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reviews due: %v", err)
 	}
-	// a and d. `b` is scheduled but not yet due; `c` was never scheduled.
-	if n != 2 {
-		t.Errorf("ReviewsDue = %d, want 2 (decayed-mastered and learning are both due)", n)
+	// a only. `b` is scheduled but not yet due; `c` was never scheduled; `d`
+	// is LEARNING, which the review session never serves, so it is not
+	// counted either (fork fix: the banner said "8 due" for an empty session).
+	if n != 1 {
+		t.Errorf("ReviewsDue = %d, want 1 (the decayed-mastered one; a learning row is not a review)", n)
 	}
 }
 

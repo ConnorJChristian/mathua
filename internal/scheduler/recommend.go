@@ -363,6 +363,13 @@ func (s *Scheduler) pinnedFor(in RecommendInput, cands []Candidate) map[string]s
 			out[id] = ""
 			continue
 		}
+		// A pin already mastered is done: it is not open because there is
+		// nothing left to do, not because it is locked, so its prerequisites
+		// are not stand-ins for it (fork fix: a mastered pin used to pull in
+		// its whole placement-seeded prerequisite chain down to arithmetic).
+		if snap := in.Snapshots[id]; snap != nil && snap.Status == mastery.StatusMastered {
+			continue
+		}
 		seen := map[string]bool{id: true}
 		stack := append([]string(nil), c.Prerequisites...)
 		for len(stack) > 0 {
@@ -396,9 +403,31 @@ func (s *Scheduler) conceptRecommendations(in RecommendInput, now time.Time, cap
 
 	cands := buildCandidates(s.dag, in.Snapshots, now, "")
 	pinned := s.pinnedFor(in, cands)
+	// A row placement seeded and the learner never practised is
+	// reachability, not work to do: the diagnostic put them above it. It is
+	// offered only when the last mastery check or a pin asks for it, or when
+	// nothing else is open (fork fix: "Single-digit addition — ready to
+	// learn" after placement).
+	seededOnly := func(c Candidate) bool {
+		snap := in.Snapshots[c.Concept.ID]
+		if snap == nil || !snap.Placement || snap.Attempts > 0 || c.IsReview || in.Remedial[c.Concept.ID] {
+			return false
+		}
+		_, isPin := pinned[c.Concept.ID]
+		return !isPin
+	}
+	others := 0
+	for _, c := range cands {
+		if !excluded[c.Concept.ID] && !seededOnly(c) {
+			others++
+		}
+	}
 	ranked := make([]Recommendation, 0, len(cands))
 	for _, c := range cands {
 		if excluded[c.Concept.ID] {
+			continue
+		}
+		if others > 0 && seededOnly(c) {
 			continue
 		}
 		b, kind, reason := classify(c, in)

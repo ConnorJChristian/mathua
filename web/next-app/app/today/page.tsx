@@ -132,8 +132,8 @@ export default function TodayPage() {
                   const age = Math.floor((Date.now() - new Date(`${p.since}T12:00:00`).getTime()) / 86400000)
                   const stale = age >= 7
                   return (
-                    <li key={p.concept} className={`inline-flex items-center gap-1 border px-2 min-h-[28px] font-mono text-[11px] ${stale ? 'border-mathua-border text-mathua-secondary' : 'border-mathua-blue text-mathua-primary'}`} title={stale ? `Pinned ${age} days ago — still this week's?` : `Pinned ${p.since}`}>
-                      <Link href={`/learn?concept=${encodeURIComponent(p.concept)}`} className="hover:text-mathua-blue break-words [overflow-wrap:anywhere]">● {p.label}</Link>
+                    <li key={p.concept} className={`inline-flex items-center gap-1 border px-2 min-h-[28px] font-mono text-[11px] ${p.done ? 'border-mathua-green text-mathua-secondary' : stale ? 'border-mathua-border text-mathua-secondary' : 'border-mathua-blue text-mathua-primary'}`} title={p.done ? 'Mastered — unpin it when you are done with it' : stale ? `Pinned ${age} days ago — still this week's?` : `Pinned ${p.since}`}>
+                      <Link href={`/learn?concept=${encodeURIComponent(p.concept)}`} className="hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{p.done ? '✓' : '●'} {p.label}</Link>
                       {pinCourses(p.concept).length ? <span className="text-mathua-muted">· {pinCourses(p.concept)[0]}</span> : null}
                       {stale && <span className="text-amber-600 dark:text-amber-400">· {age}d</span>}
                       <button type="button" onClick={() => void unpin(p.concept)} aria-label={`Unpin ${p.label}`} className="ml-0.5 text-mathua-muted hover:text-mathua-red">×</button>

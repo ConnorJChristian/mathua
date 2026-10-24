@@ -2290,7 +2290,7 @@ export interface CourseView {
 // Fork change: this week's pins. The learner picks the present week's topics
 // by hand on a course's Modules tab; the Study tab serves them right after
 // due reviews and lets the engine fill the rest.
-export interface Pin { concept: string; label: string; since: string }
+export interface Pin { concept: string; label: string; since: string; done?: boolean }
 
 export async function getPins(): Promise<Pin[]> {
   const res = await authedFetch(`${API_BASE}/api/pins`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })

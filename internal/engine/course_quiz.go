@@ -51,6 +51,11 @@ func (e *Engine) CourseQuizConcepts(studentID string) (picked []*concepts.Concep
 		weak   float64
 		master bool
 		seen   time.Time
+		again  bool // missed on the last check: tested again only after the rest
+	}
+	lastMissed := map[string]bool{}
+	for _, id := range e.QuizRemedial(studentID) {
+		lastMissed[id] = true
 	}
 	var perCourse [][]cand
 	taken := map[string]bool{}
@@ -71,7 +76,7 @@ func (e *Engine) CourseQuizConcepts(studentID string) (picked []*concepts.Concep
 				continue
 			}
 			taken[c.ID] = true
-			cd := cand{c: c, weak: p.WeaknessScore, master: p.Status == string(mastery.StatusMastered)}
+			cd := cand{c: c, weak: p.WeaknessScore, master: p.Status == string(mastery.StatusMastered), again: lastMissed[c.ID]}
 			if p.LastAttempted != nil {
 				cd.seen = *p.LastAttempted
 			}
@@ -79,6 +84,12 @@ func (e *Engine) CourseQuizConcepts(studentID string) (picked []*concepts.Concep
 		}
 		sort.SliceStable(list, func(i, j int) bool {
 			a, b := list[i], list[j]
+			// What the last check already caught out waits its turn, so a
+			// second check covers what was learned since (fork fix: two
+			// checks in a row asked the same five topics).
+			if a.again != b.again {
+				return !a.again
+			}
 			if a.master != b.master {
 				return !a.master // still-learning topics first
 			}
