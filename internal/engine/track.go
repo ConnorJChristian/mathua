@@ -2,6 +2,7 @@ package engine
 
 import (
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
@@ -98,19 +99,26 @@ func (e *Engine) views() *trackViews {
 // to the math track rather than to no engine.
 func (e *Engine) tracksFallbackRoot() string { return "/nonexistent-mathua-root" }
 
-// AllTracks is the Study tab's view (fork change): every track at once, so
-// one queue spans the learner's courses whichever side of the site they
-// are on. It is a view for the recommender only; the header switch, reviews
-// and the quiz still work per track.
+// AllTracks is every track at once (fork change). The fork has no
+// Math | Python split: one queue, one review session and one topic list
+// span the learner's courses. A request that names no track gets this
+// view; a request that names a module's track still gets that track (the
+// per-track views stay for anything that asks for one by id).
 const AllTracks = "all"
 
-// NormalizeTrack maps a request parameter onto a known track. AllTracks is
-// kept as is.
+// NormalizeTrack maps a request parameter onto a known track; an empty or
+// unknown one is AllTracks.
 func (e *Engine) NormalizeTrack(track string) string {
-	if track == AllTracks {
+	track = strings.ToLower(strings.TrimSpace(track))
+	if track == "" || track == AllTracks {
 		return AllTracks
 	}
-	return e.views().mods.Normalize(track)
+	for _, t := range e.views().mods.Tracks() {
+		if t.ID == track {
+			return t.ID
+		}
+	}
+	return AllTracks
 }
 
 // Tracks lists the tracks this install offers, math first.
@@ -121,41 +129,51 @@ func (e *Engine) Modules() *modules.Set { return e.views().mods }
 
 // TrackDAG is the concept graph of one track (an unknown track is math).
 func (e *Engine) TrackDAG(track string) *concepts.DAG {
+	track = e.NormalizeTrack(track)
 	if track == AllTracks {
 		return e.dag
 	}
-	v := e.views()
-	return v.dags[v.mods.Normalize(track)]
+	return e.views().dags[track]
 }
 
 func (e *Engine) trackScheduler(track string) *scheduler.Scheduler {
+	track = e.NormalizeTrack(track)
+	if track == AllTracks {
+		return e.allScheduler()
+	}
+	return e.views().sched[track]
+}
+
+// allScheduler is the whole graph's scheduler (AllTracks).
+func (e *Engine) allScheduler() *scheduler.Scheduler {
 	v := e.views()
-	return v.sched[v.mods.Normalize(track)]
+	v.allOnce.Do(func() { v.all = scheduler.New(e.dag) })
+	return v.all
 }
 
 // offerScheduler is the recommender's view of a track: its concepts plus the
 // outside concepts they directly need (see trackViews).
 func (e *Engine) offerScheduler(track string) *scheduler.Scheduler {
-	v := e.views()
+	track = e.NormalizeTrack(track)
 	if track == AllTracks {
-		v.allOnce.Do(func() { v.all = scheduler.New(e.dag) })
-		return v.all
+		return e.allScheduler()
 	}
-	return v.offer[v.mods.Normalize(track)]
+	return e.views().offer[track]
 }
 
 // IsBridge reports whether a concept is offered in a track it does not belong
 // to, because one of the track's concepts needs it.
 func (e *Engine) IsBridge(conceptID, track string) bool {
+	track = e.NormalizeTrack(track)
 	if track == AllTracks {
 		return false
 	}
-	v := e.views()
-	return v.bridges[v.mods.Normalize(track)][conceptID]
+	return e.views().bridges[track][conceptID]
 }
 
 // InTrack reports whether a concept belongs to a track.
 func (e *Engine) InTrack(conceptID, track string) bool {
+	track = e.NormalizeTrack(track)
 	if track == AllTracks {
 		return true
 	}

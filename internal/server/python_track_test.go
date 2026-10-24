@@ -56,10 +56,13 @@ func TestPythonTrack_DomainsAreSeparated(t *testing.T) {
 	mux := pythonServer(t)
 	token, _ := guestTokenAndID(t, mux)
 
+	// Fork change: no track named means every track (the site has no
+	// Math | Python split); a named track still scopes the list.
 	for _, tc := range []struct {
 		query      string
 		wantPython bool
-	}{{"", false}, {"?track=math", false}, {"?track=python", true}} {
+		both       bool
+	}{{"", false, true}, {"?track=math", false, false}, {"?track=python", true, false}} {
 		code, body := getBody(t, mux, token, "/api/curriculum/domains"+tc.query)
 		if code != 200 {
 			t.Fatalf("domains%s: %d", tc.query, code)
@@ -68,11 +71,17 @@ func TestPythonTrack_DomainsAreSeparated(t *testing.T) {
 		if len(ds) == 0 {
 			t.Fatalf("domains%s: none", tc.query)
 		}
+		seen := map[bool]bool{}
 		for _, d := range ds {
 			id, _ := d.(map[string]interface{})["id"].(string)
-			if strings.HasPrefix(id, "python_") != tc.wantPython {
+			py := strings.HasPrefix(id, "python_")
+			seen[py] = true
+			if !tc.both && py != tc.wantPython {
 				t.Errorf("domains%s lists %q", tc.query, id)
 			}
+		}
+		if tc.both && !(seen[true] && seen[false]) {
+			t.Errorf("domains%s should list both sides, saw %v", tc.query, seen)
 		}
 	}
 }

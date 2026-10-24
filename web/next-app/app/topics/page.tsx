@@ -15,7 +15,6 @@ import { concepts, type ConceptRecord } from '../../lib/conceptData'
 import { domainLabel } from '../../lib/domains'
 import { masteryState, type MasteryState } from '../../lib/progress'
 import { learnConceptPath, studyConceptPath } from '../../lib/learnReturn'
-import { TRACKS, trackOfDomain } from '../../lib/track'
 
 // Fork change: the topic library. Every topic in the install, searchable and
 // filterable, each one a click away from its lesson (Read) and its practice
@@ -75,7 +74,6 @@ function TopicsContent() {
   const router = useRouter()
   const params = useSearchParams()
   const [q, setQ] = useState(params.get('q') ?? '')
-  const [track, setTrackFilter] = useState(params.get('track') ?? '')
   const [domain, setDomain] = useState(params.get('domain') ?? '')
   const [planId, setPlanId] = useState(params.get('plan') ?? '')
   const [withPrereqs, setWithPrereqs] = useState(params.get('all') === '1')
@@ -110,23 +108,22 @@ function TopicsContent() {
   useEffect(() => {
     const u = new URLSearchParams()
     if (q) u.set('q', q)
-    if (track) u.set('track', track)
     if (domain) u.set('domain', domain)
     if (planId) u.set('plan', planId)
     if (withPrereqs) u.set('all', '1')
     const s = u.toString()
     router.replace(s ? `/topics?${s}` : '/topics', { scroll: false })
     setLimit(PAGE)
-  }, [q, track, domain, planId, withPrereqs, router])
+  }, [q, domain, planId, withPrereqs, router])
 
   const plans = useMemo(() => courses.filter((c) => (c.plan?.length ?? 0) > 0), [courses])
   const plan = plans.find((c) => c.id === planId) ?? null
 
   const domains = useMemo(() => {
     const set = new Set<string>()
-    for (const c of concepts) if (!track || trackOfDomain(c.domain) === track) set.add(c.domain)
+    for (const c of concepts) set.add(c.domain)
     return [...set].sort((a, b) => domainLabel(a).localeCompare(domainLabel(b)))
-  }, [track])
+  }, [])
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -145,12 +142,11 @@ function TopicsContent() {
     }
     return ids.filter((id) => {
       const c = byId.get(id)!
-      if (track && trackOfDomain(c.domain) !== track) return false
       if (domain && c.domain !== domain) return false
       if (needle && !c.label.toLowerCase().includes(needle) && !c.id.toLowerCase().includes(needle)) return false
       return true
     }).map((id) => ({ c: byId.get(id)!, planned: planned.has(id) }))
-  }, [q, track, domain, plan, withPrereqs])
+  }, [q, domain, plan, withPrereqs])
 
   async function toggleFollow(id: string) {
     const next = following.includes(id) ? following.filter((x) => x !== id) : [...following, id]
@@ -239,13 +235,6 @@ function TopicsContent() {
             <span className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted">Search</span>
             <input id="topic-q" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Lagrange, elasticity, groupby…" className={input} />
           </label>
-          <label className="flex flex-col gap-1">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted">Track</span>
-            <select id="topic-track" value={track} onChange={(e) => { setTrackFilter(e.target.value); setDomain('') }} className={input}>
-              <option value="">All tracks</option>
-              {TRACKS.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-            </select>
-          </label>
           <label className="flex flex-col gap-1 min-w-0">
             <span className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted">Domain</span>
             <select id="topic-domain" value={domain} onChange={(e) => setDomain(e.target.value)} className={`${input} max-w-[240px]`}>
@@ -298,7 +287,7 @@ function TopicsContent() {
 
         {rows.length === 0 ? (
           <p className="border border-mathua-border bg-mathua-surface p-4 font-mono text-xs text-mathua-secondary">
-            No topics match. Clear the search or pick another track or domain.
+            No topics match. Clear the search or pick another domain.
           </p>
         ) : (
           <ol className="border border-mathua-border divide-y divide-mathua-border bg-mathua-surface">

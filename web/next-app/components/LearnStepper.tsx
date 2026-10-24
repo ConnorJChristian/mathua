@@ -21,7 +21,6 @@ import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
 import PythonAnswer from './python/PythonAnswer'
 import { displayAnswer, displayQuestion, isCardQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind, typedEcho } from '../lib/pythonQuestion'
-import { setTrack, trackOfDomain } from '../lib/track'
 
 // Append-only learning feed: intro once, then each submit locks its card and
 // the next question opens below. Scrollback IS the performance history —
@@ -138,12 +137,6 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   // Python-track concepts mix three question kinds and grade code server-side;
   // each question picks its own input (components/python/PythonAnswer).
   const isPy = isPythonGrading(conceptGradingType)
-  // Opening a topic puts the header switch on that topic's track, so the shelf,
-  // reviews and topic list that follow are the ones this topic belongs to.
-  useEffect(() => {
-    const domain = concepts.find(c => c.id === conceptId)?.domain
-    if (domain) setTrack(trackOfDomain(domain))
-  }, [conceptId])
   // The served question carries the format its answer actually needs. The
   // concept record only names the grading type, which is why a numeric concept
   // whose answer is "5 R 2" used to get a digits-only keypad.

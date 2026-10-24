@@ -46,7 +46,7 @@ export default function TodayPage() {
 
   const [byConcept, setByConcept] = useState<Map<string, string[]>>(new Map())
   const loadRows = async (map?: Map<string, string[]>) => {
-    const next = await getNext(undefined, true)
+    const next = await getNext()
     const m = map ?? byConcept
     const list = [next.primary, ...next.alternatives].filter((r): r is Recommendation => !!r)
     return list.map((r) => ({ ...r, courses: m.get(r.conceptId || hrefConceptId(r.action.href) || '') ?? [] }))

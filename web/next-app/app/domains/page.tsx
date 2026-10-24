@@ -21,7 +21,6 @@ import {
   type EligibilityPrereq,
 } from '../../lib/api'
 import { allDomainOrder, domainLabel } from '../../lib/domains'
-import { useTrack } from '../../lib/track'
 
 /**
  * The curriculum browser: domain -> topic, driven entirely by the server's
@@ -75,8 +74,6 @@ export default function DomainsPage() {
   // Element to return focus to when the dialog closes.
   const triggerRef = useRef<HTMLButtonElement | null>(null)
 
-  // The topic browser lists the active track's domains (Math or Python).
-  const track = useTrack()
   useEffect(() => {
     if (!mounted) return
     setDomains(null)
@@ -88,7 +85,7 @@ export default function DomainsPage() {
         setDomains([])
         setError("Couldn't load the curriculum.")
       })
-  }, [mounted, track])
+  }, [mounted])
 
   const ordered = useMemo(() => {
     if (!domains) return []

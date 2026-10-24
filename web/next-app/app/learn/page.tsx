@@ -12,7 +12,6 @@ import NextUpCard from '../../components/NextUpCard'
 import type { Shelf } from '../../lib/nextUp'
 import { fetchShelf } from '../../lib/recommendations'
 import { parseReturnStack } from '../../lib/learnReturn'
-import { useTrack } from '../../lib/track'
 
 /**
  * The learner's entry point: whatever the engine recommends, rendered as one card plus the
@@ -25,8 +24,6 @@ function LearnEntry() {
   const [shelf, setShelf] = useState<Shelf | null>(null)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
-  // The shelf is the active track's: flipping the header switch reloads it.
-  const track = useTrack()
 
   useEffect(() => {
     let cancelled = false
@@ -36,7 +33,7 @@ function LearnEntry() {
       .then(s => { if (!cancelled) setShelf(s) })
       .catch(() => { if (!cancelled) { setShelf(null); setFailed(true) } })
     return () => { cancelled = true }
-  }, [attempt, track])
+  }, [attempt])
 
   const loading = shelf === null && !failed
 

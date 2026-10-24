@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { displayAnswer, displayQuestion, plainAnswer, pythonKind, recallBack, starterCode, taskKey, typedEcho, typedFields, typedValues } from '../lib/pythonQuestion'
 import { prepareLessonMath } from '../lib/lessonMath'
-import { TRACKS, trackOfDomain, withTrack } from '../lib/track'
+import { TRACKS, trackOfDomain } from '../lib/track'
 
 // The shapes internal/pytrack/track.go serves. Kept literal so a change to the
 // server's format fails here rather than as a blank code box in the browser.
@@ -56,13 +56,7 @@ describe('code in lesson Markdown', () => {
   })
 })
 
-describe('track parameter', () => {
-  it('only marks non-math requests, so math requests are unchanged', () => {
-    expect(withTrack('/api/next', 'math')).toBe('/api/next')
-    expect(withTrack('/api/next', 'python')).toBe('/api/next?track=python')
-    expect(withTrack('/api/next?exclude=a', 'python')).toBe('/api/next?exclude=a&track=python')
-  })
-
+describe('module tracks', () => {
   it('takes its tracks from the enabled modules', () => {
     expect(TRACKS[0].id).toBe('math')
     expect(TRACKS.some(t => t.id === 'python')).toBe(true)

@@ -1,5 +1,4 @@
 import { API_BASE } from './apiBase'
-import { withTrack } from './track'
 import { getAuthHeaders, authedFetch } from './auth'
 import { z } from 'zod'
 
@@ -327,7 +326,7 @@ export interface DomainDetail {
  * empty list so a network blip degrades to the empty state, never to a crash.
  */
 export async function getCurriculumDomains(): Promise<DomainSummary[]> {
-  const res = await authedFetch(withTrack(`${API_BASE}/api/curriculum/domains`), { cache: 'no-store' })
+  const res = await authedFetch(`${API_BASE}/api/curriculum/domains`, { cache: 'no-store' })
   if (!res.ok) return []
   const data = (await res.json()) as { domains?: DomainSummary[] }
   return data.domains ?? []
@@ -1347,7 +1346,7 @@ export interface RecommendationRes {
  * exists to state, and the honest failure state cannot be reached at all
  * because the error never leaves this function.
  */
-export async function getNext(exclude?: string[], allTracks = false): Promise<RecommendationRes> {
+export async function getNext(exclude?: string[]): Promise<RecommendationRes> {
   const fallback: RecommendationRes = {
     primary: {
       id: 'graph',
@@ -1366,12 +1365,8 @@ export async function getNext(exclude?: string[], allTracks = false): Promise<Re
   }
   const params = new URLSearchParams()
   if (exclude?.length) params.set('exclude', exclude.join(','))
-  // Fork change: the Study tab asks for every track at once, so its queue
-  // spans the learner's courses whichever side of the site they are on.
-  if (allTracks) params.set('track', 'all')
   const qs = params.toString()
-  const url = `${API_BASE}/api/next${qs ? `?${qs}` : ''}`
-  const res = await authedFetch(allTracks ? url : withTrack(url), { cache: 'no-store' })
+  const res = await authedFetch(`${API_BASE}/api/next${qs ? `?${qs}` : ''}`, { cache: 'no-store' })
   if (!res.ok) await throwWithResponse(res, 'Could not load what to study next')
   const data = (await res.json()) as Partial<RecommendationRes>
   if (!data.primary) return fallback
@@ -1501,7 +1496,7 @@ export async function getActivity(days: number = 365): Promise<DailyActivity[]> 
 
 export async function getDueReviews(): Promise<DueReviewsRes> {
 	const headers = { ...getAuthHeaders() } satisfies Record<string, string>
-	const res = await authedFetch(withTrack(`${API_BASE}/api/reviews/due`), { headers })
+	const res = await authedFetch(`${API_BASE}/api/reviews/due`, { headers })
 	if (!res.ok) return { count: 0 }
 	return res.json()
 }
@@ -1511,7 +1506,7 @@ export async function startReviewSession(): Promise<StartSessionRes> {
 		'Content-Type': 'application/json',
 		...getAuthHeaders(),
 	} satisfies Record<string, string>
-	const res = await authedFetch(withTrack(`${API_BASE}/api/reviews/session`), {
+	const res = await authedFetch(`${API_BASE}/api/reviews/session`, {
 		method: 'POST',
 		headers,
 	})
@@ -1529,7 +1524,7 @@ export async function submitReviewAnswer(
 		'Content-Type': 'application/json',
 		...getAuthHeaders(),
 	} satisfies Record<string, string>
-	const res = await authedFetch(withTrack(`${API_BASE}/api/reviews/answer`), {
+	const res = await authedFetch(`${API_BASE}/api/reviews/answer`, {
 		method: 'POST',
 		retryAttempts: 1,
 		timeoutMs: 25000,
@@ -1603,7 +1598,7 @@ export async function startQuizSession(): Promise<QuizStartRes> {
 	const body: QuizSessionBody = {}
 	const guestId = getGuestId()
 	if (guestId && !('Authorization' in headers)) body.student_id = guestId
-	const res = await authedFetch(withTrack(`${API_BASE}/api/quiz/session`), {
+	const res = await authedFetch(`${API_BASE}/api/quiz/session`, {
 		method: 'POST',
 		headers,
 		body: JSON.stringify(body),
