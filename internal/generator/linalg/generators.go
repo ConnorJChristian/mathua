@@ -392,11 +392,15 @@ type eigenConceptGen struct{}
 
 func (g *eigenConceptGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	if rand.Intn(2) == 0 {
-		return generator.Problem{
-			Question:    "What is an eigenvalue \\(\\lambda\\) of a square matrix \\(A\\)?",
-			Answer:      "A scalar \\(\\lambda\\) such that \\(\\det(A-\\lambda I)=0\\), equivalently \\(Av=\\lambda v\\) for some nonzero \\(v\\)",
-			Explanation: "An eigenvalue \\(\\lambda\\) satisfies \\(\\det(A-\\lambda I)=0\\), meaning there exists a nonzero vector \\(v\\) with \\(Av=\\lambda v\\).",
-		}
+		// A definition is a choice, not free text (fork fix: it was served as
+		// multiple choice with no options and string-matched).
+		p := generator.MultipleChoice("Which statement defines an eigenvalue \\(\\lambda\\) of a square matrix \\(A\\)?",
+			"A scalar \\(\\lambda\\) with \\(Av=\\lambda v\\) for some nonzero vector \\(v\\)",
+			"A scalar \\(\\lambda\\) with \\(\\det(A)=\\lambda\\)",
+			"A vector \\(v\\) with \\(Av=0\\)",
+			"A scalar \\(\\lambda\\) with \\(A-\\lambda I\\) invertible")
+		p.Explanation = "An eigenvalue \\(\\lambda\\) satisfies \\(Av=\\lambda v\\) for some nonzero \\(v\\), equivalently \\(\\det(A-\\lambda I)=0\\)."
+		return p
 	}
 	scale := int(1 + ctx.Difficulty*5)
 	a, d := rand.Intn(max(1, scale*2))-scale, rand.Intn(max(1, scale*2))-scale
@@ -603,9 +607,10 @@ func gradeMatrix(expected, userAnswer string) grader.Result {
 type diagonalizationGen struct{}
 
 func (g *diagonalizationGen) Grade(expected, userAnswer string) grader.Result {
-	// Expect "P=[[a,b],[c,d]] D=[[λ1,0],[0,λ2]]"
-	// Allow any order of eigenvalues in D
-	return gradeMatrixPair(expected, userAnswer)
+	// Any valid pair is right: D diagonal with A's eigenvalues, P invertible
+	// with A P = P D. A is recovered from the reference pair (fork fix: the
+	// generator used to expect P = A and string-match it).
+	return gradeDiagonalization(expected, userAnswer)
 }
 
 func (g *diagonalizationGen) Generate(ctx generator.GeneratorContext) generator.Problem {
@@ -624,49 +629,119 @@ func (g *diagonalizationGen) Generate(ctx generator.GeneratorContext) generator.
 		{2, 2, 0, 4, 2, 4},
 	}
 	e := entries[rand.Intn(len(entries))]
-	answer := fmt.Sprintf("P=[[%d,%d],[%d,%d]] D=[[%d,0],[0,%d]]", e.a, e.b, e.c, e.d, e.l1, e.l2)
+	// An eigenvector of [[a,b],[c,d]] for λ: (b, λ−a) when b≠0, (λ−d, c) when
+	// c≠0, else a standard basis vector.
+	vec := func(l int) (int, int) {
+		switch {
+		case e.b != 0:
+			return e.b, l - e.a
+		case e.c != 0:
+			return l - e.d, e.c
+		case l == e.a:
+			return 1, 0
+		default:
+			return 0, 1
+		}
+	}
+	x1, y1 := vec(e.l1)
+	x2, y2 := vec(e.l2)
+	answer := fmt.Sprintf("P=[[%d,%d],[%d,%d]] D=[[%d,0],[0,%d]]", x1, x2, y1, y2, e.l1, e.l2)
 	return generator.Problem{
-		Question:    fmt.Sprintf("Find matrices \\(P\\) and \\(D\\) (diagonal) such that \\(A = PDP^{-1}\\) for \\(A = %s\\).", formatMatrix2([][]int{{e.a, e.b}, {e.c, e.d}})),
+		Question:    fmt.Sprintf("Find matrices \\(P\\) and \\(D\\) (diagonal) such that \\(A = PDP^{-1}\\) for \\(A = %s\\). Answer as P=[[..],[..]] D=[[..],[..]]; any valid pair counts.", formatMatrix2([][]int{{e.a, e.b}, {e.c, e.d}})),
 		Answer:      answer,
-		Explanation: fmt.Sprintf("Eigenvalues are λ=%d and λ=%d. The eigenvectors form the columns of P: %s", e.l1, e.l2, answer),
+		Explanation: fmt.Sprintf("Eigenvalues are λ=%d and λ=%d; eigenvectors (%d,%d) and (%d,%d) form the columns of P. One valid answer: %s", e.l1, e.l2, x1, y1, x2, y2, answer),
 	}
 }
 
-func gradeMatrixPair(expected, userAnswer string) grader.Result {
-	// Parse "P=[[...]] D=[[...]]"
-	parsePair := func(s string) (pStr, dStr string, ok bool) {
-		parts := strings.SplitN(s, " D=", 2)
-		if len(parts) != 2 {
-			return "", "", false
+func parse2x2(s string) ([2][2]float64, bool) {
+	var m [2][2]float64
+	mm := matrixRe.FindStringSubmatch(strings.ReplaceAll(s, " ", ""))
+	if mm == nil {
+		return m, false
+	}
+	for i, row := range mm[1:3] {
+		cells := strings.Split(row, ",")
+		if len(cells) != 2 {
+			return m, false
 		}
-		pPart := strings.TrimPrefix(parts[0], "P=")
-		return pPart, parts[1], true
+		for j, c := range cells {
+			v, err := parseRational(c)
+			if err != nil {
+				return m, false
+			}
+			m[i][j] = v
+		}
+	}
+	return m, true
+}
+
+func parseRational(s string) (float64, error) {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexByte(s, '/'); i > 0 {
+		n, err := strconv.ParseFloat(s[:i], 64)
+		if err != nil {
+			return 0, err
+		}
+		d, err := strconv.ParseFloat(s[i+1:], 64)
+		if err != nil || d == 0 {
+			return 0, fmt.Errorf("bad fraction")
+		}
+		return n / d, nil
+	}
+	return strconv.ParseFloat(s, 64)
+}
+
+func mul2(a, b [2][2]float64) [2][2]float64 {
+	var r [2][2]float64
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 2; j++ {
+			r[i][j] = a[i][0]*b[0][j] + a[i][1]*b[1][j]
+		}
+	}
+	return r
+}
+
+func gradeDiagonalization(expected, userAnswer string) grader.Result {
+	parsePair := func(s string) (p, d [2][2]float64, ok bool) {
+		parts := strings.SplitN(strings.ReplaceAll(s, " ", ""), "D=", 2)
+		if len(parts) != 2 {
+			return p, d, false
+		}
+		p, ok1 := parse2x2(strings.TrimPrefix(parts[0], "P="))
+		d, ok2 := parse2x2(parts[1])
+		return p, d, ok1 && ok2
 	}
 	eP, eD, ok := parsePair(expected)
 	if !ok {
 		return grader.Result{Correct: false, Score: 0, Feedback: "Expected format: P=[[...]] D=[[...]]"}
 	}
-	aP, aD, ok2 := parsePair(userAnswer)
-	if !ok2 {
-		return grader.Result{Correct: false, Score: 0, Feedback: "Expected format: P=[[...]] D=[[...]]"}
+	uP, uD, ok := parsePair(userAnswer)
+	if !ok {
+		return grader.Result{Correct: false, Score: 0, Feedback: "Answer as P=[[a,b],[c,d]] D=[[λ1,0],[0,λ2]]"}
 	}
-	// Compare matrices — check both orderings in case eigenvalues are swapped
-	norm := func(s string) string {
-		s = strings.ReplaceAll(s, " ", "")
-		s = strings.ReplaceAll(s, "\n", "")
-		return s
+	// A = P D P^{-1} from the reference pair.
+	det := eP[0][0]*eP[1][1] - eP[0][1]*eP[1][0]
+	if det == 0 {
+		return grader.Result{Correct: false, Score: 0, Feedback: "Incorrect P or D"}
 	}
-	if norm(expected) == norm(userAnswer) {
-		return grader.Result{Correct: true, Score: 1}
+	inv := [2][2]float64{{eP[1][1] / det, -eP[0][1] / det}, {-eP[1][0] / det, eP[0][0] / det}}
+	A := mul2(mul2(eP, eD), inv)
+	near := func(x, y float64) bool { return math.Abs(x-y) < 1e-6 }
+	if !near(uD[0][1], 0) || !near(uD[1][0], 0) {
+		return grader.Result{Correct: false, Score: 0, Feedback: "D must be diagonal"}
 	}
-	// Check swapped: P1 D1 <-> P2 D2
-	if norm(eP) == norm(aP) && norm(eD) == norm(aD) {
-		return grader.Result{Correct: true, Score: 1}
+	if udet := uP[0][0]*uP[1][1] - uP[0][1]*uP[1][0]; near(udet, 0) {
+		return grader.Result{Correct: false, Score: 0, Feedback: "P must be invertible (its columns are the eigenvectors)"}
 	}
-	if norm(eP) == norm(aD) && norm(eD) == norm(aP) {
-		return grader.Result{Correct: true, Score: 1}
+	ap, pd := mul2(A, uP), mul2(uP, uD)
+	for i := 0; i < 2; i++ {
+		for j := 0; j < 2; j++ {
+			if !near(ap[i][j], pd[i][j]) {
+				return grader.Result{Correct: false, Score: 0, Feedback: "A P ≠ P D: check the eigenvectors against their eigenvalues (same column order in P and D)"}
+			}
+		}
 	}
-	return grader.Result{Correct: false, Score: 0, Feedback: "Incorrect P or D"}
+	return grader.Result{Correct: true, Score: 1}
 }
 
 // Rank of a matrix

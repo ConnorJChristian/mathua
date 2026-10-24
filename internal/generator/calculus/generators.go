@@ -1297,11 +1297,11 @@ func (g *seqConvergenceGen) Generate(ctx generator.GeneratorContext) generator.P
 		q, a, e string
 	}
 	table := []entry{
-		{"Does \\(a_{n} = 1/n\\) converge? If so, to what?", "yes, to 0", "As \\(n\\to\\infty\\), \\(1/n \\to 0\\). The sequence converges to 0."},
-		{"Does \\(a_{n} = n/(n+1)\\) converge? If so, to what?", "yes, to 1", "\\(n/(n+1) = 1/(1+1/n) \\to 1/(1+0) = 1\\)."},
+		{"Does \\(a_{n} = 1/n\\) converge? If so, to what? (answer: yes, <limit> or no)", "yes, 0", "As \\(n\\to\\infty\\), \\(1/n \\to 0\\). The sequence converges to 0."},
+		{"Does \\(a_{n} = n/(n+1)\\) converge? If so, to what? (answer: yes, <limit> or no)", "yes, 1", "\\(n/(n+1) = 1/(1+1/n) \\to 1/(1+0) = 1\\)."},
 		{"Does \\(a_{n} = (-1)^{n}\\) converge?", "no", "\\((-1)^{n}\\) oscillates between -1 and 1 without approaching a single limit."},
-		{"Does \\(a_{n} = n^{2}\\) converge?", "no (diverges to \\(\\infty\\))", "\\(n^{2} \\to \\infty\\) as \\(n\\to\\infty\\), so the sequence diverges."},
-		{"Does \\(a_{n} = 2^{n}/n!\\) converge? If so, to what?", "yes, to 0", "The factorial grows faster than the exponential, so \\(2^{n}/n! \\to 0\\)."},
+		{"Does \\(a_{n} = n^{2}\\) converge? (yes/no)", "no", "\\(n^{2} \\to \\infty\\) as \\(n\\to\\infty\\), so the sequence diverges."},
+		{"Does \\(a_{n} = 2^{n}/n!\\) converge? If so, to what? (answer: yes, <limit> or no)", "yes, 0", "The factorial grows faster than the exponential, so \\(2^{n}/n! \\to 0\\)."},
 	}
 	e := table[rand.Intn(len(table))]
 	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
@@ -1447,7 +1447,7 @@ func (g *alternatingSeriesGen) Generate(ctx generator.GeneratorContext) generato
 		{"Does the alternating series test need decreasing terms to 0? (yes/no)", "yes", "If |a(n)| decreases monotonically and a(n) → 0, then sum (-1)^n a(n) converges; a(n) decreasing to 0."},
 		{"Does \\(\\sum (-1)^{n}/n\\) converge?", "yes", "By the alternating series test: 1/n decreases and → 0. So it converges. It converges conditionally (sum 1/n diverges)."},
 		{"Does \\(\\sum (-1)^{n}\\) converge?", "no", "The terms do not → 0 (they alternate between -1 and 1). The series diverges by the nth term test."},
-		{"Bound the error stopping sum (-1)^n/n at n=10. (enter 1/11)", "1/11", "For a convergent alternating series with decreasing terms, |S - S(n)| ≤ a(n+1); remainder ≤ first omitted term 1/11."},
+		{"Using the alternating series estimate, bound the error of stopping the sum of (-1)^n/n at n=10. (enter a fraction)", "1/11", "For a convergent alternating series with decreasing terms, |S - S(n)| ≤ a(n+1); remainder ≤ first omitted term 1/11."},
 	}
 	e := table[rand.Intn(len(table))]
 	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
@@ -1504,7 +1504,7 @@ func (g *powerSeriesGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		{"What is the coefficient of x^2 in the Maclaurin series for cos? (enter -1/2)", "-1/2", "General form sum c(n)(x-a)^n; cos(x) = 1 - x^2/2! + x^4/4! - ...; coefficient of x^2 is -1/2."},
 		{"Does a power series converge for |x-a|<R? (yes/no)", "yes", "Radius R: the series converges for |x-a|<R, diverges for |x-a|>R; converges absolutely inside."},
 		{"Does 1/(1-x) = sum x^n for |x|<1? (yes/no)", "yes", "1/(1-x) = 1 + x + x^2 + x^3 + ... = sum x^n, which converges for |x|<1."},
-		{"What is the coefficient of x^2 in the Maclaurin series for e^x? (enter 1/2)", "1/2", "e^x = 1 + x + x^2/2! + x^3/3! + ... = sum x^n/n!, which converges for all real x; coefficient of x^2 is 1/2."},
+		{"What is the coefficient of x^2 in the Maclaurin series for e^x? (enter a fraction)", "1/2", "e^x = 1 + x + x^2/2! + x^3/3! + ... = sum x^n/n!, which converges for all real x; coefficient of x^2 is 1/2."},
 		{"What is the coefficient of x^3 in the Maclaurin series for sin? (enter -1/6)", "-1/6", "sin(x) = x - x^3/3! + x^5/5! - ..., converging for all real x; coefficient of x^3 is -1/6."},
 	}
 	e := table[rand.Intn(len(table))]
@@ -1519,7 +1519,7 @@ func (g *taylorSeriesGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	}
 	table := []entry{
 		{"Is a Taylor series built from derivatives at a? (yes/no)", "yes", "Taylor: f(x) = sum f^(n)(a)(x-a)^n/n!; centered at a with radius R."},
-		{"What is the coefficient of x^2 in the Maclaurin series for e^x? (enter 1/2)", "1/2", "e^x = sum x^n/n! with radius R=infinity; coefficient of x^2 is 1/2."},
+		{"What is the coefficient of x^2 in the Maclaurin series for e^x? (enter a fraction)", "1/2", "e^x = sum x^n/n! with radius R=infinity; coefficient of x^2 is 1/2."},
 		{"What is the coefficient of x^3 in the Maclaurin series for sin? (enter -1/6)", "-1/6", "sin(x) = x - x^3/3! + x^5/5! - ... with R=infinity; coefficient of x^3 is -1/6."},
 		{"What is the coefficient of x^2 in the Maclaurin series for cos? (enter -1/2)", "-1/2", "cos(x) = 1 - x^2/2! + x^4/4! - ... with R=infinity; coefficient of x^2 is -1/2."},
 		{"Does ln(1+x) = x - x^2/2 + x^3/3 - ... for |x|<1? (yes/no)", "yes", "ln(1+x) = x - x^2/2 + x^3/3 - x^4/4 + ... with R=1."},

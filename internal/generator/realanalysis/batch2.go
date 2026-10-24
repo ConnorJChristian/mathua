@@ -513,9 +513,8 @@ func (g *chainGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	inner := c.a*c.x0 + c.b
 	answer := decimal6(float64(c.n * c.a * raIntPow(inner, c.n-1)))
 	return generator.Problem{
-		Question: "By the chain rule, the derivative of f(x) = (ax + b)^n is f'(x) = n·a·(ax + b)^(n−1). For a = " +
-			strconv.Itoa(c.a) + ", b = " + strconv.Itoa(c.b) + ", n = " + strconv.Itoa(c.n) +
-			", what is f'(x) at x = " + strconv.Itoa(c.x0) + "? (enter a decimal)",
+		Question: "Let f(x) = (" + strconv.Itoa(c.a) + "x + " + strconv.Itoa(c.b) + ")^" + strconv.Itoa(c.n) +
+			". Using the chain rule, what is f'(" + strconv.Itoa(c.x0) + ")? (enter a decimal)",
 		Answer: answer,
 		Explanation: "The inner value is a·x + b = " + strconv.Itoa(inner) +
 			", so f'(x) = n·a·(inner)^(n−1) = " + strconv.Itoa(c.n) + "·" + strconv.Itoa(c.a) + "·" +
@@ -538,8 +537,7 @@ func (g *lhopitalGen) Generate(ctx generator.GeneratorContext) generator.Problem
 	a := claims[rand.Intn(len(claims))]
 	answer := decimal6(float64(a*a) / 2)
 	return generator.Problem{
-		Question: "The limit of (1 − cos(ax))/x² as x tends to 0 is a²/2, by L'Hopital's rule applied twice. For a = " +
-			strconv.Itoa(a) + ", what is the limit? (enter a decimal)",
+		Question: "Using L'Hôpital's rule, find the limit of (1 − cos(" + strconv.Itoa(a) + "x))/x² as x tends to 0. (enter a decimal)",
 		Answer:      answer,
 		Explanation: "Both numerator and denominator tend to zero; differentiating twice gives a²cos(ax)/2, and cos(0) = 1, so the limit is a²/2 = " + answer + ".",
 		Facts: map[string]string{
@@ -602,8 +600,8 @@ func (g *ftcGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	value := float64(c.a)*float64(c.b*c.b)/2 + float64(c.c*c.b)
 	answer := decimal6(value)
 	return generator.Problem{
-		Question: "By the fundamental theorem of calculus, the integral from 0 to b of (a·t + c) with respect to t is a·b²/2 + c·b. For a = " +
-			strconv.Itoa(c.a) + ", c = " + strconv.Itoa(c.c) + " and b = " + strconv.Itoa(c.b) + ", what is the value? (enter a decimal)",
+		Question: "Using the fundamental theorem of calculus, evaluate the integral from 0 to " + strconv.Itoa(c.b) + " of (" +
+			strconv.Itoa(c.a) + "t + " + strconv.Itoa(c.c) + ") dt. (enter a decimal)",
 		Answer:      answer,
 		Explanation: "An antiderivative of a·t + c is a·t²/2 + c·t, and evaluating it at b and at 0 gives a·b²/2 + c·b = " + answer + ".",
 		Facts: map[string]string{
