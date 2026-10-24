@@ -59,11 +59,16 @@ export default function OnboardPage() {
 function OnboardContent() {
   const { mounted } = useTheme()
   const { push } = useRouter()
-  // Fork change: /onboard?course=plan.x places you for one course: the
-  // diagnostic is scoped to the course's plan (the server adds the
-  // prerequisites), skipping the domain picker.
-  const courseParam = useSearchParams().get('course') ?? ''
+  // Fork change: placement follows your courses. /onboard?course=a,b places
+  // you for those courses; plain /onboard places you for every course you
+  // follow (the Study tab and the recommender link here). The diagnostic is
+  // scoped to the courses' plans; the server adds their prerequisites. The
+  // subject picker is still one click away (?pick=1).
+  const search = useSearchParams()
+  const courseParam = search.get('course') ?? ''
+  const pickSubjects = search.get('pick') === '1'
   const courseStarted = useRef(false)
+  const [coursePlace, setCoursePlace] = useState<{ ids: string[]; names: string[]; topics: string[] } | null>(null)
 
   const [step, setStep] = useState<Step>('welcome')
   const [loading, setLoading] = useState(false)
@@ -459,39 +464,46 @@ function OnboardContent() {
   }, [step, lastResult, question])
 
   useEffect(() => {
-    if (!mounted || !courseParam || courseStarted.current) return
+    if (!mounted || pickSubjects || courseStarted.current) return
     courseStarted.current = true
     ;(async () => {
-      setLoading(true)
       try {
-        const { courses } = await getCourseCatalog()
-        const course = courses.find((c) => c.id === courseParam)
-        const ids = course?.plan?.length ? course.plan : course?.targets ?? []
-        if (ids.length === 0) {
-          toast.error('That course has no topics to place you in.')
-          return
+        const { courses, activeIds } = await getCourseCatalog()
+        const wanted = courseParam ? courseParam.split(',').map((s) => s.trim()).filter(Boolean) : activeIds
+        const chosen = wanted.map((id) => courses.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => !!c)
+        const topics = [...new Set(chosen.flatMap((c) => (c.plan?.length ? c.plan : c.targets ?? [])))]
+        if (chosen.length && topics.length) {
+          setCoursePlace({ ids: chosen.map((c) => c.id), names: chosen.map((c) => c.name.replace(/: study plan$/, '')), topics })
         }
-        const res = await startGoalDiagnostic(ids)
-        if (res.done) {
-          toast.error('No placement questions are available for this course; its first topics are open already.')
-          push(`/course?id=${encodeURIComponent(courseParam)}`)
-          return
-        }
-        setDemo(false)
-        setNeedsName(false)
-        beginSession(res)
-      } catch (err) {
-        if (getErrorStatus(err) === 401) {
-          setNeedsName(true)
-          return
-        }
-        toast.error('The placement test could not start.')
-      } finally {
-        setLoading(false)
+      } catch {
+        // No catalog: the subject picker below still works.
       }
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, courseParam])
+  }, [mounted, courseParam, pickSubjects])
+
+  async function startCoursePlacement() {
+    if (!coursePlace) return
+    setLoading(true)
+    try {
+      const res = await startGoalDiagnostic(coursePlace.topics)
+      if (res.done) {
+        toast.error('No placement questions apply to these courses; their first topics are open already.')
+        push(coursePlace.ids.length === 1 ? `/course?id=${encodeURIComponent(coursePlace.ids[0])}` : '/today')
+        return
+      }
+      setDemo(false)
+      setNeedsName(false)
+      beginSession(res)
+    } catch (err) {
+      if (getErrorStatus(err) === 401) {
+        setNeedsName(true)
+        return
+      }
+      toast.error('The placement test could not start.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   function finishOnboarding() {
     const user = getUserInfo()
@@ -514,7 +526,38 @@ function OnboardContent() {
             </span>
           )}
 
-          {step === 'welcome' && (
+          {step === 'welcome' && coursePlace && !needsName && (
+            <section className="max-w-2xl mx-auto py-16 text-center">
+              <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">Placement</p>
+              <h1 className="font-serif text-3xl text-mathua-primary mt-2">Find your starting point in your courses</h1>
+              <p className="font-mono text-xs text-mathua-secondary mt-4 leading-relaxed">
+                A short adaptive test over what these courses build on. Topics you show you know open up, so you start at your frontier instead of at the bottom.
+              </p>
+              <ul className="mt-6 inline-flex flex-col gap-1 text-left">
+                {coursePlace.names.map((n) => (
+                  <li key={n} className="font-mono text-xs text-mathua-primary">· {n}</li>
+                ))}
+              </ul>
+              <p className="font-mono text-[10px] text-mathua-muted mt-3">
+                Courses whose questions are flashcards or code (Workday, DMV, Python) have no placement; their first topics are open already.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3 justify-center">
+                <button type="button" disabled={loading} onClick={() => void startCoursePlacement()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint h-11 px-6 font-mono text-xs disabled:opacity-50">
+                  {loading ? 'Building your test…' : 'Start placement →'}
+                </button>
+                {hasPaused && (
+                  <button type="button" onClick={() => void resumeDiagnostic()} className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue h-11 px-6 font-mono text-xs">
+                    Resume paused test
+                  </button>
+                )}
+                <button type="button" onClick={() => setCoursePlace(null)} className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue h-11 px-6 font-mono text-xs">
+                  Pick subjects instead
+                </button>
+              </div>
+            </section>
+          )}
+
+          {step === 'welcome' && (!coursePlace || needsName) && (
             <WelcomeStep
               domains={domains}
               loading={loading}
