@@ -98,6 +98,8 @@ func TestDiagnose_NamesTheOneWrongValue(t *testing.T) {
 		{"two values wrong says nothing", GradingTuple, "(2, 7, 9)", "(3, 8, 9)", ""},
 		{"length mismatch says nothing", GradingTuple, "(2, 7)", "(2, 7, 9)", ""},
 		{"bare commas are accepted", GradingTuple, "2,7", "2,8", "Only the 2nd value is wrong; the rest match."},
+		{"reversed tuple elements diagnosed", GradingTuple, "(2, 7)", "(7, 2)", "You have the correct values, but they must be entered in the requested order."},
+		{"permuted tuple elements diagnosed", GradingTuple, "(1, 2, 3)", "(3, 1, 2)", "You have the correct values, but they must be entered in the requested order."},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

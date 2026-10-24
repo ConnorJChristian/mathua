@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/chuma-beep/mathua/internal/generator"
+	"github.com/chuma-beep/mathua/internal/grader"
 	"github.com/chuma-beep/mathua/internal/mathutil"
 )
 
@@ -659,6 +660,35 @@ func (g *trigEqBasicGen) Generate(ctx generator.GeneratorContext) generator.Prob
 // homogeneous trig equations
 type trigEqHomogeneousGen struct{}
 
+func (g *trigEqHomogeneousGen) Grade(expected, userAnswer string) grader.Result {
+	eParts := strings.Split(expected, ",")
+	aParts := strings.Split(strings.Trim(strings.TrimSpace(userAnswer), "()[]"), ",")
+	if len(eParts) > 1 && len(aParts) == len(eParts) {
+		matched := true
+		used := make([]bool, len(eParts))
+		for _, a := range aParts {
+			found := false
+			aTrim := strings.TrimSpace(a)
+			for i, e := range eParts {
+				if !used[i] && strings.TrimSpace(e) == aTrim {
+					used[i] = true
+					found = true
+					break
+				}
+			}
+			if !found {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return grader.Result{Correct: true, Score: 1}
+		}
+	}
+	router := grader.NewRouter()
+	return router.Grade(grader.GradingTuple, expected, userAnswer)
+}
+
 func (g *trigEqHomogeneousGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	type entry struct {
 		question string
@@ -667,10 +697,10 @@ func (g *trigEqHomogeneousGen) Generate(ctx generator.GeneratorContext) generato
 	}
 	entries := []entry{
 		{"What substitution is used to solve \\(a\\sin(x) + b\\cos(x) = 0\\)?", "tan(x) = -b/a", "Divide both sides by \\(\\cos(x)\\): \\(a\\tan(x) + b = 0 \\to \\tan(x) = -b/a\\)."},
-		{"Solve \\(\\sin(x) - \\cos(x) = 0\\) for \\(0^{\\circ} \\leq x < 360^{\\circ}\\).", "45,225", "\\(\\sin(x) = \\cos(x) \\to \\tan(x) = 1 \\to x = 45^{\\circ}, 225^{\\circ}\\)."},
-		{"Solve \\(\\sin(x) + \\cos(x) = 0\\) for \\(0^{\\circ} \\leq x < 360^{\\circ}\\).", "135,315", "\\(\\sin(x) = -\\cos(x) \\to \\tan(x) = -1 \\to x = 135^{\\circ}, 315^{\\circ}\\)."},
-		{"Solve \\(\\sqrt{3}\\sin(x) - \\cos(x) = 0\\) for \\(0^{\\circ} \\leq x < 360^{\\circ}\\).", "30,210", "\\(\\sqrt{3}\\sin(x) = \\cos(x) \\to \\tan(x) = 1/\\sqrt{3} \\to x = 30^{\\circ}, 210^{\\circ}\\)."},
-		{"Solve \\(\\sin(x) - \\sqrt{3}\\cos(x) = 0\\) for \\(0^{\\circ} \\leq x < 360^{\\circ}\\).", "60,240", "\\(\\sin(x) = \\sqrt{3}\\cos(x) \\to \\tan(x) = \\sqrt{3} \\to x = 60^{\\circ}, 240^{\\circ}\\)."},
+		{"Solve \\(\\sin(x) - \\cos(x) = 0\\) for \\(0^{\\circ} \\leq x < 360^{\\circ}\\). Enter degrees separated by commas.", "45,225", "\\(\\sin(x) = \\cos(x) \\to \\tan(x) = 1 \\to x = 45^{\\circ}, 225^{\\circ}\\)."},
+		{"Solve \\(\\sin(x) + \\cos(x) = 0\\) for \\(0^{\\circ} \\leq x < 360^{\\circ}\\). Enter degrees separated by commas.", "135,315", "\\(\\sin(x) = -\\cos(x) \\to \\tan(x) = -1 \\to x = 135^{\\circ}, 315^{\\circ}\\)."},
+		{"Solve \\(\\sqrt{3}\\sin(x) - \\cos(x) = 0\\) for \\(0^{\\circ} \\leq x < 360^{\\circ}\\). Enter degrees separated by commas.", "30,210", "\\(\\sqrt{3}\\sin(x) = \\cos(x) \\to \\tan(x) = 1/\\sqrt{3} \\to x = 30^{\\circ}, 210^{\\circ}\\)."},
+		{"Solve \\(\\sin(x) - \\sqrt{3}\\cos(x) = 0\\) for \\(0^{\\circ} \\leq x < 360^{\\circ}\\). Enter degrees separated by commas.", "60,240", "\\(\\sin(x) = \\sqrt{3}\\cos(x) \\to \\tan(x) = \\sqrt{3} \\to x = 60^{\\circ}, 240^{\\circ}\\)."},
 		{"What is the general method to solve \\(a\\sin(x) + b\\cos(x) = 0\\)?", "divide by cos(x)", "Dividing by \\(\\cos(x)\\) gives \\(a\\tan(x) + b = 0\\), which can be solved for \\(x\\)."},
 	}
 	e := entries[rand.Intn(len(entries))]

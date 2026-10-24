@@ -239,3 +239,19 @@ func TestFuncGensASCIIAndSelfGrade(t *testing.T) {
 		}
 	}
 }
+
+func TestTrigEqHomogeneous_PermutationGrading(t *testing.T) {
+	gen := &trigEqHomogeneousGen{}
+	if res := gen.Grade("45,225", "225, 45"); !res.Correct {
+		t.Fatalf("expected 225, 45 to grade correct against 45,225: %+v", res)
+	}
+	if res := gen.Grade("45,225", "(225, 45)"); !res.Correct {
+		t.Fatalf("expected (225, 45) to grade correct against 45,225: %+v", res)
+	}
+	if res := gen.Grade("45,225", "45, 225"); !res.Correct {
+		t.Fatalf("expected 45, 225 to grade correct against 45,225: %+v", res)
+	}
+	if res := gen.Grade("45,225", "45, 90"); res.Correct {
+		t.Fatalf("expected 45, 90 to be rejected against 45,225")
+	}
+}

@@ -54,7 +54,7 @@ func DefaultAnswerFormat(gradingType string) AnswerFormat {
 	case "ordering":
 		return AnswerFormat{Hint: "Answer in order, separated by commas", InputMode: "text"}
 	case "tuple":
-		return AnswerFormat{Hint: "Separate values with commas, e.g. 2, 3 or (2, 3)", InputMode: "text"}
+		return AnswerFormat{Hint: "Separate values with commas in the order requested, e.g. 2, 3 or (2, 3)", InputMode: "text"}
 	case "complex":
 		return AnswerFormat{Hint: "Answer as a + bi", InputMode: "text"}
 	default:

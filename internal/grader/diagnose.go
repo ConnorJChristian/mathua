@@ -98,10 +98,34 @@ func diagnoseSequence(expected, answer string) string {
 			wrong = append(wrong, i)
 		}
 	}
+	if len(wrong) == 0 {
+		return ""
+	}
+	if isPermutation(e, a) {
+		return "You have the correct values, but they must be entered in the requested order."
+	}
 	if len(wrong) != 1 {
 		return ""
 	}
 	return fmt.Sprintf("Only the %s value is wrong; the rest match.", ordinal(wrong[0]+1))
+}
+
+func isPermutation(e, a []string) bool {
+	if len(e) != len(a) || len(e) < 2 {
+		return false
+	}
+	counts := make(map[string]int, len(e))
+	for _, v := range e {
+		counts[normalise(v)]++
+	}
+	for _, v := range a {
+		nv := normalise(v)
+		counts[nv]--
+		if counts[nv] < 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func splitValues(s string) []string {
