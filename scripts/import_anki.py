@@ -675,12 +675,19 @@ def build(args):
             if missing:
                 sys.exit("subjects come after concepts that do not exist: %s" % ", ".join(sorted(missing)))
 
-        # Write: replace only what this importer owns.
+        # Write: replace only what this importer owns. bank/skip.json (cards
+        # kept out of practice, see tools/quarantine.py) is yours, not the
+        # importer's, so it survives a re-import.
+        keep_skip = os.path.join(out, "bank", "skip.json")
+        skip_raw = open(keep_skip, "rb").read() if os.path.exists(keep_skip) else None
         for sub in ("concepts", "bank", os.path.join("files", "media")):
             p = os.path.join(out, sub)
             if os.path.isdir(p):
                 shutil.rmtree(p)
             os.makedirs(p, exist_ok=True)
+        if skip_raw is not None:
+            with open(keep_skip, "wb") as f:
+                f.write(skip_raw)
         manifest = dict(mod)
         labels = dict(manifest.get("domain_labels", {}))
         if not subjects:

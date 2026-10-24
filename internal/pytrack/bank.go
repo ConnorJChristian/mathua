@@ -137,6 +137,16 @@ func LoadBank(dirs ...string) (*Bank, error) {
 			}
 		}
 		sort.Strings(names)
+		// Fork change: a bank's skip.json lists item ids not to serve (cards
+		// that need a figure or a numbered equation they do not show, OCR
+		// damage): {"<item id>": "<reason>"}. The items stay in the bank
+		// files, so a re-import keeps the list meaningful.
+		skip := map[string]string{}
+		if raw, err := os.ReadFile(filepath.Join(dir, "skip.json")); err == nil {
+			if err := json.Unmarshal(raw, &skip); err != nil {
+				return nil, fmt.Errorf("%s: %w", filepath.Join(dir, "skip.json"), err)
+			}
+		}
 		for _, name := range names {
 			raw, err := os.ReadFile(filepath.Join(dir, name))
 			if err != nil {
@@ -147,6 +157,17 @@ func LoadBank(dirs ...string) (*Bank, error) {
 			dec.DisallowUnknownFields()
 			if err := dec.Decode(&ch); err != nil {
 				return nil, fmt.Errorf("%s: %w", filepath.Join(dir, name), err)
+			}
+			if len(skip) > 0 {
+				for i := range ch.Concepts {
+					kept := ch.Concepts[i].Items[:0]
+					for _, it := range ch.Concepts[i].Items {
+						if _, drop := skip[it.ID]; !drop {
+							kept = append(kept, it)
+						}
+					}
+					ch.Concepts[i].Items = kept
+				}
 			}
 			b.chapters = append(b.chapters, ch)
 		}
