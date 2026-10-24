@@ -1549,6 +1549,11 @@ export interface QuizStartRes {
   closed_book?: boolean
   time_limit_seconds?: number
   questions_total?: number
+  // Fork change: the courses a course-scoped mastery test covers; empty and
+  // message are set when nothing on them has been studied yet.
+  courses?: string[]
+  empty?: boolean
+  message?: string
 }
 export interface QuizAnswerRes {
   done: boolean

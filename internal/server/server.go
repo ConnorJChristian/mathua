@@ -3316,7 +3316,26 @@ func (s *Server) handleQuizSession(w http.ResponseWriter, r *http.Request) {
 	}
 	// Build quiz picking diverse recent weak concepts; fallback to DAG order
 	var quizConcepts []*concepts.Concept
+	// Fork change: a learner following courses is tested on what those
+	// courses have taught them (engine.CourseQuizConcepts), across tracks.
+	quizDAG := s.eng.TrackDAG(s.trackOf(r))
+	var quizCourses []string
+	courseScoped := false
 	if studentID != "" {
+		if picked, courses, ok := s.eng.CourseQuizConcepts(studentID); ok {
+			courseScoped, quizCourses = true, courses
+			if len(picked) == 0 {
+				writeJSON(w, map[string]interface{}{
+					"done": true, "empty": true, "courses": courses,
+					"message": "Nothing on the courses you follow has been studied yet. The mastery test covers what your courses have taught you, so do a lesson or two first.",
+				})
+				return
+			}
+			quizConcepts = picked
+			quizDAG = s.eng.GetDAG()
+		}
+	}
+	if studentID != "" && !courseScoped {
 		weak := s.eng.WeaknessMap(studentID)
 		if weak != nil {
 			quizConcepts = quiz.PickQuizConcepts(s.eng.TrackDAG(s.trackOf(r)), weak)
@@ -3324,7 +3343,7 @@ func (s *Server) handleQuizSession(w http.ResponseWriter, r *http.Request) {
 	}
 	// The quiz draws from the track the learner is on, so its fallback (the
 	// first concepts in curriculum order) is also the right track's.
-	qEng := quiz.NewEngine(s.eng.TrackDAG(s.trackOf(r)), s.eng.GetGeneratorRegistry())
+	qEng := quiz.NewEngine(quizDAG, s.eng.GetGeneratorRegistry())
 	sess := qEng.Start(quizConcepts)
 	// PR 1.4: per-concept 80% difficulty target from weakness map.
 	if studentID != "" {
@@ -3365,6 +3384,7 @@ func (s *Server) handleQuizSession(w http.ResponseWriter, r *http.Request) {
 		"closed_book":        true,
 		"time_limit_seconds": s.eng.TimeLimitFor(studentID, cid),
 		"questions_total":    len(sess.Order),
+		"courses":            quizCourses,
 	}, cid))
 }
 

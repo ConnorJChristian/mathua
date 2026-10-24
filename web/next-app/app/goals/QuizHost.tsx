@@ -61,6 +61,8 @@ export default function QuizHost() {
   const [quizClosedBook, setQuizClosedBook] = useState(false)
   const [quizQuestionsTotal, setQuizQuestionsTotal] = useState(0)
   const [quizRemedial, setQuizRemedial] = useState<string[]>([])
+  const [quizCourses, setQuizCourses] = useState<string[]>([])
+  const [emptyMessage, setEmptyMessage] = useState('')
   const [submitError, setSubmitError] = useState<SubmitError | null>(null)
   const [finished, setFinished] = useState(false)
   const [skipCount, setSkipCount] = useState(0)
@@ -82,6 +84,8 @@ export default function QuizHost() {
     setStartError('')
     try {
       const res = await startQuizSession()
+      setQuizCourses(res.courses ?? [])
+      setEmptyMessage(res.empty ? res.message ?? '' : '')
       if (res.done) {
         setPhase('done')
         return
@@ -285,8 +289,8 @@ export default function QuizHost() {
       <div className="max-w-2xl mx-auto text-center">
         {quizAccuracy.total === 0 && skipCount === 0 ? (
           <>
-            <SectionHeader label="Quiz" title="No questions available" />
-            <p className="font-mono text-sm text-mathua-secondary mt-4">There are no quiz questions available right now, try again later.</p>
+            <SectionHeader label="Quiz" title={emptyMessage ? 'Nothing to test yet' : 'No questions available'} />
+            <p className="font-mono text-sm text-mathua-secondary mt-4">{emptyMessage || 'There are no quiz questions available right now, try again later.'}</p>
             <div className="mt-6 flex gap-3 justify-center">
               <button type="button" onClick={startQuiz} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-8 text-sm">Try again →</button>
               <Link href="/profile" className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">Back to Profile →</Link>
@@ -336,6 +340,7 @@ export default function QuizHost() {
           <span className={quizAccuracy.correct / Math.max(quizAccuracy.total, 1) >= 0.7 ? 'text-mathua-green' : ''}>{quizAccuracy.correct}/{quizAccuracy.total} correct</span>
           {quizLastResult?.xp ? <span className="text-yellow-400">+{quizLastResult.xp} XP (TaskQuiz 20)</span> : null}
           {quizClosedBook ? <span className="text-mathua-muted">Closed book</span> : null}
+          {quizCourses.length > 0 ? <span className="text-mathua-muted break-words [overflow-wrap:anywhere]">Covers: {quizCourses.join(' · ')}</span> : null}
         </div>
         <div className={`bg-mathua-surface border rounded-none p-4 sm:p-6 mb-6 transition-colors w-full max-w-full min-w-0 overflow-hidden ${quizLastResult ? (quizLastResult.correct ? 'border-mathua-green-faint' : 'border-mathua-red-faint') : 'border-mathua-border'}`}>
           {isPy ? (
