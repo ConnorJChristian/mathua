@@ -8,6 +8,13 @@
 > modified and redistributed freely, for any purpose, with attribution. Personal study
 > material derived from textbooks and the owner's own flashcards is kept out of the
 > repository (`modules-local/`, git-ignored) and is not part of what is published here.
+>
+> **Quality disclaimer.** The fork's changes were written with an LLM coding assistant
+> (Claude) under the owner's direction. This repository is published for sharing, in case
+> others find it useful, not as a product: there is no guarantee, and no intention, of
+> production-quality code or functionality, no promise that it is finished or will be
+> maintained, and no support. Use it at your own risk (the MIT licence's warranty
+> disclaimer applies in full).
 
 <div align="center">
 

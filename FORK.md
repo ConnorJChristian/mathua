@@ -52,6 +52,16 @@ redistribute it, commercially or not, with attribution. The fork's own code
 and the public modules are published under the same terms. Material derived
 from copyrighted textbooks is deliberately kept out of the repository.
 
+## Quality disclaimer
+
+The fork's changes were written with an LLM coding assistant (Claude) under
+the owner's direction, and tested only as far as the owner's own use needed.
+It is published for sharing, because others may find it helpful, not as a
+product: there is no guarantee, and no intention, of production-quality code
+or functionality, no promise that it is a finished or final piece of work,
+and no support or maintenance commitment. Use at your own risk; the MIT
+licence's warranty disclaimer applies in full.
+
 ## What you get, and what you bring
 
 The repository is the engine plus empty slots. Out of the box it has upstream
