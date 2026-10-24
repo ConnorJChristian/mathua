@@ -84,17 +84,17 @@ export default function TodayPage() {
 
   if (!mounted || rows === null) return <Loading label="Working out what to study" full />
   const reviewsDue = views.reduce((n, v) => n + v.reviews_due, 0)
-  const kindLabel = (r: Recommendation) => r.pinned ? (r.pinnedFor ? `This week · for ${r.pinnedFor}` : 'This week') : r.kind === 'review' ? 'Review' : r.badge === 'New' ? 'New topic' : r.kind === 'practice' ? 'Practise' : r.kind === 'mastery_check' ? 'Mastery test' : r.reason === 'prerequisite' ? 'Prerequisite' : 'New topic'
+  const kindLabel = (r: Recommendation) => r.pinned ? (r.pinnedFor ? `This week · for ${r.pinnedFor}` : 'This week') : r.kind === 'review' ? 'Review' : r.badge === 'New' ? 'New topic' : r.kind === 'practice' ? 'Practice' : r.kind === 'mastery_check' ? 'Mastery check' : r.reason === 'prerequisite' ? 'Prerequisite' : 'New topic'
   const pinCourses = (cid: string) => byConcept.get(cid) ?? []
 
   return (
     <>
       <Header />
       <main className="mx-auto w-full max-w-[900px] min-w-0 px-4 sm:px-6 py-8 sm:py-12 overflow-x-hidden">
-        <SectionHeader label="Study" title="Today" />
+        <SectionHeader label="Today" title="Study" />
         {views.length === 0 && (
           <p className="mb-4 border border-mathua-border bg-mathua-surface p-3 font-mono text-[11px] text-mathua-secondary">
-            You follow no courses, so this queue draws from the whole track. <Link href="/courses" className="underline">Pick your courses</Link> to focus it.
+            You follow no courses, so this queue draws from every topic. <Link href="/courses" className="underline">Pick your courses</Link> to focus it.
           </p>
         )}
         {failed && <p className="mb-4 font-mono text-xs text-mathua-red">The queue could not be loaded. Check the server and try again.</p>}
@@ -103,7 +103,7 @@ export default function TodayPage() {
           <div className="mb-6 grid gap-2 sm:grid-cols-2">
             {quizDue && (
               <Link href="/goals?quiz=1" className="border border-mathua-blue bg-mathua-surface p-3 hover:bg-mathua-blue-faint">
-                <p className="font-mono text-[10px] uppercase tracking-wider text-mathua-blue">Mastery test due</p>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-mathua-blue">Mastery check due</p>
                 <p className="font-mono text-xs text-mathua-primary mt-1">Covers what your courses have taught you{xp ? ` · ${xp.since} XP since the last one` : ''}. Take it →</p>
               </Link>
             )}

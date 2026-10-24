@@ -218,6 +218,12 @@ def perturb(head, rng):
     # Numbers that are results (after "=" or "approx") are the ones a slip
     # changes; when there are some, vary only those.
     results = [m for m in nums if RESULT_BEFORE.search(head[: m.start()])]
+    if not results:
+        # "x^3/x^{-4} = x^7": the result is whatever follows the last "=",
+        # even when a letter or exponent sits between "=" and the number.
+        eq = max(head.rfind("="), head.rfind("\\approx"), head.rfind("≈"))
+        if eq >= 0:
+            results = [m for m in nums if m.start() > eq]
     if results:
         nums = results
     # The result is stated last: "square both sides: y+3=16, so y=13" is
@@ -255,11 +261,16 @@ def perturb(head, rng):
             if v % 2 == 0 and v > 2:
                 vals.append(str(v // 2))
         for val in vals:
+            # "1n" or "1x" is not how anyone writes a coefficient.
+            if val == "1" and head[m.end():m.end() + 1].isalpha():
+                continue
+            if m.start() > 0 and head[m.start() - 1] in "^_" and len(val) > 1 and head[m.end():m.end() + 1] != "}":
+                val = "{" + val + "}"  # x^14, not x^1 4
             cands.append(head[: m.start()] + sign + val + head[m.end():])
         # Sign flip, only where signs are in play.
         if sign:
             cands.append(head[: m.start()] + txt + head[m.end():])
-        elif signed and m.start() > 0 and head[m.start() - 1] in "=( " and txt != "0":
+        elif signed and m.start() > 0 and head[m.start() - 1] in "=( " and txt != "0" and head[: m.start()].rstrip()[-1:] not in "-+−":
             cands.append(head[: m.start()] + "-" + txt + head[m.end():])
     rng.shuffle(cands)
     # Spread the changes over different numbers first.

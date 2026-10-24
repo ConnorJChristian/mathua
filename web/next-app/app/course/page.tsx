@@ -39,7 +39,7 @@ function noteHref(n: CourseNote): string {
 function statusWord(t: CourseTopic): string {
   if (t.status === 'mastered') return 'Mastered'
   if (t.due) return 'Review due'
-  if (t.attempts > 0) return t.status === 'practicing' ? 'Practising' : 'Learning'
+  if (t.attempts > 0) return t.status === 'practicing' ? 'Practicing' : 'Learning'
   if (t.locked) return 'Locked'
   return 'Not started'
 }
@@ -75,7 +75,7 @@ function TopicRow({ t, courseId, onRead, onWatch, pinned, onPin }: { t: CourseTo
             Notes{t.notes.length > 1 ? ` (${t.notes.length})` : ''}
           </a>
         )}
-        <Link href={learn} className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>{t.due ? 'Review' : t.attempts > 0 ? 'Practise' : 'Start'}</Link>
+        <Link href={learn} className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>{t.due ? 'Review' : t.attempts > 0 ? 'Practice' : 'Start'}</Link>
       </span>
     </li>
   )
@@ -387,7 +387,7 @@ function CourseContent() {
           allVideos.length === 0 ? (
             <div className="border border-mathua-border bg-mathua-surface p-4 font-mono text-xs text-mathua-secondary leading-relaxed">
               <p>No lecture videos yet.</p>
-              <p className="mt-2 text-mathua-muted">Add them in the course&apos;s module as <code>videos.json</code>: a map from a topic id (or this course&apos;s id, <code>{view.id}</code>) to a list of {'{'}&quot;title&quot;, &quot;url&quot;{'}'} entries. YouTube links play here; a file in the module&apos;s <code>files/</code> folder plays as <code>{'{'}&quot;title&quot;, &quot;file&quot;: &quot;lecture-01.mp4&quot;{'}'}</code>.</p>
+              <p className="mt-2 text-mathua-muted">When the course&apos;s module lists lectures (<code>videos.json</code>, see FORK.md), they play here.</p>
             </div>
           ) : (
             <div className="space-y-4">

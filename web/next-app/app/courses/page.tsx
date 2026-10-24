@@ -112,7 +112,7 @@ export default function CoursesPage() {
     <>
       <Header />
       <main className="mx-auto w-full max-w-[1100px] min-w-0 px-4 sm:px-6 py-8 sm:py-12 overflow-x-hidden">
-        <SectionHeader label="Dashboard" title="Your courses" />
+        <SectionHeader label="Courses" title="Your courses" />
         {!signedIn && (
           <p className="mb-4 border border-mathua-border bg-mathua-surface p-3 font-mono text-[11px] text-mathua-secondary">
             Sign in to follow courses; progress on a guest account is not kept.

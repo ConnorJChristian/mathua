@@ -94,7 +94,7 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
                         <Link href={studyConceptPath(t.id)} className="min-w-0 flex-1 font-mono text-[11px] text-mathua-secondary hover:text-mathua-blue truncate" title={t.label}>
                           {st === 'mastered' ? '✓ ' : '· '}{t.label}
                         </Link>
-                        <Link href={learnConceptPath(t.id)} className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>Practise</Link>
+                        <Link href={learnConceptPath(t.id)} className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>Practice</Link>
                       </li>
                     )
                   })}
