@@ -52,6 +52,17 @@ redistribute it, commercially or not, with attribution. The fork's own code
 and the public modules are published under the same terms. Material derived
 from copyrighted textbooks is deliberately kept out of the repository.
 
+## What you get, and what you bring
+
+The repository is the engine plus empty slots. Out of the box it has upstream
+Mathua's mathematics corpus and the two public modules above. Your own
+material goes in `modules-local/` (git-ignored): PDFs of your books in a
+module's `files/` with `readings.json` and `books.json` pointing into them,
+courses in `courses.json`, question banks written with the authoring API or
+imported from an Anki collection, lecture notes and videos. Nothing in that
+folder is ever committed, so the repository stays shareable while your
+install carries whatever you have the right to read.
+
 ## Run it
 
 Requires Go 1.26+ and Node 20+.
@@ -151,7 +162,9 @@ modules.local.json    {"disabled": ["..."]}: switch modules off (git-ignored)
 A module is a folder with a `module.json` and any of `concepts/`, `bank/`,
 `readings.json`, `courses.json`, `destinations.json` and `files/`. The
 server and the web build read every enabled module. A module can declare a
-**track**, which adds an option to the header switch (Math | Python | ...).
+**track**, a named group of domains (the fork has no Math | Python switch
+any more: one queue spans every track; a track still scopes a request that
+names it by id).
 `modules-local/README.md` shows the layout.
 
 **One graph across tracks.** A track decides what the shelf offers. It does
@@ -322,9 +335,9 @@ turns a plan's pace into on track or behind. The report changes nothing.
 
 ## Python for Data Science track
 
-The `python-dsh` module adds the **Python** side of the header switch. Same
-site, same login, same XP and review schedule. The switch only changes which
-topics the Learn shelf, the topic browser, reviews and the quiz offer.
+The `python-dsh` module adds the **Python** track: same site, same login,
+same XP and review schedule; its topics sit in the same Study queue, topic
+browser, reviews and mastery check as everything else.
 
 The track follows the five chapters of Jake VanderPlas's *Python Data Science
 Handbook*. Every topic links to its book section. The questions and notes are
