@@ -1,5 +1,5 @@
 > **This is Connor Christian's fork of [Mathua](https://github.com/chuma-beep/mathua)**, reshaped
-> into a course-centred study app for a graduate economics programme (branch `ma-econ`).
+> into a course-centred study app for graduate economics (branch `ma-econ`).
 > The upstream engine is unchanged; the fork adds modules, a Courses/Study interface
 > and local-content plumbing. **What it is, what it adds and how to run it: [FORK.md](FORK.md).**
 >

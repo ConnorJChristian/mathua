@@ -1,7 +1,7 @@
 [
   {
     "id": "econ5153",
-    "name": "Math for Economists (ECON 5153)",
+    "name": "Mathematics for economists",
     "grade": "MA",
     "description": "Single and multivariable calculus, matrix algebra, unconstrained and constrained optimization (Lagrange multipliers), and dynamic systems: difference equations, linear ODEs, equilibria and stability.",
     "targets": [

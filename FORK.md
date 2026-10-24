@@ -3,7 +3,7 @@
 A fork of [Mathua](https://github.com/chuma-beep/mathua), an open-source
 adaptive learning engine (Go backend, Next.js frontend, a concept graph with
 prerequisites, spaced review, placement diagnostics), reshaped into a
-course-centred study app for a graduate economics programme. The engine and
+course-centred study app for graduate economics. The engine and
 the mathematics corpus are upstream's; everything the fork adds lives in
 modules that can be switched off, plus the pages that present them.
 
@@ -20,8 +20,8 @@ What the fork adds:
   bank (multiple choice, typed answers, Python code graded by hidden tests,
   flip cards as a last resort), readings into your own PDFs or online books,
   lecture notes and videos. Public modules in this repository: `modules/ma-econ`
-  (Math for Economists and a Statistical Learning companion, built on the
-  upstream graph) and `modules/python-dsh` (the Python Data Science Handbook as
+  (mathematics for economists and a statistical-learning companion, built
+  on the upstream graph) and `modules/python-dsh` (the Python Data Science Handbook as
   a track). The owner's own modules (textbook-derived cards, course lecture
   notebooks, a political-economy reading course) live in `modules-local/`,
   which is git-ignored.
@@ -37,8 +37,8 @@ everything uses the existing graph.
 
 | ID | Course | Targets | Concepts incl. prerequisites |
 |---|---|---|---|
-| `econ5153` | Math for Economists (ECON 5153) | 42 | 143 |
-| `statlearn` | Statistical Learning (ISLR companion) | 25 | 129 |
+| `econ5153` | Mathematics for economists | 42 | 143 |
+| `statlearn` | Statistical learning (ISLR companion) | 25 | 129 |
 
 Neither course pulls in any trigonometry. The only geometry prerequisite is
 plotting a point. The placement diagnostic credits prerequisites when you
@@ -69,7 +69,7 @@ have these courses.
 
 ## What these courses cover
 
-**econ5153:** derivatives and basic integration (substitution, FTC) incl. exp/log and implicit differentiation, convexity
+**Mathematics for economists:** derivatives and basic integration (substitution, FTC) incl. exp/log and implicit differentiation, convexity
 and Jensen, marginal analysis, single-variable optimization, partial
 derivatives, gradient, directional derivatives, multivariable chain rule,
 Jacobian, tangent plane, second-order Taylor, the two-variable second-derivative
