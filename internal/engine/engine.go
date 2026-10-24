@@ -1663,13 +1663,58 @@ func (e *Engine) QuizXPSince(studentID string) (int, error) {
 	return since, nil
 }
 
-// QuizDue reports whether the mastery-check gate is reached.
+// Mastery-test pacing (fork fix). XP alone paced the test badly: easy
+// topics pay 1 XP an answer, so the 50 XP gate opened twice on a learner's
+// first day and eight times in a week. The gate now also needs some new
+// ground since the last test and a night's gap.
+const (
+	// QuizGateTopics is how many distinct topics must have been worked on
+	// since the last test (practice or review, not the test itself).
+	QuizGateTopics = 4
+	// QuizGateGap is the least time between two tests.
+	QuizGateGap = 20 * time.Hour
+)
+
+// QuizDue reports whether the mastery-check gate is reached: enough XP, enough
+// distinct topics worked since the last test, and enough time since it.
 func (e *Engine) QuizDue(studentID string) (bool, error) {
 	since, err := e.QuizXPSince(studentID)
 	if err != nil {
 		return false, err
 	}
-	return since >= QuizGateXP, nil
+	if since < QuizGateXP {
+		return false, nil
+	}
+	last, err := e.repo.LastQuizCompletion(studentID)
+	if err != nil {
+		return false, err
+	}
+	if last == nil {
+		return true, nil
+	}
+	lastAt, perr := time.Parse("2006-01-02 15:04:05", last.CompletedAt)
+	if perr != nil {
+		if t2, err2 := time.Parse(time.RFC3339, last.CompletedAt); err2 == nil {
+			lastAt = t2
+		} else {
+			return true, nil
+		}
+	}
+	if time.Since(lastAt) < QuizGateGap {
+		return false, nil
+	}
+	attempts, err := e.repo.GetAttemptsForStudent(studentID)
+	if err != nil {
+		return false, err
+	}
+	topics := map[string]bool{}
+	for _, a := range attempts {
+		if a.Source == "quiz" || a.Source == "diagnostic" || !a.Timestamp.After(lastAt) {
+			continue
+		}
+		topics[a.ConceptID] = true
+	}
+	return len(topics) >= QuizGateTopics, nil
 }
 
 // RecordQuizCompletion snapshots current lifetime XP as the gate baseline.
@@ -1809,7 +1854,16 @@ func (e *Engine) ProgressWithMasteryPct(studentID string) (map[string]ProgressVi
 }
 
 func (e *Engine) GetScores(studentID string) (*scoring.Scores, error) {
-	return e.scorer.Compute(studentID)
+	s, err := e.scorer.Compute(studentID)
+	if err != nil || s == nil {
+		return s, err
+	}
+	// One rule for the gate (fork fix): the scorer knows XP; the engine also
+	// counts the topics worked and the time since the last test.
+	if due, derr := e.QuizDue(studentID); derr == nil {
+		s.QuizDue = due
+	}
+	return s, nil
 }
 
 func (e *Engine) GetDAG() *concepts.DAG {

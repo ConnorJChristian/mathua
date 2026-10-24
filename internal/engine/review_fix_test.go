@@ -78,3 +78,24 @@ func TestSelfGradedCardDoesNotAdvanceMastery(t *testing.T) {
 		t.Fatalf("attempts should still count: %d", p.Attempts)
 	}
 }
+
+// The mastery test needs new ground and a night between tests, not XP alone.
+func TestQuizGateNeedsTopicsAndAGap(t *testing.T) {
+	e := testEngine(t)
+	st, _ := e.CreateStudent("g")
+	if err := e.repo.AwardXP(st.ID, QuizGateXP, "test", "k1"); err != nil {
+		t.Fatal(err)
+	}
+	if due, _ := e.QuizDue(st.ID); !due {
+		t.Fatal("first test: XP alone opens the gate")
+	}
+	if err := e.RecordQuizCompletion(st.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.repo.AwardXP(st.ID, QuizGateXP, "test", "k2"); err != nil {
+		t.Fatal(err)
+	}
+	if due, _ := e.QuizDue(st.ID); due {
+		t.Fatal("a second test the same hour with no new topics must not be due")
+	}
+}

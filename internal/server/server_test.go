@@ -1532,7 +1532,10 @@ func TestQuizMiss_RemedialAndGateDue(t *testing.T) {
 		t.Errorf("expected engine queue [a], got %v", got)
 	}
 
-	// Earn 150 XP of study: gate flips due (completion earlier baselined 0).
+	// Earn 150 XP of study. The XP side of the gate is met (xp_since_quiz
+	// reports it), but a test minutes after the last one, with no new topics
+	// worked, is not due (fork: engine.QuizDue also needs QuizGateTopics
+	// topics and QuizGateGap since the last test).
 	if err := store.AwardXP(sid, 150, "test", "seed-150"); err != nil {
 		t.Fatalf("add xp: %v", err)
 	}
@@ -1542,8 +1545,8 @@ func TestQuizMiss_RemedialAndGateDue(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 	var scores map[string]interface{}
 	_ = json.Unmarshal(rec.Body.Bytes(), &scores)
-	if scores["quiz_due"] != true {
-		t.Errorf("expected quiz_due true at 150 since, got %v", scores)
+	if scores["quiz_due"] != false {
+		t.Errorf("expected quiz_due false right after a test, got %v", scores)
 	}
 	if scores["xp_since_quiz"] != float64(150) {
 		t.Errorf("expected xp_since_quiz 150, got %v", scores["xp_since_quiz"])
