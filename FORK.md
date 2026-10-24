@@ -240,6 +240,32 @@ only), so tasks can use real econometrics data with no network.
 - A module's `books.json` names its PDFs: `{"file.pdf": {"title": ...,
   "author": ..., "source_prefix": ...}}`.
 
+## Courses, the Study tab and your cards
+
+The app opens on **Study** (`/today`): one queue across every course you
+follow, with the mastery test and the review session surfaced when due.
+**Courses** (`/courses`) shows each followed course as a card; a course's
+own page (`/course?id=`) has Home, Modules, Readings, Videos and Grades.
+A course's `courses.json` entry may carry `term` and `modules`
+(`[{"title", "topics": [...]}]`, each a slice of its plan); `videos.json`
+in a module maps a topic id or course id to `[{"title", "url"}]` (YouTube)
+or `[{"title", "file": "lecture.mp4"}]` (a file in `files/`).
+
+Recommendations put a followed course's path first (its plan and the
+prerequisites the plan needs); a due review still comes before them, and a
+topic missed on the last mastery test before new work. When a plan is still
+locked, the course page offers a placement test scoped to it
+(`/onboard?course=`), and a correct placement answer opens the topic's
+prerequisites too.
+
+Imported flashcards come up in the practice of the topics they are about.
+A module's `cards.json` (`{"<topic>": [{"deck", "item"}, ...]}`) files each
+card under a topic; a topic nothing is filed under takes the whole deck
+that lists it as a prerequisite. About half of a topic's questions are
+cards (`MATHUA_CARD_SHARE`). A recall card the learner grades themselves is
+practice only: it never moves mastery, counts toward a halt or reschedules
+a review. The mastery test covers only topics studied on followed courses.
+
 ## Learning reports
 
 `scripts/learning_report.py` reads a copy of the app's database and writes a
