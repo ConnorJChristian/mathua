@@ -27,12 +27,28 @@ type Course struct {
 	// "<module>/<file>" (fork change). A topic reached through the course
 	// opens its reading in the first of these that covers it.
 	Texts []string `json:"texts,omitempty"`
+	// TopicTexts puts particular texts first for particular topics (fork
+	// change): analysis topics read Abbott even inside the economics course.
+	TopicTexts map[string][]string `json:"topic_texts,omitempty"`
 	// Term names when the course runs ("Fall 2026"); shown on its card.
 	Term string `json:"term,omitempty"`
 	// Modules split the plan into the units the course is taught in (weeks,
 	// chapters), each naming a slice of plan topics (fork change). A course
 	// without modules is shown as one unit.
 	Modules []Module `json:"modules,omitempty"`
+}
+
+// TextsFor is the course's texts in priority order for one topic: its
+// topic-specific texts first, then the course's texts.
+func (c *Course) TextsFor(conceptID string) []string {
+	if c == nil {
+		return nil
+	}
+	if extra := c.TopicTexts[conceptID]; len(extra) > 0 {
+		out := append([]string(nil), extra...)
+		return append(out, c.Texts...)
+	}
+	return c.Texts
 }
 
 // Module is one teaching unit of a course: a title and the plan topics it

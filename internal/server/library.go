@@ -337,7 +337,7 @@ func (s *Server) courseTexts(r *http.Request, conceptID string) []string {
 	var texts []string
 	for _, id := range ids {
 		if c := pl.Course(id); c != nil {
-			texts = append(texts, c.Texts...)
+			texts = append(texts, c.TextsFor(conceptID)...)
 		}
 	}
 	return texts

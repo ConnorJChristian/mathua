@@ -139,7 +139,7 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		opts := s.readingOptions(cid)
 		if len(opts) > 0 {
 			pick := 0
-			for _, tx := range c.Texts {
+			for _, tx := range c.TextsFor(cid) {
 				found := false
 				for i, o := range opts {
 					if textMatches(tx, o) {
