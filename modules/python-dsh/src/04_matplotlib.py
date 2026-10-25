@@ -1207,6 +1207,97 @@ concept(
              yr = np.arange(2000, 2016)
              ax.plot(yr, [4.0, 4.7, 5.8, 6.0, 5.5, 5.1, 4.6, 4.6, 5.8, 9.3, 9.6, 8.9, 8.1, 7.4, 6.2, 5.3])
              """, level=2),
+        mc("m4", "In `fig.transFigure` coordinates, where is the point (0, 0)?",
+           "The lower-left corner of the whole figure",
+           ["The lower-left corner of the axes", "The upper-left corner of the figure", "The data point x = 0, y = 0"],
+           """
+           Figure coordinates are fractions of the figure, measured from its
+           lower-left corner, so (1, 1) is the upper-right corner. Axes
+           coordinates work the same way but for the axes box.
+           """, level=1),
+        mc("m5", "One label is placed with the default transform and another with `transform=ax.transAxes`. You then call `ax.set_xlim(0, 100)`. What happens?",
+           "The default (data-coordinate) label moves with the data; the axes-coordinate label stays in the same spot on the panel",
+           ["Both labels move with the data", "Neither label moves", "The axes-coordinate label moves and the data-coordinate label stays"],
+           """
+           Data coordinates are tied to the axis limits, so changing the limits
+           moves anything positioned in them. Axes and figure coordinates are
+           fractions of a box and ignore the limits.
+           """, level=2),
+        mc("m6", "Why is `ax.annotate` usually a better way to draw an arrow than `plt.arrow`?",
+           "`plt.arrow` draws the arrow as a shape that the axes' aspect ratio distorts, while `annotate` arrows keep their look and attach to text",
+           ["`plt.arrow` cannot point at a data coordinate", "`annotate` is the only way to set arrow color",
+            "`plt.arrow` was removed from Matplotlib"],
+           """
+           An arrow from `plt.arrow` is a patch drawn in data space, so a plot
+           with different x and y scales stretches it. `annotate` styles the
+           arrow with `arrowprops` (`arrowstyle`, `connectionstyle`, colors)
+           and keeps it tidy.
+           """, level=2),
+        out("o2", "What does this print?",
+            """
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots()
+            ax.plot([0, 10], [0, 10])
+            note = ax.text(0.5, 0.5, "centre", transform=ax.transAxes)
+            ax.set_xlim(0, 100)
+            print(note.get_position(), note.get_transform() == ax.transAxes)
+            """,
+            """
+            A text object keeps the position you gave it, in the coordinate
+            system of its transform. Changing the data limits does not touch a
+            position measured in axes fractions.
+            """, level=2),
+        task("c2",
+             """
+             The series `y` is plotted against `x`. Annotate its highest point
+             with the text "Peak": the arrow should point at the highest data
+             point, the label should sit at (`x` of the peak minus 2, the peak
+             value plus 1), the arrow should use `arrowstyle="->"` with a
+             curved `connectionstyle="arc3,rad=-0.2"`, and the label should be
+             in a rounded box (`bbox=dict(boxstyle="round", fc="w")`).
+             """,
+             """
+             import numpy as np
+             i = int(np.argmax(y))
+             ax.annotate("Peak", xy=(x[i], y[i]), xytext=(x[i] - 2, y[i] + 1),
+                         arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=-0.2"),
+                         bbox=dict(boxstyle="round", fc="w"))
+             """,
+             [
+                 check("annotation", """
+                     from matplotlib.text import Annotation
+                     anns = [t for t in ax.texts if isinstance(t, Annotation) and t.get_text() == "Peak"]
+                     check(anns, "Add the Peak annotation with ax.annotate.")
+                     a = anns[0]
+                     check(tuple(float(v) for v in a.xy) == (6.0, 8.5), "The arrow should point at the highest data point, (6, 8.5).")
+                     check(tuple(float(v) for v in a.xyann) == (4.0, 9.5), "Place the label 2 left of and 1 above the peak.")
+                 """),
+                 check("arrow", """
+                     from matplotlib.text import Annotation
+                     a = [t for t in ax.texts if isinstance(t, Annotation) and t.get_text() == "Peak"][0]
+                     props = a.arrowprops or {}
+                     check(a.arrow_patch is not None and props.get("arrowstyle") == "->", "Draw the arrow with arrowstyle='->'.")
+                     check(props.get("connectionstyle") == "arc3,rad=-0.2", "Curve the arrow with connectionstyle='arc3,rad=-0.2'.")
+                 """),
+                 check("box", """
+                     from matplotlib.text import Annotation
+                     a = [t for t in ax.texts if isinstance(t, Annotation) and t.get_text() == "Peak"][0]
+                     bp = a.get_bbox_patch()
+                     check(bp is not None and type(bp.get_boxstyle()).__name__ == "Round", "Put the label in a rounded box with bbox=dict(boxstyle='round').")
+                 """),
+             ],
+             "`np.argmax` finds the peak; `xy` is the arrow's target, `xytext` the label, `arrowprops` styles the arrow and `bbox` boxes the text.",
+             starter="""
+             ax.text(4, 9.5, "Peak")
+             """,
+             setup="""
+             import numpy as np
+             import matplotlib.pyplot as plt
+             fig, ax = plt.subplots()
+             x = np.arange(0, 11)
+             y = np.array([1.0, 2.0, 3.5, 5.0, 6.5, 8.0, 8.5, 7.0, 5.5, 4.0, 3.0])
+             ax.plot(x, y)
+             """, level=2),
     ]),
 
 # ---------------------------------------------------------------- 4.10
@@ -1488,6 +1579,83 @@ concept(
              import numpy as np
              cap = np.linspace(1, 10, 25)
              lab = np.linspace(1, 10, 25)
+             """, level=2),
+        mc("m4", "You have 200 scattered measurements as three 1D arrays `x`, `y`, `z`, not on a grid. Which call draws a surface through them?",
+           "`ax.plot_trisurf(x, y, z)`", ["`ax.plot_surface(x, y, z)`", "`ax.plot_wireframe(x, y, z)`", "`ax.contour3D(x, y, z)`"],
+           """
+           `plot_trisurf` joins neighbouring points into triangles, so it does
+           not need a regular grid. `plot_surface`, `plot_wireframe` and
+           `contour3D` all expect 2D gridded arrays.
+           """, level=2),
+        mc("m5", "What does `ax.view_init(60, 35)` set on a 3D axes?",
+           "The camera: 60 degrees of elevation above the x-y plane and 35 degrees of rotation (azimuth) about the z axis",
+           ["The x limits to 60 and the y limits to 35", "A zoom of 60 percent and a tilt of 35 degrees",
+            "The figure size to 60 by 35"],
+           """
+           The first argument is the elevation and the second the azimuth, so
+           `view_init(elev=90, azim=...)` looks straight down at the x-y plane.
+           """, level=2),
+        mc("m6", "What does `ax.plot_surface(X, Y, Z, cmap='viridis')` add compared with `ax.plot_wireframe(X, Y, Z)` on the same grid?",
+           "Each grid cell is filled as a face colored by the colormap",
+           ["It joins scattered points into triangles", "It projects contour lines onto the floor", "It draws only the grid lines, thinner"],
+           """
+           A wireframe draws the grid lines of the surface; a surface plot fills
+           each cell, and a colormap makes height easier to see.
+           """, level=1),
+        out("o2", "What does this print?",
+            """
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            ax = fig.add_subplot(projection="3d")
+            ax.view_init(elev=20, azim=45)
+            print(ax.name, ax.elev, ax.azim)
+            """,
+            "A 3D axes is named `3d` and stores the camera angles set by `view_init`.", level=1),
+        task("c2",
+             """
+             Draw a wireframe of the utility function `U = X**0.5 * Y**0.5`
+             over the grid made by `np.meshgrid(good_x, good_y)` on a new 3D
+             axes, label the z axis "Utility", and set the camera to an
+             elevation of 30 and an azimuth of -60.
+             """,
+             """
+             import numpy as np
+             import matplotlib.pyplot as plt
+             X, Y = np.meshgrid(good_x, good_y)
+             U = X**0.5 * Y**0.5
+             fig = plt.figure()
+             ax = fig.add_subplot(projection="3d")
+             ax.plot_wireframe(X, Y, U)
+             ax.set_zlabel("Utility")
+             ax.view_init(elev=30, azim=-60)
+             """,
+             [
+                 check("3d axes", """
+                     fig = figures()[0]
+                     check(fig.axes and fig.axes[0].name == "3d", "Create the axes with projection=\\"3d\\".")
+                 """),
+                 check("wireframe", """
+                     from mpl_toolkits.mplot3d.art3d import Line3DCollection
+                     ax = figures()[0].axes[0]
+                     check([c for c in ax.collections if isinstance(c, Line3DCollection)], "Draw the grid with plot_wireframe.")
+                     check(ax.get_zlabel() == "Utility", "Label the z axis Utility.")
+                 """),
+                 check("view", """
+                     ax = figures()[0].axes[0]
+                     check(ax.elev == 30 and ax.azim == -60, "Set the camera with view_init(elev=30, azim=-60).")
+                 """),
+             ],
+             "Build the grid with `np.meshgrid`, compute `U` elementwise, then `plot_wireframe` and `view_init` on a 3D axes.",
+             starter="""
+             import numpy as np
+             import matplotlib.pyplot as plt
+             fig = plt.figure()
+             ax = fig.add_subplot(projection="3d")
+             """,
+             setup="""
+             import numpy as np
+             good_x = np.linspace(1, 9, 9)
+             good_y = np.linspace(1, 9, 9)
              """, level=2),
     ]),
 

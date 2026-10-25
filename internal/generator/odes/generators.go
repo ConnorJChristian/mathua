@@ -3,6 +3,7 @@ package odes
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"github.com/chuma-beep/mathua/internal/generator"
 )
@@ -488,8 +489,157 @@ func (g *linearPhaseGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		{q: "If eigenvalues are \\(0.5 \\pm 2i\\), what type is the origin? (saddle/node/spiral)", a: "spiral", e: "Complex pair with positive real part gives an unstable spiral."},
 		{q: "Does the phase portrait of a linear system depend on eigenvalues of \\(A\\)? (yes/no)", a: "yes", e: "The eigenvalues classify the equilibrium: node, saddle, spiral, or centre."},
 	}
-	t := templates[rand.Intn(len(templates))]
-	return generator.Problem{Question: t.q, Answer: t.a, Explanation: t.e}
+	if rand.Intn(4) == 0 {
+		t := templates[rand.Intn(len(templates))]
+		return generator.Problem{Question: t.q, Answer: t.a, Explanation: t.e}
+	}
+	return linearPhaseVariant()
+}
+
+// phaseTypes are the equilibrium types a learner chooses between.
+var phaseTypes = []string{"saddle", "stable node", "unstable node", "stable spiral", "unstable spiral", "center"}
+
+// classifyPhase names the origin of x' = Ax from the trace and determinant of A.
+// ok is false for the borderline cases (det = 0, or a repeated eigenvalue).
+func classifyPhase(tr, det int) (kind string, ok bool) {
+	disc := tr*tr - 4*det
+	switch {
+	case det < 0:
+		return "saddle", true
+	case det == 0 || disc == 0:
+		return "", false
+	case disc > 0 && tr < 0:
+		return "stable node", true
+	case disc > 0:
+		return "unstable node", true
+	case tr == 0:
+		return "center", true
+	case tr < 0:
+		return "stable spiral", true
+	}
+	return "unstable spiral", true
+}
+
+func phaseReason(tr, det int, kind string) string {
+	disc := tr*tr - 4*det
+	var why string
+	switch kind {
+	case "saddle":
+		why = "A negative determinant means the eigenvalues are real with opposite signs, so the origin is a saddle."
+	case "stable node", "unstable node":
+		sign := "negative"
+		if tr > 0 {
+			sign = "positive"
+		}
+		why = fmt.Sprintf("With \\(\\det A > 0\\) and \\(\\tau^{2} - 4\\det A = %d > 0\\), the eigenvalues are real with the same sign as the trace, here %s, so the origin is %s.", disc, sign, phaseArticle(kind))
+	case "center":
+		why = fmt.Sprintf("With \\(\\tau^{2} - 4\\det A = %d < 0\\) the eigenvalues are complex, and a zero trace makes them purely imaginary, so orbits are closed: a center.", disc)
+	default:
+		sign := "negative"
+		if tr > 0 {
+			sign = "positive"
+		}
+		why = fmt.Sprintf("With \\(\\tau^{2} - 4\\det A = %d < 0\\) the eigenvalues are complex with real part \\(\\tau/2\\), which is %s, so the origin is %s.", disc, sign, phaseArticle(kind))
+	}
+	return fmt.Sprintf("The trace is \\(\\tau = %d\\) and the determinant is \\(\\det A = %d\\). %s", tr, det, why)
+}
+
+func phaseArticle(kind string) string {
+	if strings.IndexByte("aeiou", kind[0]) >= 0 {
+		return "an " + kind
+	}
+	return "a " + kind
+}
+
+func phaseChoice(question, kind string) generator.Problem {
+	var others []string
+	for _, k := range phaseTypes {
+		if k != kind {
+			others = append(others, k)
+		}
+	}
+	return generator.MultipleChoice(question, kind, others...)
+}
+
+func linearPhaseVariant() generator.Problem {
+	switch rand.Intn(3) {
+	case 0:
+		for {
+			a := rand.Intn(9) - 4
+			b := rand.Intn(9) - 4
+			c := rand.Intn(9) - 4
+			d := rand.Intn(9) - 4
+			tr, det := a+d, a*d-b*c
+			kind, ok := classifyPhase(tr, det)
+			if !ok {
+				continue
+			}
+			q := fmt.Sprintf("For the linear system \\(\\mathbf{x}' = A\\mathbf{x}\\) with \\(A = \\begin{pmatrix} %d & %d \\\\ %d & %d \\end{pmatrix}\\), what type of equilibrium is the origin?", a, b, c, d)
+			p := phaseChoice(q, kind)
+			p.Explanation = phaseReason(tr, det, kind)
+			return p
+		}
+	case 1:
+		for {
+			tr := rand.Intn(13) - 6
+			det := rand.Intn(17) - 6
+			kind, ok := classifyPhase(tr, det)
+			if !ok {
+				continue
+			}
+			q := fmt.Sprintf("A linear system \\(\\mathbf{x}' = A\\mathbf{x}\\) has \\(\\operatorname{tr} A = %d\\) and \\(\\det A = %d\\). What type of equilibrium is the origin?", tr, det)
+			p := phaseChoice(q, kind)
+			p.Explanation = phaseReason(tr, det, kind)
+			return p
+		}
+	}
+	// Eigenvalues given directly.
+	if rand.Intn(2) == 0 {
+		for {
+			l1 := rand.Intn(11) - 5
+			l2 := rand.Intn(11) - 5
+			if l1 == 0 || l2 == 0 || l1 == l2 {
+				continue
+			}
+			if l1 > l2 {
+				l1, l2 = l2, l1
+			}
+			kind, _ := classifyPhase(l1+l2, l1*l2)
+			q := fmt.Sprintf("The matrix of a linear system \\(\\mathbf{x}' = A\\mathbf{x}\\) has eigenvalues \\(\\lambda_{1} = %d\\) and \\(\\lambda_{2} = %d\\). What type of equilibrium is the origin?", l1, l2)
+			p := phaseChoice(q, kind)
+			switch {
+			case l1 < 0 && l2 > 0:
+				p.Explanation = "Real eigenvalues of opposite sign: solutions approach along one eigenvector and leave along the other, a saddle."
+			case l2 < 0:
+				p.Explanation = "Both eigenvalues are real and negative, so every solution decays to the origin: a stable node."
+			default:
+				p.Explanation = "Both eigenvalues are real and positive, so every solution moves away from the origin: an unstable node."
+			}
+			return p
+		}
+	}
+	alpha := rand.Intn(7) - 3
+	beta := 1 + rand.Intn(4)
+	kind, _ := classifyPhase(2*alpha, alpha*alpha+beta*beta)
+	im := fmt.Sprintf("%di", beta)
+	if beta == 1 {
+		im = "i"
+	}
+	re := fmt.Sprintf("%d \\pm %s", alpha, im)
+	if alpha == 0 {
+		re = "\\pm " + im
+	}
+	q := fmt.Sprintf("The matrix of a linear system \\(\\mathbf{x}' = A\\mathbf{x}\\) has eigenvalues \\(%s\\). What type of equilibrium is the origin?", re)
+	p := phaseChoice(q, kind)
+	switch {
+	case alpha == 0:
+		p.Explanation = "Purely imaginary eigenvalues give closed orbits around the origin: a center."
+	case alpha < 0:
+		p.Explanation = "Complex eigenvalues with negative real part: solutions rotate and decay, a stable spiral."
+	default:
+		p.Explanation = "Complex eigenvalues with positive real part: solutions rotate and grow, an unstable spiral."
+	}
+	return p
 }
 
 type eulerGen struct{}

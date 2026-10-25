@@ -1047,6 +1047,78 @@
       }
      ],
      "explain": "`xy` is the target in data coordinates; `transform=ax.transAxes` makes (0.98, 0.02) a fraction of the axes."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "In `fig.transFigure` coordinates, where is the point (0, 0)?",
+     "correct": "The lower-left corner of the whole figure",
+     "wrong": [
+      "The lower-left corner of the axes",
+      "The upper-left corner of the figure",
+      "The data point x = 0, y = 0"
+     ],
+     "explain": "Figure coordinates are fractions of the figure, measured from its lower-left corner, so (1, 1) is the upper-right corner. Axes coordinates work the same way but for the axes box."
+    },
+    {
+     "id": "m5",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "One label is placed with the default transform and another with `transform=ax.transAxes`. You then call `ax.set_xlim(0, 100)`. What happens?",
+     "correct": "The default (data-coordinate) label moves with the data; the axes-coordinate label stays in the same spot on the panel",
+     "wrong": [
+      "Both labels move with the data",
+      "Neither label moves",
+      "The axes-coordinate label moves and the data-coordinate label stays"
+     ],
+     "explain": "Data coordinates are tied to the axis limits, so changing the limits moves anything positioned in them. Axes and figure coordinates are fractions of a box and ignore the limits."
+    },
+    {
+     "id": "m6",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "Why is `ax.annotate` usually a better way to draw an arrow than `plt.arrow`?",
+     "correct": "`plt.arrow` draws the arrow as a shape that the axes' aspect ratio distorts, while `annotate` arrows keep their look and attach to text",
+     "wrong": [
+      "`plt.arrow` cannot point at a data coordinate",
+      "`annotate` is the only way to set arrow color",
+      "`plt.arrow` was removed from Matplotlib"
+     ],
+     "explain": "An arrow from `plt.arrow` is a patch drawn in data space, so a plot with different x and y scales stretches it. `annotate` styles the arrow with `arrowprops` (`arrowstyle`, `connectionstyle`, colors) and keeps it tidy."
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 2,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 10], [0, 10])\nnote = ax.text(0.5, 0.5, \"centre\", transform=ax.transAxes)\nax.set_xlim(0, 100)\nprint(note.get_position(), note.get_transform() == ax.transAxes)",
+     "explain": "A text object keeps the position you gave it, in the coordinate system of its transform. Changing the data limits does not touch a position measured in axes fractions.",
+     "expected": "(0.5, 0.5) True"
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "The series `y` is plotted against `x`. Annotate its highest point with the text \"Peak\": the arrow should point at the highest data point, the label should sit at (`x` of the peak minus 2, the peak value plus 1), the arrow should use `arrowstyle=\"->\"` with a curved `connectionstyle=\"arc3,rad=-0.2\"`, and the label should be in a rounded box (`bbox=dict(boxstyle=\"round\", fc=\"w\")`).",
+     "starter": "ax.text(4, 9.5, \"Peak\")",
+     "setup": "import numpy as np\nimport matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nx = np.arange(0, 11)\ny = np.array([1.0, 2.0, 3.5, 5.0, 6.5, 8.0, 8.5, 7.0, 5.5, 4.0, 3.0])\nax.plot(x, y)",
+     "solution": "import numpy as np\ni = int(np.argmax(y))\nax.annotate(\"Peak\", xy=(x[i], y[i]), xytext=(x[i] - 2, y[i] + 1),\n            arrowprops=dict(arrowstyle=\"->\", connectionstyle=\"arc3,rad=-0.2\"),\n            bbox=dict(boxstyle=\"round\", fc=\"w\"))",
+     "tests": [
+      {
+       "name": "annotation",
+       "code": "from matplotlib.text import Annotation\nanns = [t for t in ax.texts if isinstance(t, Annotation) and t.get_text() == \"Peak\"]\ncheck(anns, \"Add the Peak annotation with ax.annotate.\")\na = anns[0]\ncheck(tuple(float(v) for v in a.xy) == (6.0, 8.5), \"The arrow should point at the highest data point, (6, 8.5).\")\ncheck(tuple(float(v) for v in a.xyann) == (4.0, 9.5), \"Place the label 2 left of and 1 above the peak.\")"
+      },
+      {
+       "name": "arrow",
+       "code": "from matplotlib.text import Annotation\na = [t for t in ax.texts if isinstance(t, Annotation) and t.get_text() == \"Peak\"][0]\nprops = a.arrowprops or {}\ncheck(a.arrow_patch is not None and props.get(\"arrowstyle\") == \"->\", \"Draw the arrow with arrowstyle='->'.\")\ncheck(props.get(\"connectionstyle\") == \"arc3,rad=-0.2\", \"Curve the arrow with connectionstyle='arc3,rad=-0.2'.\")"
+      },
+      {
+       "name": "box",
+       "code": "from matplotlib.text import Annotation\na = [t for t in ax.texts if isinstance(t, Annotation) and t.get_text() == \"Peak\"][0]\nbp = a.get_bbox_patch()\ncheck(bp is not None and type(bp.get_boxstyle()).__name__ == \"Round\", \"Put the label in a rounded box with bbox=dict(boxstyle='round').\")"
+      }
+     ],
+     "explain": "`np.argmax` finds the peak; `xy` is the arrow's target, `xytext` the label, `arrowprops` styles the arrow and `bbox` boxes the text."
     }
    ]
   },
@@ -1306,6 +1378,78 @@
       }
      ],
      "explain": "Build the grid, compute Z on it elementwise, then call `plot_surface` on a 3D axes."
+    },
+    {
+     "id": "m4",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "You have 200 scattered measurements as three 1D arrays `x`, `y`, `z`, not on a grid. Which call draws a surface through them?",
+     "correct": "`ax.plot_trisurf(x, y, z)`",
+     "wrong": [
+      "`ax.plot_surface(x, y, z)`",
+      "`ax.plot_wireframe(x, y, z)`",
+      "`ax.contour3D(x, y, z)`"
+     ],
+     "explain": "`plot_trisurf` joins neighbouring points into triangles, so it does not need a regular grid. `plot_surface`, `plot_wireframe` and `contour3D` all expect 2D gridded arrays."
+    },
+    {
+     "id": "m5",
+     "kind": "mc",
+     "level": 2,
+     "prompt": "What does `ax.view_init(60, 35)` set on a 3D axes?",
+     "correct": "The camera: 60 degrees of elevation above the x-y plane and 35 degrees of rotation (azimuth) about the z axis",
+     "wrong": [
+      "The x limits to 60 and the y limits to 35",
+      "A zoom of 60 percent and a tilt of 35 degrees",
+      "The figure size to 60 by 35"
+     ],
+     "explain": "The first argument is the elevation and the second the azimuth, so `view_init(elev=90, azim=...)` looks straight down at the x-y plane."
+    },
+    {
+     "id": "m6",
+     "kind": "mc",
+     "level": 1,
+     "prompt": "What does `ax.plot_surface(X, Y, Z, cmap='viridis')` add compared with `ax.plot_wireframe(X, Y, Z)` on the same grid?",
+     "correct": "Each grid cell is filled as a face colored by the colormap",
+     "wrong": [
+      "It joins scattered points into triangles",
+      "It projects contour lines onto the floor",
+      "It draws only the grid lines, thinner"
+     ],
+     "explain": "A wireframe draws the grid lines of the surface; a surface plot fills each cell, and a colormap makes height easier to see."
+    },
+    {
+     "id": "o2",
+     "kind": "output",
+     "level": 1,
+     "prompt": "What does this print?",
+     "code": "import matplotlib.pyplot as plt\nfig = plt.figure()\nax = fig.add_subplot(projection=\"3d\")\nax.view_init(elev=20, azim=45)\nprint(ax.name, ax.elev, ax.azim)",
+     "explain": "A 3D axes is named `3d` and stores the camera angles set by `view_init`.",
+     "expected": "3d 20 45"
+    },
+    {
+     "id": "c2",
+     "kind": "code",
+     "level": 2,
+     "prompt": "Draw a wireframe of the utility function `U = X**0.5 * Y**0.5` over the grid made by `np.meshgrid(good_x, good_y)` on a new 3D axes, label the z axis \"Utility\", and set the camera to an elevation of 30 and an azimuth of -60.",
+     "starter": "import numpy as np\nimport matplotlib.pyplot as plt\nfig = plt.figure()\nax = fig.add_subplot(projection=\"3d\")",
+     "setup": "import numpy as np\ngood_x = np.linspace(1, 9, 9)\ngood_y = np.linspace(1, 9, 9)",
+     "solution": "import numpy as np\nimport matplotlib.pyplot as plt\nX, Y = np.meshgrid(good_x, good_y)\nU = X**0.5 * Y**0.5\nfig = plt.figure()\nax = fig.add_subplot(projection=\"3d\")\nax.plot_wireframe(X, Y, U)\nax.set_zlabel(\"Utility\")\nax.view_init(elev=30, azim=-60)",
+     "tests": [
+      {
+       "name": "3d axes",
+       "code": "fig = figures()[0]\ncheck(fig.axes and fig.axes[0].name == \"3d\", \"Create the axes with projection=\\\"3d\\\".\")"
+      },
+      {
+       "name": "wireframe",
+       "code": "from mpl_toolkits.mplot3d.art3d import Line3DCollection\nax = figures()[0].axes[0]\ncheck([c for c in ax.collections if isinstance(c, Line3DCollection)], \"Draw the grid with plot_wireframe.\")\ncheck(ax.get_zlabel() == \"Utility\", \"Label the z axis Utility.\")"
+      },
+      {
+       "name": "view",
+       "code": "ax = figures()[0].axes[0]\ncheck(ax.elev == 30 and ax.azim == -60, \"Set the camera with view_init(elev=30, azim=-60).\")"
+      }
+     ],
+     "explain": "Build the grid with `np.meshgrid`, compute `U` elementwise, then `plot_wireframe` and `view_init` on a 3D axes."
     }
    ]
   },

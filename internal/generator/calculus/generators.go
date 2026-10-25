@@ -590,6 +590,9 @@ func (g *integralDefiniteGen) Generate(ctx generator.GeneratorContext) generator
 type integralFTCGen struct{}
 
 func (g *integralFTCGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return ftcVariant(ctx)
+	}
 	scale := int(1 + ctx.Difficulty*5)
 	n := rand.Intn(max(2, scale)) + 1
 	answer := fmt.Sprintf("x^%d", n)
@@ -1685,8 +1688,13 @@ func (g *derivLogDiffGen) Generate(ctx generator.GeneratorContext) generator.Pro
 		{"Use logarithmic differentiation: find \\(f'(x)\\) if \\(f(x)=x^{3x}\\).", "x^(3x)*(3ln(x)+3)", "Take logs: \\(\\ln f = 3x\\ln x\\), so \\(f'/f = 3\\ln x + 3\\)."},
 		{"Use logarithmic differentiation: find \\(f'(x)\\) if \\(f(x)=(2x)^{x}\\).", "(2x)^x*(ln(2x)+1)", "Take logs: \\(\\ln f = x\\ln(2x)\\), so \\(f'/f = \\ln(2x) + 1\\)."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	// Table items stay; most draws come from the parameterised variant so the
+	// pool is wide enough for mastery evidence.
+	if rand.Intn(4) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return logDiffVariant(ctx)
 }
 
 type derivHigherOrderGen struct{}
@@ -1719,8 +1727,13 @@ func (g *derivInverseFuncGen) Generate(ctx generator.GeneratorContext) generator
 		{"If f is differentiable with nonzero derivative, does (f⁻¹)'(f(x)) equal 1/f'(x)? (yes/no)", "yes", "If \\(f\\) is differentiable with \\(f'(x) \\neq 0\\), then \\((f^{-1})'(f(x)) = 1/f'(x)\\)."},
 		{"If \\(f(x)=x^{3}\\) and \\(g\\) is its inverse, what is \\(g'(8)\\)?", "1/12", "\\(f'(x) = 3x^{2}\\); at \\(x=2\\), \\(f(2)=8\\) and \\(f'(2)=12\\), so \\(g'(8)=1/12\\)."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	// Table items stay; most draws come from the parameterised variant so the
+	// pool is wide enough for mastery evidence.
+	if rand.Intn(4) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return inverseFuncVariant(ctx)
 }
 
 type derivCriticalPointsGen struct{}
@@ -1753,8 +1766,13 @@ func (g *derivSecondTestGen) Generate(ctx generator.GeneratorContext) generator.
 		{"Is \\(x=0\\) a local minimum of \\(f(x)=x^{3}-3x^{2}\\) by the second derivative test? (yes/no)", "no", "\\(f''(x) = 6x-6\\); \\(f''(0) = -6 < 0\\), so \\(x=0\\) is a local maximum, not a minimum."},
 		{"Is \\(x=2\\) a local minimum of \\(f(x)=x^{3}-3x^{2}\\) by the second derivative test? (yes/no)", "yes", "\\(f''(x) = 6x-6\\); \\(f''(2) = 6 > 0\\), so \\(x=2\\) is a local minimum."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	// Table items stay; most draws come from the parameterised variant so the
+	// pool is wide enough for mastery evidence.
+	if rand.Intn(4) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return secondTestVariant(ctx)
 }
 
 type derivInflectionGen struct{}
@@ -1785,8 +1803,13 @@ func (g *derivGlobalExtremaGen) Generate(ctx generator.GeneratorContext) generat
 		{"Does the closed-interval method evaluate f at critical points and endpoints? (yes/no)", "yes", "On \\([a,b]\\): find critical points inside, evaluate \\(f\\) there and at \\(a,b\\); extremes are the largest/smallest values."},
 		{"What is the global maximum VALUE of \\(f(x)=-x^{2}+4x\\) on \\([0,3]\\)? (enter a number)", "4", "Critical point \\(x=2\\): \\(f(2)=4\\). Endpoints: \\(f(0)=0\\), \\(f(3)=3\\). Global max value is 4 at \\(x=2\\)."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	// Table items stay; most draws come from the parameterised variant so the
+	// pool is wide enough for mastery evidence.
+	if rand.Intn(4) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return globalExtremaVariant(ctx)
 }
 
 type derivCurveSketchGen struct{}
@@ -1832,8 +1855,13 @@ func (g *derivLinearApproxGen) Generate(ctx generator.GeneratorContext) generato
 		{"Use \\(L(x)=1+(x-1)/2\\) to approximate \\(\\sqrt{1.1}\\).", "1.05", "\\(L(1.1) = 1 + 0.1/2 = 1.05\\)."},
 		{"Write the linearization of \\(f(x)=e^{x}\\) at \\(x=0\\) as an expression in \\(x\\).", "1+x", "\\(f(0)=1\\), \\(f'(0)=1\\): \\(L(x) = 1+x\\)."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	// Table items stay; most draws come from the parameterised variant so the
+	// pool is wide enough for mastery evidence.
+	if rand.Intn(4) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return linearApproxVariant(ctx)
 }
 
 type derivNewtonGen struct{}
@@ -1964,8 +1992,13 @@ func (g *derivPartialHigherGen) Generate(ctx generator.GeneratorContext) generat
 		{"For \\(f(x,y)=x^{2}y\\), find \\(f_{xy}\\).", "2x", "\\(f_{x} = 2xy\\), so \\(f_{xy} = 2x\\)."},
 		{"For \\(f(x,y)=\\sin(x)\\cos(y)\\), find \\(f_{xx}\\).", "-sin(x)cos(y)", "\\(f_{x} = \\cos(x)\\cos(y)\\), so \\(f_{xx} = -\\sin(x)\\cos(y)\\)."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	// Table items stay; most draws come from the parameterised variant so the
+	// pool is wide enough for mastery evidence.
+	if rand.Intn(4) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return partialHigherVariant(ctx)
 }
 
 type derivClairautGen struct{}
@@ -1997,8 +2030,13 @@ func (g *derivTotalDiffGen) Generate(ctx generator.GeneratorContext) generator.P
 		{"For \\(z=x^{2}y\\), write \\(dz\\).", "dz = 2xy dx + x^2 dy", "\\(z_{x} = 2xy\\), \\(z_{y} = x^{2}\\), so \\(dz = 2xy\\,dx + x^{2}\\,dy\\)."},
 		{"For \\(z=xy\\), write \\(dz\\).", "dz = y dx + x dy", "\\(z_{x} = y\\), \\(z_{y} = x\\), so \\(dz = y\\,dx + x\\,dy\\)."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	// Table items stay; most draws come from the parameterised variant so the
+	// pool is wide enough for mastery evidence.
+	if rand.Intn(4) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return totalDiffVariant(ctx)
 }
 
 type derivDiffContinuityGen struct{}
@@ -3114,5 +3152,560 @@ func diffContinuityVariant(ctx generator.GeneratorContext) generator.Problem {
 		Question:    fmt.Sprintf("Let \\(%s\\). Choose \\(m\\) and \\(b\\) so that \\(f\\) is differentiable at \\(x=%d\\). What is \\(b\\)? (enter a number)", piece, c),
 		Answer:      fmt.Sprintf("%d", b),
 		Explanation: expl,
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Parameterised variants for the ECON 5153 derivative and integral topics
+// (linear approximation, total differential, higher partials, global extrema,
+// inverse functions, logarithmic differentiation, the second derivative test,
+// the fundamental theorem). Every answer is computed from the drawn values.
+// ---------------------------------------------------------------------------
+
+// plainPoly writes a sum of xyTerms the way a learner types it.
+func plainPoly(terms []xyTerm) string {
+	var b strings.Builder
+	for _, t := range terms {
+		if t.c == 0 {
+			continue
+		}
+		s := plainMonomial(t)
+		switch {
+		case b.Len() == 0:
+			b.WriteString(s)
+		case strings.HasPrefix(s, "-"):
+			b.WriteString(" - " + s[1:])
+		default:
+			b.WriteString(" + " + s)
+		}
+	}
+	if b.Len() == 0 {
+		return "0"
+	}
+	return b.String()
+}
+
+// xyDeriv differentiates a polynomial in x and y with respect to x (wrt == 'x') or y.
+func xyDeriv(terms []xyTerm, wrt byte) []xyTerm {
+	var out []xyTerm
+	for _, t := range terms {
+		if wrt == 'x' {
+			if t.i > 0 && t.c != 0 {
+				out = append(out, xyTerm{t.c * t.i, t.i - 1, t.j})
+			}
+		} else if t.j > 0 && t.c != 0 {
+			out = append(out, xyTerm{t.c * t.j, t.i, t.j - 1})
+		}
+	}
+	return out
+}
+
+// xyEval evaluates a polynomial in x and y at integer (p, q).
+func xyEval(terms []xyTerm, p, q int) int {
+	v := 0
+	for _, t := range terms {
+		v += t.c * ipow(p, t.i) * ipow(q, t.j)
+	}
+	return v
+}
+
+// xyNonzero reports whether a polynomial has any nonzero term.
+func xyNonzero(terms []xyTerm) bool {
+	for _, t := range terms {
+		if t.c != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// texInT writes a polynomial in one variable with t (or q) in place of x.
+func texInVar(terms []xyTerm, v string) string {
+	return strings.ReplaceAll(texXY(terms), "x", v)
+}
+
+func linearApproxVariant(ctx generator.GeneratorContext) generator.Problem {
+	switch rand.Intn(5) {
+	case 0:
+		c := 1 + rand.Intn(3)
+		n := 2 + rand.Intn(3)
+		as := []int{-2, -1, 1, 2, 3}
+		a := as[rand.Intn(len(as))]
+		fa := c * ipow(a, n)
+		m := c * n * ipow(a, n-1)
+		b := fa - m*a
+		line := []xyTerm{{m, 1, 0}, {b, 0, 0}}
+		return generator.Problem{
+			Question: fmt.Sprintf("Write the linearization \\(L(x)\\) of \\(f(x)=%s\\) at \\(x=%d\\) as an expression in \\(x\\).", texXY([]xyTerm{{c, n, 0}}), a),
+			Answer:   plainPoly(line),
+			Explanation: fmt.Sprintf("\\(L(x) = f(a) + f'(a)(x-a)\\). Here \\(f(%d)=%d\\) and \\(f'(x)=%s\\), so \\(f'(%d)=%d\\). Then \\(L(x) = %d + %s(%s) = %s\\).",
+				a, fa, texXY([]xyTerm{{c * n, n - 1, 0}}), a, m, fa, paren(m), shiftTex(a), texXY(line)),
+		}
+	case 1:
+		k := 2 + rand.Intn(8)
+		ds := []int{-3, -2, -1, 1, 2, 3}
+		d := ds[rand.Intn(len(ds))]
+		if k == 2 && d == -3 {
+			d = 3 // 4 - 3 = 1 is itself a perfect square
+		}
+		n := k*k + d
+		ans := ratStr(int64(2*k*k+d), int64(2*k))
+		return generator.Problem{
+			Question: fmt.Sprintf("Use the linearization of \\(f(x)=\\sqrt{x}\\) at \\(x=%d\\) to approximate \\(\\sqrt{%d}\\). (enter an exact fraction)", k*k, n),
+			Answer:   ans,
+			Explanation: fmt.Sprintf("\\(f(%d)=%d\\) and \\(f'(x)=\\frac{1}{2\\sqrt{x}}\\), so \\(f'(%d)=\\frac{1}{%d}\\). Then \\(L(%d) = %d + \\frac{%d}{%d} = %s\\). This is an estimate, not the exact root: the square root is concave, so its tangent line lies above it and the estimate is slightly too large.",
+				k*k, k, k*k, 2*k, n, k, d, 2*k, ans),
+		}
+	case 2:
+		a := 1 + rand.Intn(3)
+		b := 2 + rand.Intn(9)
+		f := 10 * (2 + rand.Intn(19))
+		q0 := 5 + rand.Intn(16)
+		hs := []int{-2, -1, 1, 2}
+		h := hs[rand.Intn(len(hs))]
+		cost := []xyTerm{{a, 2, 0}, {b, 1, 0}, {f, 0, 0}}
+		c0 := xyEval(cost, q0, 0)
+		mc := 2*a*q0 + b
+		est := c0 + mc*h
+		exact := xyEval(cost, q0+h, 0)
+		return generator.Problem{
+			Question: fmt.Sprintf("A firm's total cost is \\(C(q)=%s\\). Use the linear approximation at \\(q=%d\\) (marginal cost times the change in output) to estimate \\(C(%d)\\). (enter a number)", texInVar(cost, "q"), q0, q0+h),
+			Answer:   fmt.Sprintf("%d", est),
+			Explanation: fmt.Sprintf("\\(C(%d)=%d\\) and \\(C'(q)=%s\\), so marginal cost at \\(q=%d\\) is %d. The estimate is \\(C(%d) + C'(%d)\\cdot(%d) = %d + %d\\cdot %s = %d\\). The exact cost is \\(C(%d)=%d\\); the gap of %d is the curvature term \\(%d\\cdot(%d)^{2}\\) that the tangent line ignores.",
+				q0, c0, texInVar([]xyTerm{{2 * a, 1, 0}, {b, 0, 0}}, "q"), q0, mc, q0, q0, h, c0, mc, paren(h), est, q0+h, exact, exact-est, a, h),
+		}
+	case 3:
+		k := 2 + rand.Intn(4)
+		ds := []int{-3, -2, -1, 1, 2, 3}
+		d := ds[rand.Intn(len(ds))]
+		n := k*k*k + d
+		ans := ratStr(int64(3*k*k*k+d), int64(3*k*k))
+		return generator.Problem{
+			Question: fmt.Sprintf("Use the linearization of \\(f(x)=\\sqrt[3]{x}\\) at \\(x=%d\\) to approximate \\(\\sqrt[3]{%d}\\). (enter an exact fraction)", k*k*k, n),
+			Answer:   ans,
+			Explanation: fmt.Sprintf("\\(f(%d)=%d\\) and \\(f'(x)=\\frac{1}{3x^{2/3}}\\), so \\(f'(%d)=\\frac{1}{%d}\\). Then \\(L(%d) = %d + \\frac{%d}{%d} = %s\\). This is an estimate: the cube root is concave for \\(x>0\\), so the tangent line lies slightly above the curve.",
+				k*k*k, k, k*k*k, 3*k*k, n, k, d, 3*k*k, ans),
+		}
+	}
+	k := 2 + rand.Intn(5)
+	switch rand.Intn(4) {
+	case 0:
+		return generator.Problem{
+			Question:    fmt.Sprintf("Write the linearization of \\(f(x)=e^{%dx}\\) at \\(x=0\\) as an expression in \\(x\\).", k),
+			Answer:      fmt.Sprintf("1 + %d*x", k),
+			Explanation: fmt.Sprintf("\\(f(0)=1\\) and \\(f'(x)=%de^{%dx}\\), so \\(f'(0)=%d\\): \\(L(x) = 1 + %dx\\).", k, k, k, k),
+		}
+	case 1:
+		return generator.Problem{
+			Question:    fmt.Sprintf("Write the linearization of \\(f(x)=\\ln(1+%dx)\\) at \\(x=0\\) as an expression in \\(x\\).", k),
+			Answer:      fmt.Sprintf("%d*x", k),
+			Explanation: fmt.Sprintf("\\(f(0)=\\ln 1=0\\) and \\(f'(x)=\\frac{%d}{1+%dx}\\), so \\(f'(0)=%d\\): \\(L(x) = %dx\\).", k, k, k, k),
+		}
+	case 2:
+		slope := ratStr(int64(k), 2)
+		ans := fmt.Sprintf("1 + %d*x/2", k)
+		if k%2 == 0 {
+			ans = fmt.Sprintf("1 + %d*x", k/2)
+		}
+		return generator.Problem{
+			Question:    fmt.Sprintf("Write the linearization of \\(f(x)=\\sqrt{1+%dx}\\) at \\(x=0\\) as an expression in \\(x\\).", k),
+			Answer:      ans,
+			Explanation: fmt.Sprintf("\\(f(0)=1\\) and \\(f'(x)=\\frac{%d}{2\\sqrt{1+%dx}}\\), so \\(f'(0)=%s\\): \\(L(x) = 1 + %s x\\).", k, k, slope, slope),
+		}
+	}
+	n := k + 1 + rand.Intn(4)
+	return generator.Problem{
+		Question:    fmt.Sprintf("Write the linearization of \\(f(x)=(1+x)^{%d}\\) at \\(x=0\\) as an expression in \\(x\\).", n),
+		Answer:      fmt.Sprintf("1 + %d*x", n),
+		Explanation: fmt.Sprintf("\\(f(0)=1\\) and \\(f'(x)=%d(1+x)^{%d}\\), so \\(f'(0)=%d\\): \\(L(x) = 1 + %dx\\).", n, n-1, n, n),
+	}
+}
+
+func totalDiffVariant(ctx generator.GeneratorContext) generator.Problem {
+	switch rand.Intn(3) {
+	case 0:
+		k := 1 + rand.Intn(4)
+		m := 1 + rand.Intn(3)
+		n := 1 + rand.Intn(3)
+		r := rand.Intn(9) - 4
+		s := 2 + rand.Intn(2)
+		t := rand.Intn(9) - 4
+		u := 2 + rand.Intn(2)
+		z := []xyTerm{{k, m, n}, {r, s, 0}, {t, 0, u}}
+		zx := xyDeriv(z, 'x')
+		zy := xyDeriv(z, 'y')
+		return generator.Problem{
+			Question: fmt.Sprintf("For \\(z=%s\\), write the total differential \\(dz\\).", texXY(z)),
+			Answer:   fmt.Sprintf("dz = (%s) dx + (%s) dy", plainPoly(zx), plainPoly(zy)),
+			Explanation: fmt.Sprintf("\\(dz = z_{x}\\,dx + z_{y}\\,dy\\). Here \\(z_{x} = %s\\) and \\(z_{y} = %s\\), so \\(dz = (%s)\\,dx + (%s)\\,dy\\).",
+				texXY(zx), texXY(zy), texXY(zx), texXY(zy)),
+		}
+	case 1:
+		p := rand.Intn(5) - 1
+		q := rand.Intn(5) - 1
+		f, fx, fy, gx, gy := quadraticXY(p, q)
+		steps := []int{-20, -10, -5, 5, 10, 20} // hundredths
+		dx := steps[rand.Intn(len(steps))]
+		dy := steps[rand.Intn(len(steps))]
+		est := calcDec(float64(gx*dx+gy*dy) / 100)
+		x1 := calcDec(float64(100*p+dx) / 100)
+		y1 := calcDec(float64(100*q+dy) / 100)
+		dxs := calcDec(float64(dx) / 100)
+		dys := calcDec(float64(dy) / 100)
+		return generator.Problem{
+			Question: fmt.Sprintf("Use the total differential to estimate the change in \\(f(x,y)=%s\\) when \\((x,y)\\) moves from \\((%d,%d)\\) to \\((%s,%s)\\). (enter a decimal)", f, p, q, x1, y1),
+			Answer:   est,
+			Explanation: fmt.Sprintf("\\(df = f_{x}\\,dx + f_{y}\\,dy\\) with \\(f_{x} = %s\\) and \\(f_{y} = %s\\). At \\((%d,%d)\\) these are %d and %d, and \\(dx = %s\\), \\(dy = %s\\), so \\(df = %s\\cdot %s + %s\\cdot %s = %s\\). This is the linear estimate of the change, not the exact change.",
+				fx, fy, p, q, gx, gy, dxs, dys, paren(gx), wrapNeg(dxs), paren(gy), wrapNeg(dys), est),
+		}
+	}
+	as := []int{1, 2, 3, 4, 5, 10}
+	a := as[rand.Intn(len(as))]
+	k := 1 + rand.Intn(6)
+	l := 1 + rand.Intn(6)
+	ds := []int{-2, -1, 1, 2, 3}
+	dk := ds[rand.Intn(len(ds))]
+	dl := ds[rand.Intn(len(ds))]
+	ans := ratStr(int64(a*(l*l*dk+k*k*dl)), int64(2*k*l))
+	qk := ratStr(int64(a*l), int64(2*k))
+	ql := ratStr(int64(a*k), int64(2*l))
+	coef := ""
+	if a != 1 {
+		coef = fmt.Sprintf("%d", a)
+	}
+	return generator.Problem{
+		Question: fmt.Sprintf("Output is \\(Q = %sK^{1/2}L^{1/2}\\). At \\(K=%d\\), \\(L=%d\\), use the total differential to estimate the change in output when capital changes by \\(dK=%d\\) and labour by \\(dL=%d\\). (enter an exact fraction or integer)", coef, k*k, l*l, dk, dl),
+		Answer:   ans,
+		Explanation: fmt.Sprintf("\\(dQ = Q_{K}\\,dK + Q_{L}\\,dL\\) with \\(Q_{K} = \\frac{%d}{2}K^{-1/2}L^{1/2}\\) and \\(Q_{L} = \\frac{%d}{2}K^{1/2}L^{-1/2}\\). At \\(K=%d\\), \\(L=%d\\): \\(Q_{K} = %s\\) and \\(Q_{L} = %s\\), so \\(dQ = %s\\cdot %s + %s\\cdot %s = %s\\). This is the linear estimate of the change in output.",
+			a, a, k*k, l*l, qk, ql, qk, paren(dk), ql, paren(dl), ans),
+	}
+}
+
+// wrapNeg puts a negative decimal string in parentheses.
+func wrapNeg(s string) string {
+	if strings.HasPrefix(s, "-") {
+		return "(" + s + ")"
+	}
+	return s
+}
+
+func partialHigherVariant(ctx generator.GeneratorContext) generator.Problem {
+	for {
+		ks := []int{-3, -2, -1, 1, 2, 3, 4, 5}
+		k := ks[rand.Intn(len(ks))]
+		m := 1 + rand.Intn(4)
+		n := 1 + rand.Intn(3)
+		r := rand.Intn(9) - 4
+		s := 2 + rand.Intn(3)
+		t := rand.Intn(9) - 4
+		u := 2 + rand.Intn(3)
+		f := []xyTerm{{k, m, n}, {r, s, 0}, {t, 0, u}}
+		fx := xyDeriv(f, 'x')
+		fy := xyDeriv(f, 'y')
+		names := []string{"f_{xx}", "f_{yy}", "f_{xy}", "f_{yx}"}
+		which := rand.Intn(4)
+		var first, second []xyTerm
+		var firstName string
+		switch which {
+		case 0:
+			first, second, firstName = fx, xyDeriv(fx, 'x'), "f_{x}"
+		case 1:
+			first, second, firstName = fy, xyDeriv(fy, 'y'), "f_{y}"
+		case 2:
+			first, second, firstName = fx, xyDeriv(fx, 'y'), "f_{x}"
+		default:
+			first, second, firstName = fy, xyDeriv(fy, 'x'), "f_{y}"
+		}
+		if !xyNonzero(second) {
+			continue
+		}
+		if rand.Intn(3) == 0 {
+			p := rand.Intn(5) - 2
+			q := rand.Intn(5) - 2
+			val := xyEval(second, p, q)
+			return generator.Problem{
+				Question: fmt.Sprintf("For \\(f(x,y)=%s\\), evaluate \\(%s\\) at \\((%d,%d)\\). (enter a number)", texXY(f), names[which], p, q),
+				Answer:   fmt.Sprintf("%d", val),
+				Explanation: fmt.Sprintf("\\(%s = %s\\), so \\(%s = %s\\). At \\((%d,%d)\\) this is %d.",
+					firstName, texXY(first), names[which], texXY(second), p, q, val),
+			}
+		}
+		return generator.Problem{
+			Question:    fmt.Sprintf("For \\(f(x,y)=%s\\), find \\(%s\\).", texXY(f), names[which]),
+			Answer:      plainPoly(second),
+			Explanation: fmt.Sprintf("\\(%s = %s\\), so \\(%s = %s\\).", firstName, texXY(first), names[which], texXY(second)),
+		}
+	}
+}
+
+func globalExtremaVariant(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(2) == 0 {
+		a := 1 + rand.Intn(3)
+		qs := 2 + rand.Intn(7)
+		b := 2 * a * qs
+		f := 5 * rand.Intn(7)
+		cap := qs - 2 + rand.Intn(7)
+		if cap < 1 {
+			cap = 1
+		}
+		pi := []xyTerm{{-a, 2, 0}, {b, 1, 0}, {-f, 0, 0}}
+		cands := []int{0, cap}
+		if qs > 0 && qs < cap {
+			cands = append(cands, qs)
+		}
+		best, at := xyEval(pi, 0, 0), 0
+		var vals []string
+		for _, c := range cands {
+			v := xyEval(pi, c, 0)
+			vals = append(vals, fmt.Sprintf("\\(\\pi(%d)=%d\\)", c, v))
+			if v > best {
+				best, at = v, c
+			}
+		}
+		where := fmt.Sprintf("The only critical point is \\(q=%d\\), which lies outside the open interval \\((0,%d)\\), so only the endpoints are candidates", qs, cap)
+		if qs < cap {
+			where = fmt.Sprintf("The critical point \\(q=%d\\) lies inside \\((0,%d)\\), so the candidates are it and the two endpoints", qs, cap)
+		}
+		return generator.Problem{
+			Question: fmt.Sprintf("A firm's profit from output \\(q\\) is \\(\\pi(q)=%s\\), and capacity limits output to \\(0 \\le q \\le %d\\). What is the global maximum profit on this interval? (enter a number)", texInVar(pi, "q"), cap),
+			Answer:   fmt.Sprintf("%d", best),
+			Explanation: fmt.Sprintf("\\(\\pi'(q) = %s = 0\\) at \\(q=%d\\). %s: %s. The largest is %d, at \\(q=%d\\).",
+				texInVar([]xyTerm{{-2 * a, 1, 0}, {b, 0, 0}}, "q"), qs, where, strings.Join(vals, ", "), best, at),
+		}
+	}
+	c := 1 + rand.Intn(3)
+	d := rand.Intn(11) - 5
+	l := -(1 + rand.Intn(c+2))
+	r := 1 + rand.Intn(c+2)
+	f := []xyTerm{{1, 3, 0}, {-3 * c * c, 1, 0}, {d, 0, 0}}
+	cands := []int{l, r}
+	var inside []string
+	for _, x := range []int{-c, c} {
+		if x > l && x < r {
+			cands = append(cands, x)
+			inside = append(inside, fmt.Sprintf("%d", x))
+		}
+	}
+	wantMax := rand.Intn(2) == 0
+	best, at := xyEval(f, l, 0), l
+	var vals []string
+	for _, x := range cands {
+		v := xyEval(f, x, 0)
+		vals = append(vals, fmt.Sprintf("\\(f(%d)=%d\\)", x, v))
+		if (wantMax && v > best) || (!wantMax && v < best) {
+			best, at = v, x
+		}
+	}
+	word, cmp := "maximum", "largest"
+	if !wantMax {
+		word, cmp = "minimum", "smallest"
+	}
+	crit := "neither lies inside the interval"
+	if len(inside) == 1 {
+		crit = fmt.Sprintf("only \\(x=%s\\) lies inside the interval", inside[0])
+	} else if len(inside) == 2 {
+		crit = "both lie inside the interval"
+	}
+	return generator.Problem{
+		Question: fmt.Sprintf("What is the global %s VALUE of \\(f(x)=%s\\) on \\([%d,%d]\\)? (enter a number)", word, texXY(f), l, r),
+		Answer:   fmt.Sprintf("%d", best),
+		Explanation: fmt.Sprintf("\\(f'(x) = 3x^{2} - %d = 0\\) at \\(x=\\pm %d\\), and %s. Evaluate at the candidates: %s. The %s value is %d, at \\(x=%d\\).",
+			3*c*c, c, crit, strings.Join(vals, ", "), cmp, best, at),
+	}
+}
+
+func inverseFuncVariant(ctx generator.GeneratorContext) generator.Problem {
+	switch rand.Intn(3) {
+	case 0:
+		ns := []int{3, 5}
+		n := ns[rand.Intn(2)]
+		k := 1 + rand.Intn(6)
+		m := rand.Intn(9) - 3
+		a := rand.Intn(5) - 2
+		f := []xyTerm{{1, n, 0}, {k, 1, 0}, {m, 0, 0}}
+		y0 := xyEval(f, a, 0)
+		d := n*ipow(a, n-1) + k
+		ans := ratStr(1, int64(d))
+		return generator.Problem{
+			Question: fmt.Sprintf("Let \\(f(x)=%s\\), which is increasing and so invertible, and let \\(g=f^{-1}\\). Find \\(g'(%d)\\). (enter an exact fraction)", texXY(f), y0),
+			Answer:   ans,
+			Explanation: fmt.Sprintf("\\(f(%d)=%d\\), so \\(g(%d)=%d\\). With \\(f'(x)=%s\\), \\(f'(%d)=%d\\), and the inverse function rule gives \\(g'(%d) = 1/f'(%d) = %s\\).",
+				a, y0, y0, a, texXY(xyDeriv(f, 'x')), a, d, y0, a, ans),
+		}
+	case 1:
+		a := rand.Intn(7)
+		b := rand.Intn(15) - 5
+		cs := []int{-9, -7, -5, -4, -3, -2, 2, 3, 4, 5, 6, 7, 8, 9}
+		c := cs[rand.Intn(len(cs))]
+		ans := ratStr(1, int64(c))
+		return generator.Problem{
+			Question:    fmt.Sprintf("Suppose \\(f\\) is differentiable and invertible, with \\(f(%d)=%d\\) and \\(f'(%d)=%d\\). What is \\((f^{-1})'(%d)\\)? (enter an exact fraction)", a, b, a, c, b),
+			Answer:      ans,
+			Explanation: fmt.Sprintf("Since \\(f(%d)=%d\\), the inverse sends %d back to %d, and \\((f^{-1})'(%d) = 1/f'(%d) = %s\\).", a, b, b, a, b, a, ans),
+		}
+	}
+	b := 1 + rand.Intn(4)
+	p0 := 1 + rand.Intn(6)
+	a := b*p0*p0 + 20 + 10*rand.Intn(5)
+	q0 := a - b*p0*p0
+	ans := ratStr(-1, int64(2*b*p0))
+	return generator.Problem{
+		Question:    fmt.Sprintf("Demand for a good is \\(q = %d - %s\\) for \\(p>0\\). It is decreasing, so price can be written as a function of quantity. Use the inverse function rule to find the slope \\(dp/dq\\) of inverse demand at \\(p=%d\\) (where \\(q=%d\\)). (enter an exact fraction)", a, texInVar([]xyTerm{{b, 2, 0}}, "p"), p0, q0),
+		Answer:      ans,
+		Explanation: fmt.Sprintf("\\(dq/dp = %s\\), which is %d at \\(p=%d\\). The inverse function rule gives \\(dp/dq = 1/(dq/dp) = 1/(%d) = %s\\).", texInVar([]xyTerm{{-2 * b, 1, 0}}, "p"), -2*b*p0, p0, -2*b*p0, ans),
+	}
+}
+
+func logDiffVariant(ctx generator.GeneratorContext) generator.Problem {
+	const lead = "Use logarithmic differentiation: find \\(f'(x)\\) if "
+	switch rand.Intn(6) {
+	case 0:
+		k := 2 + rand.Intn(6)
+		return generator.Problem{
+			Question:    fmt.Sprintf(lead+"\\(f(x)=x^{%dx}\\).", k),
+			Answer:      fmt.Sprintf("x^(%dx)*(%dln(x)+%d)", k, k, k),
+			Explanation: fmt.Sprintf("Take logs: \\(\\ln f = %dx\\ln x\\), so \\(f'/f = %d\\ln x + %d\\) and \\(f'(x) = x^{%dx}(%d\\ln x + %d)\\).", k, k, k, k, k, k),
+		}
+	case 1:
+		a := 2 + rand.Intn(6)
+		return generator.Problem{
+			Question:    fmt.Sprintf(lead+"\\(f(x)=(%dx)^{x}\\).", a),
+			Answer:      fmt.Sprintf("(%dx)^x*(ln(%dx)+1)", a, a),
+			Explanation: fmt.Sprintf("Take logs: \\(\\ln f = x\\ln(%dx)\\), so \\(f'/f = \\ln(%dx) + x\\cdot\\frac{1}{x} = \\ln(%dx) + 1\\).", a, a, a),
+		}
+	case 2:
+		n := 2 + rand.Intn(3)
+		return generator.Problem{
+			Question:    fmt.Sprintf(lead+"\\(f(x)=x^{x^{%d}}\\) for \\(x>0\\).", n),
+			Answer:      fmt.Sprintf("x^(x^%d)*(%d*x^%d*ln(x) + x^%d)", n, n, n-1, n-1),
+			Explanation: fmt.Sprintf("Take logs: \\(\\ln f = x^{%d}\\ln x\\), so \\(f'/f = %s\\ln x + x^{%d}\\cdot\\frac{1}{x} = %s\\ln x + %s\\).", n, texXY([]xyTerm{{n, n - 1, 0}}), n, texXY([]xyTerm{{n, n - 1, 0}}), texXY([]xyTerm{{1, n - 1, 0}})),
+		}
+	case 3:
+		c := 1 + rand.Intn(8)
+		return generator.Problem{
+			Question:    fmt.Sprintf(lead+"\\(f(x)=(x^{2}+%d)^{x}\\).", c),
+			Answer:      fmt.Sprintf("(x^2+%d)^x*(ln(x^2+%d) + 2*x^2/(x^2+%d))", c, c, c),
+			Explanation: fmt.Sprintf("Take logs: \\(\\ln f = x\\ln(x^{2}+%d)\\), so by the product rule \\(f'/f = \\ln(x^{2}+%d) + \\frac{2x^{2}}{x^{2}+%d}\\).", c, c, c),
+		}
+	case 4:
+		a := 2 + rand.Intn(3)
+		b := 1 + rand.Intn(5)
+		c := 2 + rand.Intn(3)
+		if rand.Intn(2) == 0 {
+			return generator.Problem{
+				Question:    fmt.Sprintf(lead+"\\(f(x)=x^{%d}(x+%d)^{%d}\\) for \\(x>0\\).", a, b, c),
+				Answer:      fmt.Sprintf("x^%d*(x+%d)^%d*(%d/x + %d/(x+%d))", a, b, c, a, c, b),
+				Explanation: fmt.Sprintf("Take logs: \\(\\ln f = %d\\ln x + %d\\ln(x+%d)\\), so \\(f'/f = \\frac{%d}{x} + \\frac{%d}{x+%d}\\); multiply back by \\(f\\).", a, c, b, a, c, b),
+			}
+		}
+		return generator.Problem{
+			Question:    fmt.Sprintf(lead+"\\(f(x)=\\frac{x^{%d}}{(x+%d)^{%d}}\\) for \\(x>0\\).", a, b, c),
+			Answer:      fmt.Sprintf("x^%d/(x+%d)^%d*(%d/x - %d/(x+%d))", a, b, c, a, c, b),
+			Explanation: fmt.Sprintf("Take logs: \\(\\ln f = %d\\ln x - %d\\ln(x+%d)\\), so \\(f'/f = \\frac{%d}{x} - \\frac{%d}{x+%d}\\); multiply back by \\(f\\).", a, c, b, a, c, b),
+		}
+	}
+	k := 2 + rand.Intn(4)
+	return generator.Problem{
+		Question:    fmt.Sprintf(lead+"\\(f(x)=x^{%d/x}\\) for \\(x>0\\).", k),
+		Answer:      fmt.Sprintf("x^(%d/x)*%d*(1 - ln(x))/x^2", k, k),
+		Explanation: fmt.Sprintf("Take logs: \\(\\ln f = \\frac{%d\\ln x}{x}\\), so by the quotient rule \\(f'/f = \\frac{%d(1-\\ln x)}{x^{2}}\\).", k, k),
+	}
+}
+
+func secondTestVariant(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(3) == 0 {
+		r := 1 + rand.Intn(4)
+		s := r + 1 + rand.Intn(5)
+		f := 10 * rand.Intn(6)
+		pi := []xyTerm{{-2, 3, 0}, {3 * (r + s), 2, 0}, {-6 * r * s, 1, 0}, {-f, 0, 0}}
+		return generator.Problem{
+			Question: fmt.Sprintf("A firm's profit is \\(\\pi(q)=%s\\) for \\(q>0\\). Find the critical points and use the second derivative test: at which output level does profit have a local maximum? (enter a number)", texInVar(pi, "q")),
+			Answer:   fmt.Sprintf("%d", s),
+			Explanation: fmt.Sprintf("\\(\\pi'(q) = -6q^{2} + %dq - %d = -6(q-%d)(q-%d)\\), so the critical points are \\(q=%d\\) and \\(q=%d\\). \\(\\pi''(q) = %s\\): \\(\\pi''(%d) = %d > 0\\) (a local minimum) and \\(\\pi''(%d) = %d < 0\\) (a local maximum). Profit has its local maximum at \\(q=%d\\).",
+				6*(r+s), 6*r*s, r, s, r, s, texInVar([]xyTerm{{-12, 1, 0}, {6 * (r + s), 0, 0}}, "q"), r, 6*(s-r), s, -6*(s-r), s),
+		}
+	}
+	r := rand.Intn(6) - 3
+	s := r + 1 + rand.Intn(4)
+	f := []xyTerm{{2, 3, 0}, {-3 * (r + s), 2, 0}, {6 * r * s, 1, 0}}
+	fp := texXY([]xyTerm{{6, 2, 0}, {-6 * (r + s), 1, 0}, {6 * r * s, 0, 0}})
+	fpp := []xyTerm{{12, 1, 0}, {-6 * (r + s), 0, 0}}
+	frR, frS := xyEval(fpp, r, 0), xyEval(fpp, s, 0)
+	expl := fmt.Sprintf("\\(f'(x) = %s = 6(%s)(%s)\\), so the critical points are \\(x=%d\\) and \\(x=%d\\). \\(f''(x) = %s\\): \\(f''(%d) = %d < 0\\), a local maximum, and \\(f''(%d) = %d > 0\\), a local minimum.",
+		fp, shiftTex(r), shiftTex(s), r, s, texXY(fpp), r, frR, s, frS)
+	switch rand.Intn(4) {
+	case 0:
+		return generator.Problem{
+			Question:    fmt.Sprintf("Find the critical points of \\(f(x)=%s\\) and use the second derivative test. What is the x-coordinate of the local minimum? (enter a number)", texXY(f)),
+			Answer:      fmt.Sprintf("%d", s),
+			Explanation: expl,
+		}
+	case 1:
+		return generator.Problem{
+			Question:    fmt.Sprintf("Find the critical points of \\(f(x)=%s\\) and use the second derivative test. What is the x-coordinate of the local maximum? (enter a number)", texXY(f)),
+			Answer:      fmt.Sprintf("%d", r),
+			Explanation: expl,
+		}
+	case 2:
+		return generator.Problem{
+			Question:    fmt.Sprintf("For \\(f(x)=%s\\), \\(x=%d\\) is a critical point. What is \\(f''(%d)\\)? (enter a number)", texXY(f), r, r),
+			Answer:      fmt.Sprintf("%d", frR),
+			Explanation: expl,
+		}
+	}
+	return generator.Problem{
+		Question:    fmt.Sprintf("For \\(f(x)=%s\\), \\(x=%d\\) is a critical point. What is \\(f''(%d)\\)? (enter a number)", texXY(f), s, s),
+		Answer:      fmt.Sprintf("%d", frS),
+		Explanation: expl,
+	}
+}
+
+func ftcVariant(ctx generator.GeneratorContext) generator.Problem {
+	switch rand.Intn(4) {
+	case 0:
+		as := []int{-1, 0, 1, 2, 3}
+		a := as[rand.Intn(len(as))]
+		c := 1 + rand.Intn(5)
+		n := 1 + rand.Intn(6)
+		d := rand.Intn(9) - 4
+		g := []xyTerm{{c, n, 0}, {d, 0, 0}}
+		return generator.Problem{
+			Question:    fmt.Sprintf("If \\(F(x)=\\int_{%d}^{x} (%s) \\, dt\\), what is \\(F'(x)\\)?", a, texInVar(g, "t")),
+			Answer:      plainPoly(g),
+			Explanation: fmt.Sprintf("By the Fundamental Theorem of Calculus, \\(\\frac{d}{dx}\\int_{a}^{x} g(t)\\,dt = g(x)\\) for any constant lower limit, so \\(F'(x) = %s\\).", texXY(g)),
+		}
+	case 1:
+		b := 1 + rand.Intn(5)
+		c := 1 + rand.Intn(4)
+		n := 1 + rand.Intn(6)
+		g := []xyTerm{{c, n, 0}}
+		return generator.Problem{
+			Question:    fmt.Sprintf("If \\(F(x)=\\int_{x}^{%d} %s \\, dt\\), what is \\(F'(x)\\)?", b, texInVar(g, "t")),
+			Answer:      plainPoly([]xyTerm{{-c, n, 0}}),
+			Explanation: fmt.Sprintf("Flip the limits: \\(F(x) = -\\int_{%d}^{x} %s\\,dt\\), so by the Fundamental Theorem of Calculus \\(F'(x) = %s\\).", b, texInVar(g, "t"), texXY([]xyTerm{{-c, n, 0}})),
+		}
+	case 2:
+		k := 2 + rand.Intn(2)
+		n := 1 + rand.Intn(4)
+		ans := xyTerm{k, k*n + k - 1, 0}
+		return generator.Problem{
+			Question:    fmt.Sprintf("If \\(F(x)=\\int_{0}^{x^{%d}} t^{%d} \\, dt\\), what is \\(F'(x)\\)?", k, n),
+			Answer:      plainMonomial(ans),
+			Explanation: fmt.Sprintf("With \\(u = x^{%d}\\), the Fundamental Theorem and the chain rule give \\(F'(x) = u^{%d}\\cdot u' = (x^{%d})^{%d}\\cdot %s = %s\\).", k, n, k, n, texXY([]xyTerm{{k, k - 1, 0}}), texXY([]xyTerm{ans})),
+		}
+	}
+	if rand.Intn(2) == 0 {
+		c := 1 + rand.Intn(9)
+		return generator.Problem{
+			Question:    fmt.Sprintf("If \\(F(x)=\\int_{1}^{x} \\sqrt{t^{2}+%d} \\, dt\\), what is \\(F'(x)\\)?", c),
+			Answer:      fmt.Sprintf("sqrt(x^2+%d)", c),
+			Explanation: fmt.Sprintf("The integrand is continuous, so by the Fundamental Theorem of Calculus \\(F'(x) = \\sqrt{x^{2}+%d}\\); no antiderivative is needed.", c),
+		}
+	}
+	k := 2 + rand.Intn(5)
+	return generator.Problem{
+		Question:    fmt.Sprintf("If \\(F(x)=\\int_{0}^{x} e^{%dt} \\, dt\\), what is \\(F'(x)\\)?", k),
+		Answer:      fmt.Sprintf("e^(%d*x)", k),
+		Explanation: fmt.Sprintf("By the Fundamental Theorem of Calculus, \\(F'(x)\\) is the integrand evaluated at \\(x\\): \\(e^{%dx}\\).", k),
 	}
 }

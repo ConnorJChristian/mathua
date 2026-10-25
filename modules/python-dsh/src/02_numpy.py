@@ -1639,6 +1639,59 @@ concept(
              nearest = ...
              """,
              setup="import numpy as np\nP = np.array([[0.0, 0.0], [1.0, 0.0], [5.0, 5.0], [5.5, 5.0], [7.0, 6.0]])", level=3),
+        mc("m4", "What does `np.argpartition(x, 2)` return?",
+           "Positions into `x` arranged so the first two index its two smallest values, in no particular order",
+           ["The two smallest values of `x`, sorted", "The positions that would fully sort `x`",
+            "The two smallest values of `x`, in no particular order"],
+           """
+           `argpartition` is to `partition` what `argsort` is to `sort`: it
+           returns indices, not values. Use them with fancy indexing, as in
+           `x[np.argpartition(x, 2)[:2]]`.
+           """, level=2),
+        mc("m5", "Each row of the squared-distance matrix `D2` includes a point's distance to itself. To be sure of each point's K nearest *other* points, what should the partition position be in `np.argpartition(D2, ?, axis=1)`?",
+           "`K + 1`", ["`K`", "`K - 1`", "`len(D2) - K`"],
+           """
+           The zero on the diagonal takes one of the smallest slots in every
+           row, so you need the K + 1 smallest entries: the point itself plus
+           its K neighbours.
+           """, level=3),
+        out("o2", "What does this print?",
+            """
+            import numpy as np
+            X = np.array([[5, 1, 4],
+                          [3, 9, 2]])
+            p = np.partition(X, 1, axis=1)
+            print(p[:, 1])
+            """,
+            """
+            With `axis=1` each row is partitioned on its own. Position 1 always
+            holds the value a full sort would put there, so the column is each
+            row's second-smallest value: 4 in the first row and 3 in the second.
+            """, level=2),
+        task("c2",
+             """
+             `prices` holds the prices of ten products. Set `idx` to the
+             positions of the three cheapest products, ordered from cheapest
+             to dearest, and `cheapest3` to their prices in that order. Use
+             `np.argpartition` to find the three before ordering them.
+             """,
+             """
+             import numpy as np
+             part = np.argpartition(prices, 3)[:3]
+             idx = part[np.argsort(prices[part])]
+             cheapest3 = prices[idx]
+             """,
+             [
+                 check("idx", 'check(same_array(idx, [6, 2, 9]), "`idx` should be the positions of the three cheapest products, cheapest first.")'),
+                 check("cheapest3", 'check(close(cheapest3, [1.25, 2.5, 3.0]), "`cheapest3` should be the three lowest prices in increasing order.")'),
+             ],
+             "Partition to get the three positions, then sort just those three by price with `argsort`.",
+             starter="""
+             import numpy as np
+             idx = ...
+             cheapest3 = ...
+             """,
+             setup="import numpy as np\nprices = np.array([9.5, 4.0, 2.5, 7.75, 5.0, 12.0, 1.25, 8.0, 6.5, 3.0])", level=2),
     ]),
 
 # ---------------------------------------------------------------- 2.09
@@ -1709,6 +1762,63 @@ concept(
              firms = ...
              big = ...
              """, level=2),
+        mc("m4", "What field names does `np.dtype('U10,i4,f8')` give the three fields?",
+           "`f0`, `f1` and `f2`", ["`U10`, `i4` and `f8`", "`0`, `1` and `2`", "None; the fields can only be reached by position"],
+           """
+           A comma-separated string of type codes is a shortcut for when the
+           names do not matter; NumPy numbers the fields `f0`, `f1`, `f2`.
+           """, level=2),
+        mc("m5", "After `rec = data.view(np.recarray)`, how can you read the `age` field?",
+           "As an attribute, `rec.age`, as well as with `rec['age']`",
+           ["Only with `rec['age']`", "Only with `rec.get('age')`", "As `rec[:, 'age']`"],
+           """
+           A record array is a structured array whose fields are also
+           attributes. The convenience costs a little: attribute access is
+           slower than indexing a plain structured array by field name.
+           """, level=2),
+        out("o2", "What does this print?",
+            """
+            import numpy as np
+            tp = np.dtype([("id", "i8"), ("mat", "f8", (2, 2))])
+            X = np.zeros(3, dtype=tp)
+            print(X["mat"].shape)
+            """,
+            """
+            A field can itself hold an array. Each of the three records carries
+            a 2 by 2 block, so the `mat` field of the whole array has shape
+            (3, 2, 2).
+            """, level=3),
+        task("c2",
+             """
+             Make `workers`, a structured array of length 4 created with
+             `np.zeros` and a dtype given as a dictionary of `names`
+             (`"name"`, `"age"`, `"wage"`) and `formats` (a Unicode string of
+             up to 10 characters, a 32-bit integer and a 64-bit float). Fill
+             its fields from the lists `names`, `ages` and `wages`. Then set
+             `young_wage` to the mean wage of workers under 30.
+             """,
+             """
+             import numpy as np
+             workers = np.zeros(4, dtype={"names": ("name", "age", "wage"),
+                                          "formats": ("U10", "i4", "f8")})
+             workers["name"] = names
+             workers["age"] = ages
+             workers["wage"] = wages
+             young_wage = workers[workers["age"] < 30]["wage"].mean()
+             """,
+             [
+                 check("dtype", 'check(getattr(workers, "dtype", None) is not None and workers.dtype.names == ("name", "age", "wage"), "`workers` should have fields name, age and wage, in that order.")'),
+                 check("formats", 'check(workers.dtype["name"].kind == "U" and workers.dtype["age"] == np.dtype("i4") and workers.dtype["wage"] == np.dtype("f8"), "Use U10, i4 and f8 for the three fields.")'),
+                 check("filled", 'check(list(workers["name"]) == names and list(workers["age"]) == ages and close(workers["wage"], wages), "Copy the three lists into the fields.")'),
+                 check("young_wage", 'check(close(young_wage, 16.5), "`young_wage` should be the mean wage of workers younger than 30.")'),
+             ],
+             "Assigning a list to a field fills that column; a mask on `age` then selects records whose `wage` you average.",
+             starter="""
+             import numpy as np
+             workers = ...
+             young_wage = ...
+             """,
+             setup="import numpy as np\nnames = ['Ana', 'Ben', 'Cy', 'Dee']\nages = [25, 45, 37, 19]\nwages = [18.0, 31.5, 27.0, 15.0]", level=2),
     ]),
 
     ],

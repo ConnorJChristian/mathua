@@ -706,6 +706,9 @@ func (g *fourierCoefficientsGen) Generate(ctx generator.GeneratorContext) genera
 type lagrangeTwoGen struct{}
 
 func (g *lagrangeTwoGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return lagrangeTwoVariant()
+	}
 	return calcPickMC([]calcMCClaim{
 		{
 			q:           "To find the extrema of \\(f\\) subject to the two constraints \\(g = 0\\) and \\(h = 0\\), the method of Lagrange multipliers solves...",
@@ -726,6 +729,87 @@ func (g *lagrangeTwoGen) Generate(ctx generator.GeneratorContext) generator.Prob
 			reason:      "If the gradient had a component outside that span, a small admissible step along the constraint intersection would change f, contradicting the extremum.",
 		},
 	})
+}
+
+// lagrangeTwoVariant minimises x^2 + y^2 + z^2 subject to two linear
+// constraints r1·v = b1 and r2·v = b2. The Lagrange condition 2v = λ r1 + μ r2
+// puts the minimiser in the span of the two normals, v = s r1 + t r2, and the
+// constraints give the 2x2 system G (s, t) = (b1, b2) with G the Gram matrix.
+// Everything is solved exactly by Cramer's rule.
+func lagrangeTwoVariant() generator.Problem {
+	pairs := [][2][3]int{
+		{{1, 1, 1}, {1, -1, 0}}, {{1, 1, 1}, {1, 0, -1}}, {{1, 1, 1}, {0, 1, -1}},
+		{{1, 1, 0}, {0, 1, 1}}, {{1, 0, 1}, {0, 1, 1}}, {{1, 2, 0}, {0, 1, 1}},
+		{{1, 1, 1}, {1, 2, 3}}, {{1, -1, 0}, {0, 1, -1}}, {{2, 1, 0}, {0, 1, 2}},
+	}
+	pr := pairs[rand.Intn(len(pairs))]
+	r1, r2 := pr[0], pr[1]
+	b1 := rand.Intn(11) - 4
+	b2 := rand.Intn(9) - 4
+	if b1 == 0 && b2 == 0 {
+		b1 = 3
+	}
+	dot := func(a, b [3]int) int { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2] }
+	g11, g12, g22 := dot(r1, r1), dot(r1, r2), dot(r2, r2)
+	det := g11*g22 - g12*g12
+	sNum := g22*b1 - g12*b2
+	tNum := g11*b2 - g12*b1
+	var num [3]int
+	sq := 0
+	for i := 0; i < 3; i++ {
+		num[i] = sNum*r1[i] + tNum*r2[i]
+		sq += num[i] * num[i]
+	}
+	tuple := func(n [3]int, d int) string {
+		return fmt.Sprintf("(%s, %s, %s)", calcFraction(n[0], d), calcFraction(n[1], d), calcFraction(n[2], d))
+	}
+	var v1, v2, sum, neg [3]int
+	for i := 0; i < 3; i++ {
+		v1[i] = b1 * r1[i]
+		v2[i] = b2 * r2[i]
+		sum[i] = b1*r1[i]*g22 + b2*r2[i]*g11
+		neg[i] = -num[i]
+	}
+	lin := func(r [3]int, b int) string {
+		var terms []string
+		for i, v := range []string{"x", "y", "z"} {
+			c := r[i]
+			if c == 0 {
+				continue
+			}
+			t := v
+			if c != 1 && c != -1 {
+				t = fmt.Sprintf("%d%s", absInt(c), v)
+			}
+			switch {
+			case len(terms) == 0 && c < 0:
+				terms = append(terms, "-"+t)
+			case len(terms) == 0:
+				terms = append(terms, t)
+			case c < 0:
+				terms = append(terms, "- "+t)
+			default:
+				terms = append(terms, "+ "+t)
+			}
+		}
+		return fmt.Sprintf("%s = %d", strings.Join(terms, " "), b)
+	}
+	setup := fmt.Sprintf("Minimise \\(f(x,y,z)=x^{2}+y^{2}+z^{2}\\) subject to the two constraints \\(%s\\) and \\(%s\\).", lin(r1, b1), lin(r2, b2))
+	s, t := calcFraction(sNum, det), calcFraction(tNum, det)
+	point := tuple(num, det)
+	value := calcFraction(sq, det*det)
+	reason := fmt.Sprintf("With one multiplier per constraint, \\(\\nabla f = 2(x,y,z) = \\lambda \\nabla g + \\mu \\nabla h\\), so the minimiser is \\(s(%d,%d,%d) + t(%d,%d,%d)\\) with \\(s=\\lambda/2\\), \\(t=\\mu/2\\). Substituting into the constraints gives \\(%ds + %dt = %d\\) and \\(%ds + %dt = %d\\), so \\(s = %s\\) and \\(t = %s\\). The minimiser is \\(%s\\), where \\(f = %s\\). Using only one constraint, or adding the two one-constraint answers, ignores how the constraints interact.",
+		r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], g11, g12, b1, g12, g22, b2, s, t, point, value)
+	if rand.Intn(2) == 0 {
+		p := generator.MultipleChoice(setup+" Using Lagrange multipliers, which point is the constrained minimiser?",
+			point, tuple(v1, g11), tuple(v2, g22), tuple(sum, g11*g22), tuple(neg, det), tuple(num, 2*det))
+		p.Explanation = reason
+		return p
+	}
+	p := generator.MultipleChoice(setup+" Using Lagrange multipliers, what is the minimum value of \\(f\\)?",
+		value, calcFraction(b1*b1, g11), calcFraction(b2*b2, g22), calcFraction(b1*b1*g22+b2*b2*g11, g11*g22), calcFraction(2*sq, det*det), calcFraction(sq, 2*det*det))
+	p.Explanation = reason
+	return p
 }
 
 // ---------------------------------------------------------------------------
@@ -933,4 +1017,11 @@ func (g *vectorIdentitiesGen) Generate(ctx generator.GeneratorContext) generator
 			reason:      "Both identities come from the equality of mixed partial derivatives, so they hold for every smooth field of the right kind.",
 		},
 	})
+}
+
+func absInt(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }

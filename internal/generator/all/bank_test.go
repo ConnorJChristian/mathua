@@ -72,7 +72,6 @@ var lowBankAllowlist = map[string]string{
 	// now that the practice endpoint falls back rather than returning empty.
 	"calc.integral.power_rule":   "difficulty-scaled integer range is 2 wide at difficulty 0.3; widen the base range",
 	"calc.integral.substitution": "difficulty-scaled integer range is 2 wide at difficulty 0.3; widen the base range",
-	"calc.integral.ftc":          "difficulty-scaled integer range is 2 wide at difficulty 0.3; widen the base range",
 }
 
 // distinctQuestionLowerBound samples one generator and returns the smallest distinct-question

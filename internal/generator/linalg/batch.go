@@ -20,6 +20,7 @@ package linalg
 // recompute the cross product.
 
 import (
+	"fmt"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -484,9 +485,142 @@ func (g *definiteGen) Generate(ctx generator.GeneratorContext) generator.Problem
 			reason:      "A positive definite form is a weighted sum of squares, so its level curves are bounded and closed, hence ellipses.",
 		},
 	}
+	if rand.Intn(4) != 0 {
+		return definiteVariant()
+	}
 	c := claims[rand.Intn(len(claims))]
 	p := generator.MultipleChoice(c.question, c.correct, c.distractors...)
 	p.Explanation = c.reason
+	return p
+}
+
+var definiteClasses = []string{
+	"positive definite", "negative definite", "indefinite",
+	"positive semidefinite but not definite", "negative semidefinite but not definite",
+}
+
+// classifyForm classifies a x^2 + 2b xy + c y^2 (the matrix [[a, b], [b, c]]).
+func classifyForm(a, b, c int) string {
+	d := a*c - b*b
+	switch {
+	case d > 0 && a > 0:
+		return definiteClasses[0]
+	case d > 0:
+		return definiteClasses[1]
+	case d < 0:
+		return definiteClasses[2]
+	case a > 0 || c > 0:
+		return definiteClasses[3]
+	}
+	return definiteClasses[4]
+}
+
+// formTex writes a x^2 + k xy + c y^2 in TeX.
+func formTex(a, k, c int) string {
+	var b strings.Builder
+	for _, t := range []struct {
+		coef int
+		vars string
+	}{{a, "x^{2}"}, {k, "xy"}, {c, "y^{2}"}} {
+		if t.coef == 0 {
+			continue
+		}
+		n := t.coef
+		if b.Len() > 0 {
+			if n < 0 {
+				b.WriteString(" - ")
+				n = -n
+			} else {
+				b.WriteString(" + ")
+			}
+		} else if n < 0 {
+			b.WriteString("-")
+			n = -n
+		}
+		if n != 1 {
+			b.WriteString(strconv.Itoa(n))
+		}
+		b.WriteString(t.vars)
+	}
+	return b.String()
+}
+
+func definiteReason(a, b, c int, kind string) string {
+	d := a*c - b*b
+	head := fmt.Sprintf("The matrix is \\(\\begin{pmatrix} %d & %d \\\\ %d & %d \\end{pmatrix}\\), with leading principal minors \\(a_{11} = %d\\) and \\(\\det = %d\\cdot%s - %s^{2} = %d\\). ",
+		a, b, b, c, a, a, parenInt(c), parenInt(b), d)
+	switch kind {
+	case definiteClasses[0]:
+		return head + "Both minors are positive, so by Sylvester's criterion the form is positive definite."
+	case definiteClasses[1]:
+		return head + "The first minor is negative and the determinant positive (the signs alternate, starting negative), so the form is negative definite."
+	case definiteClasses[2]:
+		return head + "A negative determinant means the eigenvalues have opposite signs, so the form takes both signs: indefinite."
+	case definiteClasses[3]:
+		return head + fmt.Sprintf("The determinant is zero, so one eigenvalue is 0, and the diagonal entries %d and %d are both nonnegative, so the other eigenvalue is positive: positive semidefinite but not definite.", a, c)
+	}
+	return head + fmt.Sprintf("The determinant is zero, so one eigenvalue is 0, and the diagonal entries %d and %d are both nonpositive, so the other eigenvalue is negative: negative semidefinite but not definite.", a, c)
+}
+
+func parenInt(n int) string {
+	if n < 0 {
+		return "(" + strconv.Itoa(n) + ")"
+	}
+	return strconv.Itoa(n)
+}
+
+func definiteVariant() generator.Problem {
+	var a, b, c int
+	for {
+		a = rand.Intn(9) - 4
+		b = rand.Intn(7) - 3
+		c = rand.Intn(9) - 4
+		if a != 0 || c != 0 {
+			break
+		}
+	}
+	kind := classifyForm(a, b, c)
+	reason := definiteReason(a, b, c, kind)
+	var others []string
+	for _, k := range definiteClasses {
+		if k != kind {
+			others = append(others, k)
+		}
+	}
+	switch rand.Intn(3) {
+	case 0:
+		p := generator.MultipleChoice(fmt.Sprintf("The quadratic form \\(Q(x,y)=%s\\) is...", formTex(a, 2*b, c)), kind, others...)
+		p.Explanation = reason
+		return p
+	case 1:
+		p := generator.MultipleChoice(fmt.Sprintf("The symmetric matrix \\(\\begin{pmatrix} %d & %d \\\\ %d & %d \\end{pmatrix}\\) is...", a, b, b, c), kind, others...)
+		p.Explanation = reason
+		return p
+	}
+	verdicts := map[string]string{
+		definiteClasses[0]: "a local minimum",
+		definiteClasses[1]: "a local maximum",
+		definiteClasses[2]: "a saddle point",
+		definiteClasses[3]: "not determined by the second-order test",
+		definiteClasses[4]: "not determined by the second-order test",
+	}
+	correct := verdicts[kind]
+	var wrong []string
+	for _, v := range []string{"a local minimum", "a local maximum", "a saddle point", "not determined by the second-order test"} {
+		if v != correct {
+			wrong = append(wrong, v)
+		}
+	}
+	p := generator.MultipleChoice(fmt.Sprintf("At a critical point of a firm's profit function \\(\\pi(x,y)\\), the Hessian is \\(H = \\begin{pmatrix} %d & %d \\\\ %d & %d \\end{pmatrix}\\). The critical point is...", a, b, b, c), correct, wrong...)
+	tail := map[string]string{
+		"a local minimum": " A positive definite Hessian at a critical point gives a local minimum.",
+		"a local maximum": " A negative definite Hessian at a critical point gives a local maximum.",
+		"a saddle point":  " An indefinite Hessian means profit rises in some directions and falls in others: a saddle point.",
+	}[correct]
+	if tail == "" {
+		tail = " A singular semidefinite Hessian leaves the second-order test inconclusive; higher-order terms decide."
+	}
+	p.Explanation = reason + tail
 	return p
 }
 
