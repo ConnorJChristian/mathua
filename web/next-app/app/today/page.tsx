@@ -13,6 +13,7 @@ import { getCourseCatalog, getCourseView, getDueReviews, getNext, getPins, getSc
 import { getUserInfo } from '../../lib/auth'
 import { formatDue } from '../../lib/dates'
 import { hrefConceptId } from '../../lib/nextUp'
+import { track } from '../../lib/events'
 
 // Fork change: the Study tab. One queue across every course you follow, the
 // way Math Academy opens on "today": the engine's next task first, then the
@@ -38,6 +39,7 @@ export default function TodayPage() {
   const [signedIn, setSignedIn] = useState(false)
 
   const unpin = async (cid: string) => {
+    track({ kind: 'pin', concept: cid, data: { on: false, from: 'study' } })
     const next = pins.filter((p) => p.concept !== cid)
     setPinList(next)
     try {
@@ -164,7 +166,7 @@ export default function TodayPage() {
               </div>
               <div className="flex items-center gap-2 ml-auto">
                 {r.xp ? <span className="font-mono text-[10px] text-mathua-muted">+{r.xp} XP</span> : null}
-                <Link href={r.action.href} className={`border px-3 min-h-[34px] inline-flex items-center font-mono text-[11px] ${i === 0 ? 'border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint' : 'border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue'}`}>
+                <Link href={r.action.href} onClick={() => track({ kind: 'queue_click', concept: r.conceptId, data: { rank: i, kind: r.kind, badge: r.badge, pinned: !!r.pinned, courses: r.courses } })} className={`border px-3 min-h-[34px] inline-flex items-center font-mono text-[11px] ${i === 0 ? 'border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint' : 'border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue'}`}>
                   {r.cta || 'Go →'}
                 </Link>
               </div>

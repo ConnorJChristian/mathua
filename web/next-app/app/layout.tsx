@@ -12,6 +12,7 @@ import { Analytics } from '@vercel/analytics/react'
 // not in the lazily-loaded component, so the chunk has no CSS side-effect.
 import 'mathlive/static.css'
 import './globals.css'
+import PageTracker from '../components/PageTracker'
 
 // Self-hosted variable fonts (vendored from Google Fonts 2026-09-28:
 // JetBrains Mono v24 + Space Grotesk v22, latin subsets). next/font/google
@@ -114,6 +115,7 @@ export default function RootLayout({
           {children}
         </div>
         <Toaster />
+        <PageTracker />
         {/* Vercel serves the analytics script at /_vercel/insights. The static
             export that the e2e suite serves has no such route, and its 404 is a
             console error, which the suite correctly fails on. */}

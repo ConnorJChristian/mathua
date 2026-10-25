@@ -20,6 +20,7 @@ import { concepts as conceptsData } from '../../lib/conceptData'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import PythonAnswer from '../../components/python/PythonAnswer'
 import { displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
+import { track, questionHash, answerStyle } from '../../lib/events'
 
 // 'failed' exists because 'done' used to carry two meanings. Any thrown request
 // set phase to 'done', and the done screen reads "No questions available" while
@@ -138,6 +139,7 @@ export default function QuizHost() {
       const elapsed = Math.max(0.5, (Date.now() - (quizShownAt.current ?? Date.now())) / 1000)
       const data = await submitQuizAnswer(quizSessionId.current, quizConceptId.current, answer, elapsed, dontKnow)
       const correct = data.correct || false
+      track({ kind: 'answer', concept: quizConceptId.current, data: { surface: 'mastery_check', q: questionHash(quizQuestion), correct, elapsed, dont_know: dontKnow, style: answerStyle(answer), feedback: data.feedback ?? '' } })
       // An admitted unknown is not a wrong answer, so it does not get the wrong answer's words.
       const feedback = dontKnow ? '' : data.feedback || (correct ? 'Correct!' : 'Not quite.')
       setQuizAccuracy(prev => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }))

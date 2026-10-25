@@ -1212,6 +1212,8 @@ export interface PracticeQuestion {
 	// concept's grading type describes the grader and not the answer syntax.
 	answer_hint?: string
 	answer_input_mode?: 'numeric' | 'text'
+	/** Where the question came from: "generator", "curated", a bank (sent by the server). */
+	source?: string
 }
 
 export interface LessonPracticeRes {

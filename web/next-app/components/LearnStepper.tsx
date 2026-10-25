@@ -9,6 +9,7 @@ import LessonAssets from './LessonAssets'
 import ChoiceOptions from './ChoiceOptions'
 import ConceptReference from './ConceptReference'
 import PrerequisitePanel from './PrerequisitePanel'
+import { track, questionHash, answerStyle } from '../lib/events'
 import { getLessonKPs, getLessonPractice, getLessonReadiness, submitStudyAnswer, getProgress, getErrorStatus, type EligibilityPrereq, type KpInfo, type PracticeQuestion, type ReadinessRes, type ConceptProgress } from '../lib/api'
 import { getUserInfo } from '../lib/auth'
 import { upcomingLocked, hrefConceptId, type Shelf, type LockedSuccessor } from '../lib/nextUp'
@@ -34,6 +35,7 @@ interface QEntry {
   answer: string
   checking: boolean
   servedAt: number
+  firstInputAt?: number
   feedback: { correct: boolean; text: string; diagnosis?: string; detail?: string; xp: number } | null
 }
 
@@ -156,6 +158,32 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     reduceMotion.current = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   }, [])
 
+  // Local event log: each question as it is shown, and on leaving the topic
+  // the ones shown but never answered.
+  const shownRef = useRef<Map<string, { concept: string; q: string; answered: boolean; servedAt: number }>>(new Map())
+  useEffect(() => {
+    for (const e of entries) {
+      if (e.kind !== 'q') continue
+      const id = `${e.key}:${e.servedAt}`
+      const rec = shownRef.current.get(id)
+      if (!rec) {
+        shownRef.current.set(id, { concept: conceptId, q: questionHash(e.q.question), answered: !!e.feedback, servedAt: e.servedAt })
+        track({ kind: 'question_shown', concept: conceptId, data: { surface: 'learn', q: questionHash(e.q.question), source: e.q.source, mc: /\n\nA\) /.test(e.q.question) } })
+      } else if (e.feedback) {
+        rec.answered = true
+      }
+    }
+  }, [entries, conceptId])
+  useEffect(() => {
+    const shown = shownRef.current
+    return () => {
+      for (const r of shown.values()) {
+        if (!r.answered) track({ kind: 'question_abandoned', concept: r.concept, data: { q: r.q, after_s: (Date.now() - r.servedAt) / 1000 } })
+      }
+      shown.clear()
+    }
+  }, [conceptId])
+
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: reduceMotion.current ? 'auto' : 'smooth', block: 'nearest' })
   }, [])
@@ -183,6 +211,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       // The server is the authority: if it says the topic's prerequisites are
       // unmet, do not fetch questions it would refuse. Show the path instead.
       if (readyRes.eligible === false && !override) {
+        track({ kind: 'locked_view', concept: conceptId, data: { missing: (readyRes.prerequisites ?? []).filter(p => !p.met).map(p => p.conceptId) } })
         setIneligible(readyRes)
         return
       }
@@ -314,7 +343,14 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   }
 
   function setEntry(key: number, patch: Partial<QEntry>) {
-    setEntries(prev => prev.map(e => (e.key === key && e.kind === 'q' ? { ...e, ...patch } : e)))
+    setEntries(prev => prev.map(e => {
+      if (e.key !== key || e.kind !== 'q') return e
+      const next = { ...e, ...patch }
+      // Time to first keystroke, for the local event log.
+      if (patch.answer && !e.firstInputAt && patch.servedAt === undefined) next.firstInputAt = Date.now()
+      if (patch.servedAt !== undefined) next.firstInputAt = undefined
+      return next
+    }))
   }
 
   /**
@@ -392,6 +428,15 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     const elapsed = Math.max(0.5, (Date.now() - entry.servedAt) / 1000)
     try {
       const res = await submitStudyAnswer(conceptId, entry.answer.trim(), elapsed, entry.q.question, override)
+      track({
+        kind: 'answer',
+        concept: conceptId,
+        data: {
+          surface: 'learn', q: questionHash(entry.q.question), source: entry.q.source, correct: !!res.correct,
+          ungraded: !!res.ungraded, elapsed, first_key_s: entry.firstInputAt ? (entry.firstInputAt - entry.servedAt) / 1000 : null,
+          override, difficulty, style: answerStyle(entry.answer), feedback: res.feedback ?? '',
+        },
+      })
       if (res.ungraded) {
         setEntry(key, { checking: false })
         return
@@ -527,7 +572,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
               Mastering it credits the prerequisites below it. */}
           <button
             type="button"
-            onClick={() => setOverrideFor(conceptId)}
+            onClick={() => { track({ kind: 'practice_anyway', concept: conceptId }); setOverrideFor(conceptId) }}
             className="border border-mathua-blue bg-mathua-blue px-4 py-2 font-mono text-[11px] text-white hover:opacity-90"
           >
             Practice anyway →

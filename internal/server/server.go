@@ -154,6 +154,7 @@ func cors(next http.HandlerFunc) http.HandlerFunc {
 }
 
 type Server struct {
+	events       *eventLog // local event log; nil unless MATHUA_EVENT_LOG_DIR is set (fork change)
 	eng          *engine.Engine
 	repo         storage.Repository
 	auth         *auth.AuthService
@@ -214,6 +215,7 @@ func WithAI(chain *ai.Chain, quota *ai.Quota, limits AILimits) Option {
 func New(eng *engine.Engine, repo storage.Repository, auth *auth.AuthService, opts ...Option) *Server {
 	trustedHeader := resolveTrustedIPHeader()
 	s := &Server{
+		events:               newEventLog(),
 		eng:                  eng,
 		repo:                 repo,
 		auth:                 auth,
@@ -479,6 +481,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/account", logRequest(cors(s.writeLimiter.middleware(s.authMiddleware(s.handleAccountDelete)))))
 	mux.HandleFunc("/api/settings", logRequest(cors(s.authMiddleware(s.handleSettings))))
 	mux.HandleFunc("/api/pins", logRequest(cors(s.authMiddleware(s.handlePins))))
+	mux.HandleFunc("/api/events", logRequest(cors(s.optionalAuthMiddleware(s.handleEvents))))
 	mux.HandleFunc("/api/avatar", logRequest(cors(s.writeLimiter.middleware(s.authMiddleware(s.handleAvatar)))))
 	mux.HandleFunc("/api/avatar/me", logRequest(cors(s.authMiddleware(s.handleAvatarMe))))
 	// Public per-student photo for leaderboard avatars (custom uploads are

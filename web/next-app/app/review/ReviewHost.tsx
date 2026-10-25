@@ -15,6 +15,7 @@ import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../compone
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import PythonAnswer from '../../components/python/PythonAnswer'
 import { displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
+import { track, questionHash, answerStyle } from '../../lib/events'
 
 type Phase = 'loading' | 'intro' | 'run' | 'done'
 
@@ -120,6 +121,7 @@ export default function ReviewHost() {
       const answer = reviewAnswerInput.trim()
       const elapsed = Math.max(0.5, (Date.now() - (reviewShownAt.current ?? Date.now())) / 1000)
       const data = await submitReviewAnswer(reviewSessionId.current, answer, elapsed, reviewAttemptId.current)
+      track({ kind: 'answer', concept: reviewConceptId.current, data: { surface: 'review', q: questionHash(reviewQuestion), correct: !!data.result?.correct, ungraded: !!data.result?.ungraded, elapsed, style: answerStyle(answer), feedback: data.result?.feedback ?? '' } })
       // Grader unavailable: never counts as a miss; ask the student to retry.
       if (data.result?.ungraded) {
         setSubmitError({ message: 'Grading is temporarily unavailable — please try again.' })

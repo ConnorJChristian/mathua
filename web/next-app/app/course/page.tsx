@@ -14,6 +14,7 @@ import { getCourseView, setActiveCourses, getCourseCatalog, getPins, setPins, ty
 import { API_BASE } from '../../lib/apiBase'
 import { getUserInfo } from '../../lib/auth'
 import { formatDue } from '../../lib/dates'
+import { track } from '../../lib/events'
 
 // Fork change: a course's own page, laid out like a course site: Home (what
 // to do next, progress), Modules (its topics in teaching order, each with its
@@ -91,8 +92,17 @@ function CourseContent() {
   const id = params.get('id') ?? ''
   const tab = (params.get('tab') as Tab) || 'home'
   const [view, setView] = useState<CourseView | null | undefined>(undefined)
-  const [reading, setReading] = useState<CourseTopic | null>(null)
-  const [watching, setWatching] = useState<CourseVideo[] | null>(null)
+  const [reading, setReadingState] = useState<CourseTopic | null>(null)
+  const [watching, setWatchingState] = useState<CourseVideo[] | null>(null)
+  // Local event log: which readings and videos are opened, from which course.
+  const setReading = (t: CourseTopic | null) => {
+    if (t) track({ kind: 'reading_open', concept: t.id, data: { book: t.reading?.book ?? '', kind: t.reading?.kind ?? '', page: t.reading?.page ?? null } })
+    setReadingState(t)
+  }
+  const setWatching = (v: CourseVideo[] | null) => {
+    if (v) track({ kind: 'video_open', data: { n: v.length } })
+    setWatchingState(v)
+  }
   const [busy, setBusy] = useState(false)
   const [signedIn, setSignedIn] = useState(false)
   const [pins, setPinsState] = useState<Set<string>>(new Set())
@@ -108,6 +118,7 @@ function CourseContent() {
   // Fork change: pin a topic for this week. The Study tab serves pinned
   // topics right after due reviews; the engine fills the rest of the queue.
   const togglePin = async (cid: string, on: boolean) => {
+    track({ kind: 'pin', concept: cid, data: { on, from: 'course' } })
     const next = new Set(pins)
     if (on) next.add(cid)
     else next.delete(cid)

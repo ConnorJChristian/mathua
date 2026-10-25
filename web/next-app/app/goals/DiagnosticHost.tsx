@@ -27,6 +27,7 @@ import SubmitErrorBlock, {
 } from '../../components/SubmitErrorBlock'
 import { GOALS_DIAG_KEY } from './constants'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
+import { track, answerStyle } from '../../lib/events'
 
 const EMPTY_PLAN: GoalPlanRes = {
   readiness: 1,
@@ -206,6 +207,7 @@ export default function DiagnosticHost({
       const elapsed = 5.0
       const data = await submitGoalAnswer(sessionId.current, conceptId.current, answer, elapsed, dontKnow)
       const correct = data.correct || false
+      track({ kind: 'answer', concept: conceptId.current, data: { surface: 'placement', correct, dont_know: dontKnow, style: answerStyle(answer), feedback: data.feedback ?? '' } })
       // An admitted unknown is not a wrong answer, so it does not get the wrong answer's words.
       // Empty here, because the verdict line states it; the engine's accounting is untouched.
       const feedback = dontKnow ? '' : data.feedback || (correct ? 'Correct!' : 'Not quite.')
