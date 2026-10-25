@@ -710,6 +710,10 @@ export interface GoalDiagStartRes {
   answer_input_mode?: 'numeric' | 'text'
   done?: boolean
   progress?: DiagnosticProgress
+  // Fork change: set when the run is a course placement test; message says
+  // why a course has no placement test when one was asked for.
+  course_id?: string
+  message?: string
 }
 
 export interface GoalDiagAnswerRes {
@@ -738,6 +742,23 @@ export interface GoalPlanRes {
   conditionally_completed?: string[]
   placement_course_id?: string
   completion_estimates?: Record<string, string>
+  // Fork change: a course placement test's per-section summary.
+  course_id?: string
+  sections?: CourseTestSection[] | null
+}
+
+/**
+ * One course section's line in a course test summary (engine.SectionResult).
+ * passed: answered right (placement: placed, review: held); missed: answered
+ * wrong (placement: start here, review: queued for review); inferred,
+ * placement only: placed without being asked, below a right answer.
+ */
+export interface CourseTestSection {
+  title: string
+  total: number
+  passed: { id: string; label: string }[]
+  missed: { id: string; label: string }[]
+  inferred?: { id: string; label: string }[]
 }
 
 export interface WeaknessRes {
@@ -754,11 +775,15 @@ export async function getGoalPath(conceptIds: string[]): Promise<GoalPathRes> {
 	return res.json()
 }
 
-export async function startGoalDiagnostic(conceptIds: string[]): Promise<GoalDiagStartRes> {
+// With courseId the server builds a course placement test: the course's own
+// topics and their prerequisites (conceptIds may then be empty).
+export async function startGoalDiagnostic(conceptIds: string[], opts?: { courseId?: string }): Promise<GoalDiagStartRes> {
+	const body: { concept_ids: string[]; course_id?: string } = { concept_ids: conceptIds }
+	if (opts?.courseId) body.course_id = opts.courseId
 	const res = await authedFetch(`${API_BASE}/api/goal/diagnostic`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-		body: JSON.stringify({ concept_ids: conceptIds }),
+		body: JSON.stringify(body),
 	})
 	if (!res.ok) await throwWithResponse(res, `Goal diagnostic start failed: ${res.status}`)
 	return res.json()
@@ -1600,6 +1625,9 @@ export interface QuizStartRes {
   courses?: string[]
   empty?: boolean
   message?: string
+  // Fork change: a course review test ("review" or "full").
+  course_id?: string
+  test?: string
 }
 export interface QuizAnswerRes {
   done: boolean
@@ -1631,16 +1659,28 @@ export interface QuizAnswerRes {
 	closed_book?: boolean
 	time_limit_seconds?: number
 	questions_total?: number
+	// Fork change: a finished course review test's per-section summary.
+	course_id?: string
+	test?: string
+	sections?: CourseTestSection[] | null
 }
 
 interface QuizSessionBody {
 	student_id?: string
+	course_id?: string
+	scope?: 'review' | 'full'
 }
 
-export async function startQuizSession(): Promise<QuizStartRes> {
+// With courseId the server starts that course's review test instead of the
+// mastery check; scope 'full' covers the whole course.
+export async function startQuizSession(opts?: { courseId?: string; scope?: 'review' | 'full' }): Promise<QuizStartRes> {
 	const { getGuestId } = await import('./auth')
 	const headers = { 'Content-Type': 'application/json', ...getAuthHeaders() } satisfies Record<string, string>
 	const body: QuizSessionBody = {}
+	if (opts?.courseId) {
+		body.course_id = opts.courseId
+		body.scope = opts.scope ?? 'review'
+	}
 	const guestId = getGuestId()
 	if (guestId && !('Authorization' in headers)) body.student_id = guestId
 	const res = await authedFetch(`${API_BASE}/api/quiz/session`, {
@@ -2332,6 +2372,19 @@ export interface CourseView {
   next_topic?: CourseTopic
   prerequisites: CourseTopic[]
   needs_placement: boolean
+  tests?: CourseTests
+}
+
+// Fork change: the course's placement and review tests (engine.CourseTests).
+export interface CourseTests {
+  placement: boolean
+  review: boolean
+  gradable_topics: number
+  placement_topics: number
+  placement_questions: number
+  review_topics: number
+  review_questions: number
+  full_review_questions: number
 }
 
 // Fork change: this week's pins. The learner picks the present week's topics

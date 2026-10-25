@@ -15,6 +15,9 @@ import type { AnswerFormat } from '../../lib/answerFormat'
 import ChoiceOptions from '../../components/ChoiceOptions'
 import { domainLabels, type DomainInfo } from './domains'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
+import PythonAnswer from '../../components/python/PythonAnswer'
+import CourseTestSummary from '../../components/CourseTestSummary'
+import { displayQuestion, isBankServed, pythonHint, pythonKind } from '../../lib/pythonQuestion'
 
 export function WelcomeStep({
   domains,
@@ -264,7 +267,9 @@ export function DiagnosticStep({
   onRetryPlan,
   retryAvailable,
   onRetryQuestion,
+  gradingType = '',
 }: {
+  gradingType?: string
   question: string
   conceptName: string
   progress: DiagnosticProgress | null
@@ -291,6 +296,10 @@ export function DiagnosticStep({
   retryAvailable: boolean
   onRetryQuestion: () => void
 }) {
+  // A course placement test may ask question-bank items (multiple choice,
+  // "what does this print", typed math); they take the bank's own input.
+  const isBank = isBankServed(gradingType, question)
+  const bankKind = isBank ? pythonKind(question) : null
   return (
     <>
       <SectionHeader label={`Question ${progress ? progress.answered + 1 : questionCount}`} title={conceptName} />
@@ -301,17 +310,33 @@ export function DiagnosticStep({
           coverSize={progress ? progress.cover_size : 0}
         />
         <div className="bg-mathua-surface border border-mathua-border rounded-none p-4 sm:p-6 mb-6 w-full max-w-full min-w-0 overflow-hidden">
+          {isBank ? (
+            <div className="border border-mathua-border rounded-none p-4 sm:p-6 mb-4 w-full max-w-full min-w-0 overflow-hidden">
+              <KatexContent className="text-mathua-primary text-sm font-mono whitespace-pre-wrap break-words">{displayQuestion(question)}</KatexContent>
+            </div>
+          ) : (
           <div className="bg-mathua-code border border-mathua-border rounded-none p-4 sm:p-6 text-center mb-4 w-full max-w-full min-w-0 overflow-hidden">
             <div className="w-full max-w-full min-w-0 overflow-hidden">
               <KatexContent className="text-mathua-primary text-lg font-mono font-light whitespace-pre-wrap break-words">{question}</KatexContent>
             </div>
           </div>
+          )}
           <ChoiceOptions question={question} value={answerInput} onPick={onInputChange} disabled={loading || lastResult !== null} />
           <form
             onSubmit={e => { e.preventDefault(); onSubmit() }}
-            className="flex flex-col sm:flex-row gap-3 min-w-0"
+            className={`flex ${isBank ? 'flex-col' : 'flex-col sm:flex-row'} gap-3 min-w-0`}
           >
             <label htmlFor="onboard-answer" className="sr-only">Your answer</label>
+            {isBank ? (
+              <PythonAnswer
+                id="onboard-answer"
+                question={question}
+                value={answerInput}
+                onChange={onInputChange}
+                onSubmit={onSubmit}
+                disabled={loading || lastResult !== null}
+              />
+            ) : (
             <MathAnswerInput
               id="onboard-answer"
               value={answerInput}
@@ -325,6 +350,7 @@ export function DiagnosticStep({
               className="sm:flex-1"
               focusRef={inputRef}
             />
+            )}
             <button
               type="submit"
               disabled={!answerInput.trim() || loading || lastResult !== null}
@@ -334,7 +360,7 @@ export function DiagnosticStep({
             </button>
           </form>
           <div className="mt-2 flex items-center justify-between gap-2">
-            <p className="font-mono text-[11px] text-mathua-muted">{answerFormat.hint}</p>
+            <p className="font-mono text-[11px] text-mathua-muted">{bankKind ? pythonHint(bankKind) : answerFormat.hint}</p>
             {!lastResult && !loading && (
               <button
                 type="button"
@@ -428,7 +454,7 @@ export function DiagnosticStep({
   )
 }
 
-export function ResultsStep({ plan, onStartPractice, demo }: { plan: GoalPlanRes; onStartPractice: () => void; demo?: boolean }) {
+export function ResultsStep({ plan, onStartPractice, demo, courseId }: { plan: GoalPlanRes; onStartPractice: () => void; demo?: boolean; courseId?: string }) {
   return (
     <div className="max-w-3xl mx-auto min-w-0 overflow-hidden px-2 sm:px-0">
       <SectionHeader label="Your results" title="Here's what we found" />
@@ -443,6 +469,11 @@ export function ResultsStep({ plan, onStartPractice, demo }: { plan: GoalPlanRes
               Sign in to keep a plan →
             </Link>
           </p>
+        </div>
+      )}
+      {plan.sections && plan.sections.length > 0 && (
+        <div className="mt-6 min-w-0 overflow-hidden">
+          <CourseTestSummary sections={plan.sections} mode="placement" courseId={courseId ?? plan.course_id} />
         </div>
       )}
       <div className="mt-6 min-w-0 overflow-hidden">

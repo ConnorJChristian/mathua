@@ -27,6 +27,12 @@ function GoalsContent() {
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('quiz') === '1',
     [],
   )
+  // Fork change: ?course=<id>&scope=review|full is that course's review test.
+  const courseTest = useMemo(() => {
+    if (typeof window === 'undefined') return { courseId: undefined, scope: 'review' as const }
+    const q = new URLSearchParams(window.location.search)
+    return { courseId: q.get('course') || undefined, scope: q.get('scope') === 'full' ? ('full' as const) : ('review' as const) }
+  }, [])
 
   useEffect(() => {
     if (!mounted || isQuizMode) return
@@ -44,7 +50,7 @@ function GoalsContent() {
       <Header />
       <div className="max-w-container mx-auto px-4 sm:px-6 pb-[calc(80px+env(safe-area-inset-bottom))] lg:pb-0 overflow-x-hidden min-w-0">
         <section className="pt-8 min-w-0 overflow-hidden">
-          <QuizHost />
+          <QuizHost courseId={courseTest.courseId} scope={courseTest.scope} />
         </section>
       </div>
       <Footer />

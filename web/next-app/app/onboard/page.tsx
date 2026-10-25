@@ -35,6 +35,7 @@ import { domainOrder, type DomainInfo } from './domains'
 import { DiagnosticStep, ResultsStep, WelcomeStep } from './steps'
 import { isModuleDomain } from '../../lib/track'
 import { isPythonGrading } from '../../lib/pythonQuestion'
+import { track } from '../../lib/events'
 
 type Step = 'welcome' | 'diagnostic' | 'results'
 
@@ -108,6 +109,12 @@ function OnboardContent() {
   // since conceptId.current already advanced to the staged next question.
   const [retryConcept, setRetryConcept] = useState('')
   const [answerFormat, setAnswerFormat] = useState<AnswerFormat>(() => formatForGradingType())
+  // The served question's grading type: a course placement test may ask
+  // question-bank items, which take their own input (fork change).
+  const [gradingType, setGradingType] = useState('')
+  // The course a course placement test runs for: /onboard?course=<one id>
+  // places you in that course, bank items included (fork change).
+  const placementCourse = courseParam && !courseParam.includes(',') ? courseParam : ''
 
   const [plan, setPlan] = useState<GoalPlanRes | null>(null)
 
@@ -205,6 +212,7 @@ function OnboardContent() {
     questionShownAt.current = Date.now()
     setConceptName(res.concept_name || '')
     setAnswerFormat(formatForGradingType(res.grading_type))
+    setGradingType(res.grading_type ?? '')
     setQuestionCount(1)
     setProgress(res.progress ?? null)
     setAccuracy({ correct: 0, total: 0 })
@@ -293,6 +301,7 @@ function OnboardContent() {
       questionShownAt.current = Date.now()
       setConceptName(data.concept_name || '')
       setAnswerFormat(formatForGradingType(data.grading_type))
+      setGradingType(data.grading_type ?? '')
       if (data.progress) {
         setProgress(data.progress)
         setQuestionCount(data.progress.answered + 1)
@@ -363,6 +372,9 @@ function OnboardContent() {
     setPlanError('')
     try {
       const planRes = await getGoalPlan(sessionId.current)
+      if (planRes.course_id) {
+        track({ kind: 'test_finish', data: { course: planRes.course_id, test: 'placement', correct: planRes.correct_count, total: planRes.total_tested } })
+      }
       setPlan(planRes)
       setStep('results')
       try {
@@ -382,6 +394,7 @@ function OnboardContent() {
     questionShownAt.current = Date.now()
     setConceptName(name)
     setAnswerFormat(formatForGradingType(gradingType))
+    setGradingType(gradingType)
     setQuestionCount(prev => prev + 1)
     setLastResult(null)
     setAnswerInput('')
@@ -404,6 +417,7 @@ function OnboardContent() {
       questionShownAt.current = Date.now()
       setConceptName(data.concept_name || '')
       setAnswerFormat(formatForGradingType(data.grading_type || ''))
+      setGradingType(data.grading_type || '')
       setLastResult(null)
       setAnswerInput('')
     } catch (e) {
@@ -485,9 +499,14 @@ function OnboardContent() {
     if (!coursePlace) return
     setLoading(true)
     try {
-      const res = await startGoalDiagnostic(coursePlace.topics)
+      const res = placementCourse
+        ? await startGoalDiagnostic([], { courseId: placementCourse })
+        : await startGoalDiagnostic(coursePlace.topics)
+      if (placementCourse) track({ kind: 'test_start', data: { course: placementCourse, test: 'placement', done: !!res.done } })
       if (res.done) {
-        toast.error('No placement questions apply to these courses; their first topics are open already.')
+        toast.error(res.message || (placementCourse
+          ? 'Nothing left to place in this course: you already have progress on every topic the test could ask.'
+          : 'No placement questions apply to these courses; their first topics are open already.'))
         push(coursePlace.ids.length === 1 ? `/course?id=${encodeURIComponent(coursePlace.ids[0])}` : '/today')
         return
       }
@@ -529,9 +548,11 @@ function OnboardContent() {
           {step === 'welcome' && coursePlace && !needsName && (
             <section className="max-w-2xl mx-auto py-16 text-center">
               <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">Placement</p>
-              <h1 className="font-serif text-3xl text-mathua-primary mt-2">Find your starting point in your courses</h1>
+              <h1 className="font-serif text-3xl text-mathua-primary mt-2">{placementCourse ? 'Place yourself in this course' : 'Find your starting point in your courses'}</h1>
               <p className="font-mono text-xs text-mathua-secondary mt-4 leading-relaxed">
-                A short adaptive test over what these courses build on. Topics you show you know open up, so you start at your frontier instead of at the bottom.
+                {placementCourse
+                  ? 'A short adaptive test, at most 30 questions, over this course and what it builds on. Topics you show you know open up, so you can skip what you already know. Progress you already have is never lowered.'
+                  : 'A short adaptive test over what these courses build on. Topics you show you know open up, so you start at your frontier instead of at the bottom.'}
               </p>
               <ul className="mt-6 inline-flex flex-col gap-1 text-left">
                 {coursePlace.names.map((n) => (
@@ -539,7 +560,9 @@ function OnboardContent() {
                 ))}
               </ul>
               <p className="font-mono text-[10px] text-mathua-muted mt-3">
-                Courses whose questions come from a question bank (Workday, DMV, Python, political economy) have no placement; their first topics are open already.
+                {placementCourse
+                  ? 'Questions grade themselves: worked problems, multiple choice and short outputs. No flashcards, code tasks or proofs.'
+                  : 'This test asks generated questions only. To include a course\'s question-bank topics, take that course\'s own placement test from its page.'}
               </p>
               <div className="mt-8 flex flex-wrap gap-3 justify-center">
                 <button type="button" disabled={loading} onClick={() => void startCoursePlacement()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint h-11 px-6 font-mono text-xs disabled:opacity-50">
@@ -597,6 +620,7 @@ function OnboardContent() {
               onNext={goNext}
               done={finished}
               answerFormat={answerFormat}
+              gradingType={gradingType}
               submitError={submitError}
               planError={planError}
               onSkip={skipAnswer}
@@ -609,7 +633,7 @@ function OnboardContent() {
           )}
 
           {step === 'results' && plan && (
-            <ResultsStep plan={plan} onStartPractice={finishOnboarding} demo={demo} />
+            <ResultsStep plan={plan} onStartPractice={finishOnboarding} demo={demo} courseId={placementCourse || undefined} />
           )}
         </section>
       </div>

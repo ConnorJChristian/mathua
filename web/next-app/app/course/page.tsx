@@ -15,6 +15,7 @@ import { API_BASE } from '../../lib/apiBase'
 import { getUserInfo } from '../../lib/auth'
 import { formatDue } from '../../lib/dates'
 import { track } from '../../lib/events'
+import CourseTestsSection from '../../components/CourseTestsSection'
 
 // Fork change: a course's own page, laid out like a course site: Home (what
 // to do next, progress), Modules (its topics in teaching order, each with its
@@ -246,6 +247,7 @@ function CourseContent() {
                   {view.reviews_due} topic{view.reviews_due === 1 ? '' : 's'} in this course {view.reviews_due === 1 ? 'is' : 'are'} due a review →
                 </Link>
               )}
+              {view.tests && (view.tests.placement || view.tests.review) && <CourseTestsSection view={view} />}
               <section>
                 <h2 className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted mb-2">About</h2>
                 <p className="font-mono text-xs text-mathua-secondary leading-relaxed">{view.description}</p>

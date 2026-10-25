@@ -8,7 +8,8 @@ import Loading from '../../components/Loading'
 import SectionHeader from '../../components/SectionHeader'
 import BriefingCard, { QUIZ_BRIEFING } from '../../components/BriefingCard'
 import ReportButton from '../../components/ReportButton'
-import { startQuizSession, submitQuizAnswer, skipQuizQuestion } from '../../lib/api'
+import { startQuizSession, submitQuizAnswer, skipQuizQuestion, type CourseTestSection } from '../../lib/api'
+import CourseTestSummary from '../../components/CourseTestSummary'
 import { formatForGradingType, formatForQuestion, type AnswerFormat, type QuestionFormatFields } from '../../lib/answerFormat'
 import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, {
@@ -34,8 +35,14 @@ type Phase = 'loading' | 'intro' | 'quiz' | 'done' | 'failed'
 // Actionable quiz every 50 XP (engine.QuizGateXP): timed closed-book, own
 // grading path, guest unlimited retake. Self-contained so the goals page only
 // mounts it.
-export default function QuizHost() {
+//
+// Fork change: with courseId it is that course's review test (scope 'full':
+// the whole course), started from the course page. Same screen, same grading
+// and remediation path; the end screen adds a per-section summary.
+export default function QuizHost({ courseId, scope = 'review' }: { courseId?: string; scope?: 'review' | 'full' } = {}) {
   const [phase, setPhase] = useState<Phase>('intro')
+  const [sections, setSections] = useState<CourseTestSection[]>([])
+  const testName = scope === 'full' ? 'full_review' : 'review'
   const [loading, setLoading] = useState(false)
   // Carried separately from the phase so the failed screen can say what went
   // wrong without pretending the quiz is over.
@@ -84,7 +91,9 @@ export default function QuizHost() {
     setLoading(true)
     setStartError('')
     try {
-      const res = await startQuizSession()
+      const res = await startQuizSession(courseId ? { courseId, scope } : undefined)
+      if (courseId) track({ kind: 'test_start', data: { course: courseId, test: testName, questions: res.questions_total ?? 0, empty: !!res.empty } })
+      setSections([])
       setQuizCourses(res.courses ?? [])
       setEmptyMessage(res.empty ? res.message ?? '' : '')
       if (res.done) {
@@ -150,6 +159,8 @@ export default function QuizHost() {
 
       if (data.done) {
         setFinished(true)
+        setSections(data.sections ?? [])
+        if (courseId) track({ kind: 'test_finish', data: { course: courseId, test: testName, correct: quizAccuracy.correct + (correct ? 1 : 0), total: quizAccuracy.total + 1 } })
         setTimeout(() => {
           setPhase('done')
           setLoading(false)
@@ -196,6 +207,8 @@ export default function QuizHost() {
       setSkipCount(c => c + 1)
       if (data.done) {
         setFinished(true)
+        setSections(data.sections ?? [])
+        if (courseId) track({ kind: 'test_finish', data: { course: courseId, test: testName, correct: quizAccuracy.correct, total: quizAccuracy.total } })
         setQuizLastResult({ correct: false, feedback: 'Skipped — no XP awarded.', conceptId: quizConceptId.current, xp: 0 })
         setTimeout(() => {
           setPhase('done')
@@ -244,8 +257,13 @@ export default function QuizHost() {
   if (phase === 'intro') {
     return (
       <>
-        <SectionHeader label="Quiz" title="Mastery check" />
+        <SectionHeader label={courseId ? 'Course test' : 'Quiz'} title={courseId ? (scope === 'full' ? 'Full course review' : 'Review test') : 'Mastery check'} />
         <div className="max-w-2xl mx-auto min-w-0 overflow-hidden px-2 sm:px-0">
+          {courseId && (
+            <p className="mb-4 font-mono text-xs text-mathua-secondary text-center">
+              One question on each of the topics this course has taught you, weakest first. Answers count as mastery evidence, and topics you miss go back into review.
+            </p>
+          )}
           <BriefingCard eyebrow="Before you start" items={QUIZ_BRIEFING} />
           <div className="mt-6 text-center">
             <button
@@ -295,13 +313,18 @@ export default function QuizHost() {
             <p className="font-mono text-sm text-mathua-secondary mt-4">{emptyMessage || 'There are no quiz questions available right now, try again later.'}</p>
             <div className="mt-6 flex gap-3 justify-center">
               <button type="button" onClick={startQuiz} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-8 text-sm">Try again →</button>
-              <Link href="/profile" className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">Back to Profile →</Link>
+              <Link href={courseId ? `/course?id=${encodeURIComponent(courseId)}` : '/profile'} className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">{courseId ? 'Back to the course →' : 'Back to Profile →'}</Link>
             </div>
           </>
         ) : (
           <>
-            <SectionHeader label="Quiz complete" title={`${quizAccuracy.correct}/${quizAccuracy.total} correct`} />
+            <SectionHeader label={courseId ? 'Review test complete' : 'Quiz complete'} title={`${quizAccuracy.correct}/${quizAccuracy.total} correct`} />
             <p className="font-mono text-sm text-mathua-secondary mt-4">XP awarded per correct answer, more for faster answers. Retake anytime.</p>
+            {sections.length > 0 && (
+              <div className="mt-6">
+                <CourseTestSummary sections={sections} mode="review" courseId={courseId} />
+              </div>
+            )}
             {quizRemedial.length > 0 && (
               <div className="mt-6 border border-mathua-border bg-mathua-surface p-4 text-left">
                 <p className="font-mono text-xs uppercase tracking-wider text-mathua-muted mb-2">Focus next in Study</p>
@@ -320,8 +343,8 @@ export default function QuizHost() {
               </div>
             )}
             <div className="mt-6 flex gap-3 justify-center">
-              <button type="button" onClick={startQuiz} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-8 text-sm">Retake Quiz →</button>
-              <Link href="/profile" className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">Back to Profile →</Link>
+              <button type="button" onClick={startQuiz} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-8 text-sm">{courseId ? 'Retake test →' : 'Retake Quiz →'}</button>
+              <Link href={courseId ? `/course?id=${encodeURIComponent(courseId)}` : '/profile'} className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">{courseId ? 'Back to the course →' : 'Back to Profile →'}</Link>
             </div>
             <div className="mt-3 text-center">
               <Link href="/history" className="font-mono text-xs text-mathua-muted hover:text-mathua-blue">Every question you&apos;ve answered →</Link>
