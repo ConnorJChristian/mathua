@@ -551,9 +551,9 @@ func (g *pascalGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		parts[i] = strconv.Itoa(v)
 	}
 	return generator.Problem{
-		Question:    fmt.Sprintf("What is row %d of Pascal's triangle? (answer as comma-separated numbers)", n),
+		Question:    fmt.Sprintf("What is row %d of Pascal's triangle, counting the top 1 as row 0? (answer as comma-separated numbers)", n),
 		Answer:      strings.Join(parts, ","),
-		Explanation: fmt.Sprintf("Row %d of Pascal's triangle: %s", n, strings.Join(parts, ",")),
+		Explanation: fmt.Sprintf("Row %d, counting the top 1 as row 0: %s", n, strings.Join(parts, ",")),
 	}
 }
 

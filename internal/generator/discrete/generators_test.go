@@ -2,6 +2,7 @@ package discrete
 
 import (
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/chuma-beep/mathua/internal/generator"
@@ -18,15 +19,29 @@ func fuzzGen(t *testing.T, gen generator.Generator) {
 	}
 }
 
-func TestPropositionsGen(t *testing.T)    { fuzzGen(t, &propositionsGen{}) }
-func TestConnectivesGen(t *testing.T)     { fuzzGen(t, &connectivesGen{}) }
-func TestTruthTablesGen(t *testing.T)     { fuzzGen(t, &truthTablesGen{}) }
-func TestQuantifiersGen(t *testing.T)     { fuzzGen(t, &quantifiersGen{}) }
-func TestSetOpsGen(t *testing.T)          { fuzzGen(t, &setOpsGen{}) }
-func TestVennGen(t *testing.T)            { fuzzGen(t, &vennGen{}) }
-func TestPermutationsGen(t *testing.T)    { fuzzGen(t, &permutationsGen{}) }
-func TestCombinationsGen(t *testing.T)    { fuzzGen(t, &combinationsGen{}) }
-func TestPascalGen(t *testing.T)          { fuzzGen(t, &pascalGen{}) }
+func TestPropositionsGen(t *testing.T) { fuzzGen(t, &propositionsGen{}) }
+func TestConnectivesGen(t *testing.T)  { fuzzGen(t, &connectivesGen{}) }
+func TestTruthTablesGen(t *testing.T)  { fuzzGen(t, &truthTablesGen{}) }
+func TestQuantifiersGen(t *testing.T)  { fuzzGen(t, &quantifiersGen{}) }
+func TestSetOpsGen(t *testing.T)       { fuzzGen(t, &setOpsGen{}) }
+func TestVennGen(t *testing.T)         { fuzzGen(t, &vennGen{}) }
+func TestPermutationsGen(t *testing.T) { fuzzGen(t, &permutationsGen{}) }
+func TestCombinationsGen(t *testing.T) { fuzzGen(t, &combinationsGen{}) }
+func TestPascalGen(t *testing.T)       { fuzzGen(t, &pascalGen{}) }
+
+func TestPascalRowsStateTheIndexingConvention(t *testing.T) {
+	g := &pascalGen{}
+	for i := 0; i < 40; i++ {
+		p := g.Generate(generator.GeneratorContext{Difficulty: rand.Float64()})
+		if !strings.Contains(p.Question, "top 1 as row 0") {
+			t.Fatalf("question does not state the row convention: %q", p.Question)
+		}
+		if !strings.Contains(p.Explanation, "top 1 as row 0") {
+			t.Fatalf("explanation does not state the row convention: %q", p.Explanation)
+		}
+	}
+}
+
 func TestGraphBasicsGen(t *testing.T)     { fuzzGen(t, &graphBasicsGen{}) }
 func TestGraphPathsGen(t *testing.T)      { fuzzGen(t, &graphPathsGen{}) }
 func TestTreesGen(t *testing.T)           { fuzzGen(t, &treesGen{}) }
