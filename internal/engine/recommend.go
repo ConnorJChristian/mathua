@@ -161,12 +161,17 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		}
 	}
 
+	// Topics outside the learner's course paths are not offered. They are
+	// excluded, not dropped from the snapshots: a dropped topic had no
+	// snapshot and read as never seen, so one whose prerequisite the
+	// placement had credited was offered as "Ready to learn" ("Addition word
+	// problems" after a calculus placement; Q27).
 	e.ensureActivePath(studentID)
 	e.mu.Lock()
 	if path := e.activePath[studentID]; len(path) > 0 {
 		for cid := range snapshots {
 			if !path[cid] {
-				delete(snapshots, cid)
+				exclude = append(exclude, cid)
 			}
 		}
 	}

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { recommendationTitle } from '../../lib/recommendations'
 import Header from '../../components/Header'
 import BottomTabs from '../../components/BottomTabs'
 import Footer from '../../components/Footer'
 import Loading from '../../components/Loading'
 import SectionHeader from '../../components/SectionHeader'
 import { useTheme } from '../../hooks/useTheme'
-import { getCourseCatalog, getCourseView, getNext, getPins, getScores, setPins, type CourseView, type Pin, type Recommendation } from '../../lib/api'
+import { getCourseCatalog, getCourseView, getDueReviews, getNext, getPins, getScores, setPins, type CourseView, type Pin, type Recommendation } from '../../lib/api'
 import { getUserInfo } from '../../lib/auth'
 import { formatDue } from '../../lib/dates'
 import { hrefConceptId } from '../../lib/nextUp'
@@ -29,6 +30,7 @@ export default function TodayPage() {
   const { mounted } = useTheme()
   const [rows, setRows] = useState<Row[] | null>(null)
   const [views, setViews] = useState<CourseView[]>([])
+  const [dueCount, setDueCount] = useState<number | null>(null)
   const [quizDue, setQuizDue] = useState(false)
   const [xp, setXp] = useState<{ since: number; gate: number } | null>(null)
   const [failed, setFailed] = useState(false)
@@ -69,6 +71,7 @@ export default function TodayPage() {
         setByConcept(map)
         setRows(await loadRows(map))
         if (sid) {
+          getDueReviews().then((d) => setDueCount(d.count)).catch(() => {})
           const s = await getScores(sid).catch(() => null)
           if (s) {
             setQuizDue(!!s.quiz_due)
@@ -83,8 +86,11 @@ export default function TodayPage() {
   }, [])
 
   if (!mounted || rows === null) return <Loading label="Working out what to study" full />
-  // Distinct topics: a topic on two courses is one review, not two (Q2).
-  const reviewsDue = new Set(views.flatMap((v) => v.modules.flatMap((m) => m.topics.filter((t) => t.due).map((t) => t.id)))).size
+  // The count is the review service's own, so it is the number /review will
+  // serve: summing course pages missed mastered prerequisites no course lists
+  // (Q38) and counted a topic on two courses twice (Q2). Course pages are the
+  // fallback while it loads.
+  const reviewsDue = dueCount ?? new Set(views.flatMap((v) => v.modules.flatMap((m) => m.topics.filter((t) => t.due).map((t) => t.id)))).size
   const kindLabel = (r: Recommendation) => r.pinned ? (r.pinnedFor ? `This week · for ${r.pinnedFor}` : 'This week') : r.kind === 'review' ? 'Review' : r.badge === 'New' ? 'New topic' : r.kind === 'practice' ? 'Practice' : r.kind === 'mastery_check' ? 'Mastery check' : r.reason === 'prerequisite' ? 'Prerequisite' : 'New topic'
   const pinCourses = (cid: string) => byConcept.get(cid) ?? []
 
@@ -153,7 +159,7 @@ export default function TodayPage() {
                 <p className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted">
                   {i === 0 ? 'Up next' : kindLabel(r)}{r.courses.length ? ` · ${r.courses.join(', ')}` : ''}
                 </p>
-                <p className="font-serif text-base text-mathua-primary break-words [overflow-wrap:anywhere]">{r.conceptTitle || (r.id === 'diagnostic' ? 'Placement test' : r.id === 'paused' ? 'Paused placement test' : r.id)}</p>
+                <p className="font-serif text-base text-mathua-primary break-words [overflow-wrap:anywhere]">{r.id === 'paused' && !r.conceptTitle ? 'Paused placement test' : recommendationTitle(r)}</p>
                 {r.detail && <p className="font-mono text-[11px] text-mathua-secondary mt-0.5 break-words [overflow-wrap:anywhere]">{r.detail}</p>}
               </div>
               <div className="flex items-center gap-2 ml-auto">

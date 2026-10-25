@@ -135,6 +135,8 @@ func tidyRun(run string, math bool) string {
 	if math && !hasVariable(run) {
 		return run
 	}
+	// "(4/1)e^(x)" and "(1/1)x": a fraction over 1 is its numerator (Q35).
+	run = overOneRe.ReplaceAllString(run, "$1")
 	run = replaceSign(plusNegRe, run, "-")
 	run = replaceSign(minusNegRe, run, "+")
 	run = dropUnitCoefficients(run, math)
@@ -169,6 +171,8 @@ func TidyAnswer(a string) string {
 	}
 	return strings.TrimSuffix(strings.TrimPrefix(Tidy("$"+a+"$"), "$"), "$")
 }
+
+var overOneRe = regexp.MustCompile(`\((-?\d+)/1\)`)
 
 var loneVarRe = regexp.MustCompile(`\(([a-z])\)\^`)
 

@@ -267,10 +267,10 @@ func (g *matrixIdentityGen) Generate(ctx generator.GeneratorContext) generator.P
 	}
 	c := candidates[rand.Intn(len(candidates))]
 	a, b, cVal, d := c[0], c[1], c[2], c[3]
+	// det is ±1 for every candidate, so the inverse is integral. Its sign
+	// matters: flipping it to +1 keyed six of sixteen matrices to minus their
+	// true inverse, and graded the right answer wrong (Q40).
 	det := a*d - b*cVal
-	if det < 0 {
-		det = -det
-	}
 	inv := make([][]int, 2)
 	for i := range inv {
 		inv[i] = make([]int, 2)

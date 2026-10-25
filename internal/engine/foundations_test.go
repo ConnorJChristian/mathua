@@ -2,6 +2,7 @@ package engine
 
 import (
 	"testing"
+	"time"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/diagnostic"
@@ -54,5 +55,52 @@ func TestApplyGoalResults_PlacementAboveFoundationsCreditsTheFloor(t *testing.T)
 	}
 	if p, _ := store.GetProgress(st2.ID, "frac.basics"); p != nil && p.PlacementSeeded {
 		t.Error("a right arithmetic answer must not credit fractions")
+	}
+}
+
+// Q27 (Study queue): a topic outside the learner's course path is never
+// offered, even when the placement credited its prerequisite. Dropping it
+// from the scheduler's view made it look never seen with its prerequisite
+// met: "Addition word problems — Ready to learn" after a calculus placement.
+func TestRecommend_OffPathTopicIsNotOffered(t *testing.T) {
+	th := concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 60}
+	d, err := concepts.Build([]concepts.Concept{
+		{ID: "r", Label: "R", Domain: "d", GradingType: "numeric", MasteryThreshold: th},
+		{ID: "w", Label: "W off path", Domain: "d", GradingType: "numeric", Prerequisites: []string{"r"}, MasteryThreshold: th},
+		{ID: "q", Label: "Q", Domain: "d", GradingType: "numeric", Prerequisites: []string{"r"}, MasteryThreshold: th},
+		{ID: "p", Label: "P", Domain: "d", GradingType: "numeric", Prerequisites: []string{"q"}, MasteryThreshold: th},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, _ := storage.NewSQLiteStore(":memory:")
+	t.Cleanup(func() { store.Close() })
+	e := New(store, d, generator.NewRegistry(), nil, nil)
+	st, _ := e.CreateStudent("pathed")
+	past := time.Now().Add(-time.Hour)
+	// Both r and w were credited by the placement (as the whole grade-school
+	// floor is); only r is on the course path.
+	for _, id := range []string{"r", "w"} {
+		store.UpsertProgress(&storage.ConceptProgress{StudentID: st.ID, ConceptID: id, Status: "LEARNING", PlacementSeeded: true, WeaknessScore: 0.3, LastAttempted: &past})
+	}
+	e.mu.Lock()
+	e.activePath[st.ID] = map[string]bool{"r": true, "q": true, "p": true}
+	e.mu.Unlock()
+
+	res, err := e.RecommendNext(st.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	if res.Primary != nil {
+		ids = append(ids, res.Primary.ConceptID)
+	}
+	for _, a := range res.Alternatives {
+		ids = append(ids, a.ConceptID)
+	}
+	for _, id := range ids {
+		if id == "w" {
+			t.Fatalf("w is off the course path but was offered: %v", ids)
+		}
 	}
 }

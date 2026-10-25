@@ -79,7 +79,6 @@ export default function ContactBox() {
       </label>
       <p id={`${fieldId}-hint`} className="mt-1 font-mono text-[10px] leading-relaxed text-mathua-muted">
         Say what happened and where. Do not include a password, yours or anyone else&rsquo;s.
-        If you need an answer, message me on X instead.
       </p>
       <textarea
         id={fieldId}

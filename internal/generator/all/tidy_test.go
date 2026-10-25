@@ -28,7 +28,7 @@ func TestTidiedAnswersStillGrade(t *testing.T) {
 			if err != nil {
 				break
 			}
-			tidy := generator.Tidy(p.Answer)
+			tidy := generator.TidyAnswer(p.Answer)
 			if tidy == p.Answer {
 				continue
 			}

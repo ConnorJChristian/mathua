@@ -17,6 +17,12 @@ import type { Shelf, ShelfItem } from './nextUp'
 const SPECIAL_TITLES: Record<string, string> = {
   diagnostic: 'Placement test',
   paused: 'Learning paused',
+  'mastery-check': 'Mastery check',
+}
+
+/** The display title for a recommendation: its topic, or a name for the ids that are not topics. */
+export function recommendationTitle(r: { conceptTitle?: string; id: string }): string {
+  return r.conceptTitle || SPECIAL_TITLES[r.id] || r.id
 }
 
 export function recommendationToShelfItem(r: Recommendation): ShelfItem {
@@ -24,7 +30,7 @@ export function recommendationToShelfItem(r: Recommendation): ShelfItem {
     kind: shelfKind(r),
     badge: r.badge,
     // Ids that are not topics get a name, not the raw id (Q20: "Start here: diagnostic").
-    title: r.conceptTitle || SPECIAL_TITLES[r.id] || r.id,
+    title: recommendationTitle(r),
     detail: r.detail,
     href: r.action.href,
     cta: r.cta,
