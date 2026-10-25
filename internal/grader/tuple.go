@@ -35,6 +35,11 @@ func tupleElementMatches(e, a string) bool {
 		return true
 	}
 	if _, _, ok := parseNumeric(normalise(e)); ok {
+		// A whole-number component is answered as written: tuples hold place
+		// values and digit groups, where "4000.0" is not the answer "4000".
+		if !strings.ContainsAny(e, "./") {
+			return false
+		}
 		if _, _, ok2 := parseNumeric(normalise(a)); ok2 {
 			return (&numericGrader{}).grade(e, a).Correct
 		}

@@ -123,7 +123,7 @@ func (g *archimedeanGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		Question: "By the Archimedean property there is a positive integer N with 1/N < ε. For ε = " +
 			strconv.Itoa(c.pn) + "/" + strconv.Itoa(c.pd) + ", what is the smallest such N? (enter a whole number)",
 		Answer:      answer,
-		Explanation: "The inequality 1/N < ε is the same as N > 1/ε, so the smallest integer N is the floor of 1/ε plus one; here 1/ε = " + strconv.Itoa(c.pd) + "/" + strconv.Itoa(c.pn) + ", giving N = " + answer + ".",
+		Explanation: "The inequality 1/N < ε is the same as N > 1/ε, so the smallest integer N is the floor of 1/ε plus one; here 1/ε = " + ratS(rq(int64(c.pd), int64(c.pn))) + ", giving N = " + answer + ".",
 		Facts: map[string]string{
 			"pn": strconv.Itoa(c.pn), "pd": strconv.Itoa(c.pd), "xn": "1", "xd": "1", "answer": answer,
 		},
@@ -156,7 +156,7 @@ func (g *sequenceGen) Generate(ctx generator.GeneratorContext) generator.Problem
 	return generator.Problem{
 		Question:    "The sequence with terms " + ratSeq{c.a, c.b, c.c, c.d}.String() + " converges as n tends to infinity. What is its limit? (enter a decimal)",
 		Answer:      answer,
-		Explanation: "Dividing the numerator and denominator by n, the ratio of the leading coefficients is the limit, because the constant terms become negligible; here that ratio is " + strconv.Itoa(c.a) + "/" + strconv.Itoa(c.c) + " = " + answer + ".",
+		Explanation: "Dividing the numerator and denominator by n, the ratio of the leading coefficients is the limit, because the constant terms become negligible; here that ratio is " + limitQuot(ratSeq{c.a, c.b, c.c, c.d}) + answer + ".",
 		Facts: map[string]string{
 			"a": strconv.Itoa(c.a), "b": strconv.Itoa(c.b), "c": strconv.Itoa(c.c), "d": strconv.Itoa(c.d), "kind": "limit", "answer": answer,
 		},
@@ -487,19 +487,19 @@ func (g *extendedGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		{
 			q:           "The extended real line is...",
 			correct:     "order complete but not a field",
-			distractors: []string{"a field", "countable", "compact"},
-			reason:      "The order extends, but the arithmetic of the infinities is not a field.",
+			distractors: []string{"a field under the usual operations", "countable, like the rationals", "a proper subset of the real line"},
+			reason:      "Every subset has a supremum and an infimum (possibly ±∞), so the order is complete, but ∞ − ∞ and 0 · ∞ are undefined, so the arithmetic is not a field.",
 		},
 		{
 			q:           "Arithmetic in the extended reals leaves undefined...",
 			correct:     "infinity minus infinity, and zero times infinity",
-			distractors: []string{"infinity plus one", "infinity times two", "one over a positive number"},
+			distractors: []string{"infinity plus one, and infinity times two", "one over infinity, and minus infinity plus five", "two times infinity, and infinity plus infinity"},
 			reason:      "These are the indeterminate forms that the conventions cannot give a value.",
 		},
 		{
 			q:           "Suprema and infima are stated in the extended reals because then...",
 			correct:     "every set has a supremum and an infimum",
-			distractors: []string{"every set has a maximum", "the reals become countable", "every limit exists"},
+			distractors: []string{"every set has a maximum and a minimum", "the reals become a countable ordered set", "every sequence has a limit in the extended reals"},
 			reason:      "The unbounded cases are absorbed by the two infinite endpoints.",
 		},
 	}, extendedArithmeticClaim, extendedSupInfClaim)

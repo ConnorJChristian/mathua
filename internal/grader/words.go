@@ -14,7 +14,8 @@ var (
 	// A parenthetical needs two letters: "cos(x)" and "(k)" are mathematics.
 	wordKeyRe   = regexp.MustCompile(`^[A-Za-z][A-Za-z '\-]*(\([A-Za-z][A-Za-z '\-]+\))?$`)
 	parenPartRe = regexp.MustCompile(`\s*\(([^()]*)\)\s*`)
-	nonWordRe   = regexp.MustCompile(`[^a-z ]+`)
+	// A minus sign is kept: "-sinh x" is not "sinh x".
+	nonWordRe = regexp.MustCompile(`[^a-z \-]+`)
 )
 
 // isWordKey reports a key made of words (with at most one parenthetical) and

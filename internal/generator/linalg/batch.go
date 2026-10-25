@@ -42,6 +42,60 @@ func registerBatch(reg *generator.Registry) {
 	reg.Register("linalg.eigen.cayley_hamilton", &cayleyHamiltonGen{})
 }
 
+// spectralVariant builds a symmetric A = [[l - m k^2, m k], [m k, l - m]],
+// which has eigenvalue l with eigenvector (1, k) and eigenvalue
+// l - m(1 + k^2) with eigenvector (-k, 1): A(1, k) = (l, l k), and the two
+// eigenvectors are orthogonal, as the spectral theorem says they must be.
+func spectralVariant() generator.Problem {
+	l := 1 + rand.Intn(6)
+	m := 1 + rand.Intn(2)
+	k := 1 + rand.Intn(3)
+	a, b, d := l-m*k*k, m*k, l-m
+	l2 := l - m*(1+k*k)
+	mat := fmt.Sprintf("\\(A = \\begin{pmatrix} %d & %d \\\\ %d & %d \\end{pmatrix}\\)", a, b, b, d)
+	pair := func(x, y int) string {
+		if x < y {
+			x, y = y, x
+		}
+		return fmt.Sprintf("%d and %d", x, y)
+	}
+	vec := func(x, y int) string { return fmt.Sprintf("(%d, %d)", x, y) }
+	pick := func(correct string, cands ...string) []string {
+		seen := map[string]bool{correct: true}
+		var out []string
+		for _, c := range cands {
+			if !seen[c] && len(out) < 3 {
+				seen[c] = true
+				out = append(out, c)
+			}
+		}
+		return out
+	}
+	switch rand.Intn(3) {
+	case 0:
+		correct := pair(l, l2)
+		p := generator.MultipleChoice("The symmetric matrix "+mat+" has which eigenvalues?", correct,
+			pick(correct, pair(a, d), pair(l, -l2), pair(l+1, l2-1), pair(a+b, d-b), pair(l, l2+1))...)
+		p.Explanation = fmt.Sprintf("The eigenvalues are real (A is symmetric). Their sum is the trace \\(%d + %s = %d\\) and their product the determinant \\(%d\\cdot %s - %d^{2} = %d\\), and \\(%d + %s = %d\\), \\(%d \\cdot %s = %d\\), so they are %s.",
+			a, parenInt(d), a+d, a, parenInt(d), b, a*d-b*b, l, parenInt(l2), l+l2, l, parenInt(l2), l*l2, correct)
+		return p
+	case 1:
+		correct := vec(-k, 1)
+		p := generator.MultipleChoice(fmt.Sprintf("For the symmetric matrix %s, the vector \\((1, %d)\\) is an eigenvector for the eigenvalue %d. Which vector is an eigenvector for the other eigenvalue, %d?", mat, k, l, l2), correct,
+			pick(correct, vec(k, 1), vec(1, k+1), vec(k+1, -1), vec(1, -k-1))...)
+		p.Explanation = fmt.Sprintf("Eigenvectors of a symmetric matrix for distinct eigenvalues are orthogonal, so the other eigenvector is perpendicular to \\((1, %d)\\): \\((%d, 1)\\). Check: \\(A(%d, 1) = (%d, %d) = %d\\cdot(%d, 1)\\).",
+			k, -k, -k, -k*a+b, -k*b+d, l2, -k)
+		return p
+	default:
+		det := l * l2
+		correct := fmt.Sprint(det)
+		p := generator.MultipleChoice(fmt.Sprintf("Write the symmetric matrix %s as \\(QDQ^{T}\\) with \\(Q\\) orthogonal and \\(D\\) diagonal. What is the product of the diagonal entries of \\(D\\)?", mat), correct,
+			pick(correct, fmt.Sprint(l+l2), fmt.Sprint(a*d), fmt.Sprint(a*d+b*b), fmt.Sprint(-det), fmt.Sprint(det+1))...)
+		p.Explanation = fmt.Sprintf("\\(D\\) holds the eigenvalues %d and %d, whose product is \\(\\det D = \\det A = %d\\cdot %s - %d^{2} = %d\\) (since \\(\\det Q\\,\\det Q^{T} = 1\\)).", l, l2, a, parenInt(d), b, det)
+		return p
+	}
+}
+
 // ---------------------------------------------------------------------------
 // 1. Vector spaces and their axioms
 // ---------------------------------------------------------------------------
@@ -396,6 +450,10 @@ func (g *projectionMatrixGen) Generate(ctx generator.GeneratorContext) generator
 type spectralGen struct{}
 
 func (g *spectralGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA (Q47): most draws are computed instances; the recognition items stay.
+	if rand.Intn(4) != 0 {
+		return spectralVariant()
+	}
 	type claim struct {
 		question    string
 		correct     string
@@ -406,7 +464,7 @@ func (g *spectralGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		{
 			question:    "The spectral theorem says that a real symmetric matrix...",
 			correct:     "is orthogonally diagonalizable with real eigenvalues",
-			distractors: []string{"is always invertible", "has only positive eigenvalues", "is always a rotation"},
+			distractors: []string{"is always invertible, with a symmetric inverse", "has only positive eigenvalues, counted with multiplicity", "is a rotation followed by a reflection"},
 			reason:      "A real symmetric matrix has an orthonormal basis of eigenvectors, so it can be written Q D Q^T with Q orthogonal.",
 		},
 		{
@@ -418,7 +476,7 @@ func (g *spectralGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		{
 			question:    "A symmetric matrix is orthogonally diagonalizable because...",
 			correct:     "it has an orthonormal basis of eigenvectors",
-			distractors: []string{"it is triangular", "its determinant is positive", "it has distinct eigenvalues"},
+			distractors: []string{"it is already upper triangular", "its determinant is always positive", "its eigenvalues are always distinct"},
 			reason:      "The spectral theorem supplies the orthonormal eigenbasis even when eigenvalues repeat.",
 		},
 		{

@@ -252,6 +252,9 @@ func TestRaiseNumericRecompute(t *testing.T) {
 
 	for i := 0; i < 200; i++ {
 		p := calcBatchSample(t, reg, "calc.series.cauchy_product", i)
+		if _, ok := p.Facts["n"]; !ok {
+			continue // a run-5 computed variant, checked in pools_run5_test.go
+		}
 		n := calcFactInt(t, p, "n")
 		if want := strconv.Itoa(n + 1); p.Answer != want {
 			t.Fatalf("cauchy product: n=%d answers %s, want %s", n, p.Answer, want)
@@ -260,6 +263,9 @@ func TestRaiseNumericRecompute(t *testing.T) {
 
 	for i := 0; i < 200; i++ {
 		p := calcBatchSample(t, reg, "calc.series.gamma", i)
+		if _, ok := p.Facts["n"]; !ok {
+			continue // a run-5 computed variant, checked in pools_run5_test.go
+		}
 		n := calcFactInt(t, p, "n")
 		if want := strconv.Itoa(calcFact(n - 1)); p.Answer != want {
 			t.Fatalf("gamma: n=%d answers %s, want %s", n, p.Answer, want)

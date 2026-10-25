@@ -264,7 +264,7 @@ func (g *limitContinuityGen) Generate(ctx generator.GeneratorContext) generator.
 		{"Is \\(f(x)=1/x\\) continuous at \\(x=0\\)?", "no", "\\(1/x\\) has an infinite discontinuity at x=0 (vertical asymptote)."},
 		{"Is \\(f(x)=1/x^{2}\\) continuous at \\(x=0\\)?", "no", "\\(1/x^{2}\\) has an infinite discontinuity at \\(x=0\\)."},
 		{"Is \\(f(x)=\\tan(x)\\) continuous at \\(x=\\pi/2\\)?", "no", "\\(\\tan(x)\\) has an infinite discontinuity at \\(x=\\pi/2\\)."},
-		{"Is \\(f(x)=|x|/x\\) continuous at \\(x=0\\)?", "no", "\\(|x|/x\\) has a jump discontinuity at \\(x=0\\) (left limit \\(=-1\\), right limit \\(=1\\)."},
+		{"Is \\(f(x)=|x|/x\\) continuous at \\(x=0\\)?", "no", "\\(|x|/x\\) is not defined at \\(x=0\\), and its one-sided limits differ there (left limit −1, right limit 1): a jump discontinuity."},
 	}
 	e := table[rand.Intn(len(table))]
 	return generator.Problem{
@@ -277,6 +277,10 @@ func (g *limitContinuityGen) Generate(ctx generator.GeneratorContext) generator.
 type derivConceptGen struct{}
 
 func (g *derivConceptGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return derivConceptVariant()
+	}
 	// f(x) = a x^n at x = c; the slope of the tangent line is f'(c) = a n c^(n-1).
 	as := []int{1, 2, 3}
 	ns := []int{2, 3}
@@ -427,12 +431,21 @@ func (g *derivChainRuleGen) Generate(ctx generator.GeneratorContext) generator.P
 	if a == 1 {
 		inner = fmt.Sprintf("x+%d", b)
 	}
-	answer := fmt.Sprintf("%d(%s)^%d", coef, inner, inExp)
+	// No "^1" and no "·1" (Q35): a first power and a unit inner derivative are not written.
+	outer := fmt.Sprintf("(%s)", inner)
+	if inExp > 1 {
+		outer = fmt.Sprintf("(%s)^%d", inner, inExp)
+	}
+	answer := fmt.Sprintf("%d%s", coef, outer)
+	inside := fmt.Sprintf("·%d", a)
+	if a == 1 {
+		inside = ""
+	}
 	return generator.Problem{
 		// Fork fix: the base is parenthesised ("(2x+1)^3", not "2x+1^3").
 		Question:    fmt.Sprintf("Find \\(f'(x)\\) if \\(f(x)=(%s)^{%d}\\).", inner, n),
 		Answer:      answer,
-		Explanation: fmt.Sprintf("Chain rule: f'(x)=%d·(%s)^%d·%d = %s.", n, inner, inExp, a, answer),
+		Explanation: fmt.Sprintf("Chain rule: the outer derivative is %d%s and the inner derivative is %d, so f'(x)=%d%s%s = %s.", n, outer, a, n, outer, inside, answer),
 	}
 }
 
@@ -500,6 +513,10 @@ func (g *derivApplicationsGen) Generate(ctx generator.GeneratorContext) generato
 type derivOptimizationGen struct{}
 
 func (g *derivOptimizationGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return optimizationVariant()
+	}
 	scale := int(1 + ctx.Difficulty*5)
 	perim := (rand.Intn(max(1, scale*2)) + 3) * 4 // 12, 16, 20, 24
 	width := perim / 4
@@ -600,11 +617,12 @@ func (g *integralFTCGen) Generate(ctx generator.GeneratorContext) generator.Prob
 	}
 	scale := int(1 + ctx.Difficulty*5)
 	n := rand.Intn(max(2, scale)) + 1
-	answer := fmt.Sprintf("x^%d", n)
+	// Q35: t^1 and x^1 are written t and x.
+	answer := plainMonomial(xyTerm{1, n, 0})
 	return generator.Problem{
-		Question:    fmt.Sprintf("If \\(F(x)=\\int_{0}^{x} t^{%d} \\, dt\\), what is \\(F'(x)\\)?", n),
+		Question:    fmt.Sprintf("If \\(F(x)=\\int_{0}^{x} %s \\, dt\\), what is \\(F'(x)\\)?", texInVar([]xyTerm{{1, n, 0}}, "t")),
 		Answer:      answer,
-		Explanation: fmt.Sprintf("By the Fundamental Theorem of Calculus, F'(x)=x^%d.", n),
+		Explanation: fmt.Sprintf("By the Fundamental Theorem of Calculus, \\(F'(x)\\) is the integrand evaluated at \\(x\\): \\(F'(x)=%s\\).", texXY([]xyTerm{{1, n, 0}})),
 	}
 }
 
@@ -890,9 +908,10 @@ func (g *differenceQuotientGen) Generate(ctx generator.GeneratorContext) generat
 	fxh := (x0 + h) * (x0 + h)
 	ans := (fxh - fx) / h
 	return generator.Problem{
-		Question:    fmt.Sprintf("For \\(f(x)=x^{2}\\), what is the difference quotient \\(\\frac{f(%d+h)-f(%d)}{h}\\) for \\(h=%d\\)?", x0, x0, h),
-		Answer:      fmt.Sprintf("%d", ans),
-		Explanation: fmt.Sprintf("(f(%d+h)-f(%d))/h = ((%d+h)²-%d²)/h = (%d²+2·%d·h+h²-%d²)/h = (2·%d·h+h²)/h = 2·%d+h = %d.", x0, x0, x0, x0, x0, x0, x0, x0, x0, ans),
+		Question: fmt.Sprintf("For \\(f(x)=x^{2}\\), what is the difference quotient \\(\\frac{f(%d+h)-f(%d)}{h}\\) for \\(h=%d\\)?", x0, x0, h),
+		Answer:   fmt.Sprintf("%d", ans),
+		// The middle coefficient is printed as the number 2x0, never as "2·1·h" (Q35).
+		Explanation: fmt.Sprintf("(f(%d+h)-f(%d))/h = ((%d+h)²-%d²)/h = (%d+%dh+h²-%d)/h = (%dh+h²)/h = %d+h, which at h=%d is %d.", x0, x0, x0, x0, x0*x0, 2*x0, x0*x0, 2*x0, 2*x0, h, ans),
 	}
 }
 
@@ -1266,6 +1285,10 @@ func (g *squeezeGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 type supremumGen struct{}
 
 func (g *supremumGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return supremumVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1273,7 +1296,7 @@ func (g *supremumGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		{"What is the supremum of the set \\(\\{1-1/n : n \\in \\mathbb{N}\\}\\)?", "1", "The values approach 1 from below. 1 is an upper bound, and no smaller number is an upper bound. Supremum = 1."},
 		{"What is the infimum of the set \\(\\{1/n : n \\in \\mathbb{N}\\}\\)?", "0", "The values approach 0 from above. 0 is a lower bound, and no larger number is a lower bound. Infimum = 0."},
 		{"Is the supremum always in the set?", "no", "The supremum need not be in the set. E.g., \\(\\sup\\{1-1/n\\}=1\\), but 1 is not in the set."},
-		{"Is the maximum always in the set?", "yes", "If a maximum exists, it is the supremum and is also in the set. Unlike supremum, maximum must be attained."},
+		{"If a set has a maximum, must that maximum be an element of the set? (yes/no)", "yes", "A maximum is by definition an element of the set that is at least every other element; it is then also the supremum. A supremum, by contrast, need not be attained."},
 		{"What is \\(\\sup\\{x \\in \\mathbb{R} : x^{2}<2\\}\\)? (enter as sqrt(...))", "sqrt(2)", "The set is \\((-\\sqrt{2}, \\sqrt{2})\\). The supremum is \\(\\sqrt{2}\\) (the least upper bound), which is not in the set."},
 	}
 	e := table[rand.Intn(len(table))]
@@ -1283,6 +1306,10 @@ func (g *supremumGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type uniformContinuityGen struct{}
 
 func (g *uniformContinuityGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return uniformContinuityVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1334,6 +1361,10 @@ func (g *seqConceptGen) Generate(ctx generator.GeneratorContext) generator.Probl
 type seqConvergenceGen struct{}
 
 func (g *seqConvergenceGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return seqConvergenceVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1351,6 +1382,10 @@ func (g *seqConvergenceGen) Generate(ctx generator.GeneratorContext) generator.P
 type cauchySeqGen struct{}
 
 func (g *cauchySeqGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return cauchySeqVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1367,6 +1402,10 @@ func (g *cauchySeqGen) Generate(ctx generator.GeneratorContext) generator.Proble
 type monotoneSeqGen struct{}
 
 func (g *monotoneSeqGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return monotoneSeqVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1400,6 +1439,10 @@ func (g *eulerSeqGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type functionSequencesGen struct{}
 
 func (g *functionSequencesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return functionSequencesVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1480,6 +1523,10 @@ func (g *positiveTermsGen) Generate(ctx generator.GeneratorContext) generator.Pr
 type alternatingSeriesGen struct{}
 
 func (g *alternatingSeriesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return alternatingVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1542,11 +1589,11 @@ func (g *powerSeriesGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		q, a, e string
 	}
 	table := []entry{
-		{"What is the coefficient of x^2 in the Maclaurin series for cos? (enter -1/2)", "-1/2", "General form sum c(n)(x-a)^n; cos(x) = 1 - x^2/2! + x^4/4! - ...; coefficient of x^2 is -1/2."},
+		{"What is the coefficient of x^2 in the Maclaurin series for cos? (enter a fraction)", "-1/2", "General form sum c(n)(x-a)^n; cos(x) = 1 - x^2/2! + x^4/4! - ...; coefficient of x^2 is -1/2."},
 		{"Does a power series converge for |x-a|<R? (yes/no)", "yes", "Radius R: the series converges for |x-a|<R, diverges for |x-a|>R; converges absolutely inside."},
 		{"Does 1/(1-x) = sum x^n for |x|<1? (yes/no)", "yes", "1/(1-x) = 1 + x + x^2 + x^3 + ... = sum x^n, which converges for |x|<1."},
 		{"What is the coefficient of x^2 in the Maclaurin series for e^x? (enter a fraction)", "1/2", "e^x = 1 + x + x^2/2! + x^3/3! + ... = sum x^n/n!, which converges for all real x; coefficient of x^2 is 1/2."},
-		{"What is the coefficient of x^3 in the Maclaurin series for sin? (enter -1/6)", "-1/6", "sin(x) = x - x^3/3! + x^5/5! - ..., converging for all real x; coefficient of x^3 is -1/6."},
+		{"What is the coefficient of x^3 in the Maclaurin series for sin? (enter a fraction)", "-1/6", "sin(x) = x - x^3/3! + x^5/5! - ..., converging for all real x; coefficient of x^3 is -1/6."},
 	}
 	e := table[rand.Intn(len(table))]
 	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
@@ -1561,8 +1608,8 @@ func (g *taylorSeriesGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	table := []entry{
 		{"Is a Taylor series built from derivatives at a? (yes/no)", "yes", "Taylor: f(x) = sum f^(n)(a)(x-a)^n/n!; centered at a with radius R."},
 		{"What is the coefficient of x^2 in the Maclaurin series for e^x? (enter a fraction)", "1/2", "e^x = sum x^n/n! with radius R=infinity; coefficient of x^2 is 1/2."},
-		{"What is the coefficient of x^3 in the Maclaurin series for sin? (enter -1/6)", "-1/6", "sin(x) = x - x^3/3! + x^5/5! - ... with R=infinity; coefficient of x^3 is -1/6."},
-		{"What is the coefficient of x^2 in the Maclaurin series for cos? (enter -1/2)", "-1/2", "cos(x) = 1 - x^2/2! + x^4/4! - ... with R=infinity; coefficient of x^2 is -1/2."},
+		{"What is the coefficient of x^3 in the Maclaurin series for sin? (enter a fraction)", "-1/6", "sin(x) = x - x^3/3! + x^5/5! - ... with R=infinity; coefficient of x^3 is -1/6."},
+		{"What is the coefficient of x^2 in the Maclaurin series for cos? (enter a fraction)", "-1/2", "cos(x) = 1 - x^2/2! + x^4/4! - ... with R=infinity; coefficient of x^2 is -1/2."},
 		{"Does ln(1+x) = x - x^2/2 + x^3/3 - ... for |x|<1? (yes/no)", "yes", "ln(1+x) = x - x^2/2 + x^3/3 - x^4/4 + ... with R=1."},
 	}
 	if rand.Intn(3) == 0 {
@@ -1598,6 +1645,10 @@ func (g *cauchyCriterionSeriesGen) Generate(ctx generator.GeneratorContext) gene
 type fourierSeriesGen struct{}
 
 func (g *fourierSeriesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return fourierVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1615,6 +1666,10 @@ func (g *fourierSeriesGen) Generate(ctx generator.GeneratorContext) generator.Pr
 type functionSeriesGen struct{}
 
 func (g *functionSeriesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return functionSeriesVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -1803,7 +1858,7 @@ func (g *derivGlobalExtremaGen) Generate(ctx generator.GeneratorContext) generat
 		q, a, e string
 	}
 	table := []entry{
-		{"What is the global maximum VALUE of \\(f(x)=x^{2}-4x\\) on \\([0,3]\\)? (enter a number)", "0", "Critical point \\(x=2\\): \\(f(2)=-4\\). Endpoints: \\(f(0)=0\\), \\(f(3)=-3\\). Global max value is 0 at \\(x=3\\)."},
+		{"What is the global maximum VALUE of \\(f(x)=x^{2}-4x\\) on \\([0,3]\\)? (enter a number)", "0", "Critical point \\(x=2\\): \\(f(2)=-4\\). Endpoints: \\(f(0)=0\\), \\(f(3)=-3\\). Global max value is 0 at \\(x=0\\)."},
 		{"What is the global minimum VALUE of \\(f(x)=x^{2}-4x\\) on \\([0,3]\\)? (enter a number)", "-4", "Critical point \\(x=2\\): \\(f(2)=-4\\). Endpoints give 0 and -3. Global min value is -4 at \\(x=2\\)."},
 		{"Does the closed-interval method evaluate f at critical points and endpoints? (yes/no)", "yes", "On \\([a,b]\\): find critical points inside, evaluate \\(f\\) there and at \\(a,b\\); extremes are the largest/smallest values."},
 		{"What is the global maximum VALUE of \\(f(x)=-x^{2}+4x\\) on \\([0,3]\\)? (enter a number)", "4", "Critical point \\(x=2\\): \\(f(2)=4\\). Endpoints: \\(f(0)=0\\), \\(f(3)=3\\). Global max value is 4 at \\(x=2\\)."},
@@ -2053,7 +2108,7 @@ func (g *derivDiffContinuityGen) Generate(ctx generator.GeneratorContext) genera
 	table := []entry{
 		{"If \\(f\\) is differentiable at \\(a\\), must \\(f\\) be continuous at \\(a\\)? (yes/no)", "yes", "Differentiability at \\(a\\) implies continuity at \\(a\\): f is continuous at a."},
 		{"Does continuity imply differentiability?", "no", "Continuity does not imply differentiability (e.g. \\(|x|\\) at 0)."},
-		{"Give a function continuous but not differentiable at 0.", "|x|", "\\(f(x)=|x|\\) is continuous at 0 but has no derivative there (corner)."},
+		{"Which of \\(x^{2}\\), \\(|x|\\), \\(1/x\\) and \\(e^{x}\\) is continuous but not differentiable at 0? (enter the function)", "|x|", "\\(|x|\\) is continuous at 0 but has a corner there (one-sided slopes −1 and 1); \\(x^{2}\\) and \\(e^{x}\\) are differentiable at 0, and \\(1/x\\) is not even defined there."},
 	}
 	if rand.Intn(3) == 0 {
 		e := table[rand.Intn(len(table))]
@@ -2306,6 +2361,10 @@ func (g *telescopingSeriesGen) Generate(ctx generator.GeneratorContext) generato
 type directCompareGen struct{}
 
 func (g *directCompareGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return directCompareVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -2336,6 +2395,10 @@ func (g *limitCompareGen) Generate(ctx generator.GeneratorContext) generator.Pro
 type absoluteConvergenceGen struct{}
 
 func (g *absoluteConvergenceGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return absoluteVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -2374,6 +2437,10 @@ func (g *alternatingRemainderGen) Generate(ctx generator.GeneratorContext) gener
 type convergenceRadiusGen struct{}
 
 func (g *convergenceRadiusGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return radiusVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -2390,6 +2457,10 @@ func (g *convergenceRadiusGen) Generate(ctx generator.GeneratorContext) generato
 type epsilonDeltaGen struct{}
 
 func (g *epsilonDeltaGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return epsilonDeltaVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -2468,6 +2539,10 @@ func (g *expLimitGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type boundedSeqGen struct{}
 
 func (g *boundedSeqGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return boundedSeqVariant()
+	}
 	type entry struct {
 		q, a, e string
 	}
@@ -3094,9 +3169,25 @@ func directionalVariant(ctx generator.GeneratorContext) generator.Problem {
 		Question: fmt.Sprintf("For \\(f(x,y)=%s\\), find the directional derivative of \\(f\\) at \\((%d,%d)\\) in the direction of \\(v=(%d,%d)\\). (enter a number or fraction)",
 			f, p, q, v[0], v[1]),
 		Answer: ans,
-		Explanation: fmt.Sprintf("\\(\\nabla f = (%s,\\ %s)\\), which is \\((%d, %d)\\) at \\((%d,%d)\\). The unit vector is \\(u = v/|v| = (%d,%d)/%d\\), so \\(D_{u}f = \\nabla f\\cdot u = (%s\\cdot %s + %s\\cdot %s)/%d = %s\\).",
-			fx, fy, gx, gy, p, q, v[0], v[1], v[2], paren(gx), paren(v[0]), paren(gy), paren(v[1]), v[2], ans),
+		Explanation: fmt.Sprintf("\\(\\nabla f = (%s,\\ %s)\\), which is \\((%d, %d)\\) at \\((%d,%d)\\). The unit vector is \\(u = v/|v| = (%d,%d)/%d\\), so \\(D_{u}f = \\nabla f\\cdot u = (%s)/%d = %s\\).",
+			fx, fy, gx, gy, p, q, v[0], v[1], v[2], dotSum(gx, v[0], gy, v[1]), v[2], ans),
 	}
+}
+
+// dotSum writes a*b + c*d for a worked dot product. A product with a zero
+// factor is left out (the registry's tidy pass would otherwise drop "+ 0" and
+// leave "3\\cdot 5\\cdot 12", which reads as a triple product).
+func dotSum(a, b, c, d int) string {
+	var terms []string
+	for _, pr := range [][2]int{{a, b}, {c, d}} {
+		if pr[0] != 0 && pr[1] != 0 {
+			terms = append(terms, fmt.Sprintf("%s\\cdot %s", paren(pr[0]), paren(pr[1])))
+		}
+	}
+	if len(terms) == 0 {
+		return "0"
+	}
+	return strings.Join(terms, " + ")
 }
 
 func clairautVariant(ctx generator.GeneratorContext) generator.Problem {
@@ -3458,15 +3549,18 @@ func globalExtremaVariant(ctx generator.GeneratorContext) generator.Problem {
 		if qs > 0 && qs < cap {
 			cands = append(cands, qs)
 		}
-		best, at := xyEval(pi, 0, 0), 0
+		best := xyEval(pi, 0, 0)
 		var vals []string
+		var got []int
 		for _, c := range cands {
 			v := xyEval(pi, c, 0)
+			got = append(got, v)
 			vals = append(vals, fmt.Sprintf("\\(\\pi(%d)=%d\\)", c, v))
 			if v > best {
-				best, at = v, c
+				best = v
 			}
 		}
+		at := attainedAt(cands, got, best, "q")
 		where := fmt.Sprintf("The only critical point is \\(q=%d\\), which lies outside the open interval \\((0,%d)\\), so only the endpoints are candidates", qs, cap)
 		if qs < cap {
 			where = fmt.Sprintf("The critical point \\(q=%d\\) lies inside \\((0,%d)\\), so the candidates are it and the two endpoints", qs, cap)
@@ -3474,7 +3568,7 @@ func globalExtremaVariant(ctx generator.GeneratorContext) generator.Problem {
 		return generator.Problem{
 			Question: fmt.Sprintf("A firm's profit from output \\(q\\) is \\(\\pi(q)=%s\\), and capacity limits output to \\(0 \\le q \\le %d\\). What is the global maximum profit on this interval? (enter a number)", texInVar(pi, "q"), cap),
 			Answer:   fmt.Sprintf("%d", best),
-			Explanation: fmt.Sprintf("\\(\\pi'(q) = %s = 0\\) at \\(q=%d\\). %s: %s. The largest is %d, at \\(q=%d\\).",
+			Explanation: fmt.Sprintf("\\(\\pi'(q) = %s = 0\\) at \\(q=%d\\). %s: %s. The largest is %d, at %s.",
 				texInVar([]xyTerm{{-2 * a, 1, 0}, {b, 0, 0}}, "q"), qs, where, strings.Join(vals, ", "), best, at),
 		}
 	}
@@ -3492,15 +3586,18 @@ func globalExtremaVariant(ctx generator.GeneratorContext) generator.Problem {
 		}
 	}
 	wantMax := rand.Intn(2) == 0
-	best, at := xyEval(f, l, 0), l
+	best := xyEval(f, l, 0)
 	var vals []string
+	var got []int
 	for _, x := range cands {
 		v := xyEval(f, x, 0)
+		got = append(got, v)
 		vals = append(vals, fmt.Sprintf("\\(f(%d)=%d\\)", x, v))
 		if (wantMax && v > best) || (!wantMax && v < best) {
-			best, at = v, x
+			best = v
 		}
 	}
+	at := attainedAt(cands, got, best, "x")
 	word, cmp := "maximum", "largest"
 	if !wantMax {
 		word, cmp = "minimum", "smallest"
@@ -3514,9 +3611,31 @@ func globalExtremaVariant(ctx generator.GeneratorContext) generator.Problem {
 	return generator.Problem{
 		Question: fmt.Sprintf("What is the global %s VALUE of \\(f(x)=%s\\) on \\([%d,%d]\\)? (enter a number)", word, texXY(f), l, r),
 		Answer:   fmt.Sprintf("%d", best),
-		Explanation: fmt.Sprintf("\\(f'(x) = 3x^{2} - %d = 0\\) at \\(x=\\pm %d\\), and %s. Evaluate at the candidates: %s. The %s value is %d, at \\(x=%d\\).",
+		Explanation: fmt.Sprintf("\\(f'(x) = 3x^{2} - %d = 0\\) at \\(x=\\pm %d\\), and %s. Evaluate at the candidates: %s. The %s value is %d, at %s.",
 			3*c*c, c, crit, strings.Join(vals, ", "), cmp, best, at),
 	}
+}
+
+// powOfPow writes (x^k)^n, or x^k when n = 1.
+func powOfPow(k, n int) string {
+	if n == 1 {
+		return fmt.Sprintf("x^{%d}", k)
+	}
+	return fmt.Sprintf("(x^{%d})^{%d}", k, n)
+}
+
+// attainedAt names every candidate where the extreme value is reached, so a
+// tie (f(-c) = f(2c) for the cubic) is not reported as a single point.
+func attainedAt(xs, vals []int, best int, v string) string {
+	seen := map[int]bool{}
+	var at []string
+	for i, x := range xs {
+		if vals[i] == best && !seen[x] {
+			seen[x] = true
+			at = append(at, fmt.Sprintf("\\(%s=%d\\)", v, x))
+		}
+	}
+	return strings.Join(at, " and ")
 }
 
 func inverseFuncVariant(ctx generator.GeneratorContext) generator.Problem {
@@ -3694,9 +3813,9 @@ func ftcVariant(ctx generator.GeneratorContext) generator.Problem {
 		n := 1 + rand.Intn(4)
 		ans := xyTerm{k, k*n + k - 1, 0}
 		return generator.Problem{
-			Question:    fmt.Sprintf("If \\(F(x)=\\int_{0}^{x^{%d}} t^{%d} \\, dt\\), what is \\(F'(x)\\)?", k, n),
+			Question:    fmt.Sprintf("If \\(F(x)=\\int_{0}^{x^{%d}} %s \\, dt\\), what is \\(F'(x)\\)?", k, texInVar([]xyTerm{{1, n, 0}}, "t")),
 			Answer:      plainMonomial(ans),
-			Explanation: fmt.Sprintf("With \\(u = x^{%d}\\), the Fundamental Theorem and the chain rule give \\(F'(x) = u^{%d}\\cdot u' = (x^{%d})^{%d}\\cdot %s = %s\\).", k, n, k, n, texXY([]xyTerm{{k, k - 1, 0}}), texXY([]xyTerm{ans})),
+			Explanation: fmt.Sprintf("With \\(u = x^{%d}\\), the Fundamental Theorem and the chain rule give \\(F'(x) = %s\\cdot u' = %s\\cdot %s = %s\\).", k, texInVar([]xyTerm{{1, n, 0}}, "u"), powOfPow(k, n), texXY([]xyTerm{{k, k - 1, 0}}), texXY([]xyTerm{ans})),
 		}
 	}
 	if rand.Intn(2) == 0 {

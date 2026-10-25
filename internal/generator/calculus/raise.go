@@ -234,11 +234,15 @@ func (g *ivtValueGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type limsupGen struct{}
 
 func (g *limsupGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return limsupVariant()
+	}
 	return calcPickMC([]calcMCClaim{
 		{
 			q:           "The limit superior of a bounded sequence is...",
 			correct:     "the infimum over n of the supremum of the terms from n onward",
-			distractors: []string{"the supremum of the whole sequence", "the largest term of the sequence", "the limit of the largest subsequence"},
+			distractors: []string{"the supremum over n of the infimum of the terms from n onward", "the supremum of all the terms of the whole sequence", "the largest term of the sequence, wherever it occurs"},
 			reason:      "It is the eventual upper envelope: the least number that the tail's supremum approaches as n grows.",
 		},
 		{
@@ -250,7 +254,7 @@ func (g *limsupGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		{
 			q:           "A bounded sequence converges exactly when...",
 			correct:     "its limit superior equals its limit inferior",
-			distractors: []string{"its limit superior is finite", "it has a convergent subsequence", "it is monotone"},
+			distractors: []string{"its limit superior is a finite number", "it has at least one convergent subsequence", "it is monotone from some index onward"},
 			reason:      "Equality of the two shrinking bounds is the same as the tail of the sequence closing in on one value.",
 		},
 	})
@@ -491,6 +495,10 @@ func (g *binomialSeriesGen) Generate(ctx generator.GeneratorContext) generator.P
 type cauchyProductGen struct{}
 
 func (g *cauchyProductGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return cauchyProductVariant()
+	}
 	n := 2 + rand.Intn(7) // 2..8
 	coeff := n + 1
 	answer := strconv.Itoa(coeff)
@@ -568,6 +576,10 @@ func (g *dirichletTestGen) Generate(ctx generator.GeneratorContext) generator.Pr
 type gammaFunctionGen struct{}
 
 func (g *gammaFunctionGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return gammaVariant()
+	}
 	n := 4 + rand.Intn(5) // 4..8
 	value := calcFact(n - 1)
 	answer := strconv.Itoa(value)
@@ -858,11 +870,15 @@ func (g *inverseFunctionGen) Generate(ctx generator.GeneratorContext) generator.
 type iteratedLimitsGen struct{}
 
 func (g *iteratedLimitsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Run-5 QA: most draws come from computed variants (Q47); the older items stay.
+	if rand.Intn(4) != 0 {
+		return iteratedLimitsVariant()
+	}
 	return calcPickMC([]calcMCClaim{
 		{
 			q:           "For a function of two variables, the two iterated limits...",
 			correct:     "can be different, so the order in which they are taken matters",
-			distractors: []string{"are always equal", "always equal the double limit", "exist only when the function is continuous"},
+			distractors: []string{"are always equal, whichever variable is sent to its limit first", "always exist and equal the double limit when it exists", "exist only when the function is continuous at the point"},
 			reason:      "Each iterated limit holds one variable fixed while the other moves, and the two orders need not agree.",
 		},
 		{

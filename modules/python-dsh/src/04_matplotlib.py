@@ -1216,17 +1216,20 @@ concept(
            coordinates work the same way but for the axes box.
            """, level=1),
         mc("m5", "One label is placed with the default transform and another with `transform=ax.transAxes`. You then call `ax.set_xlim(0, 100)`. What happens?",
-           "The default (data-coordinate) label moves with the data; the axes-coordinate label stays in the same spot on the panel",
-           ["Both labels move with the data", "Neither label moves", "The axes-coordinate label moves and the data-coordinate label stays"],
+           "The data-coordinate label moves with the data; the axes-coordinate label stays put on the panel",
+           ["Both labels move with the data, because every transform follows the axis limits",
+            "Neither label moves, because text is fixed once drawn until you call `set_position`",
+            "The axes-coordinate label moves with the limits and the data-coordinate label stays put"],
            """
            Data coordinates are tied to the axis limits, so changing the limits
            moves anything positioned in them. Axes and figure coordinates are
            fractions of a box and ignore the limits.
            """, level=2),
         mc("m6", "Why is `ax.annotate` usually a better way to draw an arrow than `plt.arrow`?",
-           "`plt.arrow` draws the arrow as a shape that the axes' aspect ratio distorts, while `annotate` arrows keep their look and attach to text",
-           ["`plt.arrow` cannot point at a data coordinate", "`annotate` is the only way to set arrow color",
-            "`plt.arrow` was removed from Matplotlib"],
+           "`plt.arrow` draws a shape that unequal x and y scales distort; `annotate` arrows keep their look and attach to text",
+           ["`plt.arrow` cannot point at a data coordinate, only at axes fractions between 0 and 1",
+            "`annotate` is the only call that lets you set the arrow's color and line width",
+            "`plt.arrow` was removed from Matplotlib, so only `annotate` still draws arrows"],
            """
            An arrow from `plt.arrow` is a patch drawn in data space, so a plot
            with different x and y scales stretches it. `annotate` styles the
@@ -1522,7 +1525,8 @@ concept(
            "`fig.add_subplot(projection=\"3d\")`", ["`fig.add_subplot(dims=3)`", "`plt.axes3d()`", "`fig.add_axes(z=True)`"],
            "The `projection` keyword selects the 3D axes class.", level=1),
         mc("m2", "What inputs does `ax.plot_surface(X, Y, Z)` expect?",
-           "2D arrays of the same shape, as from `np.meshgrid`", ["Three 1D arrays of equal length", "A single 3D array", "A DataFrame with x, y and z columns"],
+           "2D arrays of the same shape, as from `np.meshgrid`",
+           ["Three 1D arrays of equal length, one point each", "A single 3D array holding x, y and z", "A DataFrame with x, y and z columns"],
            "A surface is defined over a grid, so every argument is a 2D array.", level=2),
         mc("m3", "What does `ax.view_init(elev=90, azim=0)` show?",
            "The plot seen from straight above", ["The plot seen from the side at ground level", "A zoomed view", "The plot rotated 90 degrees about the z axis"],
@@ -1573,7 +1577,7 @@ concept(
              import numpy as np
              import matplotlib.pyplot as plt
              fig = plt.figure()
-             ax = fig.add_subplot()
+             ax = fig.add_subplot(projection="3d")
              """,
              setup="""
              import numpy as np
@@ -1588,16 +1592,18 @@ concept(
            `contour3D` all expect 2D gridded arrays.
            """, level=2),
         mc("m5", "What does `ax.view_init(60, 35)` set on a 3D axes?",
-           "The camera: 60 degrees of elevation above the x-y plane and 35 degrees of rotation (azimuth) about the z axis",
-           ["The x limits to 60 and the y limits to 35", "A zoom of 60 percent and a tilt of 35 degrees",
-            "The figure size to 60 by 35"],
+           "The camera: elevation 60 degrees above the x-y plane, azimuth 35 degrees about the z axis",
+           ["The axis limits: x runs from 0 to 60 and y runs from 0 to 35 on the 3D axes",
+            "The zoom and tilt: a zoom of 60 percent and a tilt of 35 degrees toward the viewer",
+            "The figure size: 60 by 35 hundredths of an inch, as `figsize` would set it"],
            """
            The first argument is the elevation and the second the azimuth, so
            `view_init(elev=90, azim=...)` looks straight down at the x-y plane.
            """, level=2),
         mc("m6", "What does `ax.plot_surface(X, Y, Z, cmap='viridis')` add compared with `ax.plot_wireframe(X, Y, Z)` on the same grid?",
            "Each grid cell is filled as a face colored by the colormap",
-           ["It joins scattered points into triangles", "It projects contour lines onto the floor", "It draws only the grid lines, thinner"],
+           ["It joins scattered points into triangles instead of a grid", "It projects contour lines onto the floor of the axes",
+            "It draws only the grid lines, but thinner and in gray"],
            """
            A wireframe draws the grid lines of the surface; a surface plot fills
            each cell, and a colormap makes height easier to see.

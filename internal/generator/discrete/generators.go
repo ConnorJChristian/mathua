@@ -1078,61 +1078,7 @@ func (g *binomialTheoremGen) Generate(ctx generator.GeneratorContext) generator.
 	}
 }
 
-// ----- 15. induction -----
-
-type inductionGen struct{}
-
-func (g *inductionGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	type qType struct {
-		question string
-		answer   string
-		exp      string
-	}
-	questions := []qType{
-		{
-			"In induction, to prove P(k) → P(k+1), what step shows P(1) holds? (one word)",
-			"base case",
-			"The base case verifies that the statement holds for the smallest value (usually n=1).",
-		},
-		{
-			"If P(n): 1+2+...+n = n(n+1)/2, what is P(1)?",
-			"1",
-			"Left side: 1. Right side: 1(1+1)/2 = 2/2 = 1. Both sides equal 1.",
-		},
-		{
-			"If P(n): 1+2+...+n = n(n+1)/2, what is the right side of P(3)?",
-			"6",
-			"P(3): 3(3+1)/2 = 3×4/2 = 12/2 = 6",
-		},
-		{
-			"In the inductive step, we assume P(k) is true. What must we prove next?",
-			"P(k+1)",
-			"The inductive step proves that if P(k) is true, then P(k+1) is also true.",
-		},
-		{
-			"If P(n): 1+3+5+...+(2n-1) = n^2, what is P(1)?",
-			"1",
-			"Left side: 1. Right side: 1^2 = 1. Both sides equal 1.",
-		},
-		{
-			"If P(n): 1+3+5+...+(2n-1) = n^2, what is P(2)?",
-			"4",
-			"Left side: 1+3 = 4. Right side: 2^2 = 4.",
-		},
-		{
-			"The principle of mathematical induction is used to prove statements about what set of numbers?",
-			"positive integers",
-			"Induction is used to prove statements for all positive integers (natural numbers).",
-		},
-	}
-
-	q := questions[rand.Intn(len(questions))]
-	return generator.Problem{
-		Question:    q.question,
-		Answer:      q.answer,
-		Explanation: q.exp,
-	}
-}
+// ----- 15. induction: see induction.go -----
 
 // ----- equivalence -----
 
@@ -1440,8 +1386,8 @@ func contradictionChoice() generator.Problem {
 		item{"there is no smallest positive rational number", "Some positive rational r is less than or equal to every positive rational",
 			[]string{"Every positive rational has a smaller positive rational", "Some rational number is negative", "Every positive rational is greater than 1"},
 			"if r were the smallest positive rational, r/2 would be a smaller one."},
-		item{"log\u2082 3 is irrational", "log\u2082 3 = p/q for some integers p, q with q \u2260 0",
-			[]string{"log\u2082 3 is irrational", "log\u2082 3 is an integer", "3 is a power of 2"},
+		item{"log\u2082 3 is irrational", "log\u2082 3 = p/q for integers p, q with q \u2260 0",
+			[]string{"log\u2082 3 is irrational, exactly as stated", "log\u2082 3 = n for some positive integer n", "3 = 2\u207f for some positive integer n"},
 			"from log\u2082 3 = p/q with p, q positive, 2^p = 3^q, an even number equal to an odd one."},
 		item{"for every real x > 0, x + 1/x \u2265 2", "Some real x > 0 has x + 1/x < 2",
 			[]string{"For every real x > 0, x + 1/x < 2", "Some real x > 0 has x + 1/x \u2265 2", "For every real x < 0, x + 1/x \u2265 2"},

@@ -91,7 +91,7 @@ func (g *tangentPlaneGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	return generator.Problem{
 		Question: fmt.Sprintf("For \\(f(x,y) = %dx^2 + %dy^2\\), use the tangent plane at \\((%d,%d)\\) to estimate \\(f(%d,%d)\\).", a, b, p, q, p+1, q+1),
 		Answer:   fmt.Sprintf("%d", v),
-		Explanation: fmt.Sprintf("At (%d,%d) the value is %d, and the partial derivatives are %d and %d, so a step of one in each direction adds those: %d + %d + %d = %d. That is the tangent-plane estimate. The true value is f(%d,%d) = %d, so the estimate is %d too low: the plane drops the second-order terms %d(1)^2 + %d(1)^2, and a bowl-shaped function always lies above its tangent plane.",
+		Explanation: fmt.Sprintf("At (%d,%d) the value is %d, and the partial derivatives are %d and %d, so a step of one in each direction adds those: %d + %d + %d = %d. That is the tangent-plane estimate. The true value is f(%d,%d) = %d, so the estimate is %d too low: the plane drops the second-order terms a(Δx)^2 + b(Δy)^2, which with Δx = Δy = 1 are %d + %d, and a bowl-shaped function always lies above its tangent plane.",
 			p, q, f, 2*a*p, 2*b*q, f, 2*a*p, 2*b*q, v, p+1, q+1, exact, exact-v, a, b),
 		Facts: map[string]string{"estimate": fmt.Sprintf("%d", v), "value": fmt.Sprintf("%d", f)},
 	}

@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"math/rand"
 	"strconv"
+	"strings"
 
 	"github.com/chuma-beep/mathua/internal/generator"
 )
@@ -30,6 +31,33 @@ func (s ratSeq) String() string {
 
 func (s ratSeq) limit() *big.Rat { return rq(int64(s.a), int64(s.c)) }
 
+// overN is the sequence with numerator and denominator divided by n, without
+// a "+ 0/n" when b = 0.
+func (s ratSeq) overN() string {
+	num := strconv.Itoa(s.a)
+	if s.b != 0 {
+		num = "(" + num + " + " + strconv.Itoa(s.b) + "/n)"
+	}
+	return num + "/(" + strconv.Itoa(s.c) + " + " + strconv.Itoa(s.d) + "/n)"
+}
+
+// errDen is c(c·v + d), the denominator of |a_n − a/c|, written "(v + d)"
+// when c = 1 rather than "(1(v + d))" (Q35).
+func (s ratSeq) errDen(v string) string {
+	if s.c == 1 {
+		return "(" + v + " + " + strconv.Itoa(s.d) + ")"
+	}
+	return "(" + strconv.Itoa(s.c) + "(" + coefX(s.c, v) + " + " + strconv.Itoa(s.d) + "))"
+}
+
+// limitQuot prints "a/c = " unless c = 1, where a/1 would be an artefact.
+func limitQuot(s ratSeq) string {
+	if s.c == 1 {
+		return ""
+	}
+	return strconv.Itoa(s.a) + "/" + strconv.Itoa(s.c) + " = "
+}
+
 // ---------------------------------------------------------------------------
 // ra.seq.convergence (numeric)
 // ---------------------------------------------------------------------------
@@ -48,9 +76,8 @@ func sequenceVariant() generator.Problem {
 		return generator.Problem{
 			Question: "What is the limit of the sequence a_n = " + s.String() + " as n tends to infinity? (enter a decimal)",
 			Answer:   answer,
-			Explanation: "Dividing the numerator and denominator by n leaves (" + strconv.Itoa(s.a) + " + " + strconv.Itoa(s.b) + "/n)/(" +
-				strconv.Itoa(s.c) + " + " + strconv.Itoa(s.d) + "/n), and the terms over n tend to 0, so the limit is " +
-				strconv.Itoa(s.a) + "/" + strconv.Itoa(s.c) + " = " + answer + ".",
+			Explanation: "Dividing the numerator and denominator by n leaves " + s.overN() + ", and the terms over n tend to 0, so the limit is " +
+				limitQuot(s) + answer + ".",
 			Facts: facts,
 		}
 	}
@@ -69,9 +96,9 @@ func sequenceVariant() generator.Problem {
 		Question: "The sequence a_n = " + s.String() + " converges to " + ls + ". What is the smallest N such that |a_n − " + ls +
 			"| < " + eps + " for every n ≥ N? (enter a whole number)",
 		Answer: answer,
-		Explanation: "Subtracting the limit gives |a_n − " + ls + "| = " + strconv.Itoa(diff) + "/(" + strconv.Itoa(s.c) + "(" + coefX(s.c, "n") + " + " + strconv.Itoa(s.d) +
-			")), which decreases as n grows, so it is enough to find the first n where it drops below " + eps + ". That needs " +
-			strconv.Itoa(s.c) + "(" + coefX(s.c, "N") + " + " + strconv.Itoa(s.d) + ") > " + strconv.Itoa(diff*e) + ", which first happens at N = " + answer + ".",
+		Explanation: "Subtracting the limit gives |a_n − " + ls + "| = " + strconv.Itoa(diff) + "/" + s.errDen("n") +
+			", which decreases as n grows, so it is enough to find the first n where it drops below " + eps + ". That needs " +
+			strings.TrimSuffix(strings.TrimPrefix(s.errDen("N"), "("), ")") + " > " + strconv.Itoa(diff*e) + ", which first happens at N = " + answer + ".",
 		Facts: facts,
 	}
 }
@@ -126,6 +153,16 @@ func monotoneVariant() generator.Problem {
 // ra.seq.series (numeric)
 // ---------------------------------------------------------------------------
 
+// harmonicTerms writes 1 + 1/2 + ... + 1/k out in full (k is at most 4 where
+// it is used), so k = 2 reads "1 + 1/2", not "1 + … + 1/2".
+func harmonicTerms(k int) string {
+	t := []string{"1"}
+	for i := 2; i <= k; i++ {
+		t = append(t, "1/"+strconv.Itoa(i))
+	}
+	return strings.Join(t, " + ")
+}
+
 // harmonic returns 1 + 1/2 + … + 1/k exactly.
 func harmonic(k int) *big.Rat {
 	h := new(big.Rat)
@@ -168,7 +205,7 @@ func seriesVariant() generator.Problem {
 		return generator.Problem{
 			Question: "What is the sum of Σ_{n=" + strconv.Itoa(m) + "}^∞ (" + ratS(r) + ")^n? (enter a decimal)",
 			Answer:   answer,
-			Explanation: "Factor out the first term: the series is r^" + strconv.Itoa(m) + "·Σ_{j=0}^∞ r^j = r^" + strconv.Itoa(m) + "/(1 − r) with r = " +
+			Explanation: "Factor out the first term: the series is " + powR(m) + "·Σ_{j=0}^∞ r^j = " + powR(m) + "/(1 − r) with r = " +
 				ratS(r) + ", which is " + ratS(sum) + ".",
 			Facts: map[string]string{"kind": "tail", "p": strconv.Itoa(p), "q": strconv.Itoa(q), "m": strconv.Itoa(m), "answer": answer},
 		}
@@ -178,7 +215,7 @@ func seriesVariant() generator.Problem {
 		answer := ratAnswer(sum)
 		ks := strconv.Itoa(k)
 		why := "Write 1/(n(n + " + ks + ")) = (1/" + ks + ")(1/n − 1/(n + " + ks + ")). In the partial sums everything cancels except the first " + ks +
-			" positive terms and " + ks + " negative terms that tend to 0, so the sum is (1/" + ks + ")(1 + … + 1/" + ks + ") = " + ratS(sum) + "."
+			" positive terms and " + ks + " negative terms that tend to 0, so the sum is (1/" + ks + ")(" + harmonicTerms(k) + ") = " + ratS(sum) + "."
 		if k == 1 {
 			why = "Write 1/(n(n + 1)) = 1/n − 1/(n + 1). The partial sums telescope to 1 − 1/(N + 1), which tends to 1."
 		}
@@ -699,6 +736,22 @@ func cauchyCritTermClaim() mcClaim {
 // ---------------------------------------------------------------------------
 
 // powN prints n^p, or n when p = 1.
+// powR is r^m, or r when m = 1.
+func powR(m int) string {
+	if m == 1 {
+		return "r"
+	}
+	return "r^" + strconv.Itoa(m)
+}
+
+// powParen is (base)^p, or base when p = 1 ("((n + 1)/n)^1" is an artefact).
+func powParen(base string, p int) string {
+	if p == 1 {
+		return base
+	}
+	return "(" + base + ")^" + strconv.Itoa(p)
+}
+
 func powN(p int) string {
 	if p == 1 {
 		return "n"
@@ -727,12 +780,12 @@ func testsRatioClaim() mcClaim {
 		series = "Σ " + powN(p) + "/" + ks + "^n"
 		correct = ratioVerdict("1/"+ks, -1)
 		others = []string{ratioVerdict(ks, 1), ratioVerdict("1", 0), ratioVerdict("0", -1)}
-		why = "a_{n+1}/a_n = ((n + 1)/n)^" + ps + "·(1/" + ks + "), which tends to 1/" + ks + "."
+		why = "a_{n+1}/a_n = " + powParen("(n + 1)/n", p) + "·(1/" + ks + "), which tends to 1/" + ks + "."
 	case 1:
 		series = "Σ " + ks + "^n/" + powN(p)
 		correct = ratioVerdict(ks, 1)
 		others = []string{ratioVerdict("1/"+ks, -1), ratioVerdict("1", 0), ratioVerdict("0", -1)}
-		why = "a_{n+1}/a_n = " + ks + "·(n/(n + 1))^" + ps + ", which tends to " + ks + "."
+		why = "a_{n+1}/a_n = " + ks + "·" + powParen("n/(n + 1)", p) + ", which tends to " + ks + "."
 	case 2:
 		series = "Σ " + ks + "^n/n!"
 		correct = ratioVerdict("0", -1)
@@ -745,7 +798,7 @@ func testsRatioClaim() mcClaim {
 		if p == 1 {
 			others = []string{ratioVerdict("0", -1), ratioVerdict("2", 1), ratioVerdict("1/2", -1)}
 		}
-		why = "a_{n+1}/a_n = (n/(n + 1))^" + ps + ", which tends to 1; the p-series test, not the ratio test, decides this series."
+		why = "a_{n+1}/a_n = " + powParen("n/(n + 1)", p) + ", which tends to 1; the p-series test, not the ratio test, decides this series."
 	default:
 		a := randIn(1, 9)
 		b := randIn(1, 9)

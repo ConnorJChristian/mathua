@@ -339,6 +339,11 @@ func nestedIntersectionClaim() mcClaim {
 	b := a + randIn(1, 4)
 	k := randIn(1, 3)
 	as, bs, ks := itoa(a), itoa(b), strconv.Itoa(k)
+	// b can be 0: write "2/n" and "x", not "0 + 2/n" and "x − 0" (Q35).
+	bPlus, xMinusB := bs+" + "+ks+"/n", "x − "+bs
+	if b == 0 {
+		bPlus, xMinusB = ks+"/n", "x"
+	}
 	empty := "the empty set"
 	point := "{" + as + "}"
 	var interval, correct, why string
@@ -366,15 +371,15 @@ func nestedIntersectionClaim() mcClaim {
 		others = []string{empty, "(" + itoa(a-k) + ", " + itoa(a+k) + ")", "[" + itoa(a-k) + ", " + itoa(a+k) + "]"}
 		why = "These intervals are open, but each still contains " + as + ", and any other x is excluded for large n, so the intersection is {" + as + "}. Openness only removes the guarantee; it does not force emptiness."
 	case 4:
-		interval = "[" + as + ", " + bs + " + " + ks + "/n]"
+		interval = "[" + as + ", " + bPlus + "]"
 		correct = "[" + as + ", " + bs + "]"
 		others = []string{"[" + as + ", " + bs + ")", point, empty}
-		why = "Every point of [" + as + ", " + bs + "] lies in every I_n, and any x > " + bs + " is excluded once " + ks + "/n < x − " + bs + ", so the intersection is [" + as + ", " + bs + "]."
+		why = "Every point of [" + as + ", " + bs + "] lies in every I_n, and any x > " + bs + " is excluded once " + ks + "/n < " + xMinusB + ", so the intersection is [" + as + ", " + bs + "]."
 	case 5:
-		interval = "(" + as + ", " + bs + " + " + ks + "/n)"
+		interval = "(" + as + ", " + bPlus + ")"
 		correct = "(" + as + ", " + bs + "]"
 		others = []string{"(" + as + ", " + bs + ")", "[" + as + ", " + bs + "]", empty}
-		why = bs + " lies in every I_n because " + bs + " < " + bs + " + " + ks + "/n, every x > " + bs + " is eventually excluded, and " + as + " is never included, so the intersection is (" + as + ", " + bs + "]."
+		why = bs + " lies in every I_n because " + bs + " < " + bPlus + ", every x > " + bs + " is eventually excluded, and " + as + " is never included, so the intersection is (" + as + ", " + bs + "]."
 	default:
 		interval = "[" + as + " + n, ∞)"
 		correct = empty
@@ -507,50 +512,54 @@ func densityCountClaim() mcClaim {
 // ra.order.countable and ra.order.uncountable (multiple choice)
 // ---------------------------------------------------------------------------
 
-var raCountableSets = []string{
-	"the integers Z",
-	"the even integers",
-	"the rational numbers Q",
-	"N × N, the pairs of positive integers",
-	"the rationals in [0, 1]",
-	"the finite subsets of N",
-	"the polynomials with integer coefficients",
-	"the algebraic numbers",
-	"the finite strings of 0s and 1s",
-	"the prime numbers",
-	"Q × Q",
-	"the numbers k/2^n with k an integer and n a positive integer",
+// Each set carries the reason it is countable or uncountable, so the worked
+// answer names the argument that fits that set (the transcendental numbers,
+// for one, contain no interval: they are uncountable because the algebraic
+// numbers are countable and R is not).
+var raCountableSets = []countSet{
+	{"the integers Z", "list them as 0, 1, −1, 2, −2, …"},
+	{"the even integers", "list them as 0, 2, −2, 4, −4, …"},
+	{"the rational numbers Q", "Q is the union over n of the fractions with denominator n, a countable union of countable sets"},
+	{"N × N, the pairs of positive integers", "list the pairs diagonal by diagonal, by the value of m + n"},
+	{"the rationals in [0, 1]", "they are a subset of the countable set Q"},
+	{"the finite subsets of N", "for each n there are finitely many subsets of {1, …, n}, and the finite subsets of N are the union of these countably many finite families"},
+	{"the polynomials with integer coefficients", "for each degree n and bound m there are finitely many with degree at most n and coefficients at most m in size, and the union over n and m is countable"},
+	{"the algebraic numbers", "there are countably many integer polynomials and each nonzero one has finitely many roots"},
+	{"the finite strings of 0s and 1s", "there are 2^n strings of each length n, and the union over n of these finite sets is countable"},
+	{"the prime numbers", "they are a subset of N"},
+	{"Q × Q", "a product of two countable sets is countable, by the same diagonal listing as N × N"},
+	{"the numbers k/2^n with k an integer and n a positive integer", "for each n the numbers k/2^n are a copy of Z, and a countable union of countable sets is countable"},
 }
 
-var raUncountableSets = []string{
-	"the real numbers R",
-	"the irrational numbers",
-	"the open interval (0, 1)",
-	"the set of all subsets of N",
-	"the infinite sequences of 0s and 1s",
-	"the Cantor set",
-	"the transcendental numbers",
-	"the interval [0, 0.001]",
-	"R × R",
+var raUncountableSets = []countSet{
+	{"the real numbers R", "Cantor's diagonal argument shows that no sequence lists them all"},
+	{"the irrational numbers", "R is the union of Q and the irrationals; Q is countable, so if the irrationals were countable, R would be countable too"},
+	{"the open interval (0, 1)", "the diagonal argument on decimal expansions shows that no sequence lists it"},
+	{"the set of all subsets of N", "Cantor's theorem: no map from N onto its power set exists"},
+	{"the infinite sequences of 0s and 1s", "the diagonal argument applies to it directly: flip the n-th entry of the n-th listed sequence"},
+	{"the Cantor set", "its points are the ternary expansions that use only the digits 0 and 2, a copy of the infinite 0-1 sequences"},
+	{"the transcendental numbers", "the algebraic numbers are countable and R is not, so their complement in R cannot be countable"},
+	{"the interval [0, 0.001]", "it contains an open interval, which is in one-to-one correspondence with (0, 1)"},
+	{"R × R", "it contains R × {0}, a copy of the uncountable set R"},
 }
+
+type countSet struct{ name, why string }
 
 // countabilityClaim picks one set of the asked kind and three of the other.
 func countabilityClaim(wantCountable bool) mcClaim {
 	yes, no := raCountableSets, raUncountableSets
-	word := "countable"
-	why := "is countable: it can be listed as a sequence (a countable union of countable sets, or a subset of one), while each of the others contains a copy of an interval or of the infinite 0-1 sequences and so is uncountable."
+	word, others := "countable", "Each of the others is uncountable."
 	if !wantCountable {
 		yes, no = no, yes
-		word = "uncountable"
-		why = "is uncountable: it contains a copy of an interval or of the infinite 0-1 sequences, where Cantor's diagonal argument applies, while each of the others can be listed as a sequence."
+		word, others = "uncountable", "Each of the others can be listed as a sequence."
 	}
-	correct := pick(yes)
+	c := yes[rand.Intn(len(yes))]
 	perm := rand.Perm(len(no))
 	return mcClaim{
 		q:           "Which of these sets is " + word + "?",
-		correct:     correct,
-		distractors: []string{no[perm[0]], no[perm[1]], no[perm[2]]},
-		reason:      "Of the four, only " + correct + " " + why,
+		correct:     c.name,
+		distractors: []string{no[perm[0]].name, no[perm[1]].name, no[perm[2]].name},
+		reason:      "Of the four, only " + c.name + " is " + word + ": " + c.why + ". " + others,
 	}
 }
 

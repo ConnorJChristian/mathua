@@ -111,7 +111,7 @@ func (g *vectorDotGen) Generate(ctx generator.GeneratorContext) generator.Proble
 	return generator.Problem{
 		Question:    fmt.Sprintf("Compute the dot product: \\((%d,%d) \\cdot (%d,%d) =\\) ?", a, b, c, d),
 		Answer:      fmt.Sprintf("%d", dot),
-		Explanation: fmt.Sprintf("(%d,%d) · (%d,%d) = %d*%d + %d*%d = %d+%d = %d", a, b, c, d, a, c, b, d, a*c, b*d, dot),
+		Explanation: fmt.Sprintf("(%d,%d) · (%d,%d) = %s*%s + %s*%s = %d + %s = %d", a, b, c, d, parenInt(a), parenInt(c), parenInt(b), parenInt(d), a*c, parenInt(b*d), dot),
 	}
 }
 
@@ -282,8 +282,22 @@ func (g *matrixIdentityGen) Generate(ctx generator.GeneratorContext) generator.P
 	return generator.Problem{
 		Question:    fmt.Sprintf("Find the inverse of the matrix \\(%s\\).", formatMatrix2([][]int{{a, b}, {cVal, d}})),
 		Answer:      formatMatrix(inv),
-		Explanation: fmt.Sprintf("det = %d*%d - %d*%d = %d, inverse = (1/%d)×[[%d,%d],[%d,%d]] = %s", a, d, b, cVal, a*d-b*cVal, det, d, -b, -cVal, a, formatMatrix(inv)),
+		Explanation: identityInverseExplanation(a, b, cVal, d, det, inv),
 	}
+}
+
+// identityInverseExplanation writes the 2x2 inverse as (1/det) times the
+// adjugate, without the "(1/1)×" and "(1/-1)×" a template prints when det = ±1.
+func identityInverseExplanation(a, b, c, d, det int, inv [][]int) string {
+	adj := formatMatrix2([][]int{{d, -b}, {-c, a}})
+	head := fmt.Sprintf("det = %s*%s - %s*%s = %d", parenInt(a), parenInt(d), parenInt(b), parenInt(c), det)
+	switch det {
+	case 1:
+		return fmt.Sprintf("%s, so the inverse is the adjugate [[d,-b],[-c,a]] = %s.", head, adj)
+	case -1:
+		return fmt.Sprintf("%s, so the inverse is the adjugate [[d,-b],[-c,a]] = %s with every sign flipped: %s.", head, adj, formatMatrix(inv))
+	}
+	return fmt.Sprintf("%s, so the inverse is (1/%d) times the adjugate %s, which is %s.", head, det, adj, formatMatrix(inv))
 }
 
 type det2x2Gen struct{}
@@ -316,9 +330,14 @@ func (g *det3x3Gen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	gVal, h, i := m[2][0], m[2][1], m[2][2]
 	det := a*(e*i-f*h) - b*(d*i-f*gVal) + c*(d*h-e*gVal)
 	return generator.Problem{
-		Question:    fmt.Sprintf("Find the determinant of \\(%s\\).", formatMatrix(m)),
-		Answer:      fmt.Sprintf("%d", det),
-		Explanation: fmt.Sprintf("det = %d*(%d*%d-%d*%d) - %d*(%d*%d-%d*%d) + %d*(%d*%d-%d*%d) = %d", a, e, i, f, h, b, d, i, f, gVal, c, d, h, e, gVal, det),
+		Question: fmt.Sprintf("Find the determinant of \\(%s\\).", formatMatrix(m)),
+		Answer:   fmt.Sprintf("%d", det),
+		// Negative entries are parenthesised, so no "- -2*(...)" or "--2*-2" (Q35).
+		Explanation: fmt.Sprintf("Expand along the first row: det = %s*(%s*%s - %s*%s) - %s*(%s*%s - %s*%s) + %s*(%s*%s - %s*%s) = %s*%s - %s*%s + %s*%s = %d",
+			parenInt(a), parenInt(e), parenInt(i), parenInt(f), parenInt(h),
+			parenInt(b), parenInt(d), parenInt(i), parenInt(f), parenInt(gVal),
+			parenInt(c), parenInt(d), parenInt(h), parenInt(e), parenInt(gVal),
+			parenInt(a), parenInt(e*i-f*h), parenInt(b), parenInt(d*i-f*gVal), parenInt(c), parenInt(d*h-e*gVal), det),
 	}
 }
 
@@ -460,40 +479,61 @@ type spanGen struct{}
 
 func (g *spanGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	scale := int(1 + ctx.Difficulty*5)
+	r := func() int { return rand.Intn(max(1, scale*2)+1) - scale }
+	q := func(v1, v2, w1, w2 int) string {
+		return fmt.Sprintf("Do the vectors \\(v=(%d,%d)\\) and \\(w=(%d,%d)\\) span \\(\\mathbb{R}^{2}\\)?", v1, v2, w1, w2)
+	}
+	// Half the items span and half do not, so the key carries no bias.
 	if rand.Intn(2) == 0 {
-		v1, v2 := rand.Intn(max(1, scale*2))-scale, rand.Intn(max(1, scale*2))-scale
-		w1, w2 := rand.Intn(max(1, scale*2))-scale, rand.Intn(max(1, scale*2))-scale
-		if v1 == 0 && v2 == 0 {
-			v1, v2 = 1, 0
-		}
-		if w1 == 0 && w2 == 0 {
-			w1, w2 = 0, 1
+		v1, v2, w1, w2 := r(), r(), r(), r()
+		for v1*w2-v2*w1 == 0 {
+			v1, v2, w1, w2 = r(), r(), r(), r()
 		}
 		det := v1*w2 - v2*w1
-		answer := "no"
-		if det != 0 {
-			answer = "yes"
-		}
 		return generator.Problem{
-			Question:    fmt.Sprintf("Do the vectors \\(v=(%d,%d)\\) and \\(w=(%d,%d)\\) span \\(\\mathbb{R}^{2}\\)?", v1, v2, w1, w2),
-			Answer:      answer,
-			Explanation: fmt.Sprintf("det([[%d,%d],[%d,%d]]) = %d. Since determinant is %s, the vectors %s span R².", v1, v2, w1, w2, det, map[bool]string{true: "nonzero", false: "zero"}[det != 0], answer),
+			Question:    q(v1, v2, w1, w2),
+			Answer:      "yes",
+			Explanation: fmt.Sprintf("det([[%d,%d],[%d,%d]]) = %d. Since the determinant is nonzero, the vectors are linearly independent, so they do span R².", v1, v2, w1, w2, det),
 		}
 	}
-	k := rand.Intn(max(1, scale)) + 2
-	if rand.Intn(2) == 0 {
-		k = -k
+	// Dependent pair: both are multiples of one direction u, and not always
+	// with w an integer multiple of v (v=(2,4), w=(3,6) is w = (3/2)v).
+	dirs := [][2]int{{1, 0}, {0, 1}, {1, 1}, {1, -1}, {1, 2}, {2, 1}, {1, -2}, {2, -1}, {1, 3}, {3, 1}, {2, 3}, {3, -2}}
+	u := dirs[rand.Intn(len(dirs))]
+	ms := []int{1, 2, 3, -1, -2, -3}
+	m := ms[rand.Intn(len(ms))]
+	n := ms[rand.Intn(len(ms))]
+	for n == m {
+		n = ms[rand.Intn(len(ms))]
 	}
-	v1, v2 := rand.Intn(max(1, scale*2))-scale, rand.Intn(max(1, scale*2))-scale
-	if v1 == 0 && v2 == 0 {
-		v1, v2 = 1, 2
+	v1, v2, w1, w2 := m*u[0], m*u[1], n*u[0], n*u[1]
+	ratio := fmt.Sprintf("%d", n/m)
+	if n%m != 0 {
+		g := spanGCD(n, m)
+		nn, mm := n/g, m/g
+		if mm < 0 {
+			nn, mm = -nn, -mm
+		}
+		ratio = fmt.Sprintf("(%d/%d)", nn, mm)
 	}
-	w1, w2 := k*v1, k*v2
 	return generator.Problem{
-		Question:    fmt.Sprintf("Do the vectors \\(v=(%d,%d)\\) and \\(w=(%d,%d)\\) span \\(\\mathbb{R}^{2}\\)?", v1, v2, w1, w2),
+		Question:    q(v1, v2, w1, w2),
 		Answer:      "no",
-		Explanation: fmt.Sprintf("w = %d*v, so the vectors are linearly dependent. Two dependent vectors cannot span R².", k),
+		Explanation: fmt.Sprintf("det([[%d,%d],[%d,%d]]) = 0: w = %s·v, so the vectors are linearly dependent and both lie on one line through the origin. Two dependent vectors do not span R².", v1, v2, w1, w2, ratio),
 	}
+}
+
+func spanGCD(a, b int) int {
+	if a < 0 {
+		a = -a
+	}
+	if b < 0 {
+		b = -b
+	}
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
 }
 
 type basisGen struct{}

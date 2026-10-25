@@ -1803,11 +1803,11 @@
      "kind": "mc",
      "level": 2,
      "prompt": "What does `np.partition(x, 3)` guarantee?",
-     "correct": "The 3 smallest values come first, in no particular order, and position 3 holds the value a full sort would put there",
+     "correct": "The 3 smallest values come first, in any order, and position 3 holds the value a full sort puts there",
      "wrong": [
-      "`x` is fully sorted",
-      "The first 3 elements are sorted",
-      "The 3 largest values come first"
+      "`x` comes back fully sorted, the same array that `np.sort(x)` would return",
+      "The first 3 elements are sorted in increasing order and the rest keep their original order",
+      "The 3 largest values come first, in any order, and position 3 holds the fourth largest"
      ],
      "explain": "Partition only separates the k smallest from the rest, which is faster than sorting."
     },
@@ -1818,9 +1818,9 @@
      "prompt": "Why is the nearest point to each row of a distance matrix usually itself?",
      "correct": "Its distance to itself is 0, the smallest possible",
      "wrong": [
-      "argpartition always returns 0 first",
-      "The matrix is sorted",
-      "Broadcasting duplicates rows"
+      "`argpartition` always puts index 0 in the first column",
+      "The distance matrix is sorted row by row beforehand",
+      "Broadcasting duplicates each row, so the copies match"
      ],
      "explain": "Skip the diagonal (or take the second-smallest) to get the nearest *other* point."
     },
@@ -1871,11 +1871,11 @@
      "kind": "mc",
      "level": 2,
      "prompt": "What does `np.argpartition(x, 2)` return?",
-     "correct": "Positions into `x` arranged so the first two index its two smallest values, in no particular order",
+     "correct": "Positions into `x` arranged so the first two index its two smallest values, in any order",
      "wrong": [
-      "The two smallest values of `x`, sorted",
-      "The positions that would fully sort `x`",
-      "The two smallest values of `x`, in no particular order"
+      "The two smallest values of `x` themselves, sorted in increasing order, as a new array",
+      "The positions that would fully sort `x`, exactly the array `np.argsort(x)` returns",
+      "The two smallest values of `x` themselves, in any order, as a new array of length 2"
      ],
      "explain": "`argpartition` is to `partition` what `argsort` is to `sort`: it returns indices, not values. Use them with fancy indexing, as in `x[np.argpartition(x, 2)[:2]]`."
     },
@@ -1883,14 +1883,14 @@
      "id": "m5",
      "kind": "mc",
      "level": 3,
-     "prompt": "Each row of the squared-distance matrix `D2` includes a point's distance to itself. To be sure of each point's K nearest *other* points, what should the partition position be in `np.argpartition(D2, ?, axis=1)`?",
-     "correct": "`K + 1`",
+     "prompt": "Each row of the squared-distance matrix `D2` includes a point's distance to itself (0). After `idx = np.argpartition(D2, K, axis=1)`, which columns of `idx` are guaranteed to hold each point together with its K nearest *other* points?",
+     "correct": "`idx[:, :K + 1]`",
      "wrong": [
-      "`K`",
-      "`K - 1`",
-      "`len(D2) - K`"
+      "`idx[:, :K]`",
+      "`idx[:, 1:K]`",
+      "`idx[:, K:]`"
      ],
-     "explain": "The zero on the diagonal takes one of the smallest slots in every row, so you need the K + 1 smallest entries: the point itself plus its K neighbours."
+     "explain": "Partitioning at position K puts the entry a full sort would place in column K there, with every smaller entry before it, so columns 0 to K hold the K + 1 smallest distances: the point itself plus its K nearest neighbours. `idx[:, :K]` has only K of them, so one neighbour can be missing. The order inside those columns is arbitrary, which is why the book (which partitions at K + 1, also safe) takes the first K + 1 columns rather than skipping column 0."
     },
     {
      "id": "o2",
@@ -1952,9 +1952,9 @@
      "prompt": "What does the type code `'U8'` mean?",
      "correct": "A Unicode string of at most 8 characters",
      "wrong": [
-      "An unsigned 8-bit integer",
-      "An 8-byte float",
-      "A string of exactly 8 bytes"
+      "An unsigned integer stored in 8 bits",
+      "A floating-point number stored in 8 bytes",
+      "A byte string of exactly 8 bytes, padded"
      ],
      "explain": "`U` is Unicode text; `u1` would be an unsigned 8-bit integer."
     },
@@ -2028,9 +2028,9 @@
      "prompt": "After `rec = data.view(np.recarray)`, how can you read the `age` field?",
      "correct": "As an attribute, `rec.age`, as well as with `rec['age']`",
      "wrong": [
-      "Only with `rec['age']`",
-      "Only with `rec.get('age')`",
-      "As `rec[:, 'age']`"
+      "Only by field name in brackets, `rec['age']`",
+      "Only through a method call, `rec.get('age')`",
+      "As a column index, `rec[:, 'age']`, like a 2-D array"
      ],
      "explain": "A record array is a structured array whose fields are also attributes. The convenience costs a little: attribute access is slower than indexing a plain structured array by field name."
     },

@@ -1595,11 +1595,15 @@ concept(
     """,
     [
         mc("m1", "What does `np.partition(x, 3)` guarantee?",
-           "The 3 smallest values come first, in no particular order, and position 3 holds the value a full sort would put there",
-           ["`x` is fully sorted", "The first 3 elements are sorted", "The 3 largest values come first"],
+           "The 3 smallest values come first, in any order, and position 3 holds the value a full sort puts there",
+           ["`x` comes back fully sorted, the same array that `np.sort(x)` would return",
+            "The first 3 elements are sorted in increasing order and the rest keep their original order",
+            "The 3 largest values come first, in any order, and position 3 holds the fourth largest"],
            "Partition only separates the k smallest from the rest, which is faster than sorting.", level=2),
         mc("m2", "Why is the nearest point to each row of a distance matrix usually itself?",
-           "Its distance to itself is 0, the smallest possible", ["argpartition always returns 0 first", "The matrix is sorted", "Broadcasting duplicates rows"],
+           "Its distance to itself is 0, the smallest possible",
+           ["`argpartition` always puts index 0 in the first column", "The distance matrix is sorted row by row beforehand",
+            "Broadcasting duplicates each row, so the copies match"],
            "Skip the diagonal (or take the second-smallest) to get the nearest *other* point.", level=2),
         mc("m3", "`P` has shape `(50, 2)`. What shape is `((P[:, None, :] - P[None, :, :]) ** 2).sum(-1)`?",
            "`(50, 50)`", ["`(50, 2)`", "`(50, 50, 2)`", "`(2500,)`"],
@@ -1640,20 +1644,25 @@ concept(
              """,
              setup="import numpy as np\nP = np.array([[0.0, 0.0], [1.0, 0.0], [5.0, 5.0], [5.5, 5.0], [7.0, 6.0]])", level=3),
         mc("m4", "What does `np.argpartition(x, 2)` return?",
-           "Positions into `x` arranged so the first two index its two smallest values, in no particular order",
-           ["The two smallest values of `x`, sorted", "The positions that would fully sort `x`",
-            "The two smallest values of `x`, in no particular order"],
+           "Positions into `x` arranged so the first two index its two smallest values, in any order",
+           ["The two smallest values of `x` themselves, sorted in increasing order, as a new array",
+            "The positions that would fully sort `x`, exactly the array `np.argsort(x)` returns",
+            "The two smallest values of `x` themselves, in any order, as a new array of length 2"],
            """
            `argpartition` is to `partition` what `argsort` is to `sort`: it
            returns indices, not values. Use them with fancy indexing, as in
            `x[np.argpartition(x, 2)[:2]]`.
            """, level=2),
-        mc("m5", "Each row of the squared-distance matrix `D2` includes a point's distance to itself. To be sure of each point's K nearest *other* points, what should the partition position be in `np.argpartition(D2, ?, axis=1)`?",
-           "`K + 1`", ["`K`", "`K - 1`", "`len(D2) - K`"],
+        mc("m5", "Each row of the squared-distance matrix `D2` includes a point's distance to itself (0). After `idx = np.argpartition(D2, K, axis=1)`, which columns of `idx` are guaranteed to hold each point together with its K nearest *other* points?",
+           "`idx[:, :K + 1]`", ["`idx[:, :K]`", "`idx[:, 1:K]`", "`idx[:, K:]`"],
            """
-           The zero on the diagonal takes one of the smallest slots in every
-           row, so you need the K + 1 smallest entries: the point itself plus
-           its K neighbours.
+           Partitioning at position K puts the entry a full sort would place
+           in column K there, with every smaller entry before it, so columns 0
+           to K hold the K + 1 smallest distances: the point itself plus its K
+           nearest neighbours. `idx[:, :K]` has only K of them, so one
+           neighbour can be missing. The order inside those columns is
+           arbitrary, which is why the book (which partitions at K + 1, also
+           safe) takes the first K + 1 columns rather than skipping column 0.
            """, level=3),
         out("o2", "What does this print?",
             """
@@ -1722,7 +1731,8 @@ concept(
            "`a['score']`", ["`a.score()`", "`a[:, 1]`", "`a[1]`"],
            "Fields are accessed by name in brackets. `a[1]` is the second record.", level=1),
         mc("m2", "What does the type code `'U8'` mean?",
-           "A Unicode string of at most 8 characters", ["An unsigned 8-bit integer", "An 8-byte float", "A string of exactly 8 bytes"],
+           "A Unicode string of at most 8 characters",
+           ["An unsigned integer stored in 8 bits", "A floating-point number stored in 8 bytes", "A byte string of exactly 8 bytes, padded"],
            "`U` is Unicode text; `u1` would be an unsigned 8-bit integer.", level=2),
         mc("m3", "For general tabular analysis with mixed column types, what does the book point you towards instead of structured arrays?",
            "Pandas DataFrames", ["Python dictionaries of lists", "Record arrays only", "Nested lists"],
@@ -1770,7 +1780,8 @@ concept(
            """, level=2),
         mc("m5", "After `rec = data.view(np.recarray)`, how can you read the `age` field?",
            "As an attribute, `rec.age`, as well as with `rec['age']`",
-           ["Only with `rec['age']`", "Only with `rec.get('age')`", "As `rec[:, 'age']`"],
+           ["Only by field name in brackets, `rec['age']`", "Only through a method call, `rec.get('age')`",
+            "As a column index, `rec[:, 'age']`, like a 2-D array"],
            """
            A record array is a structured array whose fields are also
            attributes. The convenience costs a little: attribute access is
