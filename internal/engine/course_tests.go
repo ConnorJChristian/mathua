@@ -176,9 +176,12 @@ type CourseTestInfo struct {
 }
 
 // studiedForReview is the CourseQuizConcepts rule: worked on, not merely
-// placed.
+// placed. Placement never adds to Attempts (only a graded practice, review or
+// quiz answer does), so Attempts > 0 is the whole test. Requiring
+// !PlacementSeeded as well dropped every topic a learner was placed into and
+// then practised, which for a placed learner is most of a course.
 func studiedForReview(p *storage.ConceptProgress) bool {
-	return p != nil && p.Attempts > 0 && !p.PlacementSeeded
+	return p != nil && p.Attempts > 0
 }
 
 // hasProgress reports a topic placement cannot change: ApplyGoalResults

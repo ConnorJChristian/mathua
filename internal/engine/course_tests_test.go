@@ -419,3 +419,14 @@ func keys(m map[string][]generator.Problem) []string {
 	}
 	return out
 }
+
+// A topic placed by the placement test and then practised is studied: it must
+// be reviewable. One that was only placed is not.
+func TestStudiedForReviewCountsPlacedThenPractised(t *testing.T) {
+	if studiedForReview(&storage.ConceptProgress{PlacementSeeded: true}) {
+		t.Error("placed only, never practised, counted as studied")
+	}
+	if !studiedForReview(&storage.ConceptProgress{PlacementSeeded: true, Attempts: 3}) {
+		t.Error("placed and then practised was left out of review")
+	}
+}
