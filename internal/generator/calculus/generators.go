@@ -190,6 +190,7 @@ func (g *limitPropertiesGen) Generate(ctx generator.GeneratorContext) generator.
 	op := rand.Intn(5)
 	var ans int
 	var opStr, desc string
+	ansStr := "" // set when the answer is not an integer
 	switch op {
 	case 0:
 		ans = fLim + gLim
@@ -212,13 +213,17 @@ func (g *limitPropertiesGen) Generate(ctx generator.GeneratorContext) generator.
 		if gLim == 0 {
 			gLim = 1
 		}
-		ans = fLim / gLim
+		// The quotient is exact: integer division keyed 3/2 as 1 (Q46).
 		opStr = "f(x)/g(x)"
-		desc = fmt.Sprintf("lim(f/g) = lim f / lim g = %d/%d=%d.", fLim, gLim, ans)
+		ansStr = reducedFraction(fLim, gLim)
+		desc = fmt.Sprintf("lim(f/g) = lim f / lim g = %d/%d = %s.", fLim, gLim, ansStr)
+	}
+	if ansStr == "" {
+		ansStr = fmt.Sprintf("%d", ans)
 	}
 	return generator.Problem{
 		Question:    fmt.Sprintf("If \\(\\lim f(x)=%d\\) and \\(\\lim g(x)=%d\\), what is \\(\\lim (%s)\\)?", fLim, gLim, opStr),
-		Answer:      fmt.Sprintf("%d", ans),
+		Answer:      ansStr,
 		Explanation: desc,
 	}
 }
@@ -3708,4 +3713,25 @@ func ftcVariant(ctx generator.GeneratorContext) generator.Problem {
 		Answer:      fmt.Sprintf("e^(%d*x)", k),
 		Explanation: fmt.Sprintf("By the Fundamental Theorem of Calculus, \\(F'(x)\\) is the integrand evaluated at \\(x\\): \\(e^{%dx}\\).", k),
 	}
+}
+
+// reducedFraction writes p/q in lowest terms, as an integer when q divides p.
+func reducedFraction(p, q int) string {
+	if q < 0 {
+		p, q = -p, -q
+	}
+	a, b := p, q
+	if a < 0 {
+		a = -a
+	}
+	for b != 0 {
+		a, b = b, a%b
+	}
+	if a > 1 {
+		p, q = p/a, q/a
+	}
+	if q == 1 {
+		return fmt.Sprintf("%d", p)
+	}
+	return fmt.Sprintf("%d/%d", p, q)
 }

@@ -108,3 +108,33 @@ func TestRecommend_MasteredPinDoesNotPullInItsPrerequisites(t *testing.T) {
 		}
 	}
 }
+
+// Q45: a locked pin is represented by its open prerequisites, but not by ones
+// the placement already put the learner above, nor anything below them.
+// miniDAG: a -> b, a -> c, b+c -> d. a is placed (seeded, never practised),
+// b is open and unstarted, c is mastered; pinning d offers b, never a.
+func TestRecommend_LockedPinSkipsPlacedPrerequisites(t *testing.T) {
+	s := New(miniDAG(t))
+	now := time.Now()
+	got := s.Recommend(RecommendInput{
+		Now: now, AttemptedDays: 5, ConceptsMastered: 1, DiagnosticCompleted: true,
+		Snapshots: map[string]*ConceptSnapshot{
+			"a": {Status: mastery.StatusLearning, LastAttempted: now, Placement: true},
+			"c": masteredAt(now),
+		},
+		Weakness: map[string]float64{},
+		Pinned:   map[string]bool{"d": true},
+	})
+	for _, r := range all(got) {
+		if r.ConceptID == "a" {
+			t.Errorf("placed prerequisite a was offered: %+v", r)
+		}
+	}
+	found := false
+	for _, r := range all(got) {
+		found = found || (r.ConceptID == "b" && r.Pinned)
+	}
+	if !found {
+		t.Errorf("b, the open step toward d, should be this week's work: %+v", all(got))
+	}
+}

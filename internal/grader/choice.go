@@ -50,6 +50,9 @@ func (g *choiceGrader) grade(expected, answer string) Result {
 	if samePhrase(e, a) {
 		return Result{Correct: true, Score: 1}
 	}
+	if isWordKey(e) && wordAnswerMatches(e, a) {
+		return Result{Correct: true, Score: 1}
+	}
 
 	// A typed option letter is resolved against the question's options before
 	// grading (ResolveChoiceLetter); matching a letter against the words of
@@ -69,22 +72,43 @@ var choiceOptionRe = regexp.MustCompile(`(?m)^([A-E])\) (.+)$`)
 // returned unchanged.
 func ResolveChoiceLetter(question, expected, answer string) string {
 	a := strings.TrimSpace(answer)
-	if len(strings.TrimSpace(expected)) == 1 {
-		// The key is a letter: a clicked option's text becomes its letter.
-		for _, m := range choiceOptionRe.FindAllStringSubmatch(question, -1) {
+	e := strings.TrimSpace(expected)
+	opts := choiceOptionRe.FindAllStringSubmatch(question, -1)
+	keyIsOption := false
+	for _, m := range opts {
+		if strings.EqualFold(strings.TrimSpace(m[2]), e) {
+			keyIsOption = true
+		}
+	}
+	// The key is the option's text ("4", "Z", "a line through two points").
+	// A learner who typed that text is answered as typed; only a bare letter
+	// that is not itself an option's text is resolved to its option. A
+	// one-character key is option text when an option reads that way: "4"
+	// is not the letter D (Q44, a regression of the first version of this).
+	if keyIsOption || len(opts) == 0 {
+		if len(a) != 1 {
+			return answer
+		}
+		for _, m := range opts {
 			if strings.EqualFold(strings.TrimSpace(m[2]), a) {
-				return m[1]
+				return answer
+			}
+		}
+		l := strings.ToUpper(a)
+		for _, m := range opts {
+			if m[1] == l {
+				return strings.TrimSpace(m[2])
 			}
 		}
 		return answer
 	}
-	if len(a) != 1 {
-		return answer
-	}
-	l := strings.ToUpper(a)
-	for _, m := range choiceOptionRe.FindAllStringSubmatch(question, -1) {
-		if m[1] == l {
-			return strings.TrimSpace(m[2])
+	// The key is a letter ("B") that names an option: a clicked option's
+	// text becomes its letter.
+	if len(e) == 1 {
+		for _, m := range opts {
+			if strings.EqualFold(strings.TrimSpace(m[2]), a) {
+				return m[1]
+			}
 		}
 	}
 	return answer

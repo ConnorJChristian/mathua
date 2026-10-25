@@ -379,6 +379,13 @@ func (s *Scheduler) pinnedFor(in RecommendInput, cands []Candidate) map[string]s
 				continue
 			}
 			seen[pid] = true
+			// A prerequisite the placement put the learner above, or one
+			// already mastered, is met: it is not work toward the pin, and
+			// nothing below it is either (Q45: pinning the tangent plane
+			// served "What quadrant is (2, 3) in?" after a calculus placement).
+			if snap := in.Snapshots[pid]; snap != nil && ((snap.Placement && snap.Attempts == 0) || snap.Status == mastery.StatusMastered) {
+				continue
+			}
 			if open[pid] {
 				if _, ok := out[pid]; !ok {
 					out[pid] = c.Label

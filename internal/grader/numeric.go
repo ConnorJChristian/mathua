@@ -33,7 +33,7 @@ func (g *numericGrader) grade(expected, answer string) Result {
 		return Result{Correct: false, Score: 0, Feedback: "Could not parse numeric values"}
 	}
 	if eIsFloat || aIsFloat {
-		if math.Abs(eVal-aVal) <= numericEpsilon(e, eVal) {
+		if decimalsAgree(e, eVal, a, aVal) {
 			return Result{Correct: true, Score: 1}
 		}
 	} else {
@@ -72,6 +72,55 @@ func numericEpsilon(expected string, value float64) float64 {
 		eps = relative
 	}
 	return eps
+}
+
+// decimalsAgree compares an answer with a key by the places each was written
+// to (Q50). The old window was half a unit in the key's last place either way,
+// which let 0.25 through for a key of 0.2 and refused 2.67 for 2.666667.
+//
+//   - The answer has at least the key's places: it must round to the key
+//     ("12.610001" and "12.61" for 12.61; not "12.62"; not "0.25" for 0.2).
+//   - The key is a long rounding (4+ places, e.g. 2.666667) and the answer
+//     has 2+ places: the key must round to the answer ("2.67", "2.667").
+//   - A fraction against a decimal key: it must round to the key ("8/3").
+//   - Otherwise (integers, fractions, scientific notation): equal values.
+func decimalsAgree(e string, eVal float64, a string, aVal float64) bool {
+	if math.Abs(eVal-aVal) <= numericEpsilon("", eVal) {
+		return true
+	}
+	p, pOK := decimalPlaces(e)
+	q, qOK := decimalPlaces(a)
+	if pOK && qOK && q >= p && p > 0 {
+		return roundsTo(aVal, p, eVal)
+	}
+	if pOK && qOK && p >= 4 && q >= 2 && q < p {
+		return roundsTo(eVal, q, aVal)
+	}
+	// An exact answer ("8/3") against a rounded decimal key: it must round to it.
+	if pOK && p > 0 && !qOK {
+		return roundsTo(aVal, p, eVal)
+	}
+	return false
+}
+
+// decimalPlaces counts the digits after the point of a plain decimal; ok is
+// false for fractions and scientific notation.
+func decimalPlaces(s string) (int, bool) {
+	if strings.ContainsAny(s, "/eE ") {
+		return 0, false
+	}
+	i := strings.IndexByte(s, '.')
+	if i < 0 {
+		return 0, true
+	}
+	return len(s) - i - 1, true
+}
+
+// roundsTo reports whether v rounded half away from zero to n places is want.
+func roundsTo(v float64, n int, want float64) bool {
+	f := math.Pow(10, float64(n))
+	r := math.Round(v*f+math.Copysign(1e-9, v)) / f
+	return math.Abs(r-want) <= 1e-9*math.Max(1, math.Abs(want))
 }
 
 func parseNumeric(s string) (float64, bool, bool) {

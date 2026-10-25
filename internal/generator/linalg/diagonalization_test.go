@@ -58,3 +58,18 @@ func TestMatrixInverseKeysAreInverses(t *testing.T) {
 		}
 	}
 }
+
+// Q48: spacing and notation a learner types are accepted; trailing junk is not.
+func TestGradeMatrixParsing(t *testing.T) {
+	key := "[[-7,3],[5,-2]]"
+	for _, ok := range []string{"[[-7, 3], [5, -2]]", "[[-7.0,3.0],[5.0,-2.0]]", "-7 3; 5 -2", "((-7,3),(5,-2))", " [[−7,3],[5,−2]] "} {
+		if !gradeMatrix(key, ok).Correct {
+			t.Errorf("%q should grade right", ok)
+		}
+	}
+	for _, bad := range []string{"[[-7,3],[5,-2]] + 1", "[[-7,3],[5,-2]]*2", "[[-7,3],[5,-2]]+5", "[[-7,3],[5,2]]", "[[-7,3,1],[5,-2]]"} {
+		if gradeMatrix(key, bad).Correct {
+			t.Errorf("%q should grade wrong", bad)
+		}
+	}
+}

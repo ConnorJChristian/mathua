@@ -53,6 +53,13 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 		if strings.EqualFold(strings.TrimSpace(expected), strings.TrimSpace(answer)) || samePhrase(expected, answer) {
 			return Result{Correct: true, Score: 1}
 		}
+		// A word key is graded as words, never by SymPy (Q52).
+		if isWordKey(expected) {
+			if wordAnswerMatches(expected, answer) {
+				return Result{Correct: true, Score: 1}
+			}
+			return Result{Correct: false, Score: 0, Feedback: "Incorrect"}
+		}
 		return gradeSymPy(expected, answer)
 	case GradingMultipleChoice:
 		res := r.choice.grade(expected, answer)
@@ -105,6 +112,13 @@ func lenient(gradingType GradingType, expected, answer string) string {
 	}
 	if gradingType == GradingTuple && strings.HasPrefix(e, "[") && strings.HasPrefix(a, "[") {
 		a = strings.ReplaceAll(a, " ", "")
+	}
+	// The notation the prompts are written in ("8y^{2} + 4", "\\frac{1}{3}",
+	// "\\sqrt{x}", a typeset minus sign) is read as the plain form the
+	// graders take (Q49; Q41 had covered flashcards only).
+	switch gradingType {
+	case GradingNumeric, GradingPolynomial, GradingExpression, GradingSymbolic, GradingTuple:
+		a = NormalizeTypedMath(a, e)
 	}
 	return a
 }

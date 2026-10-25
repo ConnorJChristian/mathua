@@ -316,7 +316,7 @@ func (t *Track) gradeMath(key, answer string) grader.Result {
 			missed = append(missed, name+" is empty")
 			continue
 		}
-		res := mathRouter.Grade(grader.GradingType(p.Grading), normalizeTypedMath(p.Answer, p.Answer), normalizeTypedMath(a, p.Answer))
+		res := mathRouter.Grade(grader.GradingType(p.Grading), grader.NormalizeTypedMath(p.Answer, p.Answer), grader.NormalizeTypedMath(a, p.Answer))
 		if res.Unavailable {
 			return res
 		}

@@ -226,8 +226,11 @@ func TestMathliveNormalizationIsLoadBearing(t *testing.T) {
 		want   string
 		graded bool
 	}{
-		{latex: `\frac{1}{2}`, raw: `(1)/(2)`, want: `1/2`, graded: true},
-		{latex: `\frac{2}{4}`, raw: `(2)/(4)`, want: `2/4`, graded: true},
+		// A plain bracketed fraction is now also read by the server
+		// (NormalizeTypedMath, Q49), so it is no longer load-bearing here; the
+		// mixed numbers and division below still are.
+		{latex: `\frac{1}{2}`, raw: `(1)/(2)`, want: `1/2`, graded: false},
+		{latex: `\frac{2}{4}`, raw: `(2)/(4)`, want: `2/4`, graded: false},
 		{latex: `4\frac{1}{10}`, raw: `4(1)/(10)`, want: `4 1/10`, graded: true},
 		{latex: `-1\frac{1}{2}`, raw: `-1(1)/(2)`, want: `-1 1/2`, graded: true},
 		{latex: `7\div2`, raw: `7 -: 2`, want: `7 / 2`, graded: true},

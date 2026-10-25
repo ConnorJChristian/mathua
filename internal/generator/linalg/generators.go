@@ -557,29 +557,45 @@ func formatMatrix3(m [][]int) string {
 		m[2][0], m[2][1], m[2][2])
 }
 
+// parseMatrix reads a whole answer as a 2x2 integer matrix (Q48). It accepts
+// "[[-7, 3], [5, -2]]" with any spacing, "(" for "[", whole-number decimals
+// ("-7.0") and rows written "-7 3; 5 -2". The whole answer must be the matrix:
+// "[[2,2],[0,0]] + 1" used to match its prefix and grade right.
 func parseMatrix(s string) ([][]int, bool) {
-	matches := matrixRe.FindStringSubmatch(s)
-	if len(matches) != 3 {
-		return nil, false
-	}
-	rows := make([][]int, 2)
-	for i, part := range matches[1:] {
-		parts := strings.Split(part, ",")
-		if len(parts) != 2 {
+	t := strings.NewReplacer("(", "[", ")", "]", "−", "-").Replace(strings.TrimSpace(s))
+	var rows []string
+	if strings.HasPrefix(t, "[") {
+		compact := strings.Join(strings.Fields(t), "")
+		m := matrixFullRe.FindStringSubmatch(compact)
+		if m == nil {
 			return nil, false
 		}
-		row := make([]int, 2)
-		for j, p := range parts {
-			val, err := strconv.Atoi(strings.TrimSpace(p))
-			if err != nil {
+		rows = []string{m[1], m[2]}
+	} else {
+		rows = strings.Split(t, ";")
+		if len(rows) != 2 {
+			return nil, false
+		}
+	}
+	out := make([][]int, 2)
+	for i, r := range rows {
+		fields := strings.FieldsFunc(r, func(c rune) bool { return c == ',' || c == ' ' || c == '\t' })
+		if len(fields) != 2 {
+			return nil, false
+		}
+		out[i] = make([]int, 2)
+		for j, f := range fields {
+			v, err := strconv.ParseFloat(f, 64)
+			if err != nil || v != math.Trunc(v) {
 				return nil, false
 			}
-			row[j] = val
+			out[i][j] = int(v)
 		}
-		rows[i] = row
 	}
-	return rows, true
+	return out, true
 }
+
+var matrixFullRe = regexp.MustCompile(`^\[\[([^\[\]]+)\],\[([^\[\]]+)\]\]$`)
 
 func gradeMatrix(expected, userAnswer string) grader.Result {
 	eMat, ok := parseMatrix(expected)
