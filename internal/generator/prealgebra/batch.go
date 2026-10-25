@@ -372,7 +372,7 @@ func (g *ineqWordGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		{
 			context: "elevator capacity", relation: "at most", ask: "greatest",
 			build: func(fixed, rate, limit int) string {
-				return fmt.Sprintf("An elevator carries %d kg of equipment plus %d kg per person. The limit is %d kg. What is the greatest whole number of people who can ride?", fixed, rate, limit)
+				return fmt.Sprintf("An elevator has a limit of %d kg. It already carries %d kg of equipment, and each person weighs %d kg. What is the greatest whole number of people who can ride?", limit, fixed, rate)
 			},
 		},
 		{
