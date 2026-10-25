@@ -18,6 +18,7 @@ package realanalysis
 import (
 	"encoding/json"
 	"math"
+	"math/big"
 	"os"
 	"regexp"
 	"strconv"
@@ -220,78 +221,177 @@ func TestRAMultipleChoiceRejectsEveryDistractor(t *testing.T) {
 
 func TestRASupremumRecomputes(t *testing.T) {
 	reg := raRegistry(t)
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 400; i++ {
 		p := raSample(t, reg, "ra.order.supremum", i)
-		lo := raFactInt(t, p, "lo")
-		hi := raFactInt(t, p, "hi")
-		if lo >= hi {
-			t.Fatalf("supremum: lo=%d is not below hi=%d", lo, hi)
+		lo, err1 := strconv.ParseFloat(p.Facts["lo"], 64)
+		hi, err2 := strconv.ParseFloat(p.Facts["hi"], 64)
+		if err1 != nil || err2 != nil {
+			t.Fatalf("supremum: facts lo=%q hi=%q are not numbers", p.Facts["lo"], p.Facts["hi"])
 		}
-		// The interval is bounded above by hi and approaches it, so the least
-		// upper bound is hi.
-		if p.Answer != strconv.Itoa(hi) {
-			t.Fatalf("supremum: lo=%d hi=%d answers %s, want %d", lo, hi, p.Answer, hi)
+		if lo >= hi {
+			t.Fatalf("supremum: lo=%v is not below hi=%v", lo, hi)
+		}
+		// The published bounds are the infimum and the supremum; ask names
+		// which one the question wants.
+		want := decimal6(hi)
+		if p.Facts["ask"] == "inf" {
+			want = decimal6(lo)
+		} else if p.Facts["ask"] != "sup" {
+			t.Fatalf("supremum: ask=%q", p.Facts["ask"])
+		}
+		if p.Answer != want {
+			t.Fatalf("supremum: %q answers %s, want %s", p.Question, p.Answer, want)
 		}
 	}
 }
 
 func TestRAArchimedeanRecomputes(t *testing.T) {
 	reg := raRegistry(t)
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 400; i++ {
 		p := raSample(t, reg, "ra.order.archimedean", i)
 		pn := raFactInt(t, p, "pn")
 		pd := raFactInt(t, p, "pd")
-		if pn <= 0 || pd <= 0 {
-			t.Fatalf("archimedean: pn=%d pd=%d are not positive", pn, pd)
+		xn := raFactInt(t, p, "xn")
+		xd := raFactInt(t, p, "xd")
+		if pn <= 0 || pd <= 0 || xn <= 0 || xd <= 0 {
+			t.Fatalf("archimedean: pn=%d pd=%d xn=%d xd=%d are not positive", pn, pd, xn, xd)
 		}
-		// 1/N < pn/pd is N > pd/pn, so the smallest integer N is floor(pd/pn)+1.
-		want := pd/pn + 1
+		// Brute force: the least n >= 1 with n*(pn/pd) > xn/xd.
+		want := 1
+		for want*pn*xd <= xn*pd {
+			want++
+		}
 		if p.Answer != strconv.Itoa(want) {
-			t.Fatalf("archimedean: pn=%d pd=%d answers %s, want %d", pn, pd, p.Answer, want)
+			t.Fatalf("archimedean: %q answers %s, want %d", p.Question, p.Answer, want)
 		}
 	}
 }
 
 func TestRASequenceRecomputes(t *testing.T) {
 	reg := raRegistry(t)
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 400; i++ {
 		p := raSample(t, reg, "ra.seq.convergence", i)
 		a := raFactInt(t, p, "a")
+		b := raFactInt(t, p, "b")
 		c := raFactInt(t, p, "c")
-		if c == 0 {
-			t.Fatalf("sequence: leading denominator coefficient c=0")
+		d := raFactInt(t, p, "d")
+		if c <= 0 || d <= 0 {
+			t.Fatalf("sequence: c=%d d=%d must be positive", c, d)
 		}
-		want := decimal6(float64(a) / float64(c))
-		if p.Answer != want {
-			t.Fatalf("sequence: a=%d c=%d answers %s, want %s", a, c, p.Answer, want)
+		switch p.Facts["kind"] {
+		case "limit":
+			if want := decimal6(float64(a) / float64(c)); p.Answer != want {
+				t.Fatalf("sequence: a=%d c=%d answers %s, want %s", a, c, p.Answer, want)
+			}
+		case "N":
+			// Brute force on exact rationals: the least N with
+			// |a_n − a/c| < 1/e for every n in [N, N+2000], and failing at N−1.
+			e := raFactInt(t, p, "e")
+			lim := big.NewRat(int64(a), int64(c))
+			eps := big.NewRat(1, int64(e))
+			within := func(n int) bool {
+				v := big.NewRat(int64(a*n+b), int64(c*n+d))
+				v.Sub(v, lim)
+				v.Abs(v)
+				return v.Cmp(eps) < 0
+			}
+			n := raFactInt(t, p, "answer")
+			if n > 1 && within(n-1) {
+				t.Fatalf("sequence: %q answers %d but N−1 already works", p.Question, n)
+			}
+			for m := n; m < n+2000; m++ {
+				if !within(m) {
+					t.Fatalf("sequence: %q answers %d but n=%d is not within ε", p.Question, n, m)
+				}
+			}
+		default:
+			t.Fatalf("sequence: unknown kind %q", p.Facts["kind"])
 		}
 	}
 }
 
 func TestRAMonotoneRecomputes(t *testing.T) {
 	reg := raRegistry(t)
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 400; i++ {
 		p := raSample(t, reg, "ra.seq.monotone", i)
-		a := raFactInt(t, p, "a")
-		want := strconv.Itoa(int((1 + math.Sqrt(1+4*float64(a))) / 2))
-		if p.Answer != want {
-			t.Fatalf("monotone: a=%d answers %s, want %s", a, p.Answer, want)
+		// Iterate the recursion itself and compare with the published limit.
+		var x float64
+		var step func(float64) float64
+		switch p.Facts["kind"] {
+		case "sqrt":
+			a := float64(raFactInt(t, p, "a"))
+			x, step = 0, func(v float64) float64 { return math.Sqrt(a + v) }
+		case "avg":
+			k := float64(raFactInt(t, p, "k"))
+			m := float64(raFactInt(t, p, "m"))
+			x, step = 0, func(v float64) float64 { return (v + k) / m }
+		case "geo":
+			b := float64(raFactInt(t, p, "b"))
+			x, step = 1, func(v float64) float64 { return math.Sqrt(b * v) }
+		default:
+			t.Fatalf("monotone: unknown kind %q", p.Facts["kind"])
+		}
+		prev := x
+		for j := 0; j < 5000; j++ {
+			x = step(x)
+			if x < prev-1e-12 {
+				t.Fatalf("monotone: %q is not increasing", p.Question)
+			}
+			prev = x
+		}
+		got, err := strconv.ParseFloat(p.Answer, 64)
+		if err != nil || math.Abs(got-x) > 1e-6 {
+			t.Fatalf("monotone: %q answers %s, iteration gives %v", p.Question, p.Answer, x)
 		}
 	}
 }
 
 func TestRASeriesRecomputes(t *testing.T) {
 	reg := raRegistry(t)
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 400; i++ {
 		p := raSample(t, reg, "ra.seq.series", i)
-		pn := raFactInt(t, p, "pn")
-		pd := raFactInt(t, p, "pd")
-		if pd == pn {
-			t.Fatalf("series: ratio pn/pd is one, the series diverges")
+		// Sum a long stretch of the series numerically and compare.
+		var sum float64
+		switch p.Facts["kind"] {
+		case "":
+			pn := float64(raFactInt(t, p, "pn"))
+			pd := float64(raFactInt(t, p, "pd"))
+			for n, term := 0, 1.0; n < 2000; n++ {
+				sum += term
+				term *= pn / pd
+			}
+		case "geo":
+			a := float64(raFactInt(t, p, "a"))
+			r := float64(raFactInt(t, p, "p")) / float64(raFactInt(t, p, "q"))
+			for n, term := 0, a; n < 2000; n++ {
+				sum += term
+				term *= r
+			}
+		case "tail":
+			r := float64(raFactInt(t, p, "p")) / float64(raFactInt(t, p, "q"))
+			m := raFactInt(t, p, "m")
+			for n := m; n < 2000; n++ {
+				sum += math.Pow(r, float64(n))
+			}
+		case "tele":
+			k := float64(raFactInt(t, p, "k"))
+			for n := 1.0; n < 2e6; n++ {
+				sum += 1 / (n * (n + k))
+			}
+			// The tail beyond 2e6 is below k-independent 1/2e6; add the
+			// integral estimate so the comparison can be tight.
+			sum += 1 / 2e6
+		case "partial":
+			n := raFactInt(t, p, "n")
+			for k := 1; k <= n; k++ {
+				sum += 1 / float64(k*(k+1))
+			}
+		default:
+			t.Fatalf("series: unknown kind %q", p.Facts["kind"])
 		}
-		want := decimal6(float64(pd) / float64(pd-pn))
-		if p.Answer != want {
-			t.Fatalf("series: pn=%d pd=%d answers %s, want %s", pn, pd, p.Answer, want)
+		got, err := strconv.ParseFloat(p.Answer, 64)
+		if err != nil || math.Abs(got-sum) > 2e-6 {
+			t.Fatalf("series: %q answers %s, summing gives %.9f", p.Question, p.Answer, sum)
 		}
 	}
 }

@@ -42,7 +42,7 @@ func raIntPow(base, exp int) int {
 type connectedGen struct{}
 
 func (g *connectedGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A subset of the real line is connected exactly when...",
 			correct:     "it is an interval",
@@ -61,7 +61,7 @@ func (g *connectedGen) Generate(ctx generator.GeneratorContext) generator.Proble
 			distractors: []string{"connected", "compact but not closed", "a single interval"},
 			reason:      "The gap between 1 and 2 splits the union into two nonempty pieces separated in the subspace.",
 		},
-	})
+	}, connectedWhichClaim, connectedWhichClaim, connectedImageClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -71,7 +71,7 @@ func (g *connectedGen) Generate(ctx generator.GeneratorContext) generator.Proble
 type discontinuityGen struct{}
 
 func (g *discontinuityGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A removable discontinuity at a point is one where...",
 			correct:     "the two-sided limit exists but differs from the value, or the value is undefined",
@@ -90,7 +90,7 @@ func (g *discontinuityGen) Generate(ctx generator.GeneratorContext) generator.Pr
 			distractors: []string{"a jump discontinuity at 0", "an essential discontinuity at 0", "no discontinuity at 0"},
 			reason:      "The limit at 0 is 0 while the value is 1, so redefining the single value removes the discontinuity.",
 		},
-	})
+	}, discontinuityClassifyClaim, discontinuityClassifyClaim, discontinuityClassifyClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ func (g *discontinuityGen) Generate(ctx generator.GeneratorContext) generator.Pr
 type monotoneFnGen struct{}
 
 func (g *monotoneFnGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A monotone function on an interval can have...",
 			correct:     "at most countably many discontinuities, and all of them are jumps",
@@ -119,7 +119,7 @@ func (g *monotoneFnGen) Generate(ctx generator.GeneratorContext) generator.Probl
 			distractors: []string{"always equals f(b)", "need not exist", "equals the infimum of the values"},
 			reason:      "The values are bounded above by f(b) and increase, so their supremum is approached from the left.",
 		},
-	})
+	}, monotoneFloorCountClaim, monotoneJumpClaim, monotoneTotalJumpClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -129,7 +129,7 @@ func (g *monotoneFnGen) Generate(ctx generator.GeneratorContext) generator.Probl
 type darbouxGen struct{}
 
 func (g *darbouxGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "Darboux's theorem says that a derivative...",
 			correct:     "has the intermediate value property even though it need not be continuous",
@@ -148,7 +148,7 @@ func (g *darbouxGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 			distractors: []string{"is continuous at 0", "does not exist at points near 0", "is monotone near 0"},
 			reason:      "The derivative oscillates without a limit at 0, which Darboux's theorem permits because it is not a jump.",
 		},
-	})
+	}, darbouxValueClaim, darbouxValueClaim, darbouxNotDerivativeClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +158,7 @@ func (g *darbouxGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 type uniformConvGen struct{}
 
 func (g *uniformConvGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A sequence of functions converges uniformly on a set when...",
 			correct:     "one index N works for every point of the set at once",
@@ -177,7 +177,7 @@ func (g *uniformConvGen) Generate(ctx generator.GeneratorContext) generator.Prob
 			distractors: []string{"differentiable", "monotone", "bounded but not necessarily continuous"},
 			reason:      "Uniform control lets the limit be exchanged with the pointwise limit, which preserves continuity.",
 		},
-	})
+	}, uniformConvSupClaim, uniformConvNClaim, uniformConvWhichClaim, uniformConvWhichClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +187,7 @@ func (g *uniformConvGen) Generate(ctx generator.GeneratorContext) generator.Prob
 type interchangeGen struct{}
 
 func (g *interchangeGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "If a sequence of continuous functions converges uniformly on a closed bounded interval, then the limit of the integrals is...",
 			correct:     "the integral of the limit function",
@@ -206,7 +206,7 @@ func (g *interchangeGen) Generate(ctx generator.GeneratorContext) generator.Prob
 			distractors: []string{"valid only when the series converges at the endpoints", "valid only for power series", "never valid without differentiability"},
 			reason:      "Integrals are bounded by the interval length, so uniform convergence controls the tail of the integrated series.",
 		},
-	})
+	}, interchangeSpikeClaim, interchangeUniformClaim, interchangeDerivClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -216,7 +216,7 @@ func (g *interchangeGen) Generate(ctx generator.GeneratorContext) generator.Prob
 type metricSpacesGen struct{}
 
 func (g *metricSpacesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A metric on a set is a distance function that is...",
 			correct:     "nonnegative, symmetric, zero exactly on equal points, and obeys the triangle inequality",
@@ -235,7 +235,7 @@ func (g *metricSpacesGen) Generate(ctx generator.GeneratorContext) generator.Pro
 			distractors: []string{"they assign the same distance to every pair of points", "one is a constant multiple of the other", "they agree on a dense subset"},
 			reason:      "Topological equivalence is about the same open sets, which is also the same convergent sequences.",
 		},
-	})
+	}, metricDistanceClaim, metricDistanceClaim, metricWhichClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -245,7 +245,7 @@ func (g *metricSpacesGen) Generate(ctx generator.GeneratorContext) generator.Pro
 type openClosedGen struct{}
 
 func (g *openClosedGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A subset of a metric space is open when...",
 			correct:     "every point of it has an open ball contained in the set",
@@ -264,7 +264,7 @@ func (g *openClosedGen) Generate(ctx generator.GeneratorContext) generator.Probl
 			distractors: []string{"always open", "always closed", "always empty"},
 			reason:      "Intersecting the balls of radius 1/n about a point shrinks to a point, which is not open.",
 		},
-	})
+	}, openClosedClaim, openClosedClaim, openClosedClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -274,7 +274,7 @@ func (g *openClosedGen) Generate(ctx generator.GeneratorContext) generator.Probl
 type closureGen struct{}
 
 func (g *closureGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The closure of a set is...",
 			correct:     "the set together with all of its limit points",
@@ -293,7 +293,7 @@ func (g *closureGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 			distractors: []string{"the points that belong to the set and to its complement", "the isolated points of the set", "the complement of the set"},
 			reason:      "A boundary point is one every ball around which meets the set and its complement.",
 		},
-	})
+	}, closureClaim, closureClaim, closureClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -303,7 +303,7 @@ func (g *closureGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 type metricConvGen struct{}
 
 func (g *metricConvGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A sequence in a metric space converges to a point when...",
 			correct:     "for every positive epsilon there is an index beyond which the distance to the point is below epsilon",
@@ -322,7 +322,7 @@ func (g *metricConvGen) Generate(ctx generator.GeneratorContext) generator.Probl
 			distractors: []string{"always converges", "always has a convergent subsequence", "converges exactly when it is bounded"},
 			reason:      "Convergence of every Cauchy sequence is completeness, which is an extra assumption.",
 		},
-	})
+	}, metricConvNClaim, metricConvNClaim, metricDiscreteClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +332,7 @@ func (g *metricConvGen) Generate(ctx generator.GeneratorContext) generator.Probl
 type completeGen struct{}
 
 func (g *completeGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A metric space is complete when...",
 			correct:     "every Cauchy sequence in it converges to a point of the space",
@@ -351,7 +351,7 @@ func (g *completeGen) Generate(ctx generator.GeneratorContext) generator.Problem
 			distractors: []string{"complete", "compact", "equivalent to the reals"},
 			reason:      "Truncations of the square root of two are Cauchy in the rationals and have no rational limit.",
 		},
-	})
+	}, completeWhichClaim, completeWhichClaim, completeRationalClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -361,7 +361,7 @@ func (g *completeGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type metricCompactGen struct{}
 
 func (g *metricCompactGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A metric space is compact when...",
 			correct:     "every open cover has a finite subcover",
@@ -380,7 +380,7 @@ func (g *metricCompactGen) Generate(ctx generator.GeneratorContext) generator.Pr
 			distractors: []string{"is uniformly continuous only if the space is an interval", "is injective", "has a continuous inverse"},
 			reason:      "The image of a compact set is compact, and a compact subset of the reals is closed and bounded.",
 		},
-	})
+	}, metricCompactClaim, metricCompactClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -390,7 +390,7 @@ func (g *metricCompactGen) Generate(ctx generator.GeneratorContext) generator.Pr
 type metricContinuityGen struct{}
 
 func (g *metricContinuityGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A function between metric spaces is continuous at a point when...",
 			correct:     "for every positive epsilon there is a positive delta that keeps images within epsilon whenever inputs are within delta",
@@ -409,7 +409,7 @@ func (g *metricContinuityGen) Generate(ctx generator.GeneratorContext) generator
 			distractors: []string{"a bijection", "an isometry", "Lipschitz"},
 			reason:      "Compactness upgrades pointwise continuity to a single delta for the whole domain.",
 		},
-	})
+	}, metricPreimageClaim, metricLipschitzClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -419,7 +419,7 @@ func (g *metricContinuityGen) Generate(ctx generator.GeneratorContext) generator
 type baireGen struct{}
 
 func (g *baireGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The Baire category theorem says a complete metric space...",
 			correct:     "cannot be written as a countable union of nowhere dense sets",
@@ -438,7 +438,7 @@ func (g *baireGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			distractors: []string{"a set that is not open", "a countable set", "a set containing no interval"},
 			reason:      "Meagre or first category is exactly a countable union of sets with empty interior closure.",
 		},
-	})
+	}, baireNowhereDenseClaim, baireNowhereDenseClaim, baireCategoryClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -448,7 +448,7 @@ func (g *baireGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type equivalentGen struct{}
 
 func (g *equivalentGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "Two metrics on a set are topologically equivalent when...",
 			correct:     "they have the same open sets, hence the same convergent sequences",
@@ -467,7 +467,7 @@ func (g *equivalentGen) Generate(ctx generator.GeneratorContext) generator.Probl
 			distractors: []string{"they have the same open sets, which is the same condition", "they are equal on a dense subset", "they both make the space complete"},
 			reason:      "A two-sided constant bound forces the same topology and also controls Cauchy sequences and completeness.",
 		},
-	})
+	}, equivalentBoundedClaim, equivalentConstantClaim, equivalentConstantClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -477,6 +477,9 @@ func (g *equivalentGen) Generate(ctx generator.GeneratorContext) generator.Probl
 type mvtGen struct{}
 
 func (g *mvtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return mvtVariant()
+	}
 	claims := []int{2, 4, 6, 8, 10, 3}
 	b := claims[rand.Intn(len(claims))]
 	answer := decimal6(float64(b) / 2)
@@ -486,7 +489,7 @@ func (g *mvtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		Answer:      answer,
 		Explanation: "The average slope is (f(b) − f(0))/b = b²/b = b, and f'(c) = 2c, so 2c = b and c = b/2.",
 		Facts: map[string]string{
-			"b": strconv.Itoa(b), "answer": answer,
+			"kind": "quad", "a": "0", "b": strconv.Itoa(b), "answer": answer,
 		},
 	}
 }
@@ -498,6 +501,9 @@ func (g *mvtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type chainGen struct{}
 
 func (g *chainGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return chainVariant()
+	}
 	type claim struct {
 		a, b, n, x0 int
 	}
@@ -533,15 +539,18 @@ func (g *chainGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type lhopitalGen struct{}
 
 func (g *lhopitalGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return lhopitalVariant()
+	}
 	claims := []int{2, 3, 4, 5, 6, 1}
 	a := claims[rand.Intn(len(claims))]
 	answer := decimal6(float64(a*a) / 2)
 	return generator.Problem{
-		Question:    "Using L'Hôpital's rule, find the limit of (1 − cos(" + strconv.Itoa(a) + "x))/x² as x tends to 0. (enter a decimal)",
+		Question:    "Using L'Hôpital's rule, find the limit of (1 − cos(" + coefX(a, "x") + "))/x² as x tends to 0. (enter a decimal)",
 		Answer:      answer,
 		Explanation: "Both numerator and denominator tend to zero; differentiating twice gives a²cos(ax)/2, and cos(0) = 1, so the limit is a²/2 = " + answer + ".",
 		Facts: map[string]string{
-			"a": strconv.Itoa(a), "answer": answer,
+			"kind": "cos", "a": strconv.Itoa(a), "b": "1", "answer": answer,
 		},
 	}
 }
@@ -553,6 +562,9 @@ func (g *lhopitalGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type riemannGen struct{}
 
 func (g *riemannGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return riemannVariant()
+	}
 	type claim struct {
 		b, n int
 	}
@@ -585,6 +597,9 @@ func (g *riemannGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 type ftcGen struct{}
 
 func (g *ftcGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return ftcVariant()
+	}
 	type claim struct {
 		a, c, b int
 	}
@@ -617,6 +632,9 @@ func (g *ftcGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type partsGen struct{}
 
 func (g *partsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return partsVariant()
+	}
 	claims := []int{1, 2, 3}
 	b := claims[rand.Intn(len(claims))]
 	value := float64(b-1)*math.Exp(float64(b)) + 1
@@ -627,7 +645,7 @@ func (g *partsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		Answer:      answer,
 		Explanation: "Integrating by parts with u = x and dv = e^x dx gives [x·e^x − e^x] from 0 to b, which is (b − 1)e^b + 1 = " + answer + ".",
 		Facts: map[string]string{
-			"b": strconv.Itoa(b), "answer": answer,
+			"kind": "xexp", "b": strconv.Itoa(b), "answer": answer,
 		},
 	}
 }
@@ -639,6 +657,9 @@ func (g *partsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type improperGen struct{}
 
 func (g *improperGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return improperVariant()
+	}
 	claims := []int{2, 3, 4, 5, 6, 10}
 	p := claims[rand.Intn(len(claims))]
 	answer := decimal6(1 / float64(p-1))
@@ -648,7 +669,7 @@ func (g *improperGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		Answer:      answer,
 		Explanation: "An antiderivative is x^(1−p)/(1−p), which tends to 0 at infinity when p > 1, leaving 1/(p − 1) = " + answer + ".",
 		Facts: map[string]string{
-			"p": strconv.Itoa(p), "answer": answer,
+			"kind": "p", "p": strconv.Itoa(p), "a": "1", "answer": answer,
 		},
 	}
 }
@@ -660,6 +681,9 @@ func (g *improperGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type powerSeriesGen struct{}
 
 func (g *powerSeriesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return powerSeriesVariant()
+	}
 	claims := []int{2, 3, 4, 5, 8, 10}
 	c := claims[rand.Intn(len(claims))]
 	answer := decimal6(1 / float64(c))
@@ -669,7 +693,7 @@ func (g *powerSeriesGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		Answer:      answer,
 		Explanation: "The ratio test gives |c·x| < 1, that is |x| < 1/c, so the radius is 1/c = " + answer + ".",
 		Facts: map[string]string{
-			"c": strconv.Itoa(c), "answer": answer,
+			"kind": "mul", "c": strconv.Itoa(c), "answer": answer,
 		},
 	}
 }
@@ -681,6 +705,9 @@ func (g *powerSeriesGen) Generate(ctx generator.GeneratorContext) generator.Prob
 type taylorGen struct{}
 
 func (g *taylorGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return taylorVariant()
+	}
 	claims := []int{1, 2, 3, 4, 5, 6}
 	a := claims[rand.Intn(len(claims))]
 	answer := decimal6(float64(a*a*a) / 6)
@@ -690,7 +717,7 @@ func (g *taylorGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		Answer:      answer,
 		Explanation: "The n-th derivative of e^(a·x) at 0 is a^n, so the x³ coefficient is a³/6 = " + answer + ".",
 		Facts: map[string]string{
-			"a": strconv.Itoa(a), "answer": answer,
+			"kind": "exp", "a": strconv.Itoa(a), "k": "3", "answer": answer,
 		},
 	}
 }
@@ -702,6 +729,9 @@ func (g *taylorGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type contractionGen struct{}
 
 func (g *contractionGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return contractionVariant()
+	}
 	type claim struct {
 		pn, pd, b int
 	}

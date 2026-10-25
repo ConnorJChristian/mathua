@@ -61,6 +61,9 @@ func pickMC(claims []mcClaim) generator.Problem {
 type supremumGen struct{}
 
 func (g *supremumGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return supremumVariant()
+	}
 	type claim struct {
 		lo, hi int
 		set    string
@@ -78,11 +81,11 @@ func (g *supremumGen) Generate(ctx generator.GeneratorContext) generator.Problem
 	return generator.Problem{
 		Question: "What is the supremum of " + c.set + "? (enter a decimal)",
 		Answer:   answer,
-		Explanation: "The supremum is the least upper bound: it is an upper bound, and no smaller number is. Every " +
+		Explanation: "The supremum is the least upper bound: it is an upper bound, and no smaller number is. Every element of " +
 			c.set + " is at most " + strconv.Itoa(c.hi) + ", and numbers just below it are exceeded by elements of the set, so the least upper bound is " +
 			strconv.Itoa(c.hi) + ".",
 		Facts: map[string]string{
-			"lo": strconv.Itoa(c.lo), "hi": strconv.Itoa(c.hi), "answer": answer,
+			"lo": strconv.Itoa(c.lo), "hi": strconv.Itoa(c.hi), "ask": "sup", "answer": answer,
 		},
 	}
 }
@@ -94,6 +97,9 @@ func (g *supremumGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type archimedeanGen struct{}
 
 func (g *archimedeanGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return archimedeanVariant()
+	}
 	type claim struct {
 		pn, pd int
 	}
@@ -119,7 +125,7 @@ func (g *archimedeanGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		Answer:      answer,
 		Explanation: "The inequality 1/N < ε is the same as N > 1/ε, so the smallest integer N is the floor of 1/ε plus one; here 1/ε = " + strconv.Itoa(c.pd) + "/" + strconv.Itoa(c.pn) + ", giving N = " + answer + ".",
 		Facts: map[string]string{
-			"pn": strconv.Itoa(c.pn), "pd": strconv.Itoa(c.pd), "answer": answer,
+			"pn": strconv.Itoa(c.pn), "pd": strconv.Itoa(c.pd), "xn": "1", "xd": "1", "answer": answer,
 		},
 	}
 }
@@ -131,6 +137,9 @@ func (g *archimedeanGen) Generate(ctx generator.GeneratorContext) generator.Prob
 type sequenceGen struct{}
 
 func (g *sequenceGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return sequenceVariant()
+	}
 	type claim struct {
 		a, b, c, d int
 	}
@@ -145,12 +154,11 @@ func (g *sequenceGen) Generate(ctx generator.GeneratorContext) generator.Problem
 	c := claims[rand.Intn(len(claims))]
 	answer := decimal6(float64(c.a) / float64(c.c))
 	return generator.Problem{
-		Question: "The sequence with terms (" + strconv.Itoa(c.a) + "n + " + strconv.Itoa(c.b) + ")/(" +
-			strconv.Itoa(c.c) + "n + " + strconv.Itoa(c.d) + ") converges as n tends to infinity. What is its limit? (enter a decimal)",
+		Question:    "The sequence with terms " + ratSeq{c.a, c.b, c.c, c.d}.String() + " converges as n tends to infinity. What is its limit? (enter a decimal)",
 		Answer:      answer,
 		Explanation: "Dividing the numerator and denominator by n, the ratio of the leading coefficients is the limit, because the constant terms become negligible; here that ratio is " + strconv.Itoa(c.a) + "/" + strconv.Itoa(c.c) + " = " + answer + ".",
 		Facts: map[string]string{
-			"a": strconv.Itoa(c.a), "b": strconv.Itoa(c.b), "c": strconv.Itoa(c.c), "d": strconv.Itoa(c.d), "answer": answer,
+			"a": strconv.Itoa(c.a), "b": strconv.Itoa(c.b), "c": strconv.Itoa(c.c), "d": strconv.Itoa(c.d), "kind": "limit", "answer": answer,
 		},
 	}
 }
@@ -162,6 +170,9 @@ func (g *sequenceGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type monotoneGen struct{}
 
 func (g *monotoneGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return monotoneVariant()
+	}
 	// a = L(L-1) makes the fixed point of L = sqrt(a + L) equal to L.
 	claims := []int{2, 6, 12, 20, 30, 42}
 	a := claims[rand.Intn(len(claims))]
@@ -173,7 +184,7 @@ func (g *monotoneGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		Answer:      answer,
 		Explanation: "Squaring the fixed-point equation gives L² − L − a = 0, whose positive root is (1 + sqrt(1 + 4a))/2; the increasing sequence starting at zero converges to that root.",
 		Facts: map[string]string{
-			"a": strconv.Itoa(a), "answer": answer,
+			"kind": "sqrt", "a": strconv.Itoa(a), "answer": answer,
 		},
 	}
 }
@@ -185,6 +196,9 @@ func (g *monotoneGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type seriesGen struct{}
 
 func (g *seriesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return seriesVariant()
+	}
 	type claim struct {
 		pn, pd int
 	}
@@ -217,6 +231,9 @@ func (g *seriesGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type functionLimitGen struct{}
 
 func (g *functionLimitGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	if rand.Intn(4) != 0 {
+		return functionLimitVariant()
+	}
 	type claim struct {
 		m, en, ed int
 	}
@@ -233,7 +250,7 @@ func (g *functionLimitGen) Generate(ctx generator.GeneratorContext) generator.Pr
 	answer := decimal6(eps / float64(c.m))
 	return generator.Problem{
 		Question: "For the linear function f(x) = " + strconv.Itoa(c.m) + "x − 1 and its limit at x = 2, the largest δ that makes |f(x) − f(2)| < ε whenever |x − 2| < δ is ε divided by the slope. For ε = " +
-			strconv.Itoa(c.en) + "/" + strconv.Itoa(c.ed) + ", what is δ? (enter a decimal)",
+			ratDec(rq(int64(c.en), int64(c.ed))) + ", what is δ? (enter a decimal)",
 		Answer:      answer,
 		Explanation: "Because the function is linear, |f(x) − f(2)| = m|x − 2|, so the condition is m|x − 2| < ε, that is |x − 2| < ε/m; the largest such δ is exactly ε/m.",
 		Facts: map[string]string{
@@ -249,7 +266,7 @@ func (g *functionLimitGen) Generate(ctx generator.GeneratorContext) generator.Pr
 type completenessGen struct{}
 
 func (g *completenessGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The completeness axiom says every nonempty set of reals that is bounded above has...",
 			correct:     "a least upper bound in the reals",
@@ -280,7 +297,7 @@ func (g *completenessGen) Generate(ctx generator.GeneratorContext) generator.Pro
 			distractors: []string{"the set is bounded", "the set is finite", "the set is empty"},
 			reason:      "If the supremum belongs to the set it is the maximum; otherwise the set has no maximum.",
 		},
-	})
+	}, completenessBoundClaim, completenessBoundClaim, completenessApproxClaim, completenessScaleClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -290,7 +307,7 @@ func (g *completenessGen) Generate(ctx generator.GeneratorContext) generator.Pro
 type nestedIntervalsGen struct{}
 
 func (g *nestedIntervalsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The nested interval property says a decreasing sequence of nonempty closed bounded intervals has...",
 			correct:     "a nonempty intersection",
@@ -321,7 +338,7 @@ func (g *nestedIntervalsGen) Generate(ctx generator.GeneratorContext) generator.
 			distractors: []string{"infinity", "one", "a negative number"},
 			reason:      "The intersection collapses to one point exactly when the lengths shrink to zero.",
 		},
-	})
+	}, nestedIntersectionClaim, nestedIntersectionClaim, nestedBisectionClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -331,7 +348,7 @@ func (g *nestedIntervalsGen) Generate(ctx generator.GeneratorContext) generator.
 type densityGen struct{}
 
 func (g *densityGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The density of the rationals says that between any two distinct reals there is...",
 			correct:     "a rational number",
@@ -362,7 +379,7 @@ func (g *densityGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 			distractors: []string{"finite", "complete", "discrete"},
 			reason:      "No open interval is free of rationals, so they are not separated from one another.",
 		},
-	})
+	}, densityProofClaim, densityIrrationalClaim, densityCountClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -372,7 +389,7 @@ func (g *densityGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 type countableGen struct{}
 
 func (g *countableGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A set is countable when...",
 			correct:     "it is finite or can be listed as a sequence",
@@ -403,7 +420,7 @@ func (g *countableGen) Generate(ctx generator.GeneratorContext) generator.Proble
 			distractors: []string{"uncountable", "finite", "a field"},
 			reason:      "The integers can be listed, for instance as zero, one, minus one, two, minus two, and so on.",
 		},
-	})
+	}, func() mcClaim { return countabilityClaim(true) }, countableZListingClaim, countablePairClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -413,7 +430,7 @@ func (g *countableGen) Generate(ctx generator.GeneratorContext) generator.Proble
 type uncountableGen struct{}
 
 func (g *uncountableGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The real numbers are...",
 			correct:     "uncountable",
@@ -444,7 +461,7 @@ func (g *uncountableGen) Generate(ctx generator.GeneratorContext) generator.Prob
 			distractors: []string{"countable", "finite", "empty"},
 			reason:      "A diagonal argument applies to the decimals of that interval just as it does to the whole line.",
 		},
-	})
+	}, func() mcClaim { return countabilityClaim(false) }, uncountableDiagonalClaim, uncountablePowerSetClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -454,7 +471,7 @@ func (g *uncountableGen) Generate(ctx generator.GeneratorContext) generator.Prob
 type extendedGen struct{}
 
 func (g *extendedGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The extended real line adds to the reals the two symbols...",
 			correct:     "plus infinity and minus infinity",
@@ -485,7 +502,7 @@ func (g *extendedGen) Generate(ctx generator.GeneratorContext) generator.Problem
 			distractors: []string{"every set has a maximum", "the reals become countable", "every limit exists"},
 			reason:      "The unbounded cases are absorbed by the two infinite endpoints.",
 		},
-	})
+	}, extendedArithmeticClaim, extendedSupInfClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -495,7 +512,7 @@ func (g *extendedGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type subsequenceGen struct{}
 
 func (g *subsequenceGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A subsequence of a convergent sequence...",
 			correct:     "converges to the same limit",
@@ -526,7 +543,7 @@ func (g *subsequenceGen) Generate(ctx generator.GeneratorContext) generator.Prob
 			distractors: []string{"diverges", "is unbounded", "has no limit points"},
 			reason:      "If it did not converge to L, a subsequence would avoid a neighbourhood of L and have no further subsequence converging there.",
 		},
-	})
+	}, subsequenceLimitsClaim, subsequenceSameLimitClaim, subsequenceOddEvenClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -536,7 +553,7 @@ func (g *subsequenceGen) Generate(ctx generator.GeneratorContext) generator.Prob
 type bolzanoWeierstrassGen struct{}
 
 func (g *bolzanoWeierstrassGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The Bolzano-Weierstrass theorem says every bounded sequence of reals has...",
 			correct:     "a convergent subsequence",
@@ -567,7 +584,7 @@ func (g *bolzanoWeierstrassGen) Generate(ctx generator.GeneratorContext) generat
 			distractors: []string{"completeness alone", "connectedness", "countability"},
 			reason:      "A space in which every sequence has a convergent subsequence is exactly a sequentially compact space.",
 		},
-	})
+	}, bwWhichClaim, bwBisectionClaim, bwCosineClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -577,7 +594,7 @@ func (g *bolzanoWeierstrassGen) Generate(ctx generator.GeneratorContext) generat
 type cauchyGen struct{}
 
 func (g *cauchyGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A sequence is Cauchy when...",
 			correct:     "its terms eventually get and stay arbitrarily close to one another",
@@ -608,7 +625,7 @@ func (g *cauchyGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			distractors: []string{"diverges", "is constant", "is unbounded"},
 			reason:      "Once the tail is Cauchy and one subsequence is near the limit, the whole tail is near it.",
 		},
-	})
+	}, cauchyWhichClaim, cauchyTrapClaim, cauchyThresholdClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -618,7 +635,7 @@ func (g *cauchyGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type ratioTestGen struct{}
 
 func (g *ratioTestGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The comparison test concludes convergence when...",
 			correct:     "the terms are bounded by those of a convergent series",
@@ -649,7 +666,7 @@ func (g *ratioTestGen) Generate(ctx generator.GeneratorContext) generator.Proble
 			distractors: []string{"the terms alternate", "the terms are constant", "the series has finitely many terms"},
 			reason:      "Taking the n-th root of a power removes the exponent and exposes the limiting factor.",
 		},
-	})
+	}, testsRatioClaim, testsRatioClaim, testsComparisonClaim, testsRootClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -659,7 +676,7 @@ func (g *ratioTestGen) Generate(ctx generator.GeneratorContext) generator.Proble
 type absoluteGen struct{}
 
 func (g *absoluteGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A series converges absolutely when...",
 			correct:     "the series of the absolute values of its terms converges",
@@ -690,7 +707,7 @@ func (g *absoluteGen) Generate(ctx generator.GeneratorContext) generator.Problem
 			distractors: []string{"one", "infinity", "a nonzero constant"},
 			reason:      "A convergent sequence of partial sums has differences, the terms, tending to zero.",
 		},
-	})
+	}, absoluteClassClaim, absoluteClassClaim, absoluteErrorClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -700,7 +717,7 @@ func (g *absoluteGen) Generate(ctx generator.GeneratorContext) generator.Problem
 type rearrangementGen struct{}
 
 func (g *rearrangementGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "Riemann's rearrangement theorem says a conditionally convergent series can...",
 			correct:     "be rearranged to converge to any real number, or to diverge",
@@ -731,7 +748,7 @@ func (g *rearrangementGen) Generate(ctx generator.GeneratorContext) generator.Pr
 			distractors: []string{"drops some terms", "repeats some terms", "changes the values of the terms"},
 			reason:      "A rearrangement is a bijection from the natural numbers to themselves applied to the order.",
 		},
-	})
+	}, rearrangeGreedyClaim, rearrangeClassClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -741,7 +758,7 @@ func (g *rearrangementGen) Generate(ctx generator.GeneratorContext) generator.Pr
 type cauchyCriterionGen struct{}
 
 func (g *cauchyCriterionGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The Cauchy criterion for series says a series converges exactly when...",
 			correct:     "its tail sums can be made arbitrarily small",
@@ -772,7 +789,7 @@ func (g *cauchyCriterionGen) Generate(ctx generator.GeneratorContext) generator.
 			distractors: []string{"boundedness", "monotonicity", "divergence"},
 			reason:      "In a complete space a Cauchy sequence converges, so the block condition guarantees a limit.",
 		},
-	})
+	}, cauchyCritGeometricClaim, cauchyCritHarmonicClaim, cauchyCritTermClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -782,7 +799,7 @@ func (g *cauchyCriterionGen) Generate(ctx generator.GeneratorContext) generator.
 type sequentialGen struct{}
 
 func (g *sequentialGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The sequential criterion for a limit says the limit of f at a is L exactly when...",
 			correct:     "for every sequence tending to a within the domain, the images tend to L",
@@ -813,7 +830,7 @@ func (g *sequentialGen) Generate(ctx generator.GeneratorContext) generator.Probl
 			distractors: []string{"continuity of derivatives", "countability", "series"},
 			reason:      "It reduces every statement about a function limit to a statement about sequences.",
 		},
-	})
+	}, sequentialSinClaim, sequentialStepClaim, sequentialDirichletClaim, sequentialRemovableClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -823,7 +840,7 @@ func (g *sequentialGen) Generate(ctx generator.GeneratorContext) generator.Probl
 type continuityGen struct{}
 
 func (g *continuityGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A function is continuous at a when...",
 			correct:     "the limit at a equals the value at a",
@@ -854,7 +871,7 @@ func (g *continuityGen) Generate(ctx generator.GeneratorContext) generator.Probl
 			distractors: []string{"unbounded", "constant", "differentiable"},
 			reason:      "This is the extreme value theorem, a consequence of compactness.",
 		},
-	})
+	}, continuityPiecewiseClaim, continuityFillClaim, continuityWhichClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -864,7 +881,7 @@ func (g *continuityGen) Generate(ctx generator.GeneratorContext) generator.Probl
 type ivtGen struct{}
 
 func (g *ivtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The intermediate value theorem says a continuous function on an interval...",
 			correct:     "takes every value between its endpoint values",
@@ -895,7 +912,7 @@ func (g *ivtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			distractors: []string{"the Archimedean property alone", "countability", "the ratio test"},
 			reason:      "The proof locates the intermediate value as a supremum, which needs completeness.",
 		},
-	})
+	}, ivtCubicClaim, ivtValueClaim, ivtBisectClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -905,7 +922,7 @@ func (g *ivtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type evtGen struct{}
 
 func (g *evtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The extreme value theorem says a continuous function on a closed bounded interval...",
 			correct:     "attains a maximum and a minimum",
@@ -936,7 +953,7 @@ func (g *evtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			distractors: []string{"its derivative", "its integral", "its countability"},
 			reason:      "One gives the range of values, the other the attainment of the extreme ones.",
 		},
-	})
+	}, evtQuadraticClaim, evtQuadraticClaim, evtDomainClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -946,7 +963,7 @@ func (g *evtGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 type uniformGen struct{}
 
 func (g *uniformGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "A function is uniformly continuous when...",
 			correct:     "one delta works for every point of the domain",
@@ -977,7 +994,7 @@ func (g *uniformGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 			distractors: []string{"divergent sequences", "bounded sequences only", "constant sequences"},
 			reason:      "Close terms stay close after the mapping, uniformly, which is exactly what is needed.",
 		},
-	})
+	}, uniformLinearDeltaClaim, uniformSquareDeltaClaim, uniformWhichClaim)
 }
 
 // ---------------------------------------------------------------------------
@@ -987,7 +1004,7 @@ func (g *uniformGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 type compactGen struct{}
 
 func (g *compactGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return pickMC([]mcClaim{
+	return mixMC([]mcClaim{
 		{
 			q:           "The Heine-Borel theorem says a subset of the reals is compact exactly when it is...",
 			correct:     "closed and bounded",
@@ -1018,5 +1035,5 @@ func (g *compactGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 			distractors: []string{"open", "unbounded", "connected"},
 			reason:      "A finite subcover can be taken on each compact piece and combined.",
 		},
-	})
+	}, compactWhichClaim, compactWhichClaim, compactWitnessClaim)
 }
