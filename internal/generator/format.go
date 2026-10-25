@@ -1,6 +1,9 @@
 package generator
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // AnswerFormat is what the learner should type and which keyboard the field
 // should offer.
@@ -75,4 +78,14 @@ func AnswerFormatFor(gen Generator, gradingType string) AnswerFormat {
 		f.InputMode = own.InputMode
 	}
 	return f
+}
+
+// Sq writes n squared for an explanation: "3^2", or "(-3)^2" for a negative
+// n. "-3^2" reads as -(3^2) = -9, so a distance worked as sqrt(-3^2 + -4^2)
+// was wrong as written (Q29).
+func Sq(n int) string {
+	if n < 0 {
+		return "(" + strconv.Itoa(n) + ")^2"
+	}
+	return strconv.Itoa(n) + "^2"
 }

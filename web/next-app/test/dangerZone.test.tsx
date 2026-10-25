@@ -83,7 +83,7 @@ describe('DangerZone', () => {
   it('states the keeps list including destination, deadline and pace', () => {
     render(<DangerZone />)
     expect(screen.getByText(/Destination, deadline and pace/i)).toBeTruthy()
-    expect(screen.getByText(/profile and leaderboard/i)).toBeTruthy()
+    expect(screen.getByText(/XP and your profile/i)).toBeTruthy()
   })
 })
 

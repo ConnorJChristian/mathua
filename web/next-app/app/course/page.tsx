@@ -36,17 +36,20 @@ function noteHref(n: CourseNote): string {
   return n.url.startsWith('/') ? `${API_BASE}${n.url}` : n.url
 }
 
+// A due topic is a mastered one whose review date has come (Q2), so "Review
+// due" is checked before "Mastered".
 function statusWord(t: CourseTopic): string {
-  if (t.status === 'mastered') return 'Mastered'
   if (t.due) return 'Review due'
+  if (t.status === 'mastered') return 'Mastered'
   if (t.attempts > 0) return t.status === 'practicing' ? 'Practicing' : 'Learning'
+  if (t.placed) return 'Placed'
   if (t.locked) return 'Locked'
   return 'Not started'
 }
 
 function statusClass(t: CourseTopic): string {
-  if (t.status === 'mastered') return 'text-mathua-green'
   if (t.due) return 'text-amber-600 dark:text-amber-400'
+  if (t.status === 'mastered') return 'text-mathua-green'
   if (t.attempts > 0) return 'text-mathua-blue'
   return 'text-mathua-muted'
 }

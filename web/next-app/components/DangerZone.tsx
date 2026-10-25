@@ -101,7 +101,7 @@ export default function DangerZone() {
           <ul className="font-mono text-[11px] text-mathua-secondary space-y-0.5">
             <li>Concept mastery, streaks, review schedule</li>
             <li>Attempts log and sessions</li>
-            <li>XP — profile and leaderboard</li>
+            <li>XP and your profile</li>
             <li>Diagnostic flag and plan evidence</li>
           </ul>
         </div>

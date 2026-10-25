@@ -14,11 +14,17 @@ import type { Shelf, ShelfItem } from './nextUp'
  * they are the server's copy, and rewriting them here is how two surfaces came to describe one
  * head differently.
  */
+const SPECIAL_TITLES: Record<string, string> = {
+  diagnostic: 'Placement test',
+  paused: 'Learning paused',
+}
+
 export function recommendationToShelfItem(r: Recommendation): ShelfItem {
   return {
     kind: shelfKind(r),
     badge: r.badge,
-    title: r.conceptTitle || r.id,
+    // Ids that are not topics get a name, not the raw id (Q20: "Start here: diagnostic").
+    title: r.conceptTitle || SPECIAL_TITLES[r.id] || r.id,
     detail: r.detail,
     href: r.action.href,
     cta: r.cta,

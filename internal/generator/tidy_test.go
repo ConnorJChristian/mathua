@@ -18,6 +18,10 @@ func TestTidy(t *testing.T) {
 		{"$f(x)=1x^{2}y+1xy^{2}$", "$f(x)=x^{2}y+xy^{2}$"},
 		{"Parabola: $(y+0)^{2} = -8(x-1)$.", "Parabola: $y^{2} = -8(x-1)$."},
 		{"$f(x)^{2} + g(x)$", "$f(x)^{2} + g(x)$"},
+		{"Is $(1,1)$ a solution to $y < 1x + 1$?", "Is $(1,1)$ a solution to $y < x + 1$?"},
+		{"Integrating 2x in x gives 1x^2, and", "Integrating 2x in x gives x^2, and"},
+		{"the product 1y(4 - y) is zero", "the product y(4 - y) is zero"},
+		{"vanishes: 1x - 4 = 0 gives x = 4.", "vanishes: x - 4 = 0 gives x = 4."},
 		// Untouched: no variable, words, numbers, decimals, units.
 		{"A neuron computes $1 \\cdot 2 + -1 \\cdot 1 + -2$ and", "A neuron computes $1 \\cdot 2 + -1 \\cdot 1 + -2$ and"},
 		{"holding 1s and 0s", "holding 1s and 0s"},
@@ -30,6 +34,35 @@ func TestTidy(t *testing.T) {
 	for _, c := range cases {
 		if got := Tidy(c.in); got != c.want {
 			t.Errorf("Tidy(%q)\n got %q\nwant %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestTidyExplanation(t *testing.T) {
+	if got := TidyExplanation("gives $(1 - -7/25)/2 = 16/25$."); got != "gives $(1 + 7/25)/2 = 16/25$." {
+		t.Errorf("got %q", got)
+	}
+	if got := Tidy("Compute $(1 - -7/25)/2$."); got != "Compute $(1 - -7/25)/2$." {
+		t.Errorf("a question keeps its arithmetic: %q", got)
+	}
+}
+
+func TestTidyAnswer(t *testing.T) {
+	cases := map[string]string{
+		"4x + -2":             "4x - 2",
+		"y=1x+-1":             "y=x-1",
+		"x=-2+3t,y=4+-1t":     "x=-2+3t,y=4-t",
+		"1x^2+C":              "x^2+C",
+		"25-1i":               "25-i",
+		"(4/1)e^(1x)+C":       "(4/1)e^(x)+C",
+		"C1*e^(3x)+C2*e^(1x)": "C1*e^(3x)+C2*e^(x)",
+		"y = 1x - 3":          "y = x - 3",
+		"12":                  "12",
+		"1/11":                "1/11",
+	}
+	for in, want := range cases {
+		if got := TidyAnswer(in); got != want {
+			t.Errorf("TidyAnswer(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

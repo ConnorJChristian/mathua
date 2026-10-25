@@ -176,8 +176,8 @@ func (g *normSquaredGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		return generator.Problem{
 			Question: fmt.Sprintf("Find the squared length \\(\\|v\\|^2\\) of the vector \\(v = (%d, %d)\\).", v[0], v[1]),
 			Answer:   fmt.Sprintf("%d", sum),
-			Explanation: fmt.Sprintf("The squared length is the vector's dot product with itself: %d^2 + %d^2 = %d. Squaring avoids the square root, and any comparison of lengths can be done with the squares because squaring is increasing for positive numbers.",
-				v[0], v[1], sum),
+			Explanation: fmt.Sprintf("The squared length is the vector's dot product with itself: %s + %s = %d. Squaring avoids the square root, and any comparison of lengths can be done with the squares because squaring is increasing for positive numbers.",
+				generator.Sq(v[0]), generator.Sq(v[1]), sum),
 			Facts: map[string]string{"squared_length": fmt.Sprintf("%d", sum)},
 		}
 	}

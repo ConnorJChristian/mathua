@@ -38,14 +38,14 @@ describe('landing hero', () => {
     render(<HomePage />)
     const cta = await screen.findByRole('button', { name: 'Get started' })
     cta.click()
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/learn'))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/courses'))
     expect(pushMock).not.toHaveBeenCalledWith('/profile')
   })
 
   it('establishes a guest identity before leaving, so the first answer is gradeable', async () => {
     render(<HomePage />)
     ;(await screen.findByRole('button', { name: 'Get started' })).click()
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/learn'))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/courses'))
     // The anchor that grades the first answer is keyed by student, and the
     // practice endpoint only resolves one from a bearer token — so the guest
     // id and token have to exist before /learn fetches anything.
@@ -79,20 +79,13 @@ describe('landing hero', () => {
     expect(ghostTokens).not.toContain('hover:bg-mathua-blue-hover')
   })
 
-  it('lists Learn in the landing header and does not advertise the closed library', async () => {
+  it('leads the landing header with Courses (fork change) and does not advertise the closed library', async () => {
     render(<HomePage />)
     const header = await screen.findByRole('banner')
-    const learn = header.querySelector('a[href="/learn"]')
-    expect(learn).not.toBeNull()
-    // The landing hardcodes its own header rather than inheriting lib/nav.ts, so it is the one
-    // place the product's own navigation decision could quietly disappear — in either
-    // direction. Learn leads, and the closed reference library is not offered at all.
     const hrefs = [...header.querySelectorAll('a')].map((a) => a.getAttribute('href'))
-    // The brand mark is the first anchor, so the ordering claim is about the nav entries:
-    // Learn leads them.
-    expect(hrefs.indexOf('/learn')).toBeGreaterThan(-1)
-    expect(hrefs.indexOf('/learn')).toBeLessThan(hrefs.indexOf('/how-it-works'))
+    expect(hrefs.indexOf('/courses')).toBeGreaterThan(-1)
+    expect(hrefs.indexOf('/courses')).toBeLessThan(hrefs.indexOf('/how-it-works'))
     expect(hrefs).not.toContain('/study')
-    expect([...header.querySelectorAll('a')].some((a) => /study/i.test(a.textContent ?? ''))).toBe(false)
+    expect(hrefs).not.toContain('/leaderboard')
   })
 })

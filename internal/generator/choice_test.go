@@ -1,6 +1,7 @@
 package generator
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -69,5 +70,25 @@ func TestMultipleChoiceKeepsTheAnswerWhenThereAreTooManyOptions(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("the correct answer was dropped from %v", opts)
+	}
+}
+
+// Q30: the same question always comes out the same, so a repeat is
+// recognisable as one (practice exclusion, mastery instance counting).
+func TestMultipleChoiceOrderIsStable(t *testing.T) {
+	first := MultipleChoice("Which is uniform?", "f_n = x/n on [0,1]", "f_n = x^n on [0,1]", "f_n = n x on R", "f_n = sin(nx)/sqrt(n)? no").Question
+	for i := 0; i < 20; i++ {
+		if got := MultipleChoice("Which is uniform?", "f_n = x/n on [0,1]", "f_n = x^n on [0,1]", "f_n = n x on R", "f_n = sin(nx)/sqrt(n)? no").Question; got != first {
+			t.Fatalf("serve %d reordered the options:\n%s\nvs\n%s", i, got, first)
+		}
+	}
+	// Different stems still land the answer in different places.
+	pos := map[int]bool{}
+	for i := 0; i < 40; i++ {
+		q := MultipleChoice(fmt.Sprintf("Stem %d?", i), "right", "w1", "w2", "w3").Question
+		pos[strings.Index(q, ") right")] = true
+	}
+	if len(pos) < 3 {
+		t.Errorf("answer position barely varies across stems: %v", pos)
 	}
 }

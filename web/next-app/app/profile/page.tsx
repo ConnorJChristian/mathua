@@ -349,11 +349,11 @@ export default function ProfilePage() {
             <>
               {(isNew && placementCompleted === false) && (
                 <Link href="/onboard" className="text-mathua-blue hover:text-mathua-blue-hover">
-                  New here? Take the diagnostic →
+                  New here? Place yourself →
                 </Link>
               )}
-              <Link href="/plan" className="text-mathua-blue hover:text-mathua-blue-hover">
-                Plan your learning →
+              <Link href="/courses" className="text-mathua-blue hover:text-mathua-blue-hover">
+                Your courses →
               </Link>
               {/* /how-it-works was reachable only from the landing-page header and a line on the
                   docs index, so once a learner was inside the app there was no path to the page

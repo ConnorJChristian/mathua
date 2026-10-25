@@ -170,7 +170,7 @@ func (g *vectorBasicsGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	return generator.Problem{
 		Question:    fmt.Sprintf("Find the magnitude of the vector \\(\\langle %d, %d \\rangle\\).", v.x, v.y),
 		Answer:      ans,
-		Explanation: fmt.Sprintf("\\(\\|\\mathbf{v}\\| = \\sqrt{%d^2 + %d^2} = %d\\).", v.x, v.y, mag),
+		Explanation: fmt.Sprintf("\\(\\|\\mathbf{v}\\| = \\sqrt{%s + %s} = %d\\).", generator.Sq(v.x), generator.Sq(v.y), mag),
 	}
 }
 

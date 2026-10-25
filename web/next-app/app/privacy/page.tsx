@@ -118,13 +118,13 @@ export default function PrivacyPage() {
         <h2 style={h2Style}>Changes and questions</h2>
         <p style={textStyle}>
           If what the assistant sends changes, the notice in the panel asks you again rather
-          than assuming your earlier answer still applies. Questions about this notice can go
-          to the repository&rsquo;s issue tracker:{' '}
+          than assuming your earlier answer still applies. This install is a personal fork;
+          its code is at{' '}
           <a
-            href="https://github.com/chuma-beep/mathua/issues"
+            href="https://github.com/ConnorJChristian/mathua"
             style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}
           >
-            github.com/chuma-beep/mathua
+            github.com/ConnorJChristian/mathua
           </a>
           .
         </p>

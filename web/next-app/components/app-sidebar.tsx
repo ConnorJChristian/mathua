@@ -6,7 +6,6 @@ import { useRef, useState } from 'react'
 import {
   BookOpen,
   ChartNoAxesColumn,
-  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   FileText,
@@ -15,7 +14,6 @@ import {
   Layers,
   LayoutGrid,
   LogOut,
-  Mail,
   Shield,
   Network,
   Pencil,
@@ -126,7 +124,6 @@ export function AppSidebar({
   const pathname = usePathname()
   // Contact is one control, not two destinations: the page and the Discord
   // server answer different needs, so the choice belongs after the click.
-  const [contactOpen, setContactOpen] = useState(false)
   const router = useRouter()
   const { toggleSidebar } = useSidebar()
   // The theme control used to live only in Header, and /profile does not render one, so this
@@ -244,39 +241,6 @@ export function AppSidebar({
                   </SidebarMenuItem>
                 )
               })}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  type="button"
-                  isActive={pathname === '/contact'}
-                  tooltip="Contact admins"
-                  aria-expanded={contactOpen}
-                  onClick={() => setContactOpen((open) => !open)}
-                >
-                  <Mail className="shrink-0" />
-                  <span className="group-data-[collapsible=icon]:hidden">Contact admins</span>
-                  <ChevronDown
-                    className={`ml-auto shrink-0 transition-transform group-data-[collapsible=icon]:hidden ${contactOpen ? 'rotate-180' : ''}`}
-                  />
-                </SidebarMenuButton>
-                {contactOpen && (
-                  <SidebarMenuSub>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild>
-                        <Link href="/contact">
-                          <span>Contact page</span>
-                        </Link>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                    <SidebarMenuSubItem>
-                      <SidebarMenuSubButton asChild>
-                        <a href="https://discord.gg/qXPeQ2jys" target="_blank" rel="noreferrer">
-                          <span>Discord server</span>
-                        </a>
-                      </SidebarMenuSubButton>
-                    </SidebarMenuSubItem>
-                  </SidebarMenuSub>
-                )}
-              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

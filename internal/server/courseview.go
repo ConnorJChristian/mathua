@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/engine"
+	"github.com/chuma-beep/mathua/internal/mastery"
 	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -32,6 +34,9 @@ type courseTopic struct {
 	Notes    []courseNote    `json:"notes,omitempty"`  // lecture notes (fork change)
 	Cards    int             `json:"cards,omitempty"`  // flashcard decks that cover it
 	Pinned   bool            `json:"pinned,omitempty"` // pinned for this week (fork change)
+	// Placed: the placement test put the learner at or above this topic
+	// (reachable, not yet studied). Shown as "placed", not "unseen" (Q33).
+	Placed bool `json:"placed,omitempty"`
 }
 
 type courseModule struct {
@@ -159,7 +164,13 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		if p := progress[cid]; p != nil && p.Attempts > 0 {
 			t.Status = strings.ToLower(p.Status)
 			t.Attempts = p.Attempts
-			t.Due = p.NextReviewDue != nil && !p.NextReviewDue.After(now)
+			// Due means what the review session serves: a mastered topic
+			// whose review date has come (Q2). A learning topic's
+			// next_review_due is a practice date, not a review.
+			t.Due = p.Status == string(mastery.StatusMastered) && p.NextReviewDue != nil && !p.NextReviewDue.After(now)
+		} else if p != nil && p.PlacementSeeded {
+			// Placed by the placement test: reachable, not studied (Q33).
+			t.Placed = true
 		}
 		el := scheduler.EligibilityOf(snaps, now, cc)
 		t.Locked = !el.Eligible
@@ -221,7 +232,9 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		placed[cc.ID] = true
 		if onPlan[cc.ID] {
 			rest = append(rest, *t)
-		} else if t.Status != "mastered" {
+		} else if t.Status != "mastered" && !t.Placed {
+			// A prerequisite the placement test already put the learner
+			// above is not work to list (Q27).
 			out.Prerequisites = append(out.Prerequisites, *t)
 		}
 	}
@@ -263,12 +276,35 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 	}
 	// Every open plan topic done, or none open yet: the next thing is the
 	// first open prerequisite.
-	if out.NextTopic == nil {
+	//
+	// "First" is nearest to the plan, not first in topological order: the
+	// order starts at the roots, so a course whose first plan topic was locked
+	// offered Single-digit addition as its next step (Q27). Walk back from the
+	// first unfinished plan topic and take the closest open prerequisite.
+	if out.NextTopic == nil && len(out.Prerequisites) > 0 {
+		open := map[string]courseTopic{}
 		for _, t := range out.Prerequisites {
 			if !t.Locked {
+				open[t.ID] = t
+			}
+		}
+		for _, cid := range append(append([]string{}, c.Plan...), c.Targets...) {
+			if p := progress[cid]; p != nil && p.Status == string(mastery.StatusMastered) {
+				continue
+			}
+			if t, ok := nearestOpenPrereq(s.eng.GetDAG(), cid, open); ok {
 				nt := t
 				out.NextTopic = &nt
 				break
+			}
+		}
+		if out.NextTopic == nil {
+			for _, t := range out.Prerequisites {
+				if !t.Locked {
+					nt := t
+					out.NextTopic = &nt
+					break
+				}
 			}
 		}
 	}
@@ -396,4 +432,26 @@ func courseVideos(mods *modules.Set, id string) []courseVideo {
 		out = append(out, cv)
 	}
 	return out
+}
+
+// nearestOpenPrereq walks a topic's prerequisites breadth-first and returns
+// the first one in open: the closest step toward the topic.
+func nearestOpenPrereq(dag *concepts.DAG, target string, open map[string]courseTopic) (courseTopic, bool) {
+	seen := map[string]bool{target: true}
+	queue := []string{target}
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, p := range dag.PrereqsOf(id) {
+			if seen[p.ID] {
+				continue
+			}
+			seen[p.ID] = true
+			if t, ok := open[p.ID]; ok {
+				return t, true
+			}
+			queue = append(queue, p.ID)
+		}
+	}
+	return courseTopic{}, false
 }

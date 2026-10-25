@@ -75,29 +75,17 @@ export default function ContactPage() {
         </h1>
 
         <p style={textStyle}>
-          Mathua is built and run by one person, so the same person reads all of this. Which
-          channel to use depends on what went wrong: a question, the site, or your account.
+          This is a personal install of a fork of Mathua. Its administrator is whoever runs
+          it, so what you write here lands in this install&rsquo;s own admin queue, not with
+          the upstream Mathua project.
         </p>
 
-        <h2 style={h2Style}>Leave a message</h2>
+        <h2 style={h2Style}>Leave a note</h2>
         <p style={textStyle}>
-          If you would rather write here than on another site, use the box. It reaches the
-          same queue as a report about a question, and one person reads it. There is no
-          automatic reply, so use X below if you need an answer.
+          Use the box to file a note for later: something to fix, a course to add, a source
+          to check. It reaches the same queue as a report about a question.
         </p>
         <ContactBox />
-
-        <h2 style={h2Style}>Discord</h2>
-        <p style={textStyle}>
-          The{' '}
-          <a href="https://discord.gg/qXPeQ2jys" target="_blank" rel="noreferrer" style={linkStyle}>
-            Mathua Discord server
-          </a>{' '}
-          is the fastest way to reach other learners and the administrator. Ask about a lesson,
-          say what you are working on, or explain a problem that is easier to talk through than
-          to type into a form. Keep anything private — an account problem, a password, a message
-          meant for one person — to the box above, not the public server.
-        </p>
 
         <h2 style={h2Style}>A question is wrong</h2>
         <p style={textStyle}>
@@ -111,29 +99,11 @@ export default function ContactPage() {
           into the box, a figure that does not load, or a mistake in an explanation.
         </p>
 
-        <h2 style={h2Style}>The site is broken, or your account is</h2>
+        <h2 style={h2Style}>A bug in upstream Mathua</h2>
         <p style={textStyle}>
-          Message me on X:{' '}
-          <a
-            href="https://x.com/wisdomsglow"
-            target="_blank"
-            rel="noreferrer"
-            style={linkStyle}
-          >
-            @wisdomsglow
-          </a>
-          . Account problems do not belong in a public issue tracker, because everything posted
-          there is visible to everyone. If you cannot sign in, say which page you were on and
-          what you saw.
-        </p>
-        <p style={textStyle}>
-          Never send your password to anyone, including me. Nothing in Mathua will ask for it.
-        </p>
-
-        <h2 style={h2Style}>A bug in Mathua itself</h2>
-        <p style={textStyle}>
-          If a page does not load, a layout breaks, or a button does nothing, and the problem is
-          safe to discuss in public, open an issue:{' '}
+          If the bug is in Mathua itself rather than in this fork&rsquo;s courses or changes,
+          and it is safe to discuss in public, it can go to the upstream project&rsquo;s
+          tracker:{' '}
           <a
             href="https://github.com/chuma-beep/mathua/issues"
             target="_blank"
@@ -142,8 +112,11 @@ export default function ContactPage() {
           >
             github.com/chuma-beep/mathua/issues
           </a>
-          . Include the page address, what you did, what you expected, what happened, and your
-          browser and device if you know them.
+          . Include the page address, what you did, what you expected and what happened.
+        </p>
+
+        <p style={textStyle}>
+          Never send your password to anyone. Nothing in Mathua will ask for it.
         </p>
 
         <h2 style={h2Style}>What not to send</h2>
@@ -152,12 +125,6 @@ export default function ContactPage() {
           will not ask for them.
         </p>
 
-        <h2 style={h2Style}>What happens next</h2>
-        <p style={textStyle}>
-          Every report is read. Mathua is in beta and maintained by one person, so a reply can
-          take a while. When a fix ships, the reports that led to it are closed with the reason
-          recorded against each one, so the trail says what was wrong and what changed.
-        </p>
       </div>
       <Footer />
       <BottomTabs />

@@ -83,7 +83,8 @@ export default function TodayPage() {
   }, [])
 
   if (!mounted || rows === null) return <Loading label="Working out what to study" full />
-  const reviewsDue = views.reduce((n, v) => n + v.reviews_due, 0)
+  // Distinct topics: a topic on two courses is one review, not two (Q2).
+  const reviewsDue = new Set(views.flatMap((v) => v.modules.flatMap((m) => m.topics.filter((t) => t.due).map((t) => t.id)))).size
   const kindLabel = (r: Recommendation) => r.pinned ? (r.pinnedFor ? `This week · for ${r.pinnedFor}` : 'This week') : r.kind === 'review' ? 'Review' : r.badge === 'New' ? 'New topic' : r.kind === 'practice' ? 'Practice' : r.kind === 'mastery_check' ? 'Mastery check' : r.reason === 'prerequisite' ? 'Prerequisite' : 'New topic'
   const pinCourses = (cid: string) => byConcept.get(cid) ?? []
 

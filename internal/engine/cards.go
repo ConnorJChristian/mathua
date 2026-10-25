@@ -55,8 +55,8 @@ type cardPick struct {
 }
 
 // attachCards wraps each generated topic that has cards: the ones filed
-// under it in a module's cards.json, or, failing that, every card of each
-// deck that lists it as a prerequisite.
+// under it in a module's cards.json, or, when no module files any cards,
+// every card of each deck that lists it as a prerequisite.
 func attachCards(dag *concepts.DAG, reg *generator.Registry) {
 	attachCardsFrom(dag, reg, nil)
 }
@@ -106,6 +106,14 @@ func attachCardsFrom(dag *concepts.DAG, reg *generator.Registry, filed map[strin
 			}
 			return m
 		})
+	}
+	// The deck fallback is for installs with no filing at all. Where a
+	// cards.json exists it is the whole truth: a topic it does not list gets
+	// no cards. Falling back per topic served every card of every deck that
+	// named the topic as a prerequisite ("Reduce 14/35" and "Flows/Stocks"
+	// under systems by substitution; 57 topics in all; Q6).
+	if len(filed) > 0 {
+		return
 	}
 	decks := map[string][]string{} // topic -> decks covering it
 	for _, c := range dag.Order() {

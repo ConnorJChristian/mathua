@@ -1259,6 +1259,8 @@ export async function getLessonPractice(conceptId: string, count = 5, opts?: { s
 	if (opts?.difficulty !== undefined) params.set('difficulty', String(opts.difficulty))
 	for (const ex of opts?.exclude ?? []) params.append('exclude', ex)
 	const res = await authedFetch(`${API_BASE}/api/lessons/${encodeURIComponent(conceptId)}/practice?${params.toString()}`)
+	// A stale link to a topic that no longer exists reads as such, not as a status code (Q25).
+	if (res.status === 404) throw new Error('This topic does not exist. It may have been renamed or removed; find it under Topics.')
 	if (!res.ok) throw new Error(`Lesson practice fetch failed: ${res.status}`)
 	return res.json()
 }
@@ -2263,6 +2265,8 @@ export interface CourseTopic {
   notes?: CourseNote[]
   cards?: number
   pinned?: boolean
+  /** The placement test put the learner at or above this topic (not yet studied). */
+  placed?: boolean
 }
 // Fork change: a page of lecture notes (a notebook rendered to HTML, or a link).
 export interface CourseNote { title: string; unit?: string; unit_seq?: number; seq?: number; url: string; topic?: string }

@@ -1645,7 +1645,8 @@ func (g *derivLogDiffGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	table := []entry{
 		{"Use logarithmic differentiation: find \\(f'(x)\\) if \\(f(x)=x^{x}\\).", "x^x*(ln(x)+1)", "Take logs: \\(\\ln f = x\\ln x\\), so \\(f'/f = \\ln x + 1\\)."},
 		{"Use logarithmic differentiation: find \\(f'(x)\\) if \\(f(x)=x^{2x}\\).", "x^(2x)*(2ln(x)+2)", "Take logs: \\(\\ln f = 2x\\ln x\\), so \\(f'/f = 2\\ln x + 2\\)."},
-		{"What is the first step of logarithmic differentiation? (yes/no: take the natural log of both sides)", "yes", "Logarithmic differentiation starts by taking \\(\\ln\\) of both sides (take the natural log of both sides), then differentiating implicitly."},
+		// Q31: was a yes/no "first step" item whose prompt stated the answer.
+		{"Use logarithmic differentiation: find \\(f'(x)\\) if \\(f(x)=x^{3x}\\).", "x^(3x)*(3ln(x)+3)", "Take logs: \\(\\ln f = 3x\\ln x\\), so \\(f'/f = 3\\ln x + 3\\)."},
 		{"Use logarithmic differentiation: find \\(f'(x)\\) if \\(f(x)=(2x)^{x}\\).", "(2x)^x*(ln(2x)+1)", "Take logs: \\(\\ln f = x\\ln(2x)\\), so \\(f'/f = \\ln(2x) + 1\\)."},
 	}
 	e := table[rand.Intn(len(table))]

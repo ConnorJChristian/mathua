@@ -75,8 +75,8 @@ func (g *arcLengthParametricGen) Generate(ctx generator.GeneratorContext) genera
 	return generator.Problem{
 		Question: fmt.Sprintf("Find the arc length of the curve \\(x = %dt,\\ y = %dt\\) for \\(0 \\le t \\le 1\\).", tr[0], tr[1]),
 		Answer:   fmt.Sprintf("%d", tr[2]),
-		Explanation: fmt.Sprintf("Arc length is the integral of sqrt((dx/dt)^2 + (dy/dt)^2), and here the integrand is the constant sqrt(%d^2 + %d^2) = %d, so over an interval of length 1 the length is %d.",
-			tr[0], tr[1], tr[2], tr[2]),
+		Explanation: fmt.Sprintf("Arc length is the integral of sqrt((dx/dt)^2 + (dy/dt)^2), and here the integrand is the constant sqrt(%s + %s) = %d, so over an interval of length 1 the length is %d.",
+			generator.Sq(tr[0]), generator.Sq(tr[1]), tr[2], tr[2]),
 		Facts: map[string]string{"dx": fmt.Sprintf("%d", tr[0]), "dy": fmt.Sprintf("%d", tr[1]),
 			"length": fmt.Sprintf("%d", tr[2])},
 	}

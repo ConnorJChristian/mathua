@@ -107,7 +107,7 @@ export default function DeleteAccount() {
             <li>Account, avatar, settings, daily goal</li>
             <li>Concept mastery, streaks, review schedule</li>
             <li>Attempts log, sessions and quizzes</li>
-            <li>Plans, filed reports and XP — profile and leaderboard</li>
+            <li>Plans, filed reports, XP and your profile</li>
           </ul>
         </div>
         <div>

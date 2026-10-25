@@ -18,9 +18,6 @@ export default function ReviewPage() {
             </Link>
           </span>
           <ReviewHost />
-          <p className="text-mathua-muted text-xs font-mono text-center mt-6">
-            Reviews record progress and XP like practice.
-          </p>
         </section>
       </div>
       <Footer />

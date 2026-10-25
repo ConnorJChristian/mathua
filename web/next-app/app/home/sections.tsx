@@ -77,21 +77,22 @@ export function HeroSection({ onGetStarted }: { onGetStarted: () => void }) {
           className="reveal mt-5 max-w-[18ch] text-balance font-serif text-[clamp(2.5rem,6vw,4.5rem)] font-normal leading-[1.05] sm:leading-[0.95] tracking-tight text-white lg:text-mathua-primary"
           style={{ animationDelay: '80ms' }}
         >
-          Adaptive math learning platform
+          Study across your own courses
         </h1>
         <p
           className="reveal mt-6 max-w-[46ch] text-pretty text-base sm:text-[15px] leading-relaxed text-white/85 lg:text-mathua-secondary"
           style={{ animationDelay: '160ms' }}
         >
-          Mathua is an open-source adaptive math learning engine. You cannot advance until you
-          have truly mastered the prerequisite, both speed and accuracy must be proven.
+          A personal fork of Mathua, the open-source adaptive learning engine. Follow your
+          courses, place yourself once, and study one queue that paces each course to its due
+          date and brings back what you are about to forget.
         </p>
         <div className="reveal mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center" style={{ animationDelay: '240ms' }}>
           <button type="button" onClick={onGetStarted} className={CTA_PRIMARY}>
             Get started
           </button>
           <a
-            href="https://github.com/chuma-beep/mathua"
+            href="https://github.com/ConnorJChristian/mathua"
             className={`${CTA_GHOST_ON_ART} lg:border-mathua-border lg:text-mathua-primary lg:hover:border-mathua-blue lg:focus-visible:outline-mathua-blue`}
           >
             <span

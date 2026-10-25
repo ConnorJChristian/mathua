@@ -2123,6 +2123,19 @@ func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session)
 	for _, att := range attempts {
 		tested[att.ConceptID] = true
 	}
+	// Fork fix (Q27): a learner who answers anything above prealgebra right
+	// is placed above the whole grade-school floor, not only the part of it
+	// that happens to sit under the questions asked. Without this, a
+	// calculus-placed learner was still offered "Single-digit addition" and
+	// fraction word problems that no correct answer happened to cover.
+	if placedAboveFoundations(e.dag, attempts) {
+		for _, c := range e.dag.Order() {
+			if foundationalDomains[c.Domain] && !seeded[c.ID] && !tested[c.ID] {
+				seeded[c.ID] = true
+				inferred = append(inferred, c.ID)
+			}
+		}
+	}
 	for _, id := range inferred {
 		if tested[id] {
 			continue
@@ -2201,6 +2214,23 @@ func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session)
 		e.mu.Unlock()
 	}
 	return nil
+}
+
+// foundationalDomains are the grade-school domains below algebra.
+var foundationalDomains = map[string]bool{"arithmetic": true, "fractions": true, "prealgebra": true}
+
+// placedAboveFoundations reports whether a placement found the learner right
+// on at least one topic outside the grade-school domains.
+func placedAboveFoundations(dag *concepts.DAG, attempts []diagnostic.Attempt) bool {
+	for _, att := range attempts {
+		if !att.Correct {
+			continue
+		}
+		if c := dag.Concept(att.ConceptID); c != nil && c.Domain != "" && !foundationalDomains[c.Domain] {
+			return true
+		}
+	}
+	return false
 }
 
 // ensureActivePath restores a learner's course path after a restart (the

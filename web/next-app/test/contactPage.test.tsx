@@ -28,20 +28,19 @@ describe('the contact page', () => {
 
   it('offers the box on the page itself, not only an external channel', () => {
     render(<ContactPage />)
-    expect(screen.getByRole('heading', { name: 'Leave a message' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Leave a note' })).toBeInTheDocument()
     expect(screen.getByLabelText('Your message')).toBeInTheDocument()
   })
 
-  it('publishes the two channels the owner reads', () => {
+  // Fork change: a personal install. The upstream author's X account and
+  // Discord are not this install's channels; only the upstream tracker is
+  // offered, labelled as upstream.
+  it('points upstream bugs to the upstream tracker and nothing else external', () => {
     render(<ContactPage />)
-
-    const x = screen.getByRole('link', { name: '@wisdomsglow' })
-    expect(x).toHaveAttribute('href', 'https://x.com/wisdomsglow')
-    expect(x).toHaveAttribute('target', '_blank')
-    expect(x).toHaveAttribute('rel', 'noreferrer')
-
     const issues = screen.getByRole('link', { name: /github\.com\/chuma-beep\/mathua\/issues/ })
     expect(issues).toHaveAttribute('href', 'https://github.com/chuma-beep/mathua/issues')
+    expect(screen.queryByRole('link', { name: '@wisdomsglow' })).toBeNull()
+    expect(screen.queryByText(/Discord/)).toBeNull()
   })
 
   it('never asks for a password and publishes no address to harvest', () => {

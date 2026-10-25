@@ -20,14 +20,25 @@ import (
 // It only touches algebra: a rule fires inside an expression that has a
 // variable in it, so arithmetic drills that mean "5 + -3" keep it (see
 // keepsSignedOperands for the concepts that drill exactly that).
-func Tidy(s string) string {
+func Tidy(s string) string { return tidy(s, false) }
+
+// TidyExplanation is Tidy for worked solutions, which may also fold signs in
+// plain arithmetic: "(1 - -7/25)/2" reads "(1 + 7/25)/2". A question keeps
+// such signs, because an arithmetic step can be the thing being asked.
+func TidyExplanation(s string) string { return tidy(s, true) }
+
+func tidy(s string, loose bool) string {
 	if s == "" {
 		return s
 	}
 	var b strings.Builder
 	for _, seg := range splitMath(s) {
 		if seg.math {
-			b.WriteString(seg.open + tidyRun(seg.text, true) + seg.close)
+			text := seg.text
+			if loose && !hasVariable(text) {
+				text = replaceSign(minusNegRe, replaceSign(plusNegRe, text, "-"), "+")
+			}
+			b.WriteString(seg.open + tidyRun(text, true) + seg.close)
 			continue
 		}
 		b.WriteString(exprRunRe.ReplaceAllStringFunc(seg.text, func(run string) string {
@@ -124,8 +135,8 @@ func tidyRun(run string, math bool) string {
 	if math && !hasVariable(run) {
 		return run
 	}
-	run = plusNegRe.ReplaceAllString(run, "$1$2- $3")
-	run = minusNegRe.ReplaceAllString(run, "$1$2+ $3")
+	run = replaceSign(plusNegRe, run, "-")
+	run = replaceSign(minusNegRe, run, "+")
 	run = dropUnitCoefficients(run, math)
 	for {
 		next := zeroTermRe.ReplaceAllString(run, "$1$2")
@@ -135,6 +146,28 @@ func tidyRun(run string, math bool) string {
 		run = next
 	}
 	return unwrapLoneVariable(run)
+}
+
+// replaceSign folds "a + -3" into "a - 3" (or "- -" into "+"), keeping the
+// author's spacing: "4x + -2" reads "4x - 2", "y=x+-1" reads "y=x-1".
+func replaceSign(re *regexp.Regexp, s, op string) string {
+	return re.ReplaceAllStringFunc(s, func(m string) string {
+		sub := re.FindStringSubmatch(m)
+		if sub[2] == "" && !strings.ContainsAny(m[len(sub[1]):], " ") {
+			return sub[1] + op + sub[3]
+		}
+		return sub[1] + " " + op + " " + sub[3]
+	})
+}
+
+// TidyAnswer tidies an answer for display. An answer is a bare expression
+// ("1x^2+C", "4+1i"), so it is read as mathematics. Grading never sees the
+// tidy form; it keeps the answer the generator stored.
+func TidyAnswer(a string) string {
+	if a == "" || strings.Contains(a, "$") {
+		return Tidy(a)
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(Tidy("$"+a+"$"), "$"), "$")
 }
 
 var loneVarRe = regexp.MustCompile(`\(([a-z])\)\^`)
@@ -198,6 +231,23 @@ func dropUnitCoefficients(s string, math bool) string {
 	return b.String()
 }
 
+// proseTermFollows reports whether the 1 at i starts an algebraic term in
+// running text: one variable, then a power, a bracket or an operator.
+func proseTermFollows(s string, i int) bool {
+	j := i + 1
+	if j >= len(s) || !(s[j] >= 'a' && s[j] <= 'z') {
+		return false
+	}
+	k := j + 1
+	if k < len(s) && (s[k] == '^' || s[k] == '(') {
+		return true
+	}
+	for k < len(s) && s[k] == ' ' {
+		k++
+	}
+	return k < len(s) && k > j+1 && strings.ContainsRune("+-=", rune(s[k]))
+}
+
 func unitCoefficientAt(s string, i int, math bool) bool {
 	// What precedes: the start of a term.
 	if i > 0 {
@@ -217,8 +267,11 @@ func unitCoefficientAt(s string, i int, math bool) bool {
 				q = s[j-1]
 			}
 		}
-		if !strings.ContainsRune("(+-={,[", rune(q)) {
-			if !math || !(q == 0 || q == ' ' || q == '}' || q == '\\' || q == '$') {
+		if !strings.ContainsRune("(+-={,[<>|", rune(q)) {
+			mathStart := math && (q == 0 || q == ' ' || q == '}' || q == '\\' || q == '$')
+			// In prose, "gives 1x^2" or "the product 1y(4 - y)": a term after
+			// a word, recognisable by what follows the variable.
+			if !mathStart && !(p == ' ' && proseTermFollows(s, i)) {
 				return false
 			}
 		}

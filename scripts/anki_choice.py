@@ -205,11 +205,19 @@ def last_step(head):
     """A chain of working ("\\(4x-2x=9+3\\) \\(2x=12\\) \\(x=6\\)") is answered by
     its last step."""
     spans = list(SPAN_RE.finditer(head))
+    # A trailing domain restriction, "\\(\\dfrac{1}{3-2P}\\) \\((P \\neq 1.5)\\)", is a
+    # condition on the answer, not a step: answering with it gave options
+    # that were only "(P != 1.5)", "(P != 1.4)" (Q32).
+    if len(spans) >= 2 and RESTRICTION_RE.match(head[spans[-1].start():spans[-1].end()]):
+        return head
     if len(spans) >= 2:
         between = SPAN_RE.sub("", head).strip()
         if not between:
             return head[spans[-1].start():spans[-1].end()]
     return head
+
+
+RESTRICTION_RE = re.compile(r"^\\\(\s*\(.*(\\neq|\\ne\b|≠|\\geq|\\leq|\\ge\b|\\le\b|>|<).*\)\s*\\\)$")
 
 
 def perturb(head, rng):

@@ -8,7 +8,7 @@ import Loading from '../../components/Loading'
 import SectionHeader from '../../components/SectionHeader'
 import BriefingCard, { REVIEW_BRIEFING } from '../../components/BriefingCard'
 import ReportButton from '../../components/ReportButton'
-import { startReviewSession, submitReviewAnswer } from '../../lib/api'
+import { getDueReviews, startReviewSession, submitReviewAnswer } from '../../lib/api'
 import { formatForGradingType, type AnswerFormat } from '../../lib/answerFormat'
 import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../components/SubmitErrorBlock'
@@ -88,6 +88,23 @@ export default function ReviewHost() {
       setLoading(false)
     }
   }
+
+  // Nothing due: say so at once instead of a briefing and a Start button that
+  // lead to the same empty state (Q26). A failed check keeps the briefing.
+  useEffect(() => {
+    let live = true
+    getDueReviews()
+      .then((d) => {
+        if (live && d.count === 0) {
+          setEmpty(true)
+          setPhase((p) => (p === 'intro' ? 'done' : p))
+        }
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
 
   // The review starts from the intro screen, not on mount — timing and
   // question reveal begin at Start, so the briefing costs nothing.

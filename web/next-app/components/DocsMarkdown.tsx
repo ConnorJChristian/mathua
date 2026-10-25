@@ -90,7 +90,10 @@ export default function DocsMarkdown({ body, className = '' }: { body: string; c
             if (Diagram) return <Diagram />
             // Fallback: the committed SVG, in the theme that matches. `mounted` guards the
             // server render, where the theme is not yet known.
-            const base = name ? `/diagrams/${name}-${variant}.svg` : url
+            // Repo-relative figures ("../figures/output/x.svg", right on GitHub) are served
+            // from /figures/x.svg (Q23).
+            const fig = url.match(/(?:^|\/)figures\/(?:output\/)?([\w.-]+)$/)
+            const base = name ? `/diagrams/${name}-${variant}.svg` : fig ? `/figures/${fig[1]}` : url
             // eslint-disable-next-line @next/next/no-img-element
             return <img src={base} alt={alt || name || 'diagram'} loading="lazy" className="max-w-full h-auto my-6 mx-auto" />
           },

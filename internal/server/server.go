@@ -1514,8 +1514,11 @@ func (s *Server) handleGoalPlan(w http.ResponseWriter, r *http.Request) {
 		"frontier_idx":            report.FrontierIdx,
 		"frontier_conditional":    report.FrontierConditional,
 		"conditionally_completed": report.ConditionallyCompleted,
-		"placement_course_id":     report.PlacementCourseID,
-		"completion_estimates":    report.CompletionEstimates,
+		// Fork fix (Q33): no "suggested course". The placement was taken for
+		// the learner's own courses; the vanilla domain-to-course guess named
+		// a course ("calc1") they never chose.
+		"placement_course_id":  "",
+		"completion_estimates": report.CompletionEstimates,
 	})
 }
 
@@ -2028,7 +2031,7 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 				if src == "" {
 					src = "curated"
 				}
-				questions[i] = qInfo{Question: q.Question, Answer: q.Answer, Explanation: q.Explanation, Source: src, AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
+				questions[i] = qInfo{Question: q.Question, Answer: displayAnswer(q.Answer), Explanation: q.Explanation, Source: src, AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
 			}
 			qa := make(map[string]engine.Anchor, len(dbQs))
 			for _, q := range dbQs {
@@ -2110,7 +2113,7 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 	}
 	questions := make([]qInfo, len(problems))
 	for i, p := range problems {
-		questions[i] = qInfo{Question: p.Question, Answer: p.Answer, Explanation: p.Explanation, Source: "generator", AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
+		questions[i] = qInfo{Question: p.Question, Answer: displayAnswer(p.Answer), Explanation: p.Explanation, Source: "generator", AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
 	}
 	writeJSON(w, map[string]interface{}{"questions": questions, "concept_id": conceptID})
 }
@@ -3161,7 +3164,7 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 		"streak":          res.Streak,
 		"required_streak": res.RequiredStreak,
 		"xp":              res.XP,
-		"expected_answer": res.ExpectedAnswer,
+		"expected_answer": displayAnswer(res.ExpectedAnswer),
 		"halted":          res.Halted,
 	})
 }
@@ -4620,4 +4623,14 @@ func (s *Server) recordDiagnosticVerdict(answerKey string, verdict map[string]in
 	if err := s.repo.RecordDiagnosticAttempt(answerKey, string(raw)); err != nil {
 		log.Printf("warning: diagnostic verdict not stored: %v", err)
 	}
+}
+
+// displayAnswer is the answer as the learner is shown it: tidied like the
+// question ("x^2+C", not "1x^2+C"; Q17). Grading keeps the stored answer, so
+// this only changes what is read. Bank keys (mc:, code:, ...) are left alone.
+func displayAnswer(a string) string {
+	if grader.IsBankAnswer(a) {
+		return a
+	}
+	return generator.TidyAnswer(a)
 }

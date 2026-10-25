@@ -33,13 +33,13 @@ vi.mock('../app/home/sections', () => ({
 // (a filtered or blocked API origin) kept the button dead for the request's full
 // ten-second timeout. Navigation must not depend on it.
 describe('Get started', () => {
-  it('opens the learn page without waiting for the guest token', () => {
+  it('opens the courses page without waiting for the guest token', () => {
     ensureGuestToken.mockReturnValue(new Promise(() => {})) // never settles
     render(<HomePage />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Get started' }))
 
-    expect(push).toHaveBeenCalledWith('/learn')
+    expect(push).toHaveBeenCalledWith('/courses')
     expect(ensureGuestId).toHaveBeenCalled()
     expect(ensureGuestToken).toHaveBeenCalled()
   })

@@ -2,6 +2,7 @@ package generator
 
 import (
 	"fmt"
+	"hash/fnv"
 	"math/rand"
 	"strings"
 )
@@ -12,7 +13,7 @@ var choiceLetters = []string{"A", "B", "C", "D", "E"}
 
 // MultipleChoice builds a recognition question from one correct answer and its distractors.
 //
-// The options are deduplicated, shuffled and written into the stem as an "A) …" block. The answer is
+// The options are deduplicated, shuffled (in an order fixed by the stem) and written into the stem as an "A) …" block. The answer is
 // the correct option's text rather than its letter, because a tap submits the text and the
 // multiple_choice grader compares whole strings; it also accepts a bare letter, so a learner who
 // types "B" is graded right.
@@ -30,7 +31,14 @@ func MultipleChoice(question, correct string, distractors ...string) Problem {
 		seen[key] = true
 		opts = append(opts, d)
 	}
-	rand.Shuffle(len(opts), func(i, j int) { opts[i], opts[j] = opts[j], opts[i] })
+	// The order is fixed by the question itself (Q30). A fresh shuffle on
+	// every serve made the same question a "new" text each time: the
+	// practice filter that skips what the learner just answered missed it,
+	// and mastery counted one question seen four times as four instances.
+	h := fnv.New64a()
+	h.Write([]byte(question + "\x00" + correct))
+	rng := rand.New(rand.NewSource(int64(h.Sum64())))
+	rng.Shuffle(len(opts), func(i, j int) { opts[i], opts[j] = opts[j], opts[i] })
 	if len(opts) > len(choiceLetters) {
 		for i, o := range opts {
 			if o == correct {

@@ -7,15 +7,10 @@ import { useHomeRedirect } from '../hooks/useHomeRedirect'
 import { useScrollReveal } from '../hooks/useScrollReveal'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import {
-  CoverageSection,
-  FaqSection,
-  FeaturesSection,
-  HeroSection,
-  RankingSection,
-  StatesSection,
-  TrustSection,
-} from './home/sections'
+// Fork change (Q19): the landing is the hero alone. The upstream sections
+// described a different product: a public leaderboard, levels, "no separate
+// review mode" and a subject table without this fork's courses.
+import { HeroSection } from './home/sections'
 
 export default function HomePage() {
   const { mounted } = useTheme()
@@ -40,7 +35,7 @@ export default function HomePage() {
     // reported. The token still arrives before the first answer in every
     // ordinary case, and if it never does the learn page is anonymously usable.
     ensureGuestId()
-    push('/learn')
+    push('/courses')
     void ensureGuestToken()
   }
 
@@ -50,15 +45,9 @@ export default function HomePage() {
           because a marketing page wants Docs and How it works inline. Learn is
           still listed first: the primary destination of the product should not
           vanish on the page that introduces it. */}
-      <Header links={[{ label: 'Learn', href: '/learn' }, { label: 'How it works', href: '/how-it-works' }, { label: 'Docs', href: '/docs' }, { label: 'Note', href: '/note' }, { label: 'Leaderboard', href: '/leaderboard' }, { label: 'Login', href: '/login' }]} />
+      <Header links={[{ label: 'Courses', href: '/courses' }, { label: 'How it works', href: '/how-it-works' }, { label: 'Docs', href: '/docs' }, { label: 'Login', href: '/login' }]} />
       <main className="max-w-container mx-auto px-4 sm:px-6 overflow-x-clip min-w-0">
         <HeroSection onGetStarted={handleGetStarted} />
-        <TrustSection />
-        <FeaturesSection />
-        <StatesSection />
-        <CoverageSection />
-        <RankingSection />
-        <FaqSection />
       </main>
       <Footer />
     </>

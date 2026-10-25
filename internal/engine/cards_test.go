@@ -102,9 +102,12 @@ func TestFiledCardsServeOnlyTheirTopic(t *testing.T) {
 			t.Fatalf("b should serve only its filed card, got %q", p.Answer)
 		}
 	}
-	// a is not in cards.json, so the deck-level attachment still applies.
-	p, _ := reg.GenerateContext("a", generator.GeneratorContext{Difficulty: 0.5})
-	if p.Answer != "recall:deck#any" {
-		t.Fatalf("a should fall back to the whole deck, got %q", p.Answer)
+	// a is not in cards.json. With a filing present it gets no cards: the
+	// whole-deck fallback filed unrelated cards under 57 topics (Q6).
+	for i := 0; i < 5; i++ {
+		p, _ := reg.GenerateContext("a", generator.GeneratorContext{Difficulty: 0.5})
+		if p.Answer != "1" {
+			t.Fatalf("a is not filed, so it should serve only its own questions, got %q", p.Answer)
+		}
 	}
 }

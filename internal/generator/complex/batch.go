@@ -174,8 +174,8 @@ func (g *reciprocalGen) Generate(ctx generator.GeneratorContext) generator.Probl
 			"real_num":  strconv.Itoa(a), "imag_num": strconv.Itoa(-b), "value": ans,
 		},
 	}
-	p.Explanation = fmt.Sprintf("Multiply above and below by the conjugate %s: the denominator becomes %d^2 + %d^2 = %d, and the numerator is %s. So \\(1/(%s) = %s\\).",
-		fmtComplex(a, -b), a, b, den, fmtComplex(a, -b), fmtComplex(a, b), ans)
+	p.Explanation = fmt.Sprintf("Multiply above and below by the conjugate %s: the denominator becomes %s + %s = %d, and the numerator is %s. So \\(1/(%s) = %s\\).",
+		fmtComplex(a, -b), generator.Sq(a), generator.Sq(b), den, fmtComplex(a, -b), fmtComplex(a, b), ans)
 	return p
 }
 
@@ -206,8 +206,8 @@ func (g *planeDistanceGen) Generate(ctx generator.GeneratorContext) generator.Pr
 			"dx": strconv.Itoa(t.a), "dy": strconv.Itoa(t.b), "value": strconv.Itoa(t.c),
 		},
 	}
-	p.Explanation = fmt.Sprintf("The distance is the modulus of the difference: |(%s) - (%s)| = |%s| = sqrt(%d^2 + %d^2) = %d.",
-		fmtComplex(r2, i2), fmtComplex(r1, i1), fmtComplex(t.a, t.b), t.a, t.b, t.c)
+	p.Explanation = fmt.Sprintf("The distance is the modulus of the difference: |(%s) - (%s)| = |%s| = sqrt(%s + %s) = %d.",
+		fmtComplex(r2, i2), fmtComplex(r1, i1), fmtComplex(t.a, t.b), generator.Sq(t.a), generator.Sq(t.b), t.c)
 	return p
 }
 
@@ -342,25 +342,27 @@ func (g *conjugateRootsGen) Generate(ctx generator.GeneratorContext) generator.P
 type trigExponentialGen struct{}
 
 func (g *trigExponentialGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	const (
-		cosIdent  = "(e^(i\u03b8) + e^(-i\u03b8))/2"
-		sinIdent  = "(e^(i\u03b8) - e^(-i\u03b8))/(2i)"
-		cosSigned = "(e^(i\u03b8) - e^(-i\u03b8))/2"
-		cosOverI  = "(e^(i\u03b8) + e^(-i\u03b8))/(2i)"
-	)
+	// The angle is θ, 2θ or 3θ, so a learner meets six questions, not two
+	// (two stems were all this had once option order stopped varying).
+	arg := []string{"\u03b8", "2\u03b8", "3\u03b8"}[rand.Intn(3)]
+	e := func(sign string) string { return "e^(" + sign + "i" + arg + ")" }
+	cosIdent := "(" + e("") + " + " + e("-") + ")/2"
+	sinIdent := "(" + e("") + " - " + e("-") + ")/(2i)"
+	cosSigned := "(" + e("") + " - " + e("-") + ")/2"
+	cosOverI := "(" + e("") + " + " + e("-") + ")/(2i)"
 	if rand.Intn(2) == 0 {
 		pr := generator.MultipleChoice(
-			"Which identity expresses \u03b8 in the form cos \u03b8 = ...?",
+			fmt.Sprintf("Which identity expresses cos(%s) in terms of complex exponentials?", arg),
 			cosIdent, sinIdent, cosSigned, cosOverI)
 		pr.Facts = map[string]string{"asked": "cos", "cos": cosIdent, "sin": sinIdent, "value": cosIdent}
-		pr.Explanation = "Adding the two exponentials cancels the sine terms: e^(i\u03b8) + e^(-i\u03b8) = 2 cos \u03b8, so cos \u03b8 = (e^(i\u03b8) + e^(-i\u03b8))/2."
+		pr.Explanation = fmt.Sprintf("Adding the two exponentials cancels the sine terms: %s + %s = 2 cos(%s), so cos(%s) = %s.", e(""), e("-"), arg, arg, cosIdent)
 		return pr
 	}
 	pr := generator.MultipleChoice(
-		"Which identity expresses \u03b8 in the form sin \u03b8 = ...?",
+		fmt.Sprintf("Which identity expresses sin(%s) in terms of complex exponentials?", arg),
 		sinIdent, cosIdent, cosSigned, cosOverI)
 	pr.Facts = map[string]string{"asked": "sin", "cos": cosIdent, "sin": sinIdent, "value": sinIdent}
-	pr.Explanation = "Subtracting the two exponentials cancels the cosine terms: e^(i\u03b8) - e^(-i\u03b8) = 2i sin \u03b8, so sin \u03b8 = (e^(i\u03b8) - e^(-i\u03b8))/(2i)."
+	pr.Explanation = fmt.Sprintf("Subtracting the two exponentials cancels the cosine terms: %s - %s = 2i sin(%s), so sin(%s) = %s.", e(""), e("-"), arg, arg, sinIdent)
 	return pr
 }
 
@@ -369,19 +371,29 @@ func (g *trigExponentialGen) Generate(ctx generator.GeneratorContext) generator.
 type hyperbolicGen struct{}
 
 func (g *hyperbolicGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// k·iθ for k = 1, 2, 3: six questions where there were two.
+	k := 1 + rand.Intn(3)
+	th := "\u03b8"
+	if k > 1 {
+		th = strconv.Itoa(k) + "\u03b8"
+	}
+	arg := "i" + th
+	if k > 1 {
+		arg = strconv.Itoa(k) + "i\u03b8"
+	}
 	if rand.Intn(2) == 0 {
 		pr := generator.MultipleChoice(
-			"For real \u03b8, which real function equals cosh(i\u03b8)?",
-			"cos \u03b8", "sin \u03b8", "i sin \u03b8", "cosh \u03b8")
-		pr.Facts = map[string]string{"fn": "cosh", "argument": "i\u03b8", "value": "cos \u03b8"}
-		pr.Explanation = "cosh(ix) = (e^(ix) + e^(-ix))/2, which is exactly the identity for cos x, so cosh(i\u03b8) = cos \u03b8."
+			fmt.Sprintf("For real \u03b8, which real function equals cosh(%s)?", arg),
+			"cos "+th, "sin "+th, "i sin "+th, "cosh "+th)
+		pr.Facts = map[string]string{"fn": "cosh", "argument": arg, "value": "cos " + th}
+		pr.Explanation = fmt.Sprintf("cosh(ix) = (e^(ix) + e^(-ix))/2, which is exactly the identity for cos x; with x = %s, cosh(%s) = cos %s.", th, arg, th)
 		return pr
 	}
 	pr := generator.MultipleChoice(
-		"For real \u03b8, which function equals sinh(i\u03b8)?",
-		"i sin \u03b8", "sin \u03b8", "cos \u03b8", "i cosh \u03b8")
-	pr.Facts = map[string]string{"fn": "sinh", "argument": "i\u03b8", "value": "i sin \u03b8"}
-	pr.Explanation = "sinh(ix) = (e^(ix) - e^(-ix))/2, and e^(ix) - e^(-ix) = 2i sin x, so sinh(i\u03b8) = i sin \u03b8."
+		fmt.Sprintf("For real \u03b8, which function equals sinh(%s)?", arg),
+		"i sin "+th, "sin "+th, "cos "+th, "i cosh "+th)
+	pr.Facts = map[string]string{"fn": "sinh", "argument": arg, "value": "i sin " + th}
+	pr.Explanation = fmt.Sprintf("sinh(ix) = (e^(ix) - e^(-ix))/2, and e^(ix) - e^(-ix) = 2i sin x; with x = %s, sinh(%s) = i sin %s.", th, arg, th)
 	return pr
 }
 

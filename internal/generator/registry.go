@@ -171,7 +171,7 @@ func (r *Registry) finish(conceptID string, gen Generator, p *Problem, ctx Gener
 			p.Answer = a
 		}
 		p.Question = q
-		p.Explanation = Tidy(p.Explanation)
+		p.Explanation = TidyExplanation(p.Explanation)
 	}
 	for _, w := range latex.Validate(p.Question+"\n"+p.Explanation, latex.Generators) {
 		fmt.Printf("latex warning in generator %q%s: %s\n", conceptID, where, w)
