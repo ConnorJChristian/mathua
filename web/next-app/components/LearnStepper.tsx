@@ -10,7 +10,7 @@ import ChoiceOptions from './ChoiceOptions'
 import ConceptReference from './ConceptReference'
 import PrerequisitePanel from './PrerequisitePanel'
 import { track, questionHash, answerStyle } from '../lib/events'
-import { getLessonKPs, getLessonPractice, getLessonReadiness, submitStudyAnswer, getProgress, getErrorStatus, type EligibilityPrereq, type KpInfo, type PracticeQuestion, type ReadinessRes, type ConceptProgress } from '../lib/api'
+import { getLessonKPs, getLessonPractice, getLessonReadiness, submitStudyAnswer, getProgress, getErrorStatus, type EligibilityPrereq, type KpInfo, type PracticeQuestion, type ReadinessRes, type ConceptProgress, type ProofReport as ProofReportData } from '../lib/api'
 import { getUserInfo } from '../lib/auth'
 import { upcomingLocked, hrefConceptId, type Shelf, type LockedSuccessor } from '../lib/nextUp'
 import { backTarget, learnConceptPath, pushReturn, studyConceptPath, withReturnStack, type ReturnEntry } from '../lib/learnReturn'
@@ -21,7 +21,8 @@ import { countsAsMastered } from '../lib/progress'
 import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
 import PythonAnswer from './python/PythonAnswer'
-import { displayAnswer, displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind, typedEcho } from '../lib/pythonQuestion'
+import ProofReport from './ProofReport'
+import { displayAnswer, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind, typedEcho } from '../lib/pythonQuestion'
 
 // Append-only learning feed: intro once, then each submit locks its card and
 // the next question opens below. Scrollback IS the performance history —
@@ -36,7 +37,7 @@ interface QEntry {
   checking: boolean
   servedAt: number
   firstInputAt?: number
-  feedback: { correct: boolean; text: string; diagnosis?: string; detail?: string; xp: number } | null
+  feedback: { correct: boolean; text: string; diagnosis?: string; detail?: string; xp: number; proof?: ProofReportData } | null
 }
 
 type Entry =
@@ -435,10 +436,25 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           surface: 'learn', q: questionHash(entry.q.question), source: entry.q.source, correct: !!res.correct,
           ungraded: !!res.ungraded, elapsed, first_key_s: entry.firstInputAt ? (entry.firstInputAt - entry.servedAt) / 1000 : null,
           override, difficulty, style: answerStyle(entry.answer), feedback: res.feedback ?? '',
+          proof_score: res.proof ? res.proof.score : null,
         },
       })
       if (res.ungraded) {
         setEntry(key, { checking: false })
+        // A proof can go ungraded for a reason the learner should see (no
+        // API key, the month's budget spent); the proof stays in the box.
+        if (isProofQuestion(entry.q.question)) setError(res.feedback || 'Your proof could not be graded right now. Nothing was recorded; submit it again.')
+        return
+      }
+      if (res.proof && !res.proof.counts_for_mastery) {
+        // A practice-only proof grade is feedback, not evidence: it moves no
+        // in-a-row count, no miss count and no difficulty (internal/proof,
+        // MATHUA_PROOF_COUNTS_FOR_MASTERY).
+        setEntry(key, {
+          checking: false,
+          feedback: { correct: !!res.correct, text: res.explanation ?? entry.q.explanation, diagnosis: res.diagnosis, detail: res.feedback, xp: res.xp ?? 0, proof: res.proof },
+        })
+        appendAfter(350, async () => { await continueInSection(entry, difficulty) })
         return
       }
       setAnsweredCount(n => n + 1)
@@ -458,6 +474,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             diagnosis: res.diagnosis,
             detail: res.feedback,
             xp: res.xp ?? 0,
+            proof: res.proof,
           },
         })
         // 2-in-a-row, and nothing else. This used to read
@@ -489,6 +506,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             diagnosis: res.diagnosis,
             detail: res.feedback,
             xp: 0,
+            proof: res.proof,
           },
         })
         appendAfter(350, async () => {
@@ -809,7 +827,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                     onSubmit={() => handleCheck(qe.key)}
                     disabled={qe.checking}
                   />
-                  <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 self-end">{qe.checking && pyKind === 'code' ? 'Checking…' : 'Check'}</button>
+                  <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 self-end">{qe.checking && pyKind === 'code' ? 'Checking…' : qe.checking && pyKind === 'proof' ? 'Grading…' : 'Check'}</button>
+                  {qe.checking && pyKind === 'proof' && (
+                    <p role="status" className="font-mono text-[11px] text-mathua-muted self-end">Grading your proof against its marking scheme. This takes up to a minute.</p>
+                  )}
                 </form>
               )}
               {!locked && !qPy && (
@@ -838,10 +859,19 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                     {qe.feedback.correct ? `✓ ${qe.feedback.xp ? `+${qe.feedback.xp} XP` : 'Correct'}` : '✗ Not quite.'}{' '}
                     <span className="text-mathua-muted">{pyKind === 'code'
                         ? 'checked against the hidden tests'
-                        : pyKind === 'recall'
+                        : pyKind === 'proof'
+                          ? 'graded against the marking scheme'
+                          : pyKind === 'recall'
                           ? qe.answer === 'right' ? 'you had it' : 'you marked it missed'
                           : `you answered “${pyKind === 'math' ? typedEcho(qe.q.question, qe.answer) : qPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
                   </p>
+                  {pyKind === 'proof' && (
+                    <details className="mt-1.5">
+                      <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Your proof</summary>
+                      <KatexContent className="mt-1 block max-h-72 overflow-auto border border-mathua-border px-3 py-2 text-xs text-mathua-primary whitespace-pre-wrap">{qe.answer}</KatexContent>
+                    </details>
+                  )}
+                  {qe.feedback.proof && <ProofReport report={qe.feedback.proof} />}
                   {pyKind === 'code' && (
                     <details className="mt-1.5" open={!qe.feedback.correct}>
                       <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Your code</summary>
@@ -861,7 +891,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   {/* The mistake, when it can be named with certainty. It is
                       a description of what happened, never a hint about what
                       to do, and it is empty far more often than not. */}
-                  {qe.feedback.diagnosis && !(pyKind === 'code' && qe.feedback.detail) && (
+                  {qe.feedback.diagnosis && !(pyKind === 'code' && qe.feedback.detail) && !qe.feedback.proof && (
                     <p data-diagnosis className="mt-2 font-mono text-[11px] text-mathua-muted">{qe.feedback.diagnosis}</p>
                   )}
                   {/* A code task's miss lists every hidden check that failed, or the

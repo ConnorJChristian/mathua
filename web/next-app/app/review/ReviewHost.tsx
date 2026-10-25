@@ -8,13 +8,14 @@ import Loading from '../../components/Loading'
 import SectionHeader from '../../components/SectionHeader'
 import BriefingCard, { REVIEW_BRIEFING } from '../../components/BriefingCard'
 import ReportButton from '../../components/ReportButton'
-import { getDueReviews, startReviewSession, submitReviewAnswer } from '../../lib/api'
+import { getDueReviews, startReviewSession, submitReviewAnswer, type ProofReport as ProofReportData } from '../../lib/api'
+import ProofReport from '../../components/ProofReport'
 import { formatForGradingType, type AnswerFormat } from '../../lib/answerFormat'
 import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../components/SubmitErrorBlock'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import PythonAnswer from '../../components/python/PythonAnswer'
-import { displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
+import { displayQuestion, isBankServed, isProofQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
 import { track, questionHash, answerStyle } from '../../lib/events'
 
 type Phase = 'loading' | 'intro' | 'run' | 'done'
@@ -37,7 +38,7 @@ export default function ReviewHost() {
   const [reviewConceptName, setReviewConceptName] = useState('')
   const [reviewCount, setReviewCount] = useState(0)
   const [reviewAnswerInput, setReviewAnswerInput] = useState('')
-  const [reviewLastResult, setReviewLastResult] = useState<{ correct: boolean; feedback: string; explanation?: string; diagnosis?: string; xp?: number } | null>(null)
+  const [reviewLastResult, setReviewLastResult] = useState<{ correct: boolean; feedback: string; explanation?: string; diagnosis?: string; xp?: number; proof?: ProofReportData } | null>(null)
   const [reviewAccuracy, setReviewAccuracy] = useState({ correct: 0, total: 0 })
   const [reviewXp, setReviewXp] = useState(0)
   const [submitError, setSubmitError] = useState<SubmitError | null>(null)
@@ -120,11 +121,13 @@ export default function ReviewHost() {
     try {
       const answer = reviewAnswerInput.trim()
       const elapsed = Math.max(0.5, (Date.now() - (reviewShownAt.current ?? Date.now())) / 1000)
-      const data = await submitReviewAnswer(reviewSessionId.current, answer, elapsed, reviewAttemptId.current)
-      track({ kind: 'answer', concept: reviewConceptId.current, data: { surface: 'review', q: questionHash(reviewQuestion), correct: !!data.result?.correct, ungraded: !!data.result?.ungraded, elapsed, style: answerStyle(answer), feedback: data.result?.feedback ?? '' } })
+      const proofQ = isProofQuestion(reviewQuestion)
+      const data = await submitReviewAnswer(reviewSessionId.current, answer, elapsed, reviewAttemptId.current, { proof: proofQ })
+      track({ kind: 'answer', concept: reviewConceptId.current, data: { surface: 'review', q: questionHash(reviewQuestion), correct: !!data.result?.correct, ungraded: !!data.result?.ungraded, elapsed, style: answerStyle(answer), feedback: data.result?.feedback ?? '', proof_score: data.result?.proof ? data.result.proof.score : null } })
       // Grader unavailable: never counts as a miss; ask the student to retry.
       if (data.result?.ungraded) {
-        setSubmitError({ message: 'Grading is temporarily unavailable — please try again.' })
+        // A proof's reason (no key, budget spent) is worth showing as is.
+        setSubmitError({ message: proofQ && data.result.feedback ? data.result.feedback : 'Grading is temporarily unavailable — please try again.' })
         setLoading(false)
         return
       }
@@ -133,7 +136,7 @@ export default function ReviewHost() {
       const xp = data.result?.xp ?? 0
       setReviewAccuracy(prev => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }))
       setReviewXp(prev => prev + xp)
-      setReviewLastResult({ correct, feedback, explanation: data.result?.explanation, diagnosis: data.result?.diagnosis, xp })
+      setReviewLastResult({ correct, feedback, explanation: data.result?.explanation, diagnosis: data.result?.diagnosis, xp, proof: data.result?.proof })
       if (data.done || !data.next_question) {
         setFinished(true)
         setTimeout(() => {
@@ -281,7 +284,10 @@ export default function ReviewHost() {
                   onSubmit={() => void submitReviewFn()}
                   disabled={loading}
                 />
-                <button type="submit" disabled={!reviewAnswerInput.trim() || loading} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-6 font-medium text-sm disabled:opacity-50 shrink-0 w-auto self-end">Check Answer</button>
+                <button type="submit" disabled={!reviewAnswerInput.trim() || loading} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-6 font-medium text-sm disabled:opacity-50 shrink-0 w-auto self-end">{loading && pyKind === 'proof' ? 'Grading…' : 'Check Answer'}</button>
+                {loading && pyKind === 'proof' && (
+                  <p role="status" className="font-mono text-[11px] text-mathua-muted self-end">Grading your proof against its marking scheme. This takes up to a minute.</p>
+                )}
               </form>
               ) : (
               <form onSubmit={e => { e.preventDefault(); void submitReviewFn() }} className="flex flex-col sm:flex-row gap-3 min-w-0">
@@ -324,6 +330,7 @@ export default function ReviewHost() {
           ) : (
             <div className="animate-fadeIn">
               <p className={`text-base font-medium mb-2 text-center ${reviewLastResult.correct ? 'text-mathua-green' : 'text-mathua-red'}`}>{reviewLastResult.correct ? '✓ Correct!' : '✗ Not quite'}</p>
+              {reviewLastResult.proof && <div className="mb-3 text-left"><ProofReport report={reviewLastResult.proof} /></div>}
               {/* The explanation is the solution for this instance and is the
                   body of the result; `feedback` is the grader's verdict token
                   ("Incorrect"), so showing it above the working is noise. Fall
@@ -334,7 +341,7 @@ export default function ReviewHost() {
                 <KatexContent className="text-mathua-secondary text-sm">{reviewLastResult.feedback}</KatexContent>
               )}
               {/* Names the mistake when it is certain; empty otherwise. */}
-              {reviewLastResult.diagnosis && !(pyKind === 'code' && !reviewLastResult.correct) && (
+              {reviewLastResult.diagnosis && !(pyKind === 'code' && !reviewLastResult.correct) && !reviewLastResult.proof && (
                 <p className="mt-2 text-center font-mono text-[11px] text-mathua-muted">{reviewLastResult.diagnosis}</p>
               )}
               {pyKind === 'code' && !reviewLastResult.correct && reviewLastResult.feedback && (

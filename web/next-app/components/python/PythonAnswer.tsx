@@ -8,6 +8,8 @@
 //   recall     -> Show answer, then "I had it" / "I missed it" (self-graded)
 //   math       -> one math input per answer field, the same editor Mathua's
 //                 own questions use, graded by Mathua's math graders
+//   proof      -> a multi-line box for a written proof, with a rendered
+//                 preview of its LaTeX; graded on the server (internal/proof)
 //   multiple choice -> nothing here; the host's ChoiceOptions is the input
 //
 // The code box is a plain textarea on purpose. It has to work on a phone, with
@@ -35,6 +37,9 @@ const INDENT = '    '
 export default function PythonAnswer({ question, value, onChange, onSubmit, disabled, id }: Props) {
   const kind = useMemo(() => pythonKind(question), [question])
   if (kind === 'mc') return null
+  if (kind === 'proof') {
+    return <ProofBox value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
+  }
   if (kind === 'math') {
     return <TypedAnswer question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
   }
@@ -129,6 +134,62 @@ function RecallCard({ question, value, onChange, disabled }: Omit<Props, 'onSubm
         {pick('right', 'I had it')}
         {pick('wrong', 'I missed it')}
       </div>
+    </div>
+  )
+}
+
+// A written proof. A plain textarea for the same reasons as the code box; the
+// preview renders the LaTeX the learner typed, so a mistyped delimiter shows
+// up before the proof is sent to be graded. Ctrl+Enter checks; Enter is a new
+// line, because a proof has many.
+function ProofBox({ value, onChange, onSubmit, disabled, id }: Omit<Props, 'question'>) {
+  const [preview, setPreview] = useState(false)
+  const rows = Math.min(28, Math.max(10, value.split('\n').length + 2))
+  const tab = (on: boolean, label: string) => (
+    <button
+      type="button"
+      onClick={() => setPreview(on)}
+      aria-pressed={preview === on}
+      className={`px-3 h-8 font-mono text-[11px] border ${
+        preview === on ? 'border-mathua-blue text-mathua-blue' : 'border-mathua-border text-mathua-muted hover:text-mathua-blue'
+      }`}
+    >
+      {label}
+    </button>
+  )
+  return (
+    <div className="w-full min-w-0">
+      <div role="group" aria-label="Proof view" className="mb-1.5 flex gap-1">
+        {tab(false, 'Write')}
+        {tab(true, 'Preview')}
+      </div>
+      {preview ? (
+        <div data-proof-preview className="min-h-[12rem] border border-mathua-border bg-mathua-bg px-3 py-2">
+          {value.trim() ? (
+            <KatexContent className="text-sm text-mathua-primary whitespace-pre-wrap break-words">{value}</KatexContent>
+          ) : (
+            <p className="font-mono text-xs text-mathua-muted">Nothing written yet.</p>
+          )}
+        </div>
+      ) : (
+        <textarea
+          id={id}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+              e.preventDefault()
+              onSubmit?.()
+            }
+          }}
+          rows={rows}
+          disabled={disabled}
+          spellCheck
+          placeholder={'Proof. Suppose ...\n\nUse \\( ... \\) for mathematics, e.g. \\(|a_n - a| < \\epsilon\\).'}
+          aria-label="Your proof"
+          className="w-full min-h-[12rem] resize-y border border-mathua-border-strong bg-mathua-bg px-3 py-2 font-mono text-sm leading-relaxed text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60"
+        />
+      )}
     </div>
   )
 }

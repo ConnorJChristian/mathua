@@ -12,7 +12,7 @@
 
 import { parseChoices } from './choices'
 
-export type PythonKind = 'code' | 'mc' | 'output' | 'recall' | 'math'
+export type PythonKind = 'code' | 'mc' | 'output' | 'recall' | 'math' | 'proof'
 
 // A math item (e.g. an Anki practice problem): the prompt, then this marker,
 // a JSON list of answer fields and "-->". Each field is one math input, graded
@@ -57,6 +57,15 @@ export function typedEcho(question: string, answer: string): string {
   return vals.map((v, i) => (fields[i]?.label ? `${fields[i].label} = ${v}` : v)).join(', ')
 }
 
+// A written proof (internal/proof): the statement, then this marker. The
+// answer is the learner's proof, Markdown with LaTeX, graded on the server
+// against a marking scheme by a language-model judge. internal/proof/bank.go
+// Marker.
+export const PROOF_MARKER = '<!--proof-answer-->'
+
+/** Whether a served question asks for a written proof. */
+export const isProofQuestion = (question?: string | null) => !!question && question.includes(PROOF_MARKER)
+
 // A recall card (a flashcard, e.g. imported from Anki): front, then this
 // marker, then the back. internal/pytrack/track.go RecallMarker.
 export const RECALL_MARKER = '<!--recall-back-->'
@@ -64,6 +73,7 @@ export const RECALL_MARKER = '<!--recall-back-->'
 const STARTER_RE = /\n*```python starter(?: task=([^\s`]+))?\n([\s\S]*?)\n```[ \t]*/
 
 export function pythonKind(question: string): PythonKind {
+  if (question.includes(PROOF_MARKER)) return 'proof'
   if (question.includes(TYPED_MARKER)) return 'math'
   if (question.includes(RECALL_MARKER)) return 'recall'
   if (STARTER_RE.test(question)) return 'code'
@@ -92,6 +102,8 @@ const OPTIONS_RE = /\n\nA\)\s[\s\S]*$/
  */
 export function displayQuestion(question: string): string {
   question = question.replace(CARD_MARKER, '').replace(/^\n/, '')
+  const proof = question.indexOf(PROOF_MARKER)
+  if (proof >= 0) return question.slice(0, proof).trimEnd()
   const typed = question.indexOf(TYPED_MARKER)
   if (typed >= 0) return question.slice(0, typed).trimEnd()
   const cut = question.indexOf(RECALL_MARKER)
@@ -117,7 +129,7 @@ export function recallBack(question: string): string {
 }
 
 export function displayAnswer(answer: string): string {
-  if (answer.startsWith('code:') || answer.startsWith('recall:') || answer.startsWith('math:')) return ''
+  if (answer.startsWith('code:') || answer.startsWith('recall:') || answer.startsWith('math:') || answer.startsWith('proof:')) return ''
   if (answer.startsWith('mc:')) return answer.slice(3)
   if (answer.startsWith('out:')) return answer.slice(4)
   return answer
@@ -131,6 +143,8 @@ export function pythonHint(kind: PythonKind, timeLimit = 8): string {
       return 'Answer in your head, reveal the back, then say honestly whether you had it.'
     case 'math':
       return 'Type your answer. Any equivalent form counts.'
+    case 'proof':
+      return 'Write a complete proof. LaTeX between \\( and \\) is rendered in the preview. Grading takes up to a minute.'
     case 'mc':
       return 'Pick one option, then Check.'
     default:
@@ -156,7 +170,7 @@ export const isCardQuestion = (question?: string | null) => !!question && questi
  * missing from the bundled concept list (a module the bundle was built
  * without), fork change. */
 export const isBankAnswer = (answer?: string | null) =>
-  !!answer && /^(mc|out|code|recall|math):/.test(answer)
+  !!answer && /^(mc|out|code|recall|math|proof):/.test(answer)
 
 /** Whether a served question takes the question-bank inputs. */
 export const isBankServed = (gradingType?: string | null, question?: string | null, answer?: string | null) =>

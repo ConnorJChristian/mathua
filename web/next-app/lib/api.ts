@@ -1,6 +1,7 @@
 import { API_BASE } from './apiBase'
 import { getAuthHeaders, authedFetch } from './auth'
 import { z } from 'zod'
+import { isProofQuestion } from './pythonQuestion'
 
 export { API_BASE }
 
@@ -148,7 +149,42 @@ export interface AnswerResult {
   ungraded?: boolean
   /** One sentence naming the mistake, when it is certain. Empty otherwise. */
   diagnosis?: string
+  /** The grade of a written proof (internal/proof); absent for other questions. */
+  proof?: ProofReport
 }
+
+/** One marking-scheme milestone with the judge's verdict on it. */
+export interface ProofMilestone {
+  id: string
+  desc: string
+  points: number
+  met: 'yes' | 'partial' | 'no' | string
+  note?: string
+}
+
+/** The grade of a written proof (grader.ProofReport). */
+export interface ProofReport {
+  /** Median of the judge runs, 0 to max. */
+  score: number
+  max: number
+  runs: number[]
+  /** Every run gave at least 6 of 7. */
+  fully_correct: boolean
+  milestones: ProofMilestone[]
+  first_error?: string
+  feedback: string
+  /** An identical proof was graded before; this grade cost nothing. */
+  cached?: boolean
+  /** Whether the grade moved mastery (MATHUA_PROOF_COUNTS_FOR_MASTERY). */
+  counts_for_mastery: boolean
+  model?: string
+}
+
+/**
+ * A written proof is graded by several language-model runs, which takes far
+ * longer than any other grading; its request gets a longer timeout.
+ */
+export const PROOF_TIMEOUT_MS = 180000
 
 export interface GraphRes {
   nodes: {
@@ -1428,6 +1464,8 @@ export interface StudyAnswerRes {
 	ungraded?: boolean
 	/** One sentence naming the mistake, when it is certain. Empty otherwise. */
 	diagnosis?: string
+	/** The grade of a written proof; absent for other questions. */
+	proof?: ProofReport
 	/**
 	 * Authoritative mastery evidence score for this concept, 0..1, from the same
 	 * `BuildEvidence` the ladder decides on.
@@ -1473,7 +1511,7 @@ export async function submitStudyAnswer(conceptId: string, answer: string, elaps
     // The engine replays an attempt id it has already graded, so repeating
     // this exact body cannot grade or award twice.
     retryAttempts: 1,
-		timeoutMs: 25000,
+		timeoutMs: isProofQuestion(question) ? PROOF_TIMEOUT_MS : 25000,
 		method: 'POST',
 		headers,
 		body: JSON.stringify(body),
@@ -1525,6 +1563,7 @@ export async function submitReviewAnswer(
 	answer: string,
 	elapsed: number,
 	attemptID: string,
+	opts?: { proof?: boolean },
 ): Promise<AnswerRes> {
 	const headers = {
 		'Content-Type': 'application/json',
@@ -1533,7 +1572,7 @@ export async function submitReviewAnswer(
 	const res = await authedFetch(`${API_BASE}/api/reviews/answer`, {
 		method: 'POST',
 		retryAttempts: 1,
-		timeoutMs: 25000,
+		timeoutMs: opts?.proof ? PROOF_TIMEOUT_MS : 25000,
 		headers,
 		body: JSON.stringify({ session_id: sessionID, attempt_id: attemptID, answer, elapsed }),
 	})
