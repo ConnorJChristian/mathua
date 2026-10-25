@@ -349,6 +349,26 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 
 CREATE INDEX IF NOT EXISTS idx_ai_usage_day ON ai_usage(day);
 
+-- Proof grading (internal/proof). proof_spend is the month's spend on the
+-- judge, so the monthly budget holds across restarts; proof_grades caches a
+-- finished grade by a hash of the problem, its marking scheme, the model and
+-- the proof text, so resubmitting an identical proof costs nothing. Neither
+-- row names a learner: the cache key is a hash and the spend is the
+-- installation's.
+CREATE TABLE IF NOT EXISTS proof_spend (
+    month         TEXT PRIMARY KEY,
+    usd           REAL NOT NULL DEFAULT 0,
+    input_tokens  INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    gradings      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS proof_grades (
+    cache_key  TEXT PRIMARY KEY,
+    result     TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Fix 7: version tracking for one-time data backfills. DDL stays
 -- idempotent (IF NOT EXISTS); data fixes below run exactly once.
 -- NOTE: no UNIQUE constraints are added here on purpose — legacy username

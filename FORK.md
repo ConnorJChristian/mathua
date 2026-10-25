@@ -170,7 +170,7 @@ modules.local.json    {"disabled": ["..."]}: switch modules off (git-ignored)
 ```
 
 A module is a folder with a `module.json` and any of `concepts/`, `bank/`,
-`readings.json`, `courses.json`, `destinations.json` and `files/`. The
+`proofs/`, `readings.json`, `courses.json`, `destinations.json` and `files/`. The
 server and the web build read every enabled module. A module can declare a
 **track**, a named group of domains (the fork has no Math | Python switch
 any more: one queue spans every track; a track still scopes a request that
@@ -321,6 +321,46 @@ that lists it as a prerequisite. About half of a topic's questions are
 cards (`MATHUA_CARD_SHARE`). A recall card the learner grades themselves is
 practice only: it never moves mastery, counts toward a halt or reschedules
 a review. The mastery test covers only topics studied on followed courses.
+
+## Proof grading
+
+A module may hold written-proof problems in `proofs/*.json`. Each problem
+names the topic whose practice serves it (`concept`), and carries its
+statement, a reference proof and a marking scheme on a 0-7 scale: milestones
+with points, caps for fatal errors ("assumes the conclusion: at most 1") and
+accepted alternative routes. The marking scheme is written once, offline.
+`internal/proof` describes the format. Proofs follow a textbook, so they
+belong in a `modules-local/` module; the committed modules hold none.
+
+A proof is graded by an Anthropic model (the Messages API) run several times
+at once; the grade is the median, and a proof counts as correct only when
+every run gives it at least 6 of 7. The rubric block is sent with prompt
+caching, an identical resubmitted proof is answered from a cache, and the
+month's spend is kept in the database against a ceiling. A missing key, a
+failed call or a spent budget leaves the proof ungraded, never wrong, and no
+proof is served while it could not be graded. Proofs are not served in
+placement or in quizzes.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | unset | Turns proof grading on. |
+| `MATHUA_PROOF_MODEL` | `claude-sonnet-5-5` | The judge model (`claude-opus-5-5` is stricter and dearer). |
+| `MATHUA_PROOF_RUNS` | 5 | Judge runs per proof (1-9). |
+| `MATHUA_PROOF_MONTHLY_USD` | 60 | Monthly spend ceiling in US dollars. |
+| `MATHUA_PROOF_PRICE_IN`, `MATHUA_PROOF_PRICE_OUT` | 3 / 15 (Sonnet), 5 / 25 (Opus) | Dollars per million input and output tokens; the defaults err high. |
+| `MATHUA_PROOF_MAX_TOKENS` | 2000 | Output budget of one run. |
+| `MATHUA_PROOF_TIMEOUT_SECONDS` | 120 | Bound on one grading. |
+| `MATHUA_PROOF_SHARE` | 0.2 | Share of a topic's practice that is proofs. |
+| `MATHUA_PROOF_COUNTS_FOR_MASTERY` | off | Let a fully correct proof count as mastery evidence. |
+
+Until you turn on `MATHUA_PROOF_COUNTS_FOR_MASTERY`, a proof result is
+feedback only, like a self-graded card. Turn it on after calibration:
+`mathua proof calibrate FILE` grades a CSV of `problem_id,proof_text,human_score`
+and reports the mean absolute error, the share within one point, the bias and
+the false-pass rate; `mathua proof calibrate -synthetic` grades the synthetic
+proofs stored with each problem. `mathua proof spend` shows the month's spend
+and `mathua proof list` the problems. In Docker, run them with
+`docker compose exec mathua /mathua proof ...`.
 
 ## Learning reports
 

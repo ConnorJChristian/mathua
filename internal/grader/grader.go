@@ -34,4 +34,7 @@ type Result struct {
 	// makes it determinable, and is empty otherwise. It is a description of
 	// what happened, produced only after grading, and never affects Correct.
 	Diagnosis string
+	// Proof is the detail of a graded proof (GradingProof), nil otherwise. A
+	// pointer keeps Result comparable, which the engine relies on.
+	Proof *ProofReport
 }

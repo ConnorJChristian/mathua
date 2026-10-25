@@ -23,6 +23,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/lessons"
 	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/planning"
+	"github.com/chuma-beep/mathua/internal/proof"
 	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/repair"
 	"github.com/chuma-beep/mathua/internal/server"
@@ -181,8 +182,14 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "proof":
+			if err := proofCommand(flag.Args()[1:]); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				os.Exit(1)
+			}
+			return
 		default:
-			fmt.Fprintf(os.Stderr, "unknown command %q. Available: admin, issues\n", flag.Arg(0))
+			fmt.Fprintf(os.Stderr, "unknown command %q. Available: admin, issues, proof\n", flag.Arg(0))
 			os.Exit(2)
 		}
 	}
@@ -224,6 +231,7 @@ func main() {
 
 	reg := all.Registry()
 	configurePythonRunner(dbPath)
+	configureProofGrader(repo)
 
 	ll, err := lessons.Load("data/lessons")
 	if err != nil {
@@ -354,11 +362,14 @@ func main() {
 		mux.Handle("/", nextStaticFS("web/next-app/out"))
 		fmt.Println("serving static frontend from web/next-app/out")
 	}
+	// The grading routes may run for server.GradingDeadline (longer while
+	// proof grading is on); the write timeout must outlast them.
+	writeTimeout := max(30*time.Second, server.GradingDeadline()+10*time.Second)
 	httpSrv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", *port),
 		Handler:      server.GzipMiddleware(securityHeaders(mux)),
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		WriteTimeout: writeTimeout,
 		IdleTimeout:  60 * time.Second,
 	}
 	go func() {
@@ -451,5 +462,29 @@ func configurePythonRunner(dbPath string) {
 		log.Printf("python track: code tasks cannot be graded here: %v", err)
 	} else {
 		fmt.Println("python track: code runner ready")
+	}
+}
+
+// configureProofGrader gives the proof grader its database store (the monthly
+// spend and the grade cache) and reports its state. Proof problems come only
+// from modules' proofs/ folders; with none, or with no API key, no proof is
+// served.
+func configureProofGrader(repo storage.Repository) {
+	g, err := proof.Default()
+	if err != nil {
+		log.Printf("warning: proof problems unavailable: %v", err)
+		return
+	}
+	if st, ok := repo.(proof.Store); ok {
+		g.SetStore(st)
+	}
+	switch {
+	case g.Bank.Len() == 0:
+		return
+	case !g.Enabled():
+		fmt.Printf("proof grading: %d problems, but ANTHROPIC_API_KEY is not set, so none is served\n", g.Bank.Len())
+	default:
+		fmt.Printf("proof grading: %d problems, model %s, %d runs, budget $%.2f/month, counts for mastery: %v\n",
+			g.Bank.Len(), g.Cfg.Model, g.Cfg.Runs, g.Cfg.MonthlyUSD, g.Cfg.CountsForMastery)
 	}
 }

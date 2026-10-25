@@ -30,6 +30,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/leaderboard"
 	"github.com/chuma-beep/mathua/internal/lessons"
 	"github.com/chuma-beep/mathua/internal/mastery"
+	"github.com/chuma-beep/mathua/internal/proof"
 	"github.com/chuma-beep/mathua/internal/quiz"
 	"github.com/chuma-beep/mathua/internal/scoring"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -421,6 +422,7 @@ func (s *Server) endDiagnosticSession(id string) {
 }
 
 func (s *Server) Register(mux *http.ServeMux) {
+	deadline := GradingDeadline()
 	mux.HandleFunc("/api/auth/signup", logRequest(cors(s.authLimiter.middleware(s.handleSignup))))
 	mux.HandleFunc("/api/auth/login", logRequest(cors(s.authLimiter.middleware(s.handleLogin))))
 	mux.HandleFunc("/api/auth/guest", logRequest(cors(s.authLimiter.middleware(s.handleGuestToken))))
@@ -470,7 +472,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/attempts", logRequest(cors(s.authMiddleware(s.handleAttempts))))
 	mux.HandleFunc("/api/goal", logRequest(cors(s.authMiddleware(s.handleGoal))))
 	mux.HandleFunc("/api/goal/diagnostic", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(s.handleGoalDiagnosticStart)))))
-	mux.HandleFunc("/api/goal/diagnostic/answer", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handleGoalDiagnosticAnswer))))))
+	mux.HandleFunc("/api/goal/diagnostic/answer", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(deadline, s.handleGoalDiagnosticAnswer))))))
 	mux.HandleFunc("/api/goal/diagnostic/skip", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(s.handleGoalDiagnosticSkip)))))
 	mux.HandleFunc("/api/goal/diagnostic/retry", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(s.handleGoalDiagnosticRetry)))))
 	mux.HandleFunc("/api/goal/diagnostic/resume", logRequest(cors(s.optionalAuthMiddleware(s.handleGoalDiagnosticResume))))
@@ -493,7 +495,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	// landing on the app gets the diagnostic recommendation rather than an error.
 	mux.HandleFunc("/api/next", logRequest(cors(s.optionalAuthMiddleware(s.handleNext))))
 	mux.HandleFunc("/api/reviews/session", logRequest(cors(s.authMiddleware(s.writeLimiter.middleware(s.handleReviewsSession)))))
-	mux.HandleFunc("/api/reviews/answer", logRequest(cors(s.authMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handleReviewsAnswer))))))
+	mux.HandleFunc("/api/reviews/answer", logRequest(cors(s.authMiddleware(s.writeLimiter.middleware(gradingTimeout(deadline, s.handleReviewsAnswer))))))
 	// The lesson routes stay publicly readable — Study is reference and is
 	// indexed — so auth is optional, but it must be *present*: the practice
 	// branch writes the server-side answer anchor, and it can only key that
@@ -505,8 +507,8 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/lessons/", logRequest(cors(s.optionalAuthMiddleware(s.handleLessonConcept))))
 	mux.HandleFunc("/api/modules/", logRequest(cors(s.handleModuleFile)))
 	mux.HandleFunc("/api/library", logRequest(cors(s.handleLibrary)))
-	mux.HandleFunc("/api/python/run", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handlePythonRun))))))
-	mux.HandleFunc("/api/study/answer", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handleStudyAnswer))))))
+	mux.HandleFunc("/api/python/run", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(deadline, s.handlePythonRun))))))
+	mux.HandleFunc("/api/study/answer", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(deadline, s.handleStudyAnswer))))))
 	// Report creation only. Listing and resolving reports is administration now and lives under
 	// /api/admin/reports behind the role boundary; the old shared-password triage endpoints were
 	// removed in V2 so there is exactly one moderation path.
@@ -541,7 +543,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/admin/lab/generate", logRequest(cors(s.writeLimiter.middleware(s.requirePermission(admin.ContentRead, s.handleAdminLabGenerate)))))
 	mux.HandleFunc("/api/admin/lab/grade", logRequest(cors(s.writeLimiter.middleware(s.requirePermission(admin.ContentRead, s.handleAdminLabGrade)))))
 	mux.HandleFunc("/api/quiz/session", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(s.handleQuizSession)))))
-	mux.HandleFunc("/api/quiz/answer", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(gradingDeadline, s.handleQuizAnswer))))))
+	mux.HandleFunc("/api/quiz/answer", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(gradingTimeout(deadline, s.handleQuizAnswer))))))
 	mux.HandleFunc("/api/quiz/skip", logRequest(cors(s.optionalAuthMiddleware(s.writeLimiter.middleware(s.handleQuizSkip)))))
 	mux.HandleFunc("/api/health", logRequest(cors(getOnly(s.handleHealth))))
 	mux.HandleFunc("/api/activity", logRequest(cors(s.authMiddleware(s.handleActivity))))
@@ -3090,7 +3092,7 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "concept_id required", 400)
 		return
 	}
-	if len(req.Answer) > 4096 {
+	if len(req.Answer) > maxAnswerBytes(req.Question) {
 		writeError(w, "answer too long", 400)
 		return
 	}
@@ -3169,7 +3171,23 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 		"xp":              res.XP,
 		"expected_answer": displayAnswer(res.ExpectedAnswer),
 		"halted":          res.Halted,
+		// An answer the grader could not evaluate (a proof judge with no key,
+		// no budget or no reply) recorded nothing; the client keeps the
+		// answer for a retry instead of showing a miss.
+		"ungraded": res.Ungraded,
+		"proof":    res.Proof,
 	})
+}
+
+// maxAnswerBytes bounds a submitted answer. A written proof is far longer
+// than any typed answer, so a question carrying the proof marker allows more;
+// the question text is checked against the server's own record of what was
+// served, so naming the marker cannot lift the bound for another question.
+func maxAnswerBytes(question string) int {
+	if strings.Contains(question, proof.Marker) {
+		return 20000
+	}
+	return 4096
 }
 
 type authStudentKey struct{}
@@ -4602,6 +4620,20 @@ func GzipMiddleware(next http.Handler) http.Handler {
 // browser's answer timeout so a slow grade returns a JSON 503 the client can
 // retry instead of the browser aborting a request the server still holds.
 const gradingDeadline = 20 * time.Second
+
+// GradingDeadline is the bound the grading routes are registered with. A
+// written proof is graded by several language-model runs that can take most
+// of a minute, so while proof grading is enabled the bound is the proof
+// judge's own timeout plus a margin; every other grader still finishes far
+// inside it under its own timeouts (SymPy, the Python runner).
+func GradingDeadline() time.Duration {
+	if g, err := proof.Default(); err == nil && g.Enabled() {
+		if d := g.Cfg.Timeout + 15*time.Second; d > gradingDeadline {
+			return d
+		}
+	}
+	return gradingDeadline
+}
 
 // gradingTimeout converts a handler into one that answers 503 if it outlives
 // deadline. http.TimeoutHandler also cancels the request context, so the

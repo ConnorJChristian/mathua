@@ -9,6 +9,7 @@
 //	  module.json            name, description, tracks, domain labels
 //	  concepts/*.json        concept-graph nodes, same format as data/concepts
 //	  bank/*.json            question banks (internal/pytrack)
+//	  proofs/*.json          proof problems and marking schemes (internal/proof)
 //	  readings.json          per-concept "read this section" pointers
 //	  courses.json           courses, same format as data/courses.json
 //	  destinations.json      destinations, same format as data/destinations.json
@@ -621,6 +622,10 @@ func (s *Set) ConceptDirs() []string { return s.dirsNamed("concepts") }
 
 // BankDirs are the modules' bank/ folders.
 func (s *Set) BankDirs() []string { return s.dirsNamed("bank") }
+
+// ProofDirs are the modules' proofs/ folders: proof problems with their
+// marking schemes (internal/proof).
+func (s *Set) ProofDirs() []string { return s.dirsNamed("proofs") }
 
 // CourseFiles are the modules' courses.json files.
 func (s *Set) CourseFiles() []string { return s.filesNamed("courses.json") }

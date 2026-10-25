@@ -104,3 +104,30 @@ func TestEngine_RecordAnswerAdvances(t *testing.T) {
 		t.Error("expected not complete after 1 of 3")
 	}
 }
+
+type ctxRecorder struct{ got *generator.GeneratorContext }
+
+func (r ctxRecorder) Generate(ctx generator.GeneratorContext) generator.Problem {
+	*r.got = ctx
+	return generator.Problem{Question: "q", Answer: "1"}
+}
+
+// A quiz never asks for a proof problem (internal/engine/proofs.go).
+func TestQuizAsksForNoProofs(t *testing.T) {
+	d, err := concepts.Build([]concepts.Concept{{ID: "a", Label: "A", Domain: "d", GradingType: "numeric",
+		MasteryThreshold: concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 60}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got generator.GeneratorContext
+	reg := generator.NewRegistry()
+	reg.Register("a", ctxRecorder{&got})
+	e := NewEngine(d, reg)
+	s := e.Start(nil)
+	if _, _, err := e.NextQuestion(s); err != nil {
+		t.Fatal(err)
+	}
+	if !got.NoProofs {
+		t.Fatalf("quiz generated with %+v", got)
+	}
+}

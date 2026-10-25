@@ -72,12 +72,13 @@ func (e *Engine) NextQuestion(s *Session) (*generator.Problem, string, error) {
 	if d, ok := s.Difficulties[c.ID]; ok && d > 0 {
 		difficulty = d
 	}
-	p, err := e.registry.Generate(c.ID, difficulty)
+	gctx := generator.GeneratorContext{Difficulty: difficulty, NoProofs: true}
+	p, err := e.registry.GenerateContext(c.ID, gctx)
 	if err != nil {
 		return nil, "", err
 	}
 	for i := 0; i < 6 && s.Avoid[p.Question]; i++ {
-		if p2, err2 := e.registry.Generate(c.ID, difficulty); err2 == nil {
+		if p2, err2 := e.registry.GenerateContext(c.ID, gctx); err2 == nil {
 			p = p2
 		}
 	}

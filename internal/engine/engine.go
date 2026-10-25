@@ -168,6 +168,9 @@ type AnswerResult struct {
 	// EvidenceBand is EvidenceScore in plain language, from mastery.EvidenceBand.
 	// Presentational only, and the words deliberately claim nothing about retention.
 	EvidenceBand string `json:"evidence_band"`
+	// Proof is the detail of a graded proof (score out of 7, milestone
+	// checklist, feedback), nil for every other question.
+	Proof *grader.ProofReport `json:"proof,omitempty"`
 }
 
 type Engine struct {
@@ -242,6 +245,7 @@ func New(repo storage.Repository, dag *concepts.DAG, reg *generator.Registry, ll
 		resetGen:      make(map[string]uint64),
 	}
 	attachCards(dag, reg)
+	attachProofs(dag, reg)
 	return e
 }
 
@@ -1226,7 +1230,7 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 		questionText:   sessionFields.questionText,
 		difficulty:     difficultyOrNil(sessionFields.questionDifficulty),
 		review:         sessionFields.isReview,
-		selfGraded:     isSelfGraded(sessionFields.expectedAnswer),
+		selfGraded:     practiceOnly(sessionFields.expectedAnswer),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("save progress: %w", err)
@@ -1275,7 +1279,7 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 	// PR 1.5: consecutive-miss tracking — halt after 2 (XP=0) + remedial queue.
 	halted := false
 	var remedial []string
-	if !gr.Correct && !isSelfGraded(sessionFields.expectedAnswer) {
+	if !gr.Correct && !practiceOnly(sessionFields.expectedAnswer) {
 		as.consecutiveMisses++
 		if as.consecutiveMisses >= 2 && !as.halted {
 			halted = true
@@ -1346,6 +1350,7 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 		ExpectedAnswer: sessionFields.expectedAnswer,
 		Halted:         halted,
 		Remedial:       remedial,
+		Proof:          gr.Proof,
 	}, nil
 }
 
@@ -1488,7 +1493,7 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 		correct:        gr.Correct,
 		questionText:   questionText,
 		difficulty:     difficulty,
-		selfGraded:     isSelfGraded(expected),
+		selfGraded:     practiceOnly(expected),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("save progress: %w", err)
@@ -1534,7 +1539,10 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 	halted := false
 	var remedial []string
 	e.mu.Lock()
-	if !gr.Correct {
+	if !gr.Correct && grader.IsProofAnswer(expected) && !proofsCountForMastery() {
+		// A practice-only proof is feedback, not evidence: it neither counts
+		// toward a halt nor clears one (practiceOnly).
+	} else if !gr.Correct {
 		e.studyMisses[missKey]++
 		if e.studyMisses[missKey] >= 2 {
 			halted = true
@@ -1579,6 +1587,7 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 		ExpectedAnswer: expected,
 		Halted:         halted,
 		Remedial:       remedial,
+		Proof:          gr.Proof,
 	}, nil
 }
 
@@ -2627,10 +2636,11 @@ type gradedAttempt struct {
 	// one reschedules the topic's next review from SM-2 however short the
 	// streak, and a miss brings it back tomorrow.
 	review bool
-	// selfGraded marks a flashcard the learner graded themselves (a recall
-	// card's "right"/"wrong"). It is practice, not evidence: it never moves
-	// the mastery ladder, never counts as a miss toward a halt, and never
-	// reschedules a review (fork change, engine/cards.go).
+	// selfGraded marks practice that is not evidence: a flashcard the learner
+	// graded themselves (a recall card's "right"/"wrong"), or a proof graded
+	// while MATHUA_PROOF_COUNTS_FOR_MASTERY is off (practiceOnly, proofs.go).
+	// It never moves the mastery ladder, never counts as a miss toward a
+	// halt, and never reschedules a review (fork change, engine/cards.go).
 	selfGraded bool
 	// difficulty the question that produced this attempt was generated at, or nil when it
 	// is genuinely unknown. A pointer, not a float64 with 0 meaning unknown: 0 is not a

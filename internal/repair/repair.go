@@ -19,6 +19,7 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/engine"
+	"github.com/chuma-beep/mathua/internal/grader"
 	"github.com/chuma-beep/mathua/internal/mastery"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -55,6 +56,12 @@ func Run(eng *engine.Engine, repo storage.Repository, dag *concepts.DAG, dryRun 
 	for i, a := range all {
 		corrected[i] = a.Correct
 		if a.Correct {
+			continue
+		}
+		// A proof is graded by sampled model runs, not by a deterministic
+		// grader: replaying it would spend API credit for a verdict that is
+		// not a repair, so proofs are never re-graded here.
+		if grader.IsProofAnswer(a.Expected) {
 			continue
 		}
 		sum.Incorrect++

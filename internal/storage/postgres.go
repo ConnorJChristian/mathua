@@ -272,6 +272,26 @@ CREATE TABLE IF NOT EXISTS ai_usage (
 
 CREATE INDEX IF NOT EXISTS idx_ai_usage_day ON ai_usage(day);
 
+-- Proof grading (internal/proof); see the SQLite schema. proof_spend is the month's spend on the
+-- judge, so the monthly budget holds across restarts; proof_grades caches a
+-- finished grade by a hash of the problem, its marking scheme, the model and
+-- the proof text, so resubmitting an identical proof costs nothing. Neither
+-- row names a learner: the cache key is a hash and the spend is the
+-- installation's.
+CREATE TABLE IF NOT EXISTS proof_spend (
+    month         TEXT PRIMARY KEY,
+    usd           DOUBLE PRECISION NOT NULL DEFAULT 0,
+    input_tokens  BIGINT NOT NULL DEFAULT 0,
+    output_tokens BIGINT NOT NULL DEFAULT 0,
+    gradings      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS proof_grades (
+    cache_key  TEXT PRIMARY KEY,
+    result     TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (now()::text)
+);
+
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version    INTEGER PRIMARY KEY,
     applied_at TEXT NOT NULL DEFAULT (now()::text)

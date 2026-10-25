@@ -11,6 +11,7 @@ modules-local/
     module.json        {"id": "wooldridge", "name": "Wooldridge, Introductory Econometrics"}
     concepts/*.json    topics, same format as data/concepts
     bank/*.json        questions (code tasks, multiple choice, output, recall cards)
+    proofs/*.json      proof problems with marking schemes (FORK.md, Proof grading)
     readings.json      {"<concept id>": {"source": "Ch. 2.1, pp. 22-30", "file": "wooldridge.pdf", "page": 40}}
     files/             your PDFs; "Open section" opens them at the page above
 ```

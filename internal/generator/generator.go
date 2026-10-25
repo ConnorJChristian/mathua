@@ -9,6 +9,10 @@ type GeneratorContext struct {
 	// your flashcards (engine/cards.go): placement measures with questions
 	// that grade themselves, not self-graded cards.
 	NoCards bool
+	// NoProofs asks for no proof problem (internal/proof). Quizzes set it:
+	// a quiz is a timed assessment whose answers are mastery evidence, and a
+	// written proof is neither quick nor, by default, evidence.
+	NoProofs bool
 }
 
 type Problem struct {

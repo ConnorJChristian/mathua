@@ -27,6 +27,12 @@ func NewRouter() *Router {
 }
 
 func (r *Router) Grade(gradingType GradingType, expected, answer string) Result {
+	// A proof is graded as a proof whatever the concept's own grading type:
+	// proof problems are served inside generated topics' practice, the way
+	// question-bank cards are.
+	if gradingType == GradingProof || IsProofAnswer(expected) {
+		return gradeProof(expected, answer)
+	}
 	// A bank answer is graded by the bank (code against hidden tests, a
 	// choice against its key): the learner's text must reach it untouched.
 	// lenient() used to strip a leading "query = " from SQL tasks (fork fix).
@@ -149,7 +155,7 @@ func canonConstants(s string) string {
 // generated concept (your flashcards in its practice), and must then be graded
 // as the bank item it is, whatever the concept's own grading type.
 func IsBankAnswer(expected string) bool {
-	for _, p := range []string{"mc:", "out:", "code:", "recall:", "math:"} {
+	for _, p := range []string{"mc:", "out:", "code:", "recall:", "math:", ProofPrefix} {
 		if strings.HasPrefix(expected, p) {
 			return true
 		}
