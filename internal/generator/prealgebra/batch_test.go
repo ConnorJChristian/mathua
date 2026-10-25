@@ -491,6 +491,11 @@ func TestPrealgInequalityWordFactsAgree(t *testing.T) {
 		if answer != bound {
 			t.Fatalf("%s: answer %d != bound %d", p.Question, answer, bound)
 		}
+		if p.Facts["context"] == "elevator capacity" {
+			if !strings.Contains(p.Question, "each person weighs") || strings.Contains(p.Question, "kg per person") {
+				t.Fatalf("%s: elevator wording hides who the per-person weight belongs to", p.Question)
+			}
+		}
 		if p.Facts["relation"] == "at least" {
 			if !strings.Contains(p.Facts["inequality"], "\\ge") {
 				t.Fatalf("%s: at-least inequality lacks \\ge: %q", p.Question, p.Facts["inequality"])
