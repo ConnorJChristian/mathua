@@ -27,6 +27,7 @@ package calculus
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -468,17 +469,20 @@ func (g *frenetGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 
 type taylor2Gen struct{}
 
+// taylor2Item is one second-order Taylor question with the facts it was built from.
+type taylor2Item struct {
+	question string
+	answer   string
+	f0, fx   float64
+	fy       float64
+	fxx, fxy float64
+	fyy      float64
+	dx, dy   float64
+	reason   string
+}
+
 func (g *taylor2Gen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	type claim struct {
-		question string
-		answer   string
-		f0, fx   float64
-		fy       float64
-		fxx, fxy float64
-		fyy      float64
-		dx, dy   float64
-		reason   string
-	}
+	type claim = taylor2Item
 	claims := []claim{
 		{
 			question: "At the expansion point, f = 5, fx = 2, fy = 4, fxx = 2, fxy = 0 and fyy = 2. For dx = 0.1 and dy = 0.1, what is the second-order Taylor approximation f + fx dx + fy dy + (1/2)(fxx dx^2 + 2 fxy dx dy + fyy dy^2)? (enter a decimal)",
@@ -512,6 +516,9 @@ func (g *taylor2Gen) Generate(ctx generator.GeneratorContext) generator.Problem 
 		},
 	}
 	c := claims[rand.Intn(len(claims))]
+	if rand.Intn(3) != 0 {
+		c = taylor2Claim()
+	}
 	format := func(v float64) string { return strconv.FormatFloat(v, 'g', -1, 64) }
 	return generator.Problem{
 		Question:    c.question,
@@ -523,6 +530,48 @@ func (g *taylor2Gen) Generate(ctx generator.GeneratorContext) generator.Problem 
 			"dx": format(c.dx), "dy": format(c.dy), "answer": c.answer,
 		},
 	}
+}
+
+// taylor2Claim draws the derivatives and step for a second-order Taylor approximation and
+// computes the value exactly. With dx = i/10 and dy = j/10 the value is N/200 for the integer
+// N = 200 f + 20(fx i + fy j) + (fxx i^2 + 2 fxy i j + fyy j^2), so no float rounding enters
+// the key.
+func taylor2Claim() taylor2Item {
+	steps := []int{-2, -1, 1, 2}
+	f0 := 1 + rand.Intn(6)
+	fx := rand.Intn(9) - 4
+	fy := rand.Intn(9) - 4
+	fxx := rand.Intn(7) - 3
+	fxy := rand.Intn(5) - 2
+	fyy := rand.Intn(7) - 3
+	i := steps[rand.Intn(len(steps))]
+	j := steps[rand.Intn(len(steps))]
+	lin := fx*i + fy*j                    // linear part, in tenths
+	hess := fxx*i*i + 2*fxy*i*j + fyy*j*j // twice the Hessian part, in hundredths
+	n := 200*f0 + 20*lin + hess
+	dec := func(num, den int64) string {
+		v, _ := new(big.Rat).SetFrac64(num, den).Float64()
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	}
+	answer := dec(int64(n), 200)
+	kind := "(enter a decimal)"
+	if n%200 == 0 {
+		kind = "(enter a number)"
+	}
+	dx, dy := dec(int64(i), 10), dec(int64(j), 10)
+	q := fmt.Sprintf("At the expansion point, f = %d, fx = %d, fy = %d, fxx = %d, fxy = %d and fyy = %d. For dx = %s and dy = %s, what is the second-order Taylor approximation f + fx dx + fy dy + (1/2)(fxx dx^2 + 2 fxy dx dy + fyy dy^2)? %s",
+		f0, fx, fy, fxx, fxy, fyy, dx, dy, kind)
+	reason := fmt.Sprintf("The linear part is fx dx + fy dy = %s and the Hessian part is 0.5(fxx dx^2 + 2 fxy dx dy + fyy dy^2) = 0.5(%s) = %s, so the value is %d%s%s = %s.",
+		dec(int64(lin), 10), dec(int64(hess), 100), dec(int64(hess), 200), f0, signedTerm(dec(int64(lin), 10)), signedTerm(dec(int64(hess), 200)), answer)
+	return taylor2Item{q, answer, float64(f0), float64(fx), float64(fy), float64(fxx), float64(fxy), float64(fyy), float64(i) / 10, float64(j) / 10, reason}
+}
+
+// signedTerm writes a decimal as the next term of a sum: " + 0.4" or " - 0.4".
+func signedTerm(v string) string {
+	if strings.HasPrefix(v, "-") {
+		return " - " + v[1:]
+	}
+	return " + " + v
 }
 
 // ---------------------------------------------------------------------------

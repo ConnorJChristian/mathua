@@ -189,23 +189,27 @@ func TestChoice_Grade_CaseInsensitive(t *testing.T) {
 	}
 }
 
+// A typed letter is graded against the question's options (ResolveChoiceLetter),
+// not against the words of the key.
 func TestChoice_Grade_LetterOnly(t *testing.T) {
 	r := NewRouter()
-	res := r.Grade(GradingMultipleChoice, "Option B", "B")
-	if !res.Correct {
-		t.Error("expected single-letter answer B to match option starting with B")
+	q := "Pick one.\n\nA) Option A\n\nB) Option B"
+	if !r.Grade(GradingMultipleChoice, "Option B", ResolveChoiceLetter(q, "Option B", "b")).Correct {
+		t.Error("expected the letter b to resolve to Option B")
 	}
-	res = r.Grade(GradingMultipleChoice, "option b", "b")
-	if !res.Correct {
-		t.Error("expected single-letter b to match b")
+	if r.Grade(GradingMultipleChoice, "Option B", ResolveChoiceLetter(q, "Option B", "a")).Correct {
+		t.Error("the letter a resolves to Option A and must grade wrong")
 	}
 }
 
 func TestChoice_Grade_LetterOnly_ExpectedLetter(t *testing.T) {
 	r := NewRouter()
-	res := r.Grade(GradingMultipleChoice, "B", "Option B")
-	if !res.Correct {
-		t.Error("expected single-letter expected B to match full Option B")
+	q := "Pick one.\n\nA) Option A\n\nB) Option B"
+	if !r.Grade(GradingMultipleChoice, "B", ResolveChoiceLetter(q, "B", "Option B")).Correct {
+		t.Error("a letter key should accept its option's text")
+	}
+	if !r.Grade(GradingMultipleChoice, "B", "b").Correct {
+		t.Error("a letter key should accept the letter")
 	}
 }
 

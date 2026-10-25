@@ -1375,12 +1375,97 @@ func (g *contradictionGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		{"Is Euclid's prime proof actually by contradiction? (yes/no)", "yes", "Assume finite list, get contradiction."},
 		{"Does proof by contrapositive differ from contradiction? (yes/no)", "yes", "Contrapositive proves ¬Q→¬P directly."},
 	}
+	if rand.Intn(3) != 0 {
+		return contradictionChoice()
+	}
 	pool := easy
 	if scale > 3 {
 		pool = append(easy, hard...)
 	}
 	e := pool[rand.Intn(len(pool))]
 	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+}
+
+// contradictionChoice asks a recognition question about a concrete proof by contradiction:
+// what to assume (the negation of the statement), or what contradiction closes the classic
+// irrationality proof. Correct options avoid stand-alone words "a" to "e", which the choice
+// grader would otherwise match against a typed option letter.
+func contradictionChoice() generator.Problem {
+	type item struct {
+		statement, negation string
+		distractors         []string
+		why                 string
+	}
+	var items []item
+	for _, k := range []int{2, 3, 5, 6, 7, 10, 11} {
+		items = append(items, item{
+			fmt.Sprintf("\u221a%d is irrational", k),
+			fmt.Sprintf("\u221a%d is rational", k),
+			[]string{fmt.Sprintf("\u221a%d is irrational", k), fmt.Sprintf("\u221a%d is an integer", k), fmt.Sprintf("%d is a perfect square", k)},
+			"the negation of \u201cirrational\u201d is \u201crational\u201d; assuming the statement itself proves nothing.",
+		})
+	}
+	for _, q := range []int{2, 3, 5, 7} {
+		items = append(items, item{
+			fmt.Sprintf("for every integer n, if %d divides n\u00b2 then %d divides n", q, q),
+			fmt.Sprintf("Some integer n has %d dividing n\u00b2 but not dividing n", q),
+			[]string{
+				fmt.Sprintf("For every integer n, if %d divides n then %d divides n\u00b2", q, q),
+				fmt.Sprintf("No integer n has %d dividing n\u00b2", q),
+				fmt.Sprintf("Some integer n has %d dividing n but not dividing n\u00b2", q),
+			},
+			"the negation of \u201cfor every n, if P(n) then Q(n)\u201d is \u201csome n has P(n) and not Q(n)\u201d. The other options are the converse, an unrelated claim, and the negation of the converse.",
+		})
+	}
+	for _, n := range []int{10, 20, 50, 100} {
+		h := n / 2
+		items = append(items, item{
+			fmt.Sprintf("for real numbers x and y, if x + y \u2265 %d then x \u2265 %d or y \u2265 %d", n, h, h),
+			fmt.Sprintf("x + y \u2265 %d, yet x < %d and y < %d", n, h, h),
+			[]string{
+				fmt.Sprintf("x + y < %d, and x < %d and y < %d", n, h, h),
+				fmt.Sprintf("x + y \u2265 %d, and x \u2265 %d and y \u2265 %d", n, h, h),
+				fmt.Sprintf("x + y < %d, or x \u2265 %d", n, h),
+			},
+			fmt.Sprintf("the negation of \u201cif P then (Q or R)\u201d is \u201cP and not Q and not R\u201d. Adding x < %d and y < %d gives x + y < %d, contradicting x + y \u2265 %d.", h, h, n, n),
+		})
+	}
+	items = append(items,
+		item{"there are infinitely many primes", "There are only finitely many primes",
+			[]string{"There are infinitely many primes", "There are infinitely many composite numbers", "Every integer greater than 1 is prime"},
+			"Euclid assumes a finite list of all primes, multiplies them and adds 1, and finds a number no prime on the list divides."},
+		item{"there is no largest integer", "Some integer N is at least as large as every integer",
+			[]string{"Every integer has a larger integer", "Some integer is smaller than every other integer", "No integer is negative"},
+			"if N were the largest integer, N + 1 would be a larger one."},
+		item{"there is no smallest positive rational number", "Some positive rational r is less than or equal to every positive rational",
+			[]string{"Every positive rational has a smaller positive rational", "Some rational number is negative", "Every positive rational is greater than 1"},
+			"if r were the smallest positive rational, r/2 would be a smaller one."},
+		item{"log\u2082 3 is irrational", "log\u2082 3 = p/q for some integers p, q with q \u2260 0",
+			[]string{"log\u2082 3 is irrational", "log\u2082 3 is an integer", "3 is a power of 2"},
+			"from log\u2082 3 = p/q with p, q positive, 2^p = 3^q, an even number equal to an odd one."},
+		item{"for every real x > 0, x + 1/x \u2265 2", "Some real x > 0 has x + 1/x < 2",
+			[]string{"For every real x > 0, x + 1/x < 2", "Some real x > 0 has x + 1/x \u2265 2", "For every real x < 0, x + 1/x \u2265 2"},
+			"the negation of \u201cfor every x > 0, P(x)\u201d is \u201csome x > 0 has not P(x)\u201d. Then x\u00b2 + 1 < 2x gives (x \u2212 1)\u00b2 < 0, which is impossible."},
+	)
+
+	if rand.Intn(4) == 0 {
+		primes := []int{2, 3, 5, 7, 11, 13}
+		k := primes[rand.Intn(len(primes))]
+		q := fmt.Sprintf("To prove \u221a%d is irrational by contradiction, assume \u221a%d = p/q with p/q in lowest terms. Then p\u00b2 = %dq\u00b2. Which contradiction finishes the proof?", k, k, k)
+		correct := fmt.Sprintf("%d divides both p and q, so p/q was not in lowest terms", k)
+		pr := generator.MultipleChoice(q, correct,
+			"p and q are both odd, so p\u00b2 cannot equal an even number",
+			"q must equal 1, so \u221a"+strconv.Itoa(k)+" is an integer",
+			fmt.Sprintf("%d must be a perfect square", k))
+		pr.Explanation = fmt.Sprintf("%d divides p\u00b2 and %d is prime, so %d divides p; write p = %dm. Then %d\u00b2m\u00b2 = %dq\u00b2, so q\u00b2 = %dm\u00b2 and %d divides q too. A common factor contradicts lowest terms, so \u221a%d is irrational.",
+			k, k, k, k, k, k, k, k, k)
+		return pr
+	}
+	it := items[rand.Intn(len(items))]
+	q := fmt.Sprintf("A proof by contradiction of the statement \u201c%s\u201d begins by assuming which of the following?", it.statement)
+	pr := generator.MultipleChoice(q, it.negation, it.distractors...)
+	pr.Explanation = fmt.Sprintf("A proof by contradiction assumes the negation of the statement and derives something false. Here the assumption is \u201c%s\u201d: %s", it.negation, it.why)
+	return pr
 }
 
 type inclusionExclusionGen struct{}

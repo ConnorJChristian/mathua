@@ -1185,7 +1185,7 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 	as.answerDone = make(chan struct{})
 	e.mu.Unlock()
 
-	gr := e.gradeAnswer(sessionFields.conceptID, sessionFields.expectedAnswer, answer)
+	gr := e.gradeAnswer(sessionFields.conceptID, sessionFields.expectedAnswer, grader.ResolveChoiceLetter(sessionFields.questionText, sessionFields.expectedAnswer, answer))
 	if gr.Unavailable {
 		// Grader infrastructure fault — never a student miss. Re-arm the
 		// pending question so the client can retry, and record nothing.
@@ -1452,7 +1452,7 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 	// Grade using concept's grading type via registry/router — skipped for
 	// admitted unknowns, which are forced misses (no XP, no rushing penalty).
 	gen := e.writeGeneration(studentID)
-	gr := e.gradeAnswer(conceptID, expected, answer)
+	gr := e.gradeAnswer(conceptID, expected, grader.ResolveChoiceLetter(questionText, expected, answer))
 	if dontKnow {
 		gr = grader.Result{Correct: false}
 	}

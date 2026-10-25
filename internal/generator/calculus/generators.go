@@ -2,6 +2,7 @@ package calculus
 
 import (
 	"fmt"
+	"math/big"
 	"math/rand"
 	"strings"
 
@@ -271,25 +272,54 @@ func (g *limitContinuityGen) Generate(ctx generator.GeneratorContext) generator.
 type derivConceptGen struct{}
 
 func (g *derivConceptGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	type entry struct {
-		q string
-		a int
-		e string
+	// f(x) = a x^n at x = c; the slope of the tangent line is f'(c) = a n c^(n-1).
+	as := []int{1, 2, 3}
+	ns := []int{2, 3}
+	cs := []int{1, 2, 3, 4}
+	if ctx.Difficulty > 0.5 {
+		as = append(as, 4, -1, -2)
+		cs = append(cs, -1, -2, -3)
 	}
-	table := []entry{
-		{"What is the slope of \\(f(x)=x^{2}\\) at \\(x=3\\)?", 6, "\\(f'(x)=2x\\), so \\(f'(3)=2 \\cdot 3 = 6\\)."},
-		{"What is the slope of \\(f(x)=x^{2}\\) at \\(x=2\\)?", 4, "\\(f'(x)=2x\\), so \\(f'(2)=2 \\cdot 2 = 4\\)."},
-		{"What is the slope of \\(f(x)=x^{2}\\) at \\(x=1\\)?", 2, "\\(f'(x)=2x\\), so \\(f'(1)=2 \\cdot 1 = 2\\)."},
-		{"What is the slope of \\(f(x)=2x^{2}\\) at \\(x=2\\)?", 8, "\\(f'(x)=4x\\), so \\(f'(2)=4 \\cdot 2 = 8\\)."},
-		{"What is the slope of \\(f(x)=x^{3}\\) at \\(x=2\\)?", 12, "\\(f'(x)=3x^{2}\\), so \\(f'(2)=3 \\cdot 4 = 12\\)."},
-		{"What is the slope of \\(f(x)=x^{3}\\) at \\(x=1\\)?", 3, "\\(f'(x)=3x^{2}\\), so \\(f'(1)=3 \\cdot 1 = 3\\)."},
+	a := as[rand.Intn(len(as))]
+	n := ns[rand.Intn(len(ns))]
+	c := cs[rand.Intn(len(cs))]
+	cpow := 1
+	for i := 0; i < n-1; i++ {
+		cpow *= c
 	}
-	e := table[rand.Intn(len(table))]
+	slope := a * n * cpow
+	fx := singleTerm(a, n)
+	dfx := singleTerm(a*n, n-1)
+	cpowStr := fmt.Sprintf("%d", c)
+	if c < 0 {
+		cpowStr = fmt.Sprintf("(%d)", c)
+	}
+	if n-1 > 1 {
+		cpowStr = fmt.Sprintf("%s^{%d}", cpowStr, n-1)
+	}
 	return generator.Problem{
-		Question:    e.q,
-		Answer:      fmt.Sprintf("%d", e.a),
-		Explanation: e.e,
+		Question:    fmt.Sprintf("What is the slope of \\(f(x)=%s\\) at \\(x=%d\\)?", texPow(fx), c),
+		Answer:      fmt.Sprintf("%d", slope),
+		Explanation: fmt.Sprintf("The slope of the tangent line is the derivative: \\(f'(x)=%s\\), so \\(f'(%d)=%d \\cdot %s = %d\\).", texPow(dfx), c, a*n, cpowStr, slope),
 	}
+}
+
+// texPow turns the plain powers singleTerm writes ("3x^2") into TeX ("3x^{2}").
+func texPow(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '^' {
+			j := i + 1
+			for j < len(s) && (s[j] == '-' || (s[j] >= '0' && s[j] <= '9')) {
+				j++
+			}
+			b.WriteString("^{" + s[i+1:j] + "}")
+			i = j - 1
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
 
 type derivPowerRuleGen struct{}
@@ -904,8 +934,11 @@ func (g *nonDiffGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 		{"Name one way a function can fail to be differentiable.", "corner/cusp/vertical tangent/discontinuity", "Functions can fail to be differentiable at corners (|x|), cusps (√|x|), vertical tangents (x^(1/3)), or points of discontinuity."},
 		{"If a function is differentiable at x=c, is it necessarily continuous at x=c?", "yes", "Differentiability implies continuity. But the converse is not true — continuity does not imply differentiability."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	if rand.Intn(3) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return nonDiffVariant(ctx)
 }
 
 type partialDerivGen struct{}
@@ -1524,8 +1557,11 @@ func (g *taylorSeriesGen) Generate(ctx generator.GeneratorContext) generator.Pro
 		{"What is the coefficient of x^2 in the Maclaurin series for cos? (enter -1/2)", "-1/2", "cos(x) = 1 - x^2/2! + x^4/4! - ... with R=infinity; coefficient of x^2 is -1/2."},
 		{"Does ln(1+x) = x - x^2/2 + x^3/3 - ... for |x|<1? (yes/no)", "yes", "ln(1+x) = x - x^2/2 + x^3/3 - x^4/4 + ... with R=1."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	if rand.Intn(3) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return taylorCoefficientVariant(ctx)
 }
 
 type cauchyCriterionSeriesGen struct{}
@@ -1891,8 +1927,11 @@ func (g *derivGradientGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		{"What direction does the gradient point?", "steepest ascent", "The gradient points in the direction of steepest increase of \\(f\\)."},
 		{"Find \\(\\nabla f\\) at \\((1,2)\\) for \\(f(x,y)=x^{2}y\\).", "(4, 1)", "\\(\\nabla f = (2xy, x^{2})\\); at \\((1,2)\\): \\((4,1)\\)."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	if rand.Intn(3) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return gradientVariant(ctx)
 }
 
 type derivDirectionalGen struct{}
@@ -1906,8 +1945,11 @@ func (g *derivDirectionalGen) Generate(ctx generator.GeneratorContext) generator
 		{"For \\(f(x,y)=x^{2}+y^{2}\\) at \\((1,0)\\) in direction \\((1,0)\\), find \\(D_{u}f\\).", "2", "\\(\\nabla f(1,0) = (2,0)\\); dotted with \\((1,0)\\): 2."},
 		{"For \\(f(x,y)=xy\\) at \\((1,1)\\) in direction \\((1,0)\\), find \\(D_{u}f\\).", "1", "\\(\\nabla f(1,1) = (1,1)\\); dotted with \\((1,0)\\): 1."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	if rand.Intn(3) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return directionalVariant(ctx)
 }
 
 type derivPartialHigherGen struct{}
@@ -1937,8 +1979,11 @@ func (g *derivClairautGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		{"For \\(f(x,y)=x^{2}y^{3}\\), verify \\(f_{xy}\\) equals \\(f_{yx}\\).", "6xy^2", "\\(f_{xy} = 6xy^{2} = f_{yx}\\), as Clairaut guarantees for polynomials."},
 		{"What hypothesis does Schwarz's theorem need?", "continuity of the mixed partials", "Schwarz/Clairaut needs \\(f_{xy}\\) and \\(f_{yx}\\) continuous at the point."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	if rand.Intn(3) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return clairautVariant(ctx)
 }
 
 type derivTotalDiffGen struct{}
@@ -1967,8 +2012,11 @@ func (g *derivDiffContinuityGen) Generate(ctx generator.GeneratorContext) genera
 		{"Does continuity imply differentiability?", "no", "Continuity does not imply differentiability (e.g. \\(|x|\\) at 0)."},
 		{"Give a function continuous but not differentiable at 0.", "|x|", "\\(f(x)=|x|\\) is continuous at 0 but has no derivative there (corner)."},
 	}
-	e := table[rand.Intn(len(table))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	if rand.Intn(3) == 0 {
+		e := table[rand.Intn(len(table))]
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+	}
+	return diffContinuityVariant(ctx)
 }
 
 type derivJacobianGen struct{}
@@ -2701,4 +2749,370 @@ func (g *shellMethodGen) Generate(ctx generator.GeneratorContext) generator.Prob
 	}
 	e := tableHard[rand.Intn(len(tableHard))]
 	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+}
+
+// ---------------------------------------------------------------------------
+// Parameterised variants. Each one computes its answer from the drawn
+// parameters, so the pools behind the concepts above are wide enough that a
+// learner does not keep meeting the same handful of items.
+// ---------------------------------------------------------------------------
+
+// xyTerm is c·x^i·y^j.
+type xyTerm struct{ c, i, j int }
+
+func texVar(v string, e int) string {
+	switch e {
+	case 0:
+		return ""
+	case 1:
+		return v
+	}
+	return fmt.Sprintf("%s^{%d}", v, e)
+}
+
+// texXY writes a polynomial in x and y in TeX, skipping zero terms.
+func texXY(terms []xyTerm) string {
+	var b strings.Builder
+	for _, t := range terms {
+		if t.c == 0 {
+			continue
+		}
+		c := t.c
+		if b.Len() > 0 {
+			if c < 0 {
+				b.WriteString(" - ")
+				c = -c
+			} else {
+				b.WriteString(" + ")
+			}
+		} else if c < 0 {
+			b.WriteString("-")
+			c = -c
+		}
+		vars := texVar("x", t.i) + texVar("y", t.j)
+		if c != 1 || vars == "" {
+			fmt.Fprintf(&b, "%d", c)
+		}
+		b.WriteString(vars)
+	}
+	if b.Len() == 0 {
+		return "0"
+	}
+	return b.String()
+}
+
+// plainMonomial writes c·x^i·y^j the way a learner types it, with an explicit
+// * between factors so that x^2*y can never be read as x^(2y).
+func plainMonomial(t xyTerm) string {
+	if t.c == 0 {
+		return "0"
+	}
+	var factors []string
+	for _, f := range []struct {
+		v string
+		e int
+	}{{"x", t.i}, {"y", t.j}} {
+		switch {
+		case f.e == 1:
+			factors = append(factors, f.v)
+		case f.e > 1:
+			factors = append(factors, fmt.Sprintf("%s^%d", f.v, f.e))
+		}
+	}
+	if len(factors) == 0 {
+		return fmt.Sprintf("%d", t.c)
+	}
+	body := strings.Join(factors, "*")
+	switch t.c {
+	case 1:
+		return body
+	case -1:
+		return "-" + body
+	}
+	return fmt.Sprintf("%d*%s", t.c, body)
+}
+
+func ipow(b, e int) int {
+	r := 1
+	for i := 0; i < e; i++ {
+		r *= b
+	}
+	return r
+}
+
+// paren wraps a negative number in parentheses for products and powers.
+func paren(n int) string {
+	if n < 0 {
+		return fmt.Sprintf("(%d)", n)
+	}
+	return fmt.Sprintf("%d", n)
+}
+
+// shiftTex writes x - c.
+func shiftTex(c int) string {
+	switch {
+	case c == 0:
+		return "x"
+	case c > 0:
+		return fmt.Sprintf("x - %d", c)
+	}
+	return fmt.Sprintf("x + %d", -c)
+}
+
+// kxTex writes k·x.
+func kxTex(k int) string {
+	switch k {
+	case 1:
+		return "x"
+	case -1:
+		return "-x"
+	}
+	return fmt.Sprintf("%dx", k)
+}
+
+func ratStr(num, den int64) string {
+	return big.NewRat(num, den).RatString()
+}
+
+// quadraticXY draws f = a x^2 + b xy + c y^2 + d x + e y and returns it with
+// its partial derivatives at (p,q).
+func quadraticXY(p, q int) (f, fx, fy string, gx, gy int) {
+	a := rand.Intn(4)
+	b := rand.Intn(5) - 2
+	c := rand.Intn(4)
+	d := rand.Intn(7) - 3
+	e := rand.Intn(7) - 3
+	if a == 0 && b == 0 {
+		a = 1
+	}
+	if c == 0 && b == 0 {
+		c = 1
+	}
+	f = texXY([]xyTerm{{a, 2, 0}, {b, 1, 1}, {c, 0, 2}, {d, 1, 0}, {e, 0, 1}})
+	fx = texXY([]xyTerm{{2 * a, 1, 0}, {b, 0, 1}, {d, 0, 0}})
+	fy = texXY([]xyTerm{{b, 1, 0}, {2 * c, 0, 1}, {e, 0, 0}})
+	gx = 2*a*p + b*q + d
+	gy = b*p + 2*c*q + e
+	return
+}
+
+func nonDiffVariant(ctx generator.GeneratorContext) generator.Problem {
+	a := 1 + rand.Intn(4)
+	c := rand.Intn(7) - 3
+	d := rand.Intn(4)
+	coef := ""
+	if a != 1 {
+		coef = fmt.Sprintf("%d", a)
+	}
+	dStr := ""
+	if d > 0 {
+		dStr = fmt.Sprintf(" + %d", d)
+	}
+	switch rand.Intn(5) {
+	case 0:
+		return generator.Problem{
+			Question: fmt.Sprintf("At what \\(x\\) is \\(f(x)=%s|%s|%s\\) not differentiable? (enter a number)", coef, shiftTex(c), dStr),
+			Answer:   fmt.Sprintf("%d", c),
+			Explanation: fmt.Sprintf("The absolute value has a corner where its inside is zero, at \\(x=%d\\): the slope is -%d just to the left and %d just to the right, so no single tangent line exists there. Adding a constant shifts the graph up without removing the corner.",
+				c, a, a),
+		}
+	case 1:
+		return generator.Problem{
+			Question: fmt.Sprintf("For \\(f(x)=%s|%s|\\), what is the right-hand derivative at \\(x=%d\\)? (enter a number)", coef, shiftTex(c), c),
+			Answer:   fmt.Sprintf("%d", a),
+			Explanation: fmt.Sprintf("For \\(x>%d\\), \\(f(x)=%s(%s)\\), a line of slope %d, so the right-hand derivative is %d. From the left the slope is -%d; the one-sided derivatives differ, so \\(f'(%d)\\) does not exist.",
+				c, coef, shiftTex(c), a, a, a, c),
+		}
+	case 2:
+		return generator.Problem{
+			Question: fmt.Sprintf("For \\(f(x)=%s|%s|\\), what is the left-hand derivative at \\(x=%d\\)? (enter a number)", coef, shiftTex(c), c),
+			Answer:   fmt.Sprintf("%d", -a),
+			Explanation: fmt.Sprintf("For \\(x<%d\\), \\(f(x)=-%s(%s)\\), a line of slope -%d, so the left-hand derivative is -%d. From the right the slope is %d; the one-sided derivatives differ, so \\(f'(%d)\\) does not exist.",
+				c, coef, shiftTex(c), a, a, a, c),
+		}
+	case 3:
+		k := 1 + rand.Intn(6)
+		return generator.Problem{
+			Question: fmt.Sprintf("What is the largest \\(x\\) at which \\(f(x)=|x^{2} - %d|\\) is not differentiable? (enter a number)", k*k),
+			Answer:   fmt.Sprintf("%d", k),
+			Explanation: fmt.Sprintf("\\(x^{2} - %d\\) changes sign at \\(x=\\pm %d\\), where its slope \\(2x\\) is not zero, so the absolute value has a corner at each of those points (and nowhere else). The larger one is \\(x=%d\\).",
+				k*k, k, k),
+		}
+	default:
+		return generator.Problem{
+			Question: fmt.Sprintf("At what \\(x\\) does the graph of \\(f(x)=(%s)^{1/3}%s\\) have a vertical tangent? (enter a number)", shiftTex(c), dStr),
+			Answer:   fmt.Sprintf("%d", c),
+			Explanation: fmt.Sprintf("\\(f'(x)=\\frac{1}{3}(%s)^{-2/3}\\), which grows without bound as \\(x\\to %d\\). The graph is continuous there but its tangent is vertical, so \\(f\\) is not differentiable at \\(x=%d\\).",
+				shiftTex(c), c, c),
+		}
+	}
+}
+
+func taylorCoefficientVariant(ctx generator.GeneratorContext) generator.Problem {
+	ks := []int{2, 3, -1, -2}
+	k := ks[rand.Intn(len(ks))]
+	kx := kxTex(k)
+	bigPow := func(b, e int) *big.Int { return new(big.Int).Exp(big.NewInt(int64(b)), big.NewInt(int64(e)), nil) }
+	fact := func(n int) *big.Int { return new(big.Int).MulRange(1, int64(n)) }
+	var fTex, rule string
+	var n int
+	coef := new(big.Rat)
+	switch rand.Intn(5) {
+	case 0:
+		n = 2 + rand.Intn(3)
+		fTex = fmt.Sprintf("e^{%s}", kx)
+		coef.SetFrac(bigPow(k, n), fact(n))
+		rule = fmt.Sprintf("e^{u}=\\sum_{n\\ge 0} u^{n}/n!\\) with \\(u=%s\\), so the coefficient is \\(%s^{%d}/%d!", kx, paren(k), n, n)
+	case 1:
+		n = []int{3, 5}[rand.Intn(2)]
+		fTex = fmt.Sprintf("\\sin(%s)", kx)
+		coef.SetFrac(bigPow(k, n), fact(n))
+		sign := ""
+		if n == 3 {
+			coef.Neg(coef)
+			sign = "-"
+		}
+		rule = fmt.Sprintf("\\sin u = u - u^{3}/3! + u^{5}/5! - \\cdots\\) with \\(u=%s\\), so the coefficient is \\(%s%s^{%d}/%d!", kx, sign, paren(k), n, n)
+	case 2:
+		n = []int{2, 4}[rand.Intn(2)]
+		fTex = fmt.Sprintf("\\cos(%s)", kx)
+		coef.SetFrac(bigPow(k, n), fact(n))
+		sign := ""
+		if n == 2 {
+			coef.Neg(coef)
+			sign = "-"
+		}
+		rule = fmt.Sprintf("\\cos u = 1 - u^{2}/2! + u^{4}/4! - \\cdots\\) with \\(u=%s\\), so the coefficient is \\(%s%s^{%d}/%d!", kx, sign, paren(k), n, n)
+	case 3:
+		n = 2 + rand.Intn(3)
+		inner := fmt.Sprintf("1 + %s", kx)
+		if k < 0 {
+			inner = fmt.Sprintf("1 - %s", kxTex(-k))
+		}
+		fTex = fmt.Sprintf("\\ln(%s)", inner)
+		coef.SetFrac(bigPow(k, n), big.NewInt(int64(n)))
+		if n%2 == 0 {
+			coef.Neg(coef)
+		}
+		rule = fmt.Sprintf("\\ln(1+u) = u - u^{2}/2 + u^{3}/3 - \\cdots\\) (for \\(|u|<1\\)) with \\(u=%s\\), so the coefficient is \\((-1)^{%d}%s^{%d}/%d", kx, n+1, paren(k), n, n)
+	default:
+		n = 2 + rand.Intn(3)
+		den := fmt.Sprintf("1 - %s", kx)
+		if k < 0 {
+			den = fmt.Sprintf("1 + %s", kxTex(-k))
+		}
+		fTex = fmt.Sprintf("\\frac{1}{%s}", den)
+		coef.SetFrac(bigPow(k, n), big.NewInt(1))
+		rule = fmt.Sprintf("\\frac{1}{1-u} = 1 + u + u^{2} + \\cdots\\) (for \\(|u|<1\\)) with \\(u=%s\\), so the coefficient is \\(%s^{%d}", kx, paren(k), n)
+	}
+	ans := coef.RatString()
+	return generator.Problem{
+		Question:    fmt.Sprintf("What is the coefficient of \\(x^{%d}\\) in the Maclaurin series of \\(%s\\)? (enter a fraction or integer)", n, fTex),
+		Answer:      ans,
+		Explanation: fmt.Sprintf("Use \\(%s = %s\\).", rule, ans),
+	}
+}
+
+func gradientVariant(ctx generator.GeneratorContext) generator.Problem {
+	p := rand.Intn(5) - 2
+	q := rand.Intn(5) - 2
+	var f, fx, fy string
+	var gx, gy int
+	if rand.Intn(2) == 0 {
+		f, fx, fy, gx, gy = quadraticXY(p, q)
+	} else {
+		k := 1 + rand.Intn(3)
+		m := 1 + rand.Intn(3)
+		n := 1 + rand.Intn(3)
+		f = texXY([]xyTerm{{k, m, n}})
+		fx = texXY([]xyTerm{{k * m, m - 1, n}})
+		fy = texXY([]xyTerm{{k * n, m, n - 1}})
+		gx = k * m * ipow(p, m-1) * ipow(q, n)
+		gy = k * n * ipow(p, m) * ipow(q, n-1)
+	}
+	return generator.Problem{
+		Question:    fmt.Sprintf("Find \\(\\nabla f\\) at \\((%d,%d)\\) for \\(f(x,y)=%s\\). (enter as (a, b))", p, q, f),
+		Answer:      fmt.Sprintf("(%d, %d)", gx, gy),
+		Explanation: fmt.Sprintf("\\(\\nabla f = (f_{x}, f_{y}) = (%s,\\ %s)\\); at \\((%d,%d)\\) this is \\((%d, %d)\\).", fx, fy, p, q, gx, gy),
+	}
+}
+
+func directionalVariant(ctx generator.GeneratorContext) generator.Problem {
+	// Direction vectors with whole-number length, so the unit vector stays rational.
+	dirs := [][3]int{{1, 0, 1}, {0, 1, 1}, {-1, 0, 1}, {0, -1, 1}, {3, 4, 5}, {4, 3, 5}, {-3, 4, 5},
+		{4, -3, 5}, {5, 12, 13}, {0, 2, 2}, {6, 8, 10}, {-4, -3, 5}}
+	v := dirs[rand.Intn(len(dirs))]
+	p := rand.Intn(5) - 2
+	q := rand.Intn(5) - 2
+	f, fx, fy, gx, gy := quadraticXY(p, q)
+	num := gx*v[0] + gy*v[1]
+	ans := ratStr(int64(num), int64(v[2]))
+	return generator.Problem{
+		Question: fmt.Sprintf("For \\(f(x,y)=%s\\), find the directional derivative of \\(f\\) at \\((%d,%d)\\) in the direction of \\(v=(%d,%d)\\). (enter a number or fraction)",
+			f, p, q, v[0], v[1]),
+		Answer: ans,
+		Explanation: fmt.Sprintf("\\(\\nabla f = (%s,\\ %s)\\), which is \\((%d, %d)\\) at \\((%d,%d)\\). The unit vector is \\(u = v/|v| = (%d,%d)/%d\\), so \\(D_{u}f = \\nabla f\\cdot u = (%s\\cdot %s + %s\\cdot %s)/%d = %s\\).",
+			fx, fy, gx, gy, p, q, v[0], v[1], v[2], paren(gx), paren(v[0]), paren(gy), paren(v[1]), v[2], ans),
+	}
+}
+
+func clairautVariant(ctx generator.GeneratorContext) generator.Problem {
+	k := 1 + rand.Intn(4)
+	m := 1 + rand.Intn(4)
+	n := 1 + rand.Intn(3)
+	if m == 1 && n == 1 {
+		m = 2
+	}
+	r := rand.Intn(5)
+	s := 2 + rand.Intn(3)
+	t := rand.Intn(5)
+	u := 2 + rand.Intn(3)
+	f := texXY([]xyTerm{{k, m, n}, {r, s, 0}, {t, 0, u}})
+	fx := texXY([]xyTerm{{k * m, m - 1, n}, {r * s, s - 1, 0}})
+	fy := texXY([]xyTerm{{k * n, m, n - 1}, {t * u, 0, u - 1}})
+	mixed := xyTerm{k * m * n, m - 1, n - 1}
+	mixedTex := texXY([]xyTerm{mixed})
+	if rand.Intn(2) == 0 {
+		return generator.Problem{
+			Question: fmt.Sprintf("For \\(f(x,y)=%s\\), find the mixed partial \\(f_{xy}\\). (Clairaut's theorem says \\(f_{yx}\\) is the same.)", f),
+			Answer:   plainMonomial(mixed),
+			Explanation: fmt.Sprintf("\\(f_{x} = %s\\), so \\(f_{xy} = %s\\). In the other order, \\(f_{y} = %s\\), so \\(f_{yx} = %s\\) as well. Terms in \\(x\\) alone or \\(y\\) alone vanish in a mixed partial, and the two orders agree because the mixed partials of a polynomial are continuous.",
+				fx, mixedTex, fy, mixedTex),
+		}
+	}
+	p := rand.Intn(5) - 2
+	q := rand.Intn(5) - 2
+	val := mixed.c * ipow(p, mixed.i) * ipow(q, mixed.j)
+	return generator.Problem{
+		Question: fmt.Sprintf("For \\(f(x,y)=%s\\), evaluate \\(f_{yx}\\) at \\((%d,%d)\\). (enter a number)", f, p, q),
+		Answer:   fmt.Sprintf("%d", val),
+		Explanation: fmt.Sprintf("Differentiate in \\(y\\) first: \\(f_{y} = %s\\), then in \\(x\\): \\(f_{yx} = %s\\). The other order, starting from \\(f_{x} = %s\\), gives the same mixed partial, as Clairaut's theorem guarantees when the mixed partials are continuous. At \\((%d,%d)\\) its value is %d.",
+			fy, mixedTex, fx, p, q, val),
+	}
+}
+
+func diffContinuityVariant(ctx generator.GeneratorContext) generator.Problem {
+	a := 1 + rand.Intn(3)
+	cs := []int{-2, -1, 1, 2, 3}
+	c := cs[rand.Intn(len(cs))]
+	// Matching slopes gives m = 2ac; continuity (which differentiability forces)
+	// gives a c^2 = m c + b, so b = -a c^2.
+	m := 2 * a * c
+	b := a*c*c - m*c
+	left := texPow(singleTerm(a, 2))
+	piece := fmt.Sprintf("f(x)=\\begin{cases} %s & x \\le %d \\\\ mx + b & x > %d \\end{cases}", left, c, c)
+	expl := fmt.Sprintf("Differentiability at \\(x=%d\\) needs the one-sided slopes to match: the left piece has derivative \\(%s\\), which is %d there, so \\(m=%d\\). Differentiability also implies continuity, so the pieces must meet: \\(%d = %d\\cdot %s + b\\), giving \\(b=%d\\).",
+		c, texPow(singleTerm(2*a, 1)), m, m, a*c*c, m, paren(c), b)
+	if rand.Intn(2) == 0 {
+		return generator.Problem{
+			Question:    fmt.Sprintf("Let \\(%s\\). Choose \\(m\\) and \\(b\\) so that \\(f\\) is differentiable at \\(x=%d\\). What is \\(m\\)? (enter a number)", piece, c),
+			Answer:      fmt.Sprintf("%d", m),
+			Explanation: expl,
+		}
+	}
+	return generator.Problem{
+		Question:    fmt.Sprintf("Let \\(%s\\). Choose \\(m\\) and \\(b\\) so that \\(f\\) is differentiable at \\(x=%d\\). What is \\(b\\)? (enter a number)", piece, c),
+		Answer:      fmt.Sprintf("%d", b),
+		Explanation: expl,
+	}
 }

@@ -85,11 +85,14 @@ func (g *tangentPlaneGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	// f(x,y) = a x^2 + b y^2, its tangent plane at (p,q), evaluated at (p+1, q+1)
 	f := a*p*p + b*q*q
 	v := f + 2*a*p + 2*b*q
+	// The true value is a(p+1)^2 + b(q+1)^2 = v + a + b: the plane leaves out the
+	// second-order terms a·1^2 + b·1^2, so it always underestimates this bowl.
+	exact := a*(p+1)*(p+1) + b*(q+1)*(q+1)
 	return generator.Problem{
 		Question: fmt.Sprintf("For \\(f(x,y) = %dx^2 + %dy^2\\), use the tangent plane at \\((%d,%d)\\) to estimate \\(f(%d,%d)\\).", a, b, p, q, p+1, q+1),
 		Answer:   fmt.Sprintf("%d", v),
-		Explanation: fmt.Sprintf("At (%d,%d) the value is %d, and the partial derivatives are %d and %d, so a step of one in each direction adds those: %d + %d + %d = %d. The estimate is exact here because the function is quadratic and the step is one unit.",
-			p, q, f, 2*a*p, 2*b*q, f, 2*a*p, 2*b*q, v),
+		Explanation: fmt.Sprintf("At (%d,%d) the value is %d, and the partial derivatives are %d and %d, so a step of one in each direction adds those: %d + %d + %d = %d. That is the tangent-plane estimate. The true value is f(%d,%d) = %d, so the estimate is %d too low: the plane drops the second-order terms %d(1)^2 + %d(1)^2, and a bowl-shaped function always lies above its tangent plane.",
+			p, q, f, 2*a*p, 2*b*q, f, 2*a*p, 2*b*q, v, p+1, q+1, exact, exact-v, a, b),
 		Facts: map[string]string{"estimate": fmt.Sprintf("%d", v), "value": fmt.Sprintf("%d", f)},
 	}
 }
