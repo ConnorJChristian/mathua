@@ -13,6 +13,20 @@ type GeneratorContext struct {
 	// a quiz is a timed assessment whose answers are mastery evidence, and a
 	// written proof is neither quick nor, by default, evidence.
 	NoProofs bool
+	// ObjectiveOnly asks for a question the server grades by itself and that
+	// is quick to answer: a generated question, or a bank item that is
+	// multiple choice, "what does this print" or typed math. Never a recall
+	// card (self-graded), a code task (slow, sandboxed) or a proof. Course
+	// placement and review tests set it. A bank topic with no such item
+	// returns an empty Problem; callers check ObjectiveItems first.
+	ObjectiveOnly bool
+}
+
+// ObjectiveItemCounter is implemented by question-bank generators: how many
+// of the topic's items an ObjectiveOnly request can serve. A generator that
+// does not implement it is a generated topic, which is objective throughout.
+type ObjectiveItemCounter interface {
+	ObjectiveItems() int
 }
 
 type Problem struct {

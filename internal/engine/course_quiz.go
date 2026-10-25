@@ -41,9 +41,39 @@ func (e *Engine) CourseQuizConcepts(studentID string) (picked []*concepts.Concep
 	if len(ids) == 0 {
 		return nil, nil, false
 	}
+	return e.CourseQuizConceptsFor(studentID, QuizScope{Courses: ids, Limit: QuizConceptLimit})
+}
+
+// QuizScope says what a course-scoped test draws from (fork change: the
+// mastery check and the course review test share one picker).
+type QuizScope struct {
+	// Courses are the courses to draw from.
+	Courses []string
+	// Limit is how many topics to pick.
+	Limit int
+	// BySection draws only the courses' own topics (no prerequisite
+	// fill-ins) and spreads the picks across their sections; otherwise the
+	// pool is every topic on the courses' paths, spread across courses.
+	BySection bool
+	// Gradable keeps only topics a test can grade by itself
+	// (ObjectivelyGradable).
+	Gradable bool
+}
+
+// CourseQuizConceptsFor picks the topics of a course-scoped test: topics on
+// the scope's courses the learner has actually worked on (placement alone
+// does not count). ok is false when the planner or the learner is missing.
+func (e *Engine) CourseQuizConceptsFor(studentID string, scope QuizScope) (picked []*concepts.Concept, courses []string, ok bool) {
+	if e.planner == nil || studentID == "" || len(scope.Courses) == 0 {
+		return nil, nil, false
+	}
 	progress, err := e.repo.GetAllProgress(studentID)
 	if err != nil {
 		return nil, nil, false
+	}
+	limit := scope.Limit
+	if limit <= 0 {
+		limit = QuizConceptLimit
 	}
 
 	type cand struct {
@@ -57,9 +87,10 @@ func (e *Engine) CourseQuizConcepts(studentID string) (picked []*concepts.Concep
 	for _, id := range e.QuizRemedial(studentID) {
 		lastMissed[id] = true
 	}
-	var perCourse [][]cand
-	taken := map[string]bool{}
-	for _, id := range ids {
+	// Buckets are what the picks rotate over: one per course, or one per
+	// section of each course.
+	var buckets [][]*concepts.Concept
+	for _, id := range scope.Courses {
 		path, err := e.planner.PathForCourse(id)
 		if err != nil || path == nil {
 			continue
@@ -69,10 +100,30 @@ func (e *Engine) CourseQuizConcepts(studentID string) (picked []*concepts.Concep
 			title = path.Course.Name
 		}
 		courses = append(courses, title)
+		if !scope.BySection {
+			buckets = append(buckets, path.Concepts)
+			continue
+		}
+		secs, err := e.CourseSections(id)
+		if err != nil {
+			continue
+		}
+		for _, sec := range secs {
+			if !sec.Prereq {
+				buckets = append(buckets, sec.Topics)
+			}
+		}
+	}
+	var perBucket [][]cand
+	taken := map[string]bool{}
+	for _, bucket := range buckets {
 		var list []cand
-		for _, c := range path.Concepts {
+		for _, c := range bucket {
 			p := progress[c.ID]
-			if p == nil || p.Attempts == 0 || p.PlacementSeeded || taken[c.ID] {
+			if !studiedForReview(p) || taken[c.ID] {
+				continue
+			}
+			if scope.Gradable && !e.ObjectivelyGradable(c) {
 				continue
 			}
 			taken[c.ID] = true
@@ -98,20 +149,22 @@ func (e *Engine) CourseQuizConcepts(studentID string) (picked []*concepts.Concep
 			}
 			return a.seen.Before(b.seen) // longest unseen first
 		})
-		perCourse = append(perCourse, list)
+		if len(list) > 0 {
+			perBucket = append(perBucket, list)
+		}
 	}
 
-	// Round-robin across courses, at most two per subdomain while the pool
+	// Round-robin across buckets, at most two per subdomain while the pool
 	// still has others to offer.
 	sub := map[string]int{}
-	pos := make([]int, len(perCourse))
-	for pass := 0; pass < 2 && len(picked) < QuizConceptLimit; pass++ {
+	pos := make([]int, len(perBucket))
+	for pass := 0; pass < 2 && len(picked) < limit; pass++ {
 		progressed := true
-		for progressed && len(picked) < QuizConceptLimit {
+		for progressed && len(picked) < limit {
 			progressed = false
-			for i := range perCourse {
-				for pos[i] < len(perCourse[i]) {
-					cd := perCourse[i][pos[i]]
+			for i := range perBucket {
+				for pos[i] < len(perBucket[i]) {
+					cd := perBucket[i][pos[i]]
 					if pass == 0 && sub[cd.c.Subdomain] >= 2 {
 						pos[i]++
 						continue
@@ -125,7 +178,7 @@ func (e *Engine) CourseQuizConcepts(studentID string) (picked []*concepts.Concep
 					progressed = true
 					break
 				}
-				if len(picked) >= QuizConceptLimit {
+				if len(picked) >= limit {
 					break
 				}
 			}

@@ -73,7 +73,7 @@ func (m *proofMixGen) mixesProofs() {}
 func (m *proofMixGen) mixesCards() {}
 
 func (m *proofMixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	if !ctx.NoCards && !ctx.NoProofs && rand.Float64() < m.src.Share() && m.src.Serving() {
+	if !ctx.NoCards && !ctx.NoProofs && !ctx.ObjectiveOnly && rand.Float64() < m.src.Share() && m.src.Serving() {
 		if p, ok := m.src.ProblemFor(m.ids[rand.Intn(len(m.ids))]); ok && grader.IsProofAnswer(p.Answer) {
 			p.Question = CardMarker + "\n" + p.Question
 			p.Raw = true
@@ -82,6 +82,9 @@ func (m *proofMixGen) Generate(ctx generator.GeneratorContext) generator.Problem
 	}
 	return m.base.Generate(ctx)
 }
+
+// ObjectiveItems forwards a bank base's count (see mixGen.ObjectiveItems).
+func (m *proofMixGen) ObjectiveItems() int { return objectiveItemsOf(m.base) }
 
 func (m *proofMixGen) AnswerFormat() generator.AnswerFormat {
 	if af, ok := m.base.(interface{ AnswerFormat() generator.AnswerFormat }); ok {

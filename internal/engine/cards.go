@@ -164,7 +164,7 @@ type mixGen struct {
 func (m *mixGen) mixesCards() {}
 
 func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	if !ctx.NoCards && rand.Float64() < m.share {
+	if !ctx.NoCards && !ctx.ObjectiveOnly && rand.Float64() < m.share {
 		var p generator.Problem
 		if len(m.picks) > 0 {
 			pk := m.picks[rand.Intn(len(m.picks))]
@@ -180,6 +180,10 @@ func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	}
 	return m.base.Generate(ctx)
 }
+
+// ObjectiveItems forwards a bank base's count, so a wrapped bank topic still
+// says how many items a test may serve. A generated base has none to count.
+func (m *mixGen) ObjectiveItems() int { return objectiveItemsOf(m.base) }
 
 // The topic's own declarations still describe its generated questions.
 func (m *mixGen) AnswerFormat() generator.AnswerFormat {

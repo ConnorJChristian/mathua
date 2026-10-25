@@ -909,14 +909,24 @@ func (s *Server) handleGoalDiagnosticStart(w http.ResponseWriter, r *http.Reques
 	var req struct {
 		ConceptIDs []string `json:"concept_ids"`
 		Name       string   `json:"name"`
+		// CourseID starts a course placement test instead (fork change):
+		// the course's own topics and their prerequisites, bank multiple
+		// choice included, at most engine.CoursePlacementMaxQuestions.
+		CourseID string `json:"course_id"`
 	}
 	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, "invalid request", 400)
 		return
 	}
-	if len(req.ConceptIDs) == 0 {
-		writeError(w, "concept_ids required", 400)
+	if len(req.ConceptIDs) == 0 && req.CourseID == "" {
+		writeError(w, "concept_ids or course_id required", 400)
 		return
+	}
+	if req.CourseID != "" {
+		if pl := s.eng.GetPlanner(); pl == nil || pl.Course(req.CourseID) == nil {
+			writeError(w, "course not found", 404)
+			return
+		}
 	}
 	if studentID == "" && req.Name != "" {
 		trimmed := strings.TrimSpace(req.Name)
@@ -935,7 +945,23 @@ func (s *Server) handleGoalDiagnosticStart(w http.ResponseWriter, r *http.Reques
 		writeError(w, "not authenticated: provide Authorization Bearer token or name", 401)
 		return
 	}
-	session, question, err := s.eng.StartGoalDiagnostic(studentID, req.ConceptIDs)
+	var (
+		session  *diagnostic.Session
+		question *engine.Question
+		err      error
+	)
+	if req.CourseID != "" {
+		if info, ierr := s.eng.CourseTests(studentID, req.CourseID); ierr == nil && !info.Placement {
+			writeJSON(w, map[string]interface{}{
+				"done": true, "course_id": req.CourseID,
+				"message": "This course has no placement test: it needs enough automatically graded topics resting on one another.",
+			})
+			return
+		}
+		session, question, err = s.eng.StartCourseDiagnostic(studentID, req.CourseID)
+	} else {
+		session, question, err = s.eng.StartGoalDiagnostic(studentID, req.ConceptIDs)
+	}
 	if err != nil {
 		writeError(w, err.Error(), 500)
 		return
@@ -951,7 +977,7 @@ func (s *Server) handleGoalDiagnosticStart(w http.ResponseWriter, r *http.Reques
 	s.persistDiagnosticSession(session)
 	prog := s.eng.DiagnosticProgress(session)
 	if question == nil {
-		writeJSON(w, map[string]interface{}{"session_id": session.ID, "done": true, "progress": prog})
+		writeJSON(w, map[string]interface{}{"session_id": session.ID, "done": true, "progress": prog, "course_id": req.CourseID})
 		return
 	}
 	writeJSON(w, s.withAnswerFormat(map[string]interface{}{
@@ -962,6 +988,7 @@ func (s *Server) handleGoalDiagnosticStart(w http.ResponseWriter, r *http.Reques
 		"question":     question.Question,
 		"grading_type": s.gradingTypeOf(question.ConceptID),
 		"progress":     prog,
+		"course_id":    req.CourseID,
 	}, question.ConceptID))
 }
 
@@ -1065,7 +1092,14 @@ func (s *Server) handleGoalDiagnosticAnswer(w http.ResponseWriter, r *http.Reque
 	if req.DontKnow {
 		s.eng.SubmitDiagnosticDontKnow(session, req.ConceptID, req.Elapsed, timeThresh)
 	} else {
-		correct = s.eng.GradeAnswer(req.ConceptID, expected, req.Answer).Correct
+		gr := s.eng.GradeAnswer(req.ConceptID, expected, grader.ResolveChoiceLetter(questionText, expected, req.Answer))
+		if gr.Unavailable {
+			// A grader fault is never a miss: nothing is recorded, the
+			// question stays pending, and the learner submits again.
+			writeError(w, "Your answer was not graded ("+gr.Feedback+"). Nothing was recorded; submit again.", http.StatusServiceUnavailable)
+			return
+		}
+		correct = gr.Correct
 		s.eng.SubmitDiagnosticAnswerTimed(session, req.ConceptID, correct, req.Elapsed, timeThresh)
 	}
 	explanation = expExplanation
@@ -1450,8 +1484,20 @@ func (s *Server) handleGoalPlan(w http.ResponseWriter, r *http.Request) {
 	// describes no one.
 	report.CompletionEstimates = s.completionEstimates(studentID)
 
-	// Persist diagnostic results
-	if err := s.eng.ApplyGoalResults(studentID, session); err != nil {
+	// Persist diagnostic results. A course placement test also reports per
+	// course section what it placed and what it found missing (fork change).
+	session.Lock()
+	placementCourse := session.CourseID
+	session.Unlock()
+	var sections []engine.SectionResult
+	if placementCourse != "" {
+		sec, err := s.eng.ApplyCoursePlacement(studentID, session)
+		if err != nil {
+			writeError(w, err.Error(), 500)
+			return
+		}
+		sections = sec
+	} else if err := s.eng.ApplyGoalResults(studentID, session); err != nil {
 		writeError(w, err.Error(), 500)
 		return
 	}
@@ -1524,6 +1570,8 @@ func (s *Server) handleGoalPlan(w http.ResponseWriter, r *http.Request) {
 		// a course ("calc1") they never chose.
 		"placement_course_id":  "",
 		"completion_estimates": report.CompletionEstimates,
+		"course_id":            placementCourse,
+		"sections":             sections,
 	})
 }
 
@@ -3372,6 +3420,10 @@ func (s *Server) handleQuizSession(w http.ResponseWriter, r *http.Request) {
 	}
 	var req struct {
 		StudentID string `json:"student_id"`
+		// CourseID starts a course review test instead of the mastery
+		// check (fork change); Scope "full" covers the whole course.
+		CourseID string `json:"course_id"`
+		Scope    string `json:"scope"`
 	}
 	_ = decodeJSON(w, r, &req)
 	authStudentID, _ := r.Context().Value(authStudentKey{}).(string)
@@ -3385,6 +3437,10 @@ func (s *Server) handleQuizSession(w http.ResponseWriter, r *http.Request) {
 	}
 	if studentID != "" && !s.ownsStudentID(r, studentID) {
 		writeError(w, "student_id not permitted", 403)
+		return
+	}
+	if req.CourseID != "" {
+		s.startCourseReview(w, studentID, req.CourseID, req.Scope == "full")
 		return
 	}
 	// Build quiz picking diverse recent weak concepts; fallback to DAG order
@@ -3549,7 +3605,14 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 	// the same dispatch SubmitQuizAnswer uses, so the response, the recorded
 	// answer, and the XP/mastery update can never disagree.
 	expected := sess.LastProblem.Answer
-	gr := s.eng.GradeAnswer(req.ConceptID, expected, req.Answer)
+	gr := s.eng.GradeAnswer(req.ConceptID, expected, grader.ResolveChoiceLetter(sess.LastProblem.Question, expected, req.Answer))
+	if gr.Unavailable && !req.DontKnow {
+		// A grader fault is never a miss: nothing is recorded, the question
+		// stays pending, and the learner submits again (fork fix: the quiz
+		// used to advance past it as a wrong answer).
+		writeError(w, "Your answer was not graded ("+gr.Feedback+"). Nothing was recorded; submit again.", http.StatusServiceUnavailable)
+		return
+	}
 	// The session already holds the explanation the generator produced for the
 	// question that was served. Send it on every verdict — a correct answer
 	// still needs the reasoning that made it right — and fall back to the
@@ -3605,7 +3668,17 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 			remedial = res.Remedial
 		}
 	}
-	if qEng.IsComplete(sess) {
+	var prob *generator.Problem
+	var cid string
+	if !qEng.IsComplete(sess) {
+		var err error
+		prob, cid, err = qEng.NextQuestion(sess)
+		if err != nil {
+			writeError(w, "failed to get next quiz question", 500)
+			return
+		}
+	}
+	if prob == nil {
 		if studentID != "" {
 			// Batch 1: completing a quiz resets the 150 XP gate baseline.
 			if err := s.eng.RecordQuizCompletion(studentID); err != nil {
@@ -3619,12 +3692,9 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 		// The `diagnosis` and `explanation` keys are still passed so the helper is the single
 		// place that decides they do not cross, rather than the call site remembering to omit
 		// them. A verdict built anywhere else leaks by default; through the helper it does not.
-		writeAssessmentVerdict(w, map[string]interface{}{"done": true, "correct": gr.Correct, "feedback": feedback, "diagnosis": gr.Diagnosis, "explanation": explanation, "xp": xp, "new_status": newStatus, "remedial": remedial, "retake_available": true})
-		return
-	}
-	prob, cid, err := qEng.NextQuestion(sess)
-	if err != nil {
-		writeError(w, "failed to get next quiz question", 500)
+		done := map[string]interface{}{"done": true, "correct": gr.Correct, "feedback": feedback, "diagnosis": gr.Diagnosis, "explanation": explanation, "xp": xp, "new_status": newStatus, "remedial": remedial, "retake_available": true}
+		s.addCourseTestSummary(done, sess)
+		writeAssessmentVerdict(w, done)
 		return
 	}
 	c2 := s.eng.GetDAG().Concept(cid)
@@ -3707,7 +3777,17 @@ func (s *Server) handleQuizSkip(w http.ResponseWriter, r *http.Request) {
 	}
 	qEng := quiz.NewEngine(s.eng.GetDAG(), s.eng.GetGeneratorRegistry())
 	qEng.SkipQuestion(sess)
-	if qEng.IsComplete(sess) {
+	var prob *generator.Problem
+	var cid string
+	if !qEng.IsComplete(sess) {
+		var err error
+		prob, cid, err = qEng.NextQuestion(sess)
+		if err != nil {
+			writeError(w, "failed to get next quiz question", 500)
+			return
+		}
+	}
+	if prob == nil {
 		if studentID != "" && qEng.HasAttempts(sess) {
 			if err := s.eng.RecordQuizCompletion(studentID); err != nil {
 				log.Printf("handleQuizSkip: RecordQuizCompletion failed for %s: %v", studentID, err)
@@ -3717,12 +3797,9 @@ func (s *Server) handleQuizSkip(w http.ResponseWriter, r *http.Request) {
 		delete(s.quizSessions, req.SessionID)
 		delete(s.quizCreated, req.SessionID)
 		s.mu.Unlock()
-		writeJSON(w, map[string]interface{}{"done": true, "correct": false, "feedback": "Skipped — no XP awarded.", "xp": 0, "retake_available": true})
-		return
-	}
-	prob, cid, err := qEng.NextQuestion(sess)
-	if err != nil {
-		writeError(w, "failed to get next quiz question", 500)
+		done := map[string]interface{}{"done": true, "correct": false, "feedback": "Skipped — no XP awarded.", "xp": 0, "retake_available": true}
+		s.addCourseTestSummary(done, sess)
+		writeJSON(w, done)
 		return
 	}
 	c2 := s.eng.GetDAG().Concept(cid)
@@ -3822,6 +3899,11 @@ const (
 	assessmentKeyTimeLimit       = "time_limit_seconds"
 	assessmentKeyQuestionsTotal  = "questions_total"
 	assessmentKeyClosedBook      = "closed_book"
+	// A course test's identity and its per-section summary (fork change):
+	// which topics were answered right or wrong, never an answer.
+	assessmentKeyCourseID = "course_id"
+	assessmentKeyTest     = "test"
+	assessmentKeySections = "sections"
 )
 
 // assessmentVerdictKeys is the allowlist, as a set for lookup. Declared
@@ -3844,6 +3926,9 @@ var assessmentVerdictKeys = map[string]bool{
 	assessmentKeyTimeLimit:       true,
 	assessmentKeyQuestionsTotal:  true,
 	assessmentKeyClosedBook:      true,
+	assessmentKeyCourseID:        true,
+	assessmentKeyTest:            true,
+	assessmentKeySections:        true,
 }
 
 // assessmentGraderTokens are the only feedback strings allowed through, and

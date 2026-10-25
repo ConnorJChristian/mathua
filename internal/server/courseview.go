@@ -100,6 +100,9 @@ type courseView struct {
 	// prerequisites the learner has not shown; the placement test is the way
 	// in (a module with no placement never sets it).
 	NeedsPlacement bool `json:"needs_placement"`
+	// Tests: which course tests this course offers and how long they are
+	// (fork change; engine.CourseTests has the viability rule).
+	Tests *engine.CourseTestInfo `json:"tests,omitempty"`
 }
 
 // GET /api/courses/view?id=plan.x — the course page's data.
@@ -374,6 +377,9 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		}
 		return out.Notes[a].Seq < out.Notes[b].Seq
 	})
+	if info, err := s.eng.CourseTests(studentID, courseID); err == nil {
+		out.Tests = info
+	}
 	if out.Texts == nil {
 		out.Texts = []courseText{}
 	}

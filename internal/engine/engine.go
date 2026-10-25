@@ -2079,21 +2079,7 @@ func (e *Engine) StartGoalDiagnostic(studentID string, conceptIDs []string) (*di
 	if session.State == diagnostic.StateDone || len(placeable) == 0 {
 		return session, nil, nil
 	}
-	prob, cid, err := e.diag.NextQuestion(session)
-	if err != nil {
-		return nil, nil, err
-	}
-	c := e.dag.Concept(cid)
-	label := cid
-	if c != nil {
-		label = c.Label
-	}
-	return session, &Question{
-		ConceptID:   cid,
-		ConceptName: label,
-		Question:    prob.Question,
-		GradingType: e.gradingTypeFor(cid),
-	}, nil
+	return e.firstDiagnosticQuestion(session)
 }
 
 func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session) error {
@@ -2202,7 +2188,8 @@ func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session)
 		// ADR-050). LastAttempted is stamped so the concept is a resumable
 		// candidate rather than an untouched one. A topic answered wrong is
 		// recorded as weak but does not open what builds on it (fork fix).
-		existing.PlacementSeeded = att.Correct
+		// A miss never takes back a placement an earlier run gave.
+		existing.PlacementSeeded = existing.PlacementSeeded || att.Correct
 		existing.LastAttempted = &now
 		batch = append(batch, existing)
 	}
@@ -2229,13 +2216,15 @@ func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session)
 var foundationalDomains = map[string]bool{"arithmetic": true, "fractions": true, "prealgebra": true}
 
 // placedAboveFoundations reports whether a placement found the learner right
-// on at least one topic outside the grade-school domains.
+// on at least one mathematics topic outside the grade-school domains. A
+// question-bank topic (a course placement may ask them: a driving handbook, a
+// software library) says nothing about arithmetic, so it does not count.
 func placedAboveFoundations(dag *concepts.DAG, attempts []diagnostic.Attempt) bool {
 	for _, att := range attempts {
 		if !att.Correct {
 			continue
 		}
-		if c := dag.Concept(att.ConceptID); c != nil && c.Domain != "" && !foundationalDomains[c.Domain] {
+		if c := dag.Concept(att.ConceptID); c != nil && c.Domain != "" && !foundationalDomains[c.Domain] && !isBankTopic(c) {
 			return true
 		}
 	}

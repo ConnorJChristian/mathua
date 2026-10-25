@@ -129,8 +129,39 @@ func (g *conceptGen) ProblemFor(itemID string) (generator.Problem, bool) {
 	return generator.Problem{}, false
 }
 
+// objectiveKind reports an item the server grades by itself and a learner
+// answers in well under a minute: multiple choice, "what does this print" and
+// typed math. Recall cards are self-graded and code tasks are long, so a test
+// never serves them.
+func objectiveKind(kind string) bool {
+	return kind == KindChoice || kind == KindOutput || kind == KindMath
+}
+
+// ObjectiveItems is how many of this topic's items a test may serve.
+func (g *conceptGen) ObjectiveItems() int {
+	n := 0
+	for _, it := range g.c.Items {
+		if objectiveKind(it.Kind) {
+			n++
+		}
+	}
+	return n
+}
+
 func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	items := g.c.Items
+	if ctx.ObjectiveOnly {
+		var kept []Item
+		for _, it := range items {
+			if objectiveKind(it.Kind) {
+				kept = append(kept, it)
+			}
+		}
+		if len(kept) == 0 {
+			return generator.Problem{}
+		}
+		items = kept
+	}
 	// Prefer questions near the requested difficulty, but never starve: a
 	// concept whose bank has nothing near it serves from the whole bank.
 	var near []int

@@ -25,6 +25,14 @@ type Session struct {
 	// regeneration is tried before serving one of them again (fork fix: the
 	// same code task came up in three tests running).
 	Avoid map[string]bool
+	// Objective marks a course test (fork change): every question grades
+	// itself and is quick (generator.GeneratorContext.ObjectiveOnly), so no
+	// flashcard, recall card, code task or proof is served.
+	Objective bool
+	// CourseID and Kind name a course test ("review" or "full"); empty for
+	// the mastery check.
+	CourseID string
+	Kind     string
 }
 
 type Attempt struct {
@@ -44,14 +52,27 @@ func NewEngine(dag *concepts.DAG, reg *generator.Registry) *Engine {
 // Start picks diverse recent weak concepts via weakness hint, fallback to DAG order.
 // Caller provides weakness-filtered concepts; we cap to 5 for stub.
 func (e *Engine) Start(concepts []*concepts.Concept) *Session {
+	return e.StartLimit(concepts, DefaultLimit)
+}
+
+// DefaultLimit is the mastery check's length.
+const DefaultLimit = 5
+
+// StartLimit is Start with a topic cap other than five (fork change: a
+// course review test covers up to fifteen, a full-course review more). The
+// empty fallback stays five topics.
+func (e *Engine) StartLimit(concepts []*concepts.Concept, limit int) *Session {
+	if limit <= 0 {
+		limit = DefaultLimit
+	}
 	if len(concepts) == 0 {
 		concepts = e.dag.Order()
-		if len(concepts) > 5 {
-			concepts = concepts[:5]
+		if len(concepts) > DefaultLimit {
+			concepts = concepts[:DefaultLimit]
 		}
 	}
-	if len(concepts) > 5 {
-		concepts = concepts[:5]
+	if len(concepts) > limit {
+		concepts = concepts[:limit]
 	}
 	return &Session{
 		Order:        concepts,
@@ -62,29 +83,38 @@ func (e *Engine) Start(concepts []*concepts.Concept) *Session {
 func (e *Engine) NextQuestion(s *Session) (*generator.Problem, string, error) {
 	s.Lock()
 	defer s.Unlock()
-	if s.Index >= len(s.Order) {
-		s.LastProblem = nil
-		return nil, "", nil
-	}
-	c := s.Order[s.Index]
-	// 80% difficulty target via weakness map (engine.DifficultyFor); fallback 0.8.
-	difficulty := 0.8
-	if d, ok := s.Difficulties[c.ID]; ok && d > 0 {
-		difficulty = d
-	}
-	gctx := generator.GeneratorContext{Difficulty: difficulty, NoProofs: true}
-	p, err := e.registry.GenerateContext(c.ID, gctx)
-	if err != nil {
-		return nil, "", err
-	}
-	for i := 0; i < 6 && s.Avoid[p.Question]; i++ {
-		if p2, err2 := e.registry.GenerateContext(c.ID, gctx); err2 == nil {
-			p = p2
+	for s.Index < len(s.Order) {
+		c := s.Order[s.Index]
+		// 80% difficulty target via weakness map (engine.DifficultyFor); fallback 0.8.
+		difficulty := 0.8
+		if d, ok := s.Difficulties[c.ID]; ok && d > 0 {
+			difficulty = d
 		}
+		gctx := generator.GeneratorContext{Difficulty: difficulty, NoProofs: true}
+		if s.Objective {
+			gctx.NoCards, gctx.ObjectiveOnly = true, true
+		}
+		p, err := e.registry.GenerateContext(c.ID, gctx)
+		if err != nil {
+			return nil, "", err
+		}
+		for i := 0; i < 6 && s.Avoid[p.Question]; i++ {
+			if p2, err2 := e.registry.GenerateContext(c.ID, gctx); err2 == nil && p2.Question != "" {
+				p = p2
+			}
+		}
+		if p.Question == "" {
+			// Nothing this topic may serve in a course test: pass it by,
+			// untested, as a skip would.
+			s.Index++
+			continue
+		}
+		s.LastProblem = &p
+		s.LastConceptID = c.ID
+		return s.LastProblem, c.ID, nil
 	}
-	s.LastProblem = &p
-	s.LastConceptID = c.ID
-	return s.LastProblem, c.ID, nil
+	s.LastProblem = nil
+	return nil, "", nil
 }
 
 func (e *Engine) RecordAnswer(s *Session, conceptID string, correct bool) {

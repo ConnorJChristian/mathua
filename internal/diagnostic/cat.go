@@ -107,6 +107,25 @@ type Session struct {
 	// fork change: the cover samples them so the test probes the material
 	// the learner is placing into, not just the foundations under it.
 	targets map[string]bool
+
+	// CourseID names the course a course placement test was started for
+	// ("" for any other run); the plan endpoint reports per section with it.
+	CourseID string
+	// maxQuestions caps this run (0: maxTotalQuestions). A course placement
+	// test is shorter than an onboarding diagnostic.
+	maxQuestions int
+	// known are topics the learner already has progress on. Placement cannot
+	// change them (ApplyGoalResults never lowers progress), so they are never
+	// asked and never sampled into the cover; they are settled from the start.
+	known map[string]bool
+}
+
+// maxQ is the run's question cap.
+func (s *Session) maxQ() int {
+	if s.maxQuestions > 0 && s.maxQuestions < maxTotalQuestions {
+		return s.maxQuestions
+	}
+	return maxTotalQuestions
 }
 
 type Attempt struct {
@@ -181,6 +200,9 @@ type Snapshot struct {
 	TotalAsked        int                `json:"total_asked"`
 	RetryUsed         bool               `json:"retry_used"`
 	Targets           []string           `json:"targets,omitempty"`
+	CourseID          string             `json:"course_id,omitempty"`
+	MaxQuestions      int                `json:"max_questions,omitempty"`
+	Known             []string           `json:"known,omitempty"`
 }
 
 // Encode renders the session for storage. The lock is held across marshaling,
@@ -229,6 +251,11 @@ func (s *Session) Encode() ([]byte, error) {
 		snap.Targets = append(snap.Targets, id)
 	}
 	sort.Strings(snap.Targets)
+	snap.CourseID, snap.MaxQuestions = s.CourseID, s.maxQuestions
+	for id := range s.known {
+		snap.Known = append(snap.Known, id)
+	}
+	sort.Strings(snap.Known)
 	return json.Marshal(snap)
 }
 
@@ -281,6 +308,14 @@ func (e *Engine) Decode(data []byte) (*Session, error) {
 		supplementalCount: orZeroInt(snap.SupplementalCount),
 		totalAsked:        snap.TotalAsked,
 		retryUsed:         snap.RetryUsed,
+		CourseID:          snap.CourseID,
+		maxQuestions:      snap.MaxQuestions,
+	}
+	if len(snap.Known) > 0 {
+		s.known = make(map[string]bool, len(snap.Known))
+		for _, id := range snap.Known {
+			s.known[id] = true
+		}
 	}
 	if len(snap.Targets) > 0 {
 		s.targets = make(map[string]bool, len(snap.Targets))
@@ -368,6 +403,34 @@ func (e *Engine) StartWithGoal(path []*concepts.Concept, goal []string) *Session
 	return s
 }
 
+// StartCourse begins a course placement test (fork change): StartWithGoal
+// over path toward the course's own topics, capped at maxQ questions, with
+// the topics in known settled from the start and never asked. When every
+// topic on the path is known there is nothing to place and the run is done.
+func (e *Engine) StartCourse(path []*concepts.Concept, goal []string, known map[string]bool, maxQ int) *Session {
+	s := e.StartWithGoal(path, goal)
+	s.maxQuestions = maxQ
+	if s.State == StateDone {
+		return s
+	}
+	unknown := 0
+	for _, c := range path {
+		if known[c.ID] {
+			if s.known == nil {
+				s.known = map[string]bool{}
+			}
+			s.known[c.ID] = true
+			s.doneSet[c.ID] = true
+		} else {
+			unknown++
+		}
+	}
+	if unknown == 0 {
+		s.State = StateDone
+	}
+	return s
+}
+
 // compressedCover returns the smallest covering set (see coverOf).
 func (e *Engine) compressedCover(s *Session) []*concepts.Concept {
 	return s.compressedCoverSafe()
@@ -451,30 +514,49 @@ func (e *Engine) NextQuestion(s *Session) (*generator.Problem, string, error) {
 		s.LastProblem = nil
 		return nil, "", nil
 	}
-	cid := e.pickByInfoGain(s)
-	if cid == "" {
-		// Cover exhausted: run the supplemental diagnostic for
-		// low-confidence concepts before declaring done.
-		cid = e.supplementalDiagnostic(s)
-	}
-	if cid == "" {
-		s.State = StateDone
-		s.LastProblem = nil
-		return nil, "", nil
-	}
-	concept := s.order[s.index(cid)]
-	s.probeCounts[cid]++
-	// Vary difficulty: start low, increase on later probes.
-	difficulty := 0.3
-	if s.probeCounts[cid] >= 2 {
-		difficulty = 0.6
-	}
-	if s.probeCounts[cid] >= 3 {
-		difficulty = 0.8
-	}
-	p, err := e.registry.GenerateContext(cid, generator.GeneratorContext{Difficulty: clampDifficulty(difficulty), NoCards: true})
-	if err != nil {
-		return nil, "", err
+	var (
+		cid     string
+		concept *concepts.Concept
+		p       generator.Problem
+	)
+	for {
+		cid = e.pickByInfoGain(s)
+		if cid == "" {
+			// Cover exhausted: run the supplemental diagnostic for
+			// low-confidence concepts before declaring done.
+			cid = e.supplementalDiagnostic(s)
+		}
+		if cid == "" {
+			s.State = StateDone
+			s.LastProblem = nil
+			return nil, "", nil
+		}
+		concept = s.order[s.index(cid)]
+		s.probeCounts[cid]++
+		// Vary difficulty: start low, increase on later probes.
+		difficulty := 0.3
+		if s.probeCounts[cid] >= 2 {
+			difficulty = 0.6
+		}
+		if s.probeCounts[cid] >= 3 {
+			difficulty = 0.8
+		}
+		// Placement asks only what grades itself and is quick to answer: no
+		// flashcards, no proofs, and from a question bank only multiple
+		// choice, output and typed-math items (fork change).
+		var err error
+		p, err = e.registry.GenerateContext(cid, generator.GeneratorContext{
+			Difficulty: clampDifficulty(difficulty), NoCards: true, NoProofs: true, ObjectiveOnly: true,
+		})
+		if err != nil {
+			return nil, "", err
+		}
+		if p.Question != "" {
+			break
+		}
+		// A topic with nothing a placement may ask is settled unasked, like
+		// a skip: no evidence either way.
+		s.doneSet[cid] = true
 	}
 	// Keep the superseded pending question: a retry voids its attempt and
 	// takes the student back to it (responses always stage the next one).
@@ -821,7 +903,7 @@ func (e *Engine) supplementalDiagnostic(s *Session) string {
 }
 
 func (s *Session) shouldStop() bool {
-	if s.totalAsked >= maxTotalQuestions {
+	if s.totalAsked >= s.maxQ() {
 		return true
 	}
 	cover := s.compressedCoverSafe()
@@ -847,8 +929,19 @@ func (s *Session) shouldStop() bool {
 // in path order, and half is evenly spaced across the path; roots are not
 // forced in, because a correct answer above them settles them by inference.
 func (s *Session) compressedCoverSafe() []*concepts.Concept {
-	if len(s.order) <= coverSize {
-		return s.order
+	order := s.order
+	if len(s.known) > 0 {
+		// Topics the learner already has progress on are not placement
+		// material; the cover is drawn from the rest (fork change).
+		order = make([]*concepts.Concept, 0, len(s.order))
+		for _, c := range s.order {
+			if !s.known[c.ID] {
+				order = append(order, c)
+			}
+		}
+	}
+	if len(order) <= coverSize {
+		return order
 	}
 	var out []*concepts.Concept
 	seen := make(map[string]bool)
@@ -860,7 +953,7 @@ func (s *Session) compressedCoverSafe() []*concepts.Concept {
 	}
 	if len(s.targets) > 0 {
 		var goal []*concepts.Concept
-		for _, c := range s.order {
+		for _, c := range order {
 			if s.targets[c.ID] {
 				goal = append(goal, c)
 			}
@@ -875,18 +968,18 @@ func (s *Session) compressedCoverSafe() []*concepts.Concept {
 				add(goal[i*len(goal)/half])
 			}
 		}
-		step := int(math.Ceil(float64(len(s.order)) / float64(coverSize-len(out))))
-		for i := step / 2; i < len(s.order); i += step {
-			add(s.order[i])
+		step := int(math.Ceil(float64(len(order)) / float64(coverSize-len(out))))
+		for i := step / 2; i < len(order); i += step {
+			add(order[i])
 		}
 		sort.Slice(out, func(i, j int) bool { return s.index(out[i].ID) < s.index(out[j].ID) })
 		return out
 	}
-	step := int(math.Ceil(float64(len(s.order)) / float64(coverSize)))
-	for i := 0; i < len(s.order); i += step {
-		add(s.order[i])
+	step := int(math.Ceil(float64(len(order)) / float64(coverSize)))
+	for i := 0; i < len(order); i += step {
+		add(order[i])
 	}
-	for _, c := range s.order {
+	for _, c := range order {
 		if len(c.Prerequisites) == 0 {
 			add(c)
 		}
@@ -936,8 +1029,8 @@ func (e *Engine) Progress(s *Session) Progress {
 	if est < minTotalQuestions {
 		est = minTotalQuestions
 	}
-	if est > maxTotalQuestions {
-		est = maxTotalQuestions
+	if est > s.maxQ() {
+		est = s.maxQ()
 	}
 	if est < answered {
 		est = answered
@@ -946,7 +1039,7 @@ func (e *Engine) Progress(s *Session) Progress {
 		Answered:       answered,
 		EstimatedTotal: est,
 		MinTotal:       minTotalQuestions,
-		MaxTotal:       maxTotalQuestions,
+		MaxTotal:       s.maxQ(),
 		CoverDone:      coverDone,
 		CoverSize:      len(cover),
 		Done:           s.State == StateDone,
