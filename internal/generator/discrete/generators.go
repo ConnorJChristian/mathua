@@ -1009,34 +1009,6 @@ func (g *equivalenceGen) Generate(ctx generator.GeneratorContext) generator.Prob
 
 type relationsGen struct{}
 
-func (g *relationsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	scale := int(1 + ctx.Difficulty*4)
-	type entry struct {
-		q string
-		a string
-		e string
-	}
-	easy := []entry{
-		{"How many equivalence classes does congruence mod 3 give on Z? (enter a number)", "3", "Residues 0, 1, 2 give classes [0], [1], [2]: 3 classes."},
-		{"How many partitions does a 2-element set have? (enter a number)", "2", "Either {a,b} together or {a}|{b}: 2 partitions (Bell B_2=2)."},
-		{"Is relation {(1,1),(2,2)} on {1,2} reflexive? (yes/no)", "yes", "Every element relates to itself."},
-		{"Is {(1,2)} on {1,2} symmetric? (yes/no)", "no", "Contains (1,2) but not (2,1)."},
-		{"Is {(1,2),(2,3)} on {1,2,3} transitive? (yes/no)", "no", "Has (1,2) and (2,3) but is missing (1,3)."},
-		{"Is the relation 'divides' on N reflexive? (yes/no)", "yes", "Every n divides itself."},
-	}
-	hard := []entry{
-		{"Is relation {(a,b): a≡b mod 3} on Z an equivalence relation? (yes/no)", "yes", "Modulo is reflexive, symmetric, transitive."},
-		{"Does equivalence relation partition the set into disjoint classes? (yes/no)", "yes", "Classes are [a] = {b: a~b} forming a partition."},
-		{"Is the number of equivalence relations on {1,2,3} equal to the Bell number B_3=5? (yes/no)", "yes", "B_3=5 partitions of a 3-element set."},
-	}
-	pool := easy
-	if scale > 3 {
-		pool = append(easy, hard...)
-	}
-	e := pool[rand.Intn(len(pool))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
-}
-
 // ----- pigeonhole -----
 
 type pigeonholeGen struct{}

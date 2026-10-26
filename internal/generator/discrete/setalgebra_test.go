@@ -162,3 +162,47 @@ func itoa(n int) string {
 	}
 	return s
 }
+
+// Relation, partition and function keys are re-derived from the printed
+// pairs and blocks, and the pool is wide: it used to be nine fixed items.
+func TestRelationKeysFollowFromTheQuestion(t *testing.T) {
+	pairRe := regexp.MustCompile(`\((\d), (\d)\)`)
+	seen := map[string]bool{}
+	for i := 0; i < 300; i++ {
+		rand.Seed(int64(i + 7))
+		p := (&relationsGen{}).Generate(generator.GeneratorContext{Difficulty: 0.3})
+		seen[p.Question] = true
+		has := map[[2]int]bool{}
+		var rel [][2]int
+		for _, m := range pairRe.FindAllStringSubmatch(p.Question, -1) {
+			pr := [2]int{int(m[1][0] - '0'), int(m[2][0] - '0')}
+			has[pr] = true
+			rel = append(rel, pr)
+		}
+		want := true
+		switch {
+		case strings.Contains(p.Question, "reflexive"):
+			for a := 1; a <= 3; a++ {
+				want = want && has[[2]int{a, a}]
+			}
+		case strings.Contains(p.Question, "symmetric"):
+			for _, r := range rel {
+				want = want && has[[2]int{r[1], r[0]}]
+			}
+		default:
+			for _, r := range rel {
+				for _, s := range rel {
+					if r[1] == s[0] {
+						want = want && has[[2]int{r[0], s[1]}]
+					}
+				}
+			}
+		}
+		if p.Answer != map[bool]string{true: "yes", false: "no"}[want] {
+			t.Fatalf("key %s for %q", p.Answer, p.Question)
+		}
+	}
+	if len(seen) < 100 {
+		t.Errorf("only %d distinct relation questions of 300", len(seen))
+	}
+}
