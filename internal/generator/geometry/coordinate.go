@@ -47,8 +47,8 @@ func (g *slopeGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 }
 
 // distance3DGen uses a Pythagorean quadruple, so the distance in space is
-// whole. Difficulty moves the first point off the origin, then permutes and
-// signs the differences so both points have negative coordinates.
+// whole. The differences are permuted at every difficulty; difficulty moves
+// the first point off the origin, then signs the differences.
 type distance3DGen struct{}
 
 var pythagoreanQuads = [][4]int{
@@ -69,8 +69,8 @@ func (g *distance3DGen) Generate(ctx generator.GeneratorContext) generator.Probl
 			p1[i] = rand.Intn(11) - 5
 		}
 	}
+	rand.Shuffle(3, func(i, j int) { d[i], d[j] = d[j], d[i] })
 	if ctx.Difficulty >= 0.7 {
-		rand.Shuffle(3, func(i, j int) { d[i], d[j] = d[j], d[i] })
 		for i := range d {
 			if rand.Intn(2) == 0 {
 				d[i] = -d[i]

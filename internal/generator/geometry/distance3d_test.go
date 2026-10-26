@@ -40,4 +40,14 @@ func TestDistance3DKeyAndVariety(t *testing.T) {
 	if len(seen) < 200 || offOrigin < 250 {
 		t.Errorf("%d distinct of 300, %d off the origin", len(seen), offOrigin)
 	}
+	// The easiest questions measure from the origin, but not from a list of
+	// six fixed points.
+	low := map[string]bool{}
+	for i := 0; i < 200; i++ {
+		rand.Seed(int64(i + 1))
+		low[(&distance3DGen{}).Generate(generator.GeneratorContext{Difficulty: 0.3}).Question] = true
+	}
+	if len(low) < 20 {
+		t.Errorf("only %d distinct questions at difficulty 0.3", len(low))
+	}
 }
