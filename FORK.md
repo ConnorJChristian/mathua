@@ -480,6 +480,12 @@ Each topic mixes three kinds of question:
 A question bank can also hold **recall cards**, which work like flashcards.
 You answer in your head, reveal the back, then mark whether you had it.
 
+A bank can also hold **term items**: you type the name of a concept as the
+source uses it. An item has kind `term`, the term in `correct` and other
+spellings of it in `accept`. Case, accents, a leading article and surrounding
+punctuation do not matter. A two-option choice can be True/False, Yes/No,
+Sí/No or Verdadero/Falso.
+
 The Python track has no placement test. Its first topics have no
 prerequisites. Mastering a topic gives partial credit to the topics below it,
 as on the math side.

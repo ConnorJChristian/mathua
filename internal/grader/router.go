@@ -164,7 +164,7 @@ func canonConstants(s string) string {
 // generated concept (your flashcards in its practice), and must then be graded
 // as the bank item it is, whatever the concept's own grading type.
 func IsBankAnswer(expected string) bool {
-	for _, p := range []string{"mc:", "out:", "code:", "recall:", "math:", ProofPrefix} {
+	for _, p := range []string{"mc:", "out:", "code:", "recall:", "math:", "term:", ProofPrefix} {
 		if strings.HasPrefix(expected, p) {
 			return true
 		}
