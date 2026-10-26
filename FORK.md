@@ -364,6 +364,69 @@ proofs stored with each problem. `mathua proof spend` shows the month's spend
 and `mathua proof list` the problems. In Docker, run them with
 `docker compose exec mathua /mathua proof ...`.
 
+### Written-answer flashcards
+
+About a quarter of imported flashcards ask for a proof, a derivation or a
+justification ("prove", "show that", "derive", "explain why", "justify",
+"verify"). Marking those yourself after reading a one-line back is easy to
+get wrong in your own favour, so when proof grading has a key, such a card
+is served with the proof box instead of the reveal button and graded by the
+same judge: k runs, the median, and fully right only when every run gives at
+least 6 of 7. After grading you see the score out of 7, the milestone
+checklist, the first error, the feedback and the card's back. "Just show me
+the answer (self-grade)" under the box reveals the back and turns the card
+back into an ordinary flashcard.
+
+Which cards: `internal/pytrack/written.go` classifies each recall card from
+its front. Cards whose task is done on a graph, sketch, table or diagram,
+cloze cards, computer exercises, method questions ("how do you prove") and
+checks of a computed answer ("verify your answer", "compute it or show it
+does not exist") stay self-graded, as does any card with a picture on the
+front. A card's `"grading": "llm"` or `"grading": "self"` in the bank file
+overrides the classifier. `mathua proof classify [-bank B] [-sample N]`
+reports the counts per bank and a sample with the reason for each verdict.
+
+Marking schemes are written lazily. The first time an answer to a card is
+graded, the judge's model writes a scheme for it from the front and back
+(milestones worth 7 points, caps for fatal errors, alternative routes, and a
+full reference answer when the back is terse). The scheme is stored in the
+database (the `proof_grades` table, under the card's id and a hash of its
+front and back, so editing a card gets it a new scheme) and reused for every
+later answer. Writing schemes counts against the same monthly budget. If a
+scheme cannot be written, the card stays self-graded: for a day after a
+failed call (`MATHUA_LLM_RECALL_RETRY_HOURS`), and until the card is edited
+when the model judged it ungradable from text. With no key, with
+`MATHUA_LLM_RECALL=0` or with the budget spent, every card is an ordinary
+flashcard.
+
+A graded card is recorded exactly as a self-graded card is, with the judge's
+verdict as your mark: practice, never mastery evidence, never a miss toward
+a halt, whatever `MATHUA_PROOF_COUNTS_FOR_MASTERY` says. An answer that could
+not be graded is never a miss: nothing is recorded and you can submit again
+or self-grade. A quiz serves these cards as plain flashcards; placement and
+course tests serve no flashcards at all.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MATHUA_LLM_RECALL` | on when `ANTHROPIC_API_KEY` is set | `0` serves every flashcard self-graded. |
+| `MATHUA_LLM_RECALL_BANKS` | unset (all banks) | Comma-separated bank files whose cards are graded, e.g. `calculus,econometrics`. The `anki_` prefix and `.json` are optional. |
+| `MATHUA_LLM_RECALL_EXCLUDE_BANKS` | unset | Bank files whose cards stay self-graded. `linear_algebra` leaves out a linear algebra deck whose proofs are above your level. |
+| `MATHUA_LLM_RECALL_SCHEME_MAX_TOKENS` | 3000 | Output budget of one marking scheme. |
+| `MATHUA_LLM_RECALL_RETRY_HOURS` | 24 | How long a card whose scheme failed stays self-graded before another try. |
+
+`mathua proof schemes [-bank B] [-concept C] [-limit N] [-dry-run] [-yes]`
+writes schemes ahead of time, so a card's first answer does not wait for
+its scheme. It shows the number of schemes and the estimated cost and asks
+before spending (`-yes` skips the question). `-bank` overrides the
+exclusions. With Sonnet at list prices and 5 runs, a scheme costs about 2
+cents (at most 5) and grading an answer about 7 cents (at most 18); 1,200
+schemes come to about $25, at most $58.
+
+`mathua proof calibrate -recall [-n N] [-bank B]` samples N written-answer
+cards and grades each card's own back, which should pass, and a wrong
+answer the model writes against the card's scheme, which should fail. It
+prints the confusion matrix (false-fail and false-pass rates) and the cost.
+
 ## Learning reports
 
 `scripts/learning_report.py` reads a copy of the app's database and writes a
