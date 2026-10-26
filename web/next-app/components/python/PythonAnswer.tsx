@@ -10,6 +10,8 @@
 //                 own questions use, graded by Mathua's math graders
 //   proof      -> a multi-line box for a written proof, with a rendered
 //                 preview of its LaTeX; graded on the server (internal/proof)
+//   written-answer flashcard -> the proof box, graded the same way, with a
+//                 "Just show me the answer" escape to the self-graded card
 //   multiple choice -> nothing here; the host's ChoiceOptions is the input
 //
 // The code box is a plain textarea on purpose. It has to work on a phone, with
@@ -18,7 +20,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { runPython, type PythonRunRes } from '../../lib/api'
-import { pythonKind, recallBack, starterCode, taskKey, typedFields, typedValues } from '../../lib/pythonQuestion'
+import { isWrittenRecall, pythonKind, recallBack, starterCode, taskKey, typedFields, typedValues } from '../../lib/pythonQuestion'
 import { MathAnswerInput, type MathFocusHandle } from '../math/MathInput'
 import { Play } from '../icons'
 import KatexContent from '../KatexContent'
@@ -38,6 +40,9 @@ export default function PythonAnswer({ question, value, onChange, onSubmit, disa
   const kind = useMemo(() => pythonKind(question), [question])
   if (kind === 'mc') return null
   if (kind === 'proof') {
+    if (isWrittenRecall(question)) {
+      return <WrittenRecall question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
+    }
     return <ProofBox value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
   }
   if (kind === 'math') {
@@ -94,11 +99,40 @@ function TypedAnswer({ question, value, onChange, onSubmit, disabled, id }: Prop
   )
 }
 
+// A flashcard that asks for a proof or derivation (internal/pytrack
+// written.go): the proof box, graded against a marking scheme, and an escape
+// to the plain flashcard. Revealing the back is one-way: once the learner has
+// read it, a written answer would grade nothing, so the box is cleared and
+// only "I had it" / "I missed it" remain, exactly as for any flashcard.
+function WrittenRecall({ question, value, onChange, onSubmit, disabled, id }: Props) {
+  const [selfGrade, setSelfGrade] = useState(false)
+  useEffect(() => setSelfGrade(false), [question])
+  if (selfGrade) {
+    return <RecallCard question={question} value={value} onChange={onChange} disabled={disabled} revealed />
+  }
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-2">
+      <ProofBox value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} label="Your answer" />
+      <button
+        type="button"
+        onClick={() => {
+          onChange('')
+          setSelfGrade(true)
+        }}
+        disabled={disabled}
+        className="self-start border border-mathua-border-strong px-4 min-h-[40px] font-mono text-xs text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue disabled:opacity-50"
+      >
+        Just show me the answer (self-grade)
+      </button>
+    </div>
+  )
+}
+
 // A flashcard. The back is part of the served question (a flashcard has no
 // secret to keep), shown only when the learner asks; the verdict is theirs.
-function RecallCard({ question, value, onChange, disabled }: Omit<Props, 'onSubmit' | 'id'>) {
-  const [shown, setShown] = useState(false)
-  useEffect(() => setShown(false), [question])
+function RecallCard({ question, value, onChange, disabled, revealed = false }: Omit<Props, 'onSubmit' | 'id'> & { revealed?: boolean }) {
+  const [shown, setShown] = useState(revealed)
+  useEffect(() => setShown(revealed), [question, revealed])
   const back = useMemo(() => recallBack(question), [question])
   if (!shown) {
     return (
@@ -142,7 +176,7 @@ function RecallCard({ question, value, onChange, disabled }: Omit<Props, 'onSubm
 // preview renders the LaTeX the learner typed, so a mistyped delimiter shows
 // up before the proof is sent to be graded. Ctrl+Enter checks; Enter is a new
 // line, because a proof has many.
-function ProofBox({ value, onChange, onSubmit, disabled, id }: Omit<Props, 'question'>) {
+function ProofBox({ value, onChange, onSubmit, disabled, id, label = 'Your proof' }: Omit<Props, 'question'> & { label?: string }) {
   const [preview, setPreview] = useState(false)
   const rows = Math.min(28, Math.max(10, value.split('\n').length + 2))
   const tab = (on: boolean, label: string) => (
@@ -159,7 +193,7 @@ function ProofBox({ value, onChange, onSubmit, disabled, id }: Omit<Props, 'ques
   )
   return (
     <div className="w-full min-w-0">
-      <div role="group" aria-label="Proof view" className="mb-1.5 flex gap-1">
+      <div role="group" aria-label={label === 'Your proof' ? 'Proof view' : 'Answer view'} className="mb-1.5 flex gap-1">
         {tab(false, 'Write')}
         {tab(true, 'Preview')}
       </div>
@@ -185,8 +219,12 @@ function ProofBox({ value, onChange, onSubmit, disabled, id }: Omit<Props, 'ques
           rows={rows}
           disabled={disabled}
           spellCheck
-          placeholder={'Proof. Suppose ...\n\nUse \\( ... \\) for mathematics, e.g. \\(|a_n - a| < \\epsilon\\).'}
-          aria-label="Your proof"
+          placeholder={
+            label === 'Your proof'
+              ? 'Proof. Suppose ...\n\nUse \\( ... \\) for mathematics, e.g. \\(|a_n - a| < \\epsilon\\).'
+              : 'Your answer, with every step justified.\n\nUse \\( ... \\) for mathematics, e.g. \\(f\'(x) > 0\\).'
+          }
+          aria-label={label}
           className="w-full min-h-[12rem] resize-y border border-mathua-border-strong bg-mathua-bg px-3 py-2 font-mono text-sm leading-relaxed text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60"
         />
       )}

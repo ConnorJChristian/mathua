@@ -9,7 +9,9 @@ import KatexContent from './KatexContent'
 
 const MET_LABEL: Record<string, string> = { yes: 'Met', partial: 'Partly', no: 'Missing' }
 
-export default function ProofReport({ report }: { report: Report }) {
+// flashcard marks a written answer to a flashcard (internal/recallproof): its
+// grade is recorded as the learner's own mark would be.
+export default function ProofReport({ report, flashcard = false }: { report: Report; flashcard?: boolean }) {
   const runs = report.runs ?? []
   return (
     <div data-proof-report className="mt-3 border border-mathua-border bg-mathua-bg px-4 py-3">
@@ -57,7 +59,11 @@ export default function ProofReport({ report }: { report: Report }) {
           <KatexContent className="mt-0.5 text-xs text-mathua-secondary whitespace-pre-wrap">{report.feedback}</KatexContent>
         </div>
       )}
-      {!report.counts_for_mastery && (
+      {flashcard ? (
+        <p className="mt-3 font-mono text-[11px] text-mathua-muted">
+          Recorded as if you had marked the card yourself: practice, not mastery evidence. The card&apos;s answer is below.
+        </p>
+      ) : !report.counts_for_mastery && (
         <p className="mt-3 font-mono text-[11px] text-mathua-muted">
           Feedback only: proof grades do not count toward mastery until the grader is calibrated.
         </p>

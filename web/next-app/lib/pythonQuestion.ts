@@ -66,11 +66,31 @@ export const PROOF_MARKER = '<!--proof-answer-->'
 /** Whether a served question asks for a written proof. */
 export const isProofQuestion = (question?: string | null) => !!question && question.includes(PROOF_MARKER)
 
+// A flashcard that asks for a proof or derivation, served for a written
+// answer (internal/pytrack/written.go): front, PROOF_MARKER, RECALL_MARKER,
+// back. It takes the proof box and is graded like a proof, but the learner
+// may instead reveal the back and mark it themselves, submitting "right" or
+// "wrong" as for any flashcard.
+export const isWrittenRecall = (question?: string | null) =>
+  !!question && question.includes(PROOF_MARKER) && question.includes(RECALL_MARKER)
+
+/** A written-answer flashcard the learner chose to mark themselves. */
+export const isSelfMarked = (question: string | null | undefined, answer: string) =>
+  isWrittenRecall(question) && (answer === 'right' || answer === 'wrong')
+
 // A recall card (a flashcard, e.g. imported from Anki): front, then this
 // marker, then the back. internal/pytrack/track.go RecallMarker.
 export const RECALL_MARKER = '<!--recall-back-->'
 
 const STARTER_RE = /\n*```python starter(?: task=([^\s`]+))?\n([\s\S]*?)\n```[ \t]*/
+
+/**
+ * The kind an answered question is reported as: a written-answer flashcard
+ * the learner marked themselves is a recall card, not a graded proof.
+ */
+export function answeredKind(question: string, answer: string): PythonKind {
+  return isSelfMarked(question, answer) ? 'recall' : pythonKind(question)
+}
 
 export function pythonKind(question: string): PythonKind {
   if (question.includes(PROOF_MARKER)) return 'proof'
@@ -134,6 +154,10 @@ export function displayAnswer(answer: string): string {
   if (answer.startsWith('out:')) return answer.slice(4)
   return answer
 }
+
+/** The hint under a written-answer flashcard's box. */
+export const WRITTEN_RECALL_HINT =
+  'Write your answer: it is graded against a marking scheme, which takes up to a minute. Or reveal the answer and mark it yourself.'
 
 export function pythonHint(kind: PythonKind, timeLimit = 8): string {
   switch (kind) {

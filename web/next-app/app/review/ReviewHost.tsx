@@ -15,7 +15,7 @@ import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../components/SubmitErrorBlock'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import PythonAnswer from '../../components/python/PythonAnswer'
-import { displayQuestion, isBankServed, isProofQuestion, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
+import { WRITTEN_RECALL_HINT, answeredKind, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWrittenRecall, plainAnswer, pythonHint } from '../../lib/pythonQuestion'
 import { track, questionHash, answerStyle } from '../../lib/events'
 
 type Phase = 'loading' | 'intro' | 'run' | 'done'
@@ -251,7 +251,8 @@ export default function ReviewHost() {
   }
 
   const isPy = isBankServed(reviewGradingType.current, reviewQuestion)
-  const pyKind = isPy ? pythonKind(reviewQuestion) : null
+  const pyKind = isPy ? answeredKind(reviewQuestion, reviewAnswerInput) : null
+  const written = isPy && isWrittenRecall(reviewQuestion)
   return (
     <>
       <SectionHeader label={`Review question ${reviewCount}`} title={reviewConceptName} />
@@ -310,7 +311,7 @@ export default function ReviewHost() {
               </form>
               )}
               <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="font-mono text-[11px] text-mathua-muted">{pyKind ? pythonHint(pyKind) : answerFormat.hint}</p>
+                <p className="font-mono text-[11px] text-mathua-muted">{written && pyKind === 'proof' ? WRITTEN_RECALL_HINT : pyKind ? pythonHint(pyKind) : answerFormat.hint}</p>
               </div>
               <div className="mt-2 flex justify-end">
                 <ReportButton
@@ -330,7 +331,7 @@ export default function ReviewHost() {
           ) : (
             <div className="animate-fadeIn">
               <p className={`text-base font-medium mb-2 text-center ${reviewLastResult.correct ? 'text-mathua-green' : 'text-mathua-red'}`}>{reviewLastResult.correct ? '✓ Correct!' : '✗ Not quite'}</p>
-              {reviewLastResult.proof && <div className="mb-3 text-left"><ProofReport report={reviewLastResult.proof} /></div>}
+              {reviewLastResult.proof && <div className="mb-3 text-left"><ProofReport report={reviewLastResult.proof} flashcard={written} /></div>}
               {/* The explanation is the solution for this instance and is the
                   body of the result; `feedback` is the grader's verdict token
                   ("Incorrect"), so showing it above the working is noise. Fall
