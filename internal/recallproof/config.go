@@ -112,3 +112,7 @@ func (c Config) BankAllowed(bank string) bool {
 	}
 	return false
 }
+
+// SameBank reports whether two bank names name the same bank file
+// ("linear_algebra" and "anki_linear_algebra.json" do).
+func SameBank(a, b string) bool { return bankName(a) == bankName(b) }

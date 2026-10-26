@@ -2,8 +2,8 @@ package recallproof
 
 import (
 	"crypto/sha256"
-	"errors"
 	"encoding/hex"
+	"errors"
 	"html"
 	"regexp"
 	"strings"
