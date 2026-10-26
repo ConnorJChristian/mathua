@@ -55,7 +55,7 @@ var ErrUnparseable = errors.New("proof judge: the reply was not a valid verdict"
 
 // instructions is the fixed part of the system prompt, shared by every
 // problem. It and the problem block after it are the cached prefix.
-const instructions = `You are a strict grader of written proofs in an undergraduate first course in real analysis.
+const instructions = `You are a strict grader of written proofs and derivations in undergraduate and first-year graduate mathematics, statistics and economics (real analysis, linear algebra, calculus, probability, econometrics).
 
 You will be given a problem statement, a marking scheme on a 0-7 scale, a reference proof, and a student's proof. Grade the student's proof.
 
