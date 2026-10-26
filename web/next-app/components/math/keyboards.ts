@@ -55,6 +55,8 @@ const MATH_GRADING_TYPES = new Set([
   'tuple',
   'ordering',
   'comparison',
+  'set',
+  'interval',
 ])
 
 /**

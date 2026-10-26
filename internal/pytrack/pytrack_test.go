@@ -436,3 +436,32 @@ func TestMathItemExpression(t *testing.T) {
 		t.Error("a different expression was accepted")
 	}
 }
+
+// A part graded as a set or an interval reads braces as set notation, not as
+// LaTeX grouping, and compares the objects rather than the text.
+func TestMathItemSetAndInterval(t *testing.T) {
+	dir := t.TempDir()
+	bank := `{"chapter":"x","title":"X","concepts":[{"id":"anki.x.s","book":{"name":"Deck","section":"","title":"Ch 2","url":""},"intro":"","items":[
+{"id":"s1","kind":"math","level":2,"prompt":"Find A ∪ B, and the set where x > 1.","parts":[
+ {"label":"A \\cup B","answer":"{1,2,3}","grading":"set","tex":"\\{1, 2, 3\\}"},
+ {"label":"S","answer":"(1,\\infty)","grading":"interval","tex":"(1, \\infty)"}],"back":"","explain":""}]}]}`
+	if err := os.WriteFile(filepath.Join(dir, "x.json"), []byte(bank), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := LoadBank(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := &Track{Bank: b, Runner: NewRunner()}
+	c := b.Concept("anki.x.s")
+	p := tr.Problem(c, &c.Items[0])
+	if g := tr.Grade(p.Answer, "{3, 2, 1}\n(1, oo)"); !g.Correct {
+		t.Errorf("a reordered roster and (1, oo) should be correct: %+v", g)
+	}
+	if g := tr.Grade(p.Answer, "{1, 2}\n(1, oo)"); g.Correct {
+		t.Error("a roster missing an element was accepted")
+	}
+	if g := tr.Grade(p.Answer, "{1, 2, 3}\n[1, oo)"); g.Correct {
+		t.Error("a closed bracket at 1 was accepted")
+	}
+}

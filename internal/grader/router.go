@@ -37,6 +37,9 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 	// choice against its key): the learner's text must reach it untouched.
 	// lenient() used to strip a leading "query = " from SQL tasks (fork fix).
 	if !IsBankAnswer(expected) {
+		if res, ok := gradeSetLike(gradingType, expected, answer); ok {
+			return res
+		}
 		answer = lenient(gradingType, expected, answer)
 	}
 	switch gradingType {

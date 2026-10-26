@@ -347,7 +347,12 @@ func (t *Track) gradeMath(key, answer string) grader.Result {
 			missed = append(missed, name+" is empty")
 			continue
 		}
-		res := mathRouter.Grade(grader.GradingType(p.Grading), grader.NormalizeTypedMath(p.Answer, p.Answer), grader.NormalizeTypedMath(a, p.Answer))
+		key, typed := grader.NormalizeTypedMath(p.Answer, p.Answer), grader.NormalizeTypedMath(a, p.Answer)
+		if p.Grading == "set" || p.Grading == "interval" {
+			// Braces are the notation here, not LaTeX grouping.
+			key, typed = p.Answer, a
+		}
+		res := mathRouter.Grade(grader.GradingType(p.Grading), key, typed)
 		if res.Unavailable {
 			return res
 		}
