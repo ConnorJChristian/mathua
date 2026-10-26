@@ -487,6 +487,9 @@ func (g *relationsGen) Generate(ctx generator.GeneratorContext) generator.Proble
 	case 0:
 		n := 3
 		rel := randomRelation(n)
+		if rand.Intn(3) == 0 {
+			return closureCount(rel, n)
+		}
 		prop := []string{"reflexive", "symmetric", "transitive"}[rand.Intn(3)]
 		ok, why := relationProperty(rel, n, prop)
 		return generator.Problem{
@@ -524,6 +527,40 @@ func (g *relationsGen) Generate(ctx generator.GeneratorContext) generator.Proble
 				Explanation: fmt.Sprintf("A function assigns each of the %d elements of A exactly one image, and each has %d choices: %d^%d = %d.", m, n, n, m, intPow(n, m)),
 			}
 		}
+	}
+}
+
+// closureCount asks how many pairs must be added to make R reflexive, or
+// symmetric: the smallest such relation containing R.
+func closureCount(rel []pair, n int) generator.Problem {
+	has := map[pair]bool{}
+	for _, p := range rel {
+		has[p] = true
+	}
+	var missing []string
+	prop := "reflexive"
+	if rand.Intn(2) == 0 {
+		for a := 1; a <= n; a++ {
+			if !has[pair{a, a}] {
+				missing = append(missing, fmt.Sprintf("(%d, %d)", a, a))
+			}
+		}
+	} else {
+		prop = "symmetric"
+		for _, p := range rel {
+			if !has[pair{p.b, p.a}] {
+				missing = append(missing, fmt.Sprintf("(%d, %d)", p.b, p.a))
+			}
+		}
+	}
+	why := fmt.Sprintf("R is already %s, so no pair is needed.", prop)
+	if len(missing) > 0 {
+		why = fmt.Sprintf("The missing pairs are %s, so %d must be added.", strings.Join(missing, ", "), len(missing))
+	}
+	return generator.Problem{
+		Question:    fmt.Sprintf("On \\(A = \\{1, 2, 3\\}\\), how many ordered pairs must be added to \\(R = %s\\) to make it %s?", pairsString(rel), prop),
+		Answer:      strconv.Itoa(len(missing)),
+		Explanation: why,
 	}
 }
 

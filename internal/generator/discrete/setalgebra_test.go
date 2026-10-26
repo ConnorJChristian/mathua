@@ -172,6 +172,7 @@ func TestRelationKeysFollowFromTheQuestion(t *testing.T) {
 		rand.Seed(int64(i + 7))
 		p := (&relationsGen{}).Generate(generator.GeneratorContext{Difficulty: 0.3})
 		seen[p.Question] = true
+		counting := strings.Contains(p.Question, "how many ordered pairs")
 		has := map[[2]int]bool{}
 		var rel [][2]int
 		for _, m := range pairRe.FindAllStringSubmatch(p.Question, -1) {
@@ -180,6 +181,26 @@ func TestRelationKeysFollowFromTheQuestion(t *testing.T) {
 			rel = append(rel, pr)
 		}
 		want := true
+		if counting {
+			missing := 0
+			if strings.Contains(p.Question, "reflexive?") {
+				for a := 1; a <= 3; a++ {
+					if !has[[2]int{a, a}] {
+						missing++
+					}
+				}
+			} else {
+				for _, r := range rel {
+					if !has[[2]int{r[1], r[0]}] {
+						missing++
+					}
+				}
+			}
+			if p.Answer != itoa(missing) {
+				t.Fatalf("key %s, want %d: %q", p.Answer, missing, p.Question)
+			}
+			continue
+		}
 		switch {
 		case strings.Contains(p.Question, "reflexive"):
 			for a := 1; a <= 3; a++ {
