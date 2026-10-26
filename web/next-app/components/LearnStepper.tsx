@@ -22,7 +22,7 @@ import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
 import PythonAnswer from './python/PythonAnswer'
 import ProofReport from './ProofReport'
-import { WRITTEN_RECALL_HINT, answeredKind, displayAnswer, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWrittenRecall, plainAnswer, pythonHint, typedEcho } from '../lib/pythonQuestion'
+import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayAnswer, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint, typedEcho } from '../lib/pythonQuestion'
 
 // Append-only learning feed: intro once, then each submit locks its card and
 // the next question opens below. Scrollback IS the performance history —
@@ -845,6 +845,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           const qPy = isBankServed(isPy ? 'bank' : null, qe.q.question, qe.q.answer)
           const pyKind = qPy ? answeredKind(qe.q.question, qe.answer) : null
           const written = qPy && isWrittenRecall(qe.q.question)
+          const writing = qPy && isWritingQuestion(qe.q.question)
           const shownAnswer = qPy ? displayAnswer(qe.q.answer) : qe.q.answer
           return (
             <div key={qe.key} className={`border bg-mathua-surface p-6 ${qe.feedback?.correct ? 'border-mathua-green-faint' : qe.feedback ? 'border-mathua-red-faint' : 'border-mathua-border'}`}>
@@ -863,7 +864,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   />
                   <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 self-end">{qe.checking && pyKind === 'code' ? 'Checking…' : qe.checking && pyKind === 'proof' ? 'Grading…' : 'Check'}</button>
                   {qe.checking && pyKind === 'proof' && (
-                    <p role="status" className="font-mono text-[11px] text-mathua-muted self-end">Grading your proof against its marking scheme. This takes up to a minute.</p>
+                    <p role="status" className="font-mono text-[11px] text-mathua-muted self-end">{writing ? 'Grading your writing against its rubric.' : 'Grading your proof against its marking scheme.'} This takes up to a minute.</p>
                   )}
                 </form>
               )}
@@ -886,7 +887,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 w-auto self-end sm:self-auto shrink-0">Check</button>
                 </form>
               )}
-              {!locked && <p className="mt-2 font-mono text-[11px] text-mathua-muted">{written && pyKind === 'proof' ? WRITTEN_RECALL_HINT : pyKind ? pythonHint(pyKind) : format.hint}</p>}
+              {!locked && <p className="mt-2 font-mono text-[11px] text-mathua-muted">{written && pyKind === 'proof' ? WRITTEN_RECALL_HINT : writing ? WRITING_HINT : pyKind ? pythonHint(pyKind) : format.hint}</p>}
               {locked && qe.feedback && (
                 <div className="mt-3">
                   <p className={`font-mono text-xs ${qe.feedback.correct ? 'text-green-400' : 'text-red-400'}`}>
@@ -901,11 +902,11 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   </p>
                   {pyKind === 'proof' && (
                     <details className="mt-1.5">
-                      <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">{written ? 'Your answer' : 'Your proof'}</summary>
+                      <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">{written ? 'Your answer' : writing ? 'Your writing' : 'Your proof'}</summary>
                       <KatexContent className="mt-1 block max-h-72 overflow-auto border border-mathua-border px-3 py-2 text-xs text-mathua-primary whitespace-pre-wrap">{qe.answer}</KatexContent>
                     </details>
                   )}
-                  {qe.feedback.proof && <ProofReport report={qe.feedback.proof} flashcard={written} />}
+                  {qe.feedback.proof && <ProofReport report={qe.feedback.proof} flashcard={written} writing={writing} />}
                   {pyKind === 'code' && (
                     <details className="mt-1.5" open={!qe.feedback.correct}>
                       <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Your code</summary>

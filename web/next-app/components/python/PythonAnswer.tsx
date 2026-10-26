@@ -20,7 +20,7 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { runPython, type PythonRunRes } from '../../lib/api'
-import { isWrittenRecall, pythonKind, recallBack, starterCode, taskKey, typedFields, typedValues } from '../../lib/pythonQuestion'
+import { isWritingQuestion, isWrittenRecall, pythonKind, recallBack, starterCode, taskKey, typedFields, typedValues, wordCount } from '../../lib/pythonQuestion'
 import { MathAnswerInput, type MathFocusHandle } from '../math/MathInput'
 import { Play } from '../icons'
 import KatexContent from '../KatexContent'
@@ -42,6 +42,9 @@ export default function PythonAnswer({ question, value, onChange, onSubmit, disa
   if (kind === 'proof') {
     if (isWrittenRecall(question)) {
       return <WrittenRecall question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
+    }
+    if (isWritingQuestion(question)) {
+      return <ProofBox value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} label="Your writing" />
     }
     return <ProofBox value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
   }
@@ -179,6 +182,8 @@ function RecallCard({ question, value, onChange, disabled, revealed = false }: O
 function ProofBox({ value, onChange, onSubmit, disabled, id, label = 'Your proof' }: Omit<Props, 'question'> & { label?: string }) {
   const [preview, setPreview] = useState(false)
   const rows = Math.min(28, Math.max(10, value.split('\n').length + 2))
+  const writing = label === 'Your writing'
+  const words = wordCount(value)
   const tab = (on: boolean, label: string) => (
     <button
       type="button"
@@ -193,9 +198,14 @@ function ProofBox({ value, onChange, onSubmit, disabled, id, label = 'Your proof
   )
   return (
     <div className="w-full min-w-0">
-      <div role="group" aria-label={label === 'Your proof' ? 'Proof view' : 'Answer view'} className="mb-1.5 flex gap-1">
+      <div role="group" aria-label={label === 'Your proof' ? 'Proof view' : writing ? 'Writing view' : 'Answer view'} className="mb-1.5 flex items-center gap-1">
         {tab(false, 'Write')}
         {tab(true, 'Preview')}
+        {writing && (
+          <span data-word-count aria-live="polite" className="ml-auto font-mono text-[11px] text-mathua-muted">
+            {words} {words === 1 ? 'word' : 'words'}
+          </span>
+        )}
       </div>
       {preview ? (
         <div data-proof-preview className="min-h-[12rem] border border-mathua-border bg-mathua-bg px-3 py-2">
@@ -222,6 +232,8 @@ function ProofBox({ value, onChange, onSubmit, disabled, id, label = 'Your proof
           placeholder={
             label === 'Your proof'
               ? 'Proof. Suppose ...\n\nUse \\( ... \\) for mathematics, e.g. \\(|a_n - a| < \\epsilon\\).'
+              : writing
+              ? 'Write your text here, in full sentences and paragraphs.'
               : 'Your answer, with every step justified.\n\nUse \\( ... \\) for mathematics, e.g. \\(f\'(x) > 0\\).'
           }
           aria-label={label}

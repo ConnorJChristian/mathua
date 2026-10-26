@@ -15,7 +15,7 @@ import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../components/SubmitErrorBlock'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import PythonAnswer from '../../components/python/PythonAnswer'
-import { WRITTEN_RECALL_HINT, answeredKind, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWrittenRecall, plainAnswer, pythonHint } from '../../lib/pythonQuestion'
+import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint } from '../../lib/pythonQuestion'
 import { track, questionHash, answerStyle } from '../../lib/events'
 
 type Phase = 'loading' | 'intro' | 'run' | 'done'
@@ -253,6 +253,7 @@ export default function ReviewHost() {
   const isPy = isBankServed(reviewGradingType.current, reviewQuestion)
   const pyKind = isPy ? answeredKind(reviewQuestion, reviewAnswerInput) : null
   const written = isPy && isWrittenRecall(reviewQuestion)
+  const writing = isPy && isWritingQuestion(reviewQuestion)
   return (
     <>
       <SectionHeader label={`Review question ${reviewCount}`} title={reviewConceptName} />
@@ -287,7 +288,7 @@ export default function ReviewHost() {
                 />
                 <button type="submit" disabled={!reviewAnswerInput.trim() || loading} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-6 font-medium text-sm disabled:opacity-50 shrink-0 w-auto self-end">{loading && pyKind === 'proof' ? 'Grading…' : 'Check Answer'}</button>
                 {loading && pyKind === 'proof' && (
-                  <p role="status" className="font-mono text-[11px] text-mathua-muted self-end">Grading your proof against its marking scheme. This takes up to a minute.</p>
+                  <p role="status" className="font-mono text-[11px] text-mathua-muted self-end">{writing ? 'Grading your writing against its rubric.' : 'Grading your proof against its marking scheme.'} This takes up to a minute.</p>
                 )}
               </form>
               ) : (
@@ -311,7 +312,7 @@ export default function ReviewHost() {
               </form>
               )}
               <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="font-mono text-[11px] text-mathua-muted">{written && pyKind === 'proof' ? WRITTEN_RECALL_HINT : pyKind ? pythonHint(pyKind) : answerFormat.hint}</p>
+                <p className="font-mono text-[11px] text-mathua-muted">{written && pyKind === 'proof' ? WRITTEN_RECALL_HINT : writing ? WRITING_HINT : pyKind ? pythonHint(pyKind) : answerFormat.hint}</p>
               </div>
               <div className="mt-2 flex justify-end">
                 <ReportButton
@@ -331,7 +332,7 @@ export default function ReviewHost() {
           ) : (
             <div className="animate-fadeIn">
               <p className={`text-base font-medium mb-2 text-center ${reviewLastResult.correct ? 'text-mathua-green' : 'text-mathua-red'}`}>{reviewLastResult.correct ? '✓ Correct!' : '✗ Not quite'}</p>
-              {reviewLastResult.proof && <div className="mb-3 text-left"><ProofReport report={reviewLastResult.proof} flashcard={written} /></div>}
+              {reviewLastResult.proof && <div className="mb-3 text-left"><ProofReport report={reviewLastResult.proof} flashcard={written} writing={writing} /></div>}
               {/* The explanation is the solution for this instance and is the
                   body of the result; `feedback` is the grader's verdict token
                   ("Incorrect"), so showing it above the working is noise. Fall

@@ -66,6 +66,21 @@ export const PROOF_MARKER = '<!--proof-answer-->'
 /** Whether a served question asks for a written proof. */
 export const isProofQuestion = (question?: string | null) => !!question && question.includes(PROOF_MARKER)
 
+// A writing problem (internal/proof, kind "writing"): served like a proof,
+// with this marker after PROOF_MARKER. internal/proof/bank.go WritingMarker.
+export const WRITING_MARKER = '<!--writing-answer-->'
+
+/** Whether a served question asks for a piece of academic writing. */
+export const isWritingQuestion = (question?: string | null) =>
+  !!question && question.includes(PROOF_MARKER) && question.includes(WRITING_MARKER)
+
+/** Words in a text, as a writer counts them: runs of non-space characters. */
+export const wordCount = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0)
+
+/** The hint under a writing problem's box. */
+export const WRITING_HINT =
+  'Write your text in the box. It is graded against a rubric (genre, moves, register, accuracy, clarity), which takes up to a minute.'
+
 // A flashcard that asks for a proof or derivation, served for a written
 // answer (internal/pytrack/written.go): front, PROOF_MARKER, RECALL_MARKER,
 // back. It takes the proof box and is graded like a proof, but the learner

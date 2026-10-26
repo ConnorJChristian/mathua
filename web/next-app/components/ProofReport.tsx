@@ -10,8 +10,9 @@ import KatexContent from './KatexContent'
 const MET_LABEL: Record<string, string> = { yes: 'Met', partial: 'Partly', no: 'Missing' }
 
 // flashcard marks a written answer to a flashcard (internal/recallproof): its
-// grade is recorded as the learner's own mark would be.
-export default function ProofReport({ report, flashcard = false }: { report: Report; flashcard?: boolean }) {
+// grade is recorded as the learner's own mark would be. writing marks a
+// writing problem (internal/proof, kind "writing"), graded against a rubric.
+export default function ProofReport({ report, flashcard = false, writing = false }: { report: Report; flashcard?: boolean; writing?: boolean }) {
   const runs = report.runs ?? []
   return (
     <div data-proof-report className="mt-3 border border-mathua-border bg-mathua-bg px-4 py-3">
@@ -20,12 +21,12 @@ export default function ProofReport({ report, flashcard = false }: { report: Rep
           {report.score}/{report.max}
         </p>
         <p className={`font-mono text-xs ${report.fully_correct ? 'text-green-400' : 'text-mathua-muted'}`}>
-          {report.fully_correct ? 'Fully correct' : 'Not yet a complete proof'}
+          {report.fully_correct ? (writing ? 'Meets the standard' : 'Fully correct') : writing ? 'Not yet at the standard' : 'Not yet a complete proof'}
         </p>
         {runs.length > 1 && (
           <p className="font-mono text-[11px] text-mathua-muted">median of {runs.length} gradings: {runs.join(', ')}</p>
         )}
-        {report.cached && <p className="font-mono text-[11px] text-mathua-muted">same proof as before: earlier grade</p>}
+        {report.cached && <p className="font-mono text-[11px] text-mathua-muted">same {writing ? 'text' : 'proof'} as before: earlier grade</p>}
       </div>
       {report.milestones?.length > 0 && (
         <ul aria-label="Marking scheme" className="mt-3 flex flex-col gap-1.5">
@@ -49,7 +50,7 @@ export default function ProofReport({ report, flashcard = false }: { report: Rep
       )}
       {report.first_error && (
         <div className="mt-3">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">First error</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">{writing ? 'First problem' : 'First error'}</p>
           <KatexContent className="mt-0.5 text-xs text-red-400">{report.first_error}</KatexContent>
         </div>
       )}
@@ -65,7 +66,7 @@ export default function ProofReport({ report, flashcard = false }: { report: Rep
         </p>
       ) : !report.counts_for_mastery && (
         <p className="mt-3 font-mono text-[11px] text-mathua-muted">
-          Feedback only: proof grades do not count toward mastery until the grader is calibrated.
+          Feedback only: {writing ? 'writing' : 'proof'} grades do not count toward mastery until the grader is calibrated.
         </p>
       )}
     </div>
