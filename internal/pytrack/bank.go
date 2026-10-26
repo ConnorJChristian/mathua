@@ -51,6 +51,11 @@ const (
 	// exactly as Mathua's generated questions are. Imported Anki practice
 	// problems use it (scripts/anki_typed.py).
 	KindMath = "math"
+	// KindTerm asks the learner to type a term, the concept's name as the
+	// source uses it (fork change). The answer is Correct, with any other
+	// spellings the source uses in Accept; grading ignores case, accents, a
+	// leading article and surrounding punctuation (track.go normalizeTerm).
+	KindTerm = "term"
 )
 
 // Part is one typed answer of a math item: "x_0 = [60]".
@@ -74,9 +79,11 @@ type Item struct {
 	Level  int    `json:"level"` // 1 easy, 2 standard, 3 stretch
 	Prompt string `json:"prompt"`
 
-	// Multiple choice.
+	// Multiple choice, and the answer of a term item.
 	Correct string   `json:"correct,omitempty"`
 	Wrong   []string `json:"wrong,omitempty"`
+	// Accept lists other spellings of a term item's answer.
+	Accept []string `json:"accept,omitempty"`
 
 	// "What does this print?" Expected is checked against a real run by
 	// scripts/python_bank.py, so it cannot drift from the library versions the
@@ -298,6 +305,21 @@ func validateConcept(c *Concept) error {
 			if strings.Contains(it.Prompt, TypedMarker) {
 				return fmt.Errorf("%s: the prompt may not contain the typed-answer marker", where)
 			}
+		case KindTerm:
+			if strings.TrimSpace(it.Correct) == "" || strings.Contains(it.Correct, "\n") {
+				return fmt.Errorf("%s: a term item needs a one-line answer", where)
+			}
+			for _, a := range it.Accept {
+				if strings.TrimSpace(a) == "" || strings.Contains(a, "\n") {
+					return fmt.Errorf("%s: every accepted spelling must be one non-empty line", where)
+				}
+			}
+			if len(it.Wrong) > 0 {
+				return fmt.Errorf("%s: a term item has no wrong options", where)
+			}
+			if strings.Contains(it.Prompt, TermMarker) {
+				return fmt.Errorf("%s: the prompt may not contain the term-answer marker", where)
+			}
 		default:
 			return fmt.Errorf("%s: unknown kind %q", where, it.Kind)
 		}
@@ -309,14 +331,26 @@ func validateConcept(c *Concept) error {
 const MaxParts = 4
 
 // binaryChoice is a two-option question whose options are each other's
-// opposite (True/False, Yes/No), where a third option would be invented.
+// opposite (True/False, Yes/No, and in Spanish Sí/No and Verdadero/Falso),
+// where a third option would be invented.
 func binaryChoice(it Item) bool {
 	if len(it.Wrong) != 1 {
 		return false
 	}
-	pair := strings.ToLower(it.Correct) + "/" + strings.ToLower(it.Wrong[0])
+	pair := strings.ToLower(strings.TrimSpace(it.Correct)) + "/" + strings.ToLower(strings.TrimSpace(it.Wrong[0]))
 	switch pair {
-	case "true/false", "false/true", "yes/no", "no/yes":
+	case "true/false", "false/true", "yes/no", "no/yes",
+		"sí/no", "no/sí", "verdadero/falso", "falso/verdadero":
+		return true
+	}
+	return false
+}
+
+// negativeOption reports whether a binary choice option is the negative one,
+// which is served second.
+func negativeOption(o string) bool {
+	switch strings.ToLower(strings.TrimSpace(o)) {
+	case "false", "no", "falso":
 		return true
 	}
 	return false

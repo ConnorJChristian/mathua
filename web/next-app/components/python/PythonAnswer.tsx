@@ -8,6 +8,7 @@
 //   recall     -> Show answer, then "I had it" / "I missed it" (self-graded)
 //   math       -> one math input per answer field, the same editor Mathua's
 //                 own questions use, graded by Mathua's math graders
+//   term       -> a one-line text field for the concept's name
 //   proof      -> a multi-line box for a written proof, with a rendered
 //                 preview of its LaTeX; graded on the server (internal/proof)
 //   written-answer flashcard -> the proof box, graded the same way, with a
@@ -56,6 +57,9 @@ export default function PythonAnswer({ question, value, onChange, onSubmit, disa
   }
   if (kind === 'output') {
     return <OutputField value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
+  }
+  if (kind === 'term') {
+    return <TermField value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
   }
   return <CodeBox question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
 }
@@ -265,6 +269,30 @@ function OutputField({ value, onChange, onSubmit, disabled, id }: Omit<Props, 'q
       placeholder="What it prints"
       aria-label="What the code prints"
       className="w-full min-h-[48px] resize-y border border-mathua-border-strong bg-mathua-bg px-3 py-2 font-mono text-sm text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60"
+    />
+  )
+}
+
+// One line for a term. Enter checks. Spell-check and autocapitalize stay on:
+// the answer is a word in a natural language, not code.
+function TermField({ value, onChange, onSubmit, disabled, id }: Omit<Props, 'question'>) {
+  return (
+    <input
+      id={id}
+      type="text"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          onSubmit?.()
+        }
+      }}
+      disabled={disabled}
+      autoComplete="off"
+      placeholder="The term"
+      aria-label="The term"
+      className="w-full min-h-[48px] border border-mathua-border-strong bg-mathua-bg px-3 py-2 font-mono text-sm text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60"
     />
   )
 }

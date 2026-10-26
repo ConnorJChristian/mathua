@@ -5,6 +5,8 @@
 //   - a code task carries its starter code in a fence tagged `python starter`,
 //     which also names the task: ```python starter task=py.np.views#c1
 //   - multiple choice ends with "A) …" options, like every other MC question
+//     (including two-option True/False, Yes/No and Sí/No)
+//   - a term item ends with TERM_MARKER: type the concept's name
 //   - anything else asks what a snippet prints
 //
 // The served answer is prefixed the same way (`code:`, `mc:`, `out:`); it is a
@@ -12,7 +14,12 @@
 
 import { parseChoices } from './choices'
 
-export type PythonKind = 'code' | 'mc' | 'output' | 'recall' | 'math' | 'proof'
+export type PythonKind = 'code' | 'mc' | 'output' | 'recall' | 'math' | 'proof' | 'term'
+
+// A term item (type the word, fork change): the prompt, then this marker. The
+// learner types the term; the server grades it ignoring case, accents and a
+// leading article. internal/pytrack/track.go TermMarker.
+export const TERM_MARKER = '<!--term-answer-->'
 
 // A math item (e.g. an Anki practice problem): the prompt, then this marker,
 // a JSON list of answer fields and "-->". Each field is one math input, graded
@@ -110,6 +117,7 @@ export function answeredKind(question: string, answer: string): PythonKind {
 export function pythonKind(question: string): PythonKind {
   if (question.includes(PROOF_MARKER)) return 'proof'
   if (question.includes(TYPED_MARKER)) return 'math'
+  if (question.includes(TERM_MARKER)) return 'term'
   if (question.includes(RECALL_MARKER)) return 'recall'
   if (STARTER_RE.test(question)) return 'code'
   if (parseChoices(question)) return 'mc'
@@ -141,6 +149,8 @@ export function displayQuestion(question: string): string {
   if (proof >= 0) return question.slice(0, proof).trimEnd()
   const typed = question.indexOf(TYPED_MARKER)
   if (typed >= 0) return question.slice(0, typed).trimEnd()
+  const term = question.indexOf(TERM_MARKER)
+  if (term >= 0) return question.slice(0, term).trimEnd()
   const cut = question.indexOf(RECALL_MARKER)
   if (cut >= 0) return question.slice(0, cut).trimEnd()
   let q = question.replace(STARTER_RE, '')
@@ -164,7 +174,7 @@ export function recallBack(question: string): string {
 }
 
 export function displayAnswer(answer: string): string {
-  if (answer.startsWith('code:') || answer.startsWith('recall:') || answer.startsWith('math:') || answer.startsWith('proof:')) return ''
+  if (answer.startsWith('code:') || answer.startsWith('recall:') || answer.startsWith('math:') || answer.startsWith('term:') || answer.startsWith('proof:')) return ''
   if (answer.startsWith('mc:')) return answer.slice(3)
   if (answer.startsWith('out:')) return answer.slice(4)
   return answer
@@ -182,6 +192,8 @@ export function pythonHint(kind: PythonKind, timeLimit = 8): string {
       return 'Answer in your head, reveal the back, then say honestly whether you had it.'
     case 'math':
       return 'Type your answer. Any equivalent form counts.'
+    case 'term':
+      return 'Type the term as the text names it. Case, accents and a leading article do not matter.'
     case 'proof':
       return 'Write a complete proof. LaTeX between \\( and \\) is rendered in the preview. Grading takes up to a minute.'
     case 'mc':
@@ -209,7 +221,7 @@ export const isCardQuestion = (question?: string | null) => !!question && questi
  * missing from the bundled concept list (a module the bundle was built
  * without), fork change. */
 export const isBankAnswer = (answer?: string | null) =>
-  !!answer && /^(mc|out|code|recall|math|proof):/.test(answer)
+  !!answer && /^(mc|out|code|recall|math|term|proof):/.test(answer)
 
 /** Whether a served question takes the question-bank inputs. */
 export const isBankServed = (gradingType?: string | null, question?: string | null, answer?: string | null) =>

@@ -375,7 +375,7 @@ func cardMix(items []pytrack.Item) string {
 	var typed, choice, flip, other int
 	for _, it := range items {
 		switch it.Kind {
-		case pytrack.KindMath:
+		case pytrack.KindMath, pytrack.KindTerm:
 			typed++
 		case pytrack.KindChoice:
 			choice++

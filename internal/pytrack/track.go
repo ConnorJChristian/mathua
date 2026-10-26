@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
@@ -27,6 +28,7 @@ const (
 	prefixCode   = "code:"
 	prefixRecall = "recall:"
 	prefixMath   = "math:"
+	prefixTerm   = "term:"
 )
 
 // TypedMarker introduces a math item's answer fields in the served question:
@@ -35,6 +37,10 @@ const (
 // The client draws one math input per field and submits the answers one per
 // line. The expected answers stay on the server.
 const TypedMarker = "<!--typed-answer "
+
+// TermMarker ends a term item's served question (fork change): the client
+// draws one text input for the term. The expected answer stays on the server.
+const TermMarker = "<!--term-answer-->"
 
 // mathRouter grades math items with the graders Mathua's own questions use.
 var mathRouter = grader.NewRouter()
@@ -134,7 +140,7 @@ func (g *conceptGen) ProblemFor(itemID string) (generator.Problem, bool) {
 // typed math. Recall cards are self-graded and code tasks are long, so a test
 // never serves them.
 func objectiveKind(kind string) bool {
-	return kind == KindChoice || kind == KindOutput || kind == KindMath
+	return kind == KindChoice || kind == KindOutput || kind == KindMath || kind == KindTerm
 }
 
 // ObjectiveItems is how many of this topic's items a test may serve.
@@ -251,6 +257,18 @@ func (t *Track) Problem(c *Concept, it *Item) generator.Problem {
 			exp += "\n\nSource: " + c.Book.Title
 		}
 		return generator.Problem{Question: q, Answer: prefixMath + itemKey(c.ID, it.ID), Explanation: exp}
+	case KindTerm:
+		q := strings.TrimSpace(it.Prompt) + "\n\n" + TermMarker
+		exp := "**Answer:** " + strings.TrimSpace(it.Correct)
+		if strings.TrimSpace(it.Explain) != "" {
+			exp += "\n\n" + strings.TrimSpace(it.Explain)
+		}
+		if book != "" {
+			exp += "\n\n" + book
+		} else if c.Book.Title != "" {
+			exp += "\n\nSource: " + c.Book.Title
+		}
+		return generator.Problem{Question: q, Answer: prefixTerm + itemKey(c.ID, it.ID), Explanation: exp}
 	default: // KindCode
 		starter := strings.TrimRight(it.Starter, "\n")
 		if starter == "" {
@@ -276,9 +294,9 @@ func (t *Track) Problem(c *Concept, it *Item) generator.Problem {
 // At most five options are kept, which is what the client can label.
 func stableOptions(conceptID string, it *Item) []string {
 	opts := append([]string{it.Correct}, it.Wrong...)
-	// True/False and Yes/No read in their usual order.
+	// True/False, Yes/No and Sí/No read in their usual order.
 	if binaryChoice(*it) {
-		if l := strings.ToLower(opts[0]); l == "false" || l == "no" {
+		if negativeOption(opts[0]) {
 			opts[0], opts[1] = opts[1], opts[0]
 		}
 		return opts
@@ -329,9 +347,64 @@ func (t *Track) Grade(expected, answer string) grader.Result {
 		return t.gradeCode(strings.TrimPrefix(expected, prefixCode), answer)
 	case strings.HasPrefix(expected, prefixMath):
 		return t.gradeMath(strings.TrimPrefix(expected, prefixMath), answer)
+	case strings.HasPrefix(expected, prefixTerm):
+		return t.gradeTerm(strings.TrimPrefix(expected, prefixTerm), answer)
 	default:
 		return grader.Result{Feedback: "Unknown Python question type", Unavailable: true}
 	}
+}
+
+// gradeTerm grades a term item: right when the answer matches the term or one
+// of its accepted spellings after normalizeTerm.
+func (t *Track) gradeTerm(key, answer string) grader.Result {
+	it := t.Bank.Item(key)
+	if it == nil || it.Kind != KindTerm {
+		return grader.Result{Feedback: "This question is no longer in the question bank; load a new question", Unavailable: true}
+	}
+	got := normalizeTerm(answer)
+	if got == "" {
+		return grader.Result{Feedback: "No answer given"}
+	}
+	for _, want := range append([]string{it.Correct}, it.Accept...) {
+		w := normalizeTerm(want)
+		if got == w || strings.ReplaceAll(got, " ", "") == strings.ReplaceAll(w, " ", "") {
+			return grader.Result{Correct: true, Score: 1}
+		}
+	}
+	return grader.Result{Feedback: "That is not the term"}
+}
+
+// termFold maps accented Latin letters to their base letter, so a learner
+// without an accent key is not marked wrong for "plusvalia".
+var termFold = strings.NewReplacer(
+	"á", "a", "à", "a", "â", "a", "ä", "a", "ã", "a",
+	"é", "e", "è", "e", "ê", "e", "ë", "e",
+	"í", "i", "ì", "i", "î", "i", "ï", "i",
+	"ó", "o", "ò", "o", "ô", "o", "ö", "o", "õ", "o",
+	"ú", "u", "ù", "u", "û", "u", "ü", "u",
+	"ñ", "n", "ç", "c",
+)
+
+// termArticles are leading articles a typed term may carry ("la plusvalía").
+var termArticles = []string{"el ", "la ", "los ", "las ", "lo ", "un ", "una ", "the ", "a ", "an "}
+
+// normalizeTerm puts a typed term in a comparable form: lower case, accents
+// folded, hyphens and runs of space as one space, surrounding punctuation and
+// quotes trimmed, and one leading article dropped.
+func normalizeTerm(s string) string {
+	s = termFold.Replace(strings.ToLower(s))
+	s = strings.NewReplacer("-", " ", "\u2013", " ", "\u2014", " ").Replace(s)
+	s = strings.TrimFunc(s, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	})
+	s = spaceRun.ReplaceAllString(s, " ")
+	for _, a := range termArticles {
+		if strings.HasPrefix(s, a) && len(s) > len(a) {
+			s = s[len(a):]
+			break
+		}
+	}
+	return s
 }
 
 // gradeMath grades a math item: one answer per line, one line per part, each

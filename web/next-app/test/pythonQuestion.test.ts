@@ -35,6 +35,21 @@ describe('python question shapes', () => {
   })
 })
 
+describe('term items', () => {
+  // internal/pytrack/track.go TermMarker; the answer key never names the term.
+  const TERM_Q = '¿Cómo se llama el excedente de valor?\n\n<!--term-answer-->'
+  const SINO_Q = '¿Existió siempre el Estado?\n\nA) Sí\n\nB) No'
+  it('takes a one-line field, hides the marker and the key', () => {
+    expect(pythonKind(TERM_Q)).toBe('term')
+    expect(displayQuestion(TERM_Q)).toBe('¿Cómo se llama el excedente de valor?')
+    expect(displayAnswer('term:mpe.hm.manual_surplus#t1')).toBe('')
+  })
+  it('serves Sí/No as an ordinary two-option choice', () => {
+    expect(pythonKind(SINO_Q)).toBe('mc')
+    expect(displayQuestion(SINO_Q)).toBe('¿Existió siempre el Estado?')
+  })
+})
+
 describe('recall cards', () => {
   const RECALL_Q = 'What does OLS minimise?\n\n<!--recall-back-->\n\nThe sum of squared residuals.'
   it('shows the front, keeps the back for the reveal, and hides the key', () => {
