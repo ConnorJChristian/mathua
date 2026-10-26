@@ -40,6 +40,18 @@ import (
 // usual input (web/next-app/lib/pythonQuestion.ts PROOF_MARKER).
 const Marker = "<!--proof-answer-->"
 
+// WritingMarker follows Marker in a served writing problem (Kind "writing").
+// Hosts that know it label the box "Your writing" and count words; any other
+// host still sees Marker and shows the proof box, which also works
+// (web/next-app/lib/pythonQuestion.ts WRITING_MARKER).
+const WritingMarker = "<!--writing-answer-->"
+
+// Problem kinds. A problem with no kind is a proof.
+const (
+	KindProof   = "proof"
+	KindWriting = "writing"
+)
+
 // Milestone is one line of the marking scheme.
 type Milestone struct {
 	ID     string `json:"id"`
@@ -56,7 +68,8 @@ type Cap struct {
 // Sample is a synthetic proof with the score its author intends, for a
 // day-one sanity check of the judge (mathua proof calibrate -synthetic).
 type Sample struct {
-	// Kind is "correct", "subtle" (plausible with a real gap) or "circular".
+	// Kind is "correct", "subtle" (plausible with a real gap) or "circular"
+	// for a proof; "strong", "weak" or "off-task" for a writing problem.
 	Kind  string `json:"kind"`
 	Proof string `json:"proof"`
 	Score int    `json:"score"`
@@ -66,6 +79,12 @@ type Sample struct {
 // Problem is one proof problem and its marking scheme.
 type Problem struct {
 	ID string `json:"id"`
+	// Kind is "proof" (the default when empty) or "writing": a piece of
+	// academic writing graded against the rubric for genre, moves, register,
+	// accuracy to any source and clarity. For a writing problem Statement is
+	// the task (with any source text it works from) and Reference is a model
+	// answer. Everything else is the same as for a proof.
+	Kind string `json:"kind,omitempty"`
 	// Concept is the topic whose practice serves this problem.
 	Concept string `json:"concept"`
 	Title   string `json:"title"`
@@ -164,6 +183,9 @@ func (p *Problem) Validate() error {
 	if p.ID == "" || strings.ContainsAny(p.ID, " \n#") {
 		return fmt.Errorf("%s: id must be non-empty without spaces or '#'", where)
 	}
+	if p.Kind != "" && p.Kind != KindProof && p.Kind != KindWriting {
+		return fmt.Errorf("%s: kind must be %q or %q", where, KindProof, KindWriting)
+	}
 	if p.Concept == "" {
 		return fmt.Errorf("%s: concept is required", where)
 	}
@@ -173,7 +195,7 @@ func (p *Problem) Validate() error {
 	if p.Level < 1 || p.Level > 3 {
 		return fmt.Errorf("%s: level must be 1-3", where)
 	}
-	if strings.Contains(p.Statement, Marker) {
+	if strings.Contains(p.Statement, Marker) || strings.Contains(p.Statement, WritingMarker) {
 		return fmt.Errorf("%s: the statement may not contain the proof marker", where)
 	}
 	total := 0
@@ -204,15 +226,27 @@ func (p *Problem) Validate() error {
 	return nil
 }
 
+// IsWriting reports a writing problem rather than a proof.
+func (p *Problem) IsWriting() bool { return p.Kind == KindWriting }
+
+// noun is what the learner submits, for messages.
+func (p *Problem) noun() string {
+	if p.IsWriting() {
+		return "writing"
+	}
+	return "proof"
+}
+
 // Fingerprint changes whenever anything the judge is shown about the problem
 // changes, so editing a rubric invalidates the grades cached under it.
 func (p *Problem) Fingerprint() string {
 	raw, _ := json.Marshal(struct {
+		K       string `json:",omitempty"`
 		S, G, R string
 		M       []Milestone
 		C       []Cap
 		A       []string
-	}{p.Statement, p.Given, p.Reference, p.Milestones, p.Caps, p.Alternatives})
+	}{p.Kind, p.Statement, p.Given, p.Reference, p.Milestones, p.Caps, p.Alternatives})
 	h := sha256.Sum256(raw)
 	return hex.EncodeToString(h[:8])
 }
@@ -259,15 +293,22 @@ func (b *Bank) ByConcept() map[string][]string {
 // the explanation, shown after grading.
 func Served(p *Problem) generator.Problem {
 	var q strings.Builder
-	q.WriteString("**Prove.** ")
+	lead, given, ref := "**Prove.** ", "*You may use:* ", "**A reference proof.**"
+	if p.IsWriting() {
+		lead, given, ref = "**Write.** ", "*Notes:* ", "**A model answer.**"
+	}
+	q.WriteString(lead)
 	q.WriteString(strings.TrimSpace(p.Statement))
 	if g := strings.TrimSpace(p.Given); g != "" {
-		q.WriteString("\n\n*You may use:* ")
+		q.WriteString("\n\n" + given)
 		q.WriteString(g)
 	}
 	q.WriteString("\n\n")
 	q.WriteString(Marker)
-	exp := "**A reference proof.**\n\n" + strings.TrimSpace(p.Reference)
+	if p.IsWriting() {
+		q.WriteString(WritingMarker)
+	}
+	exp := ref + "\n\n" + strings.TrimSpace(p.Reference)
 	if p.Source != "" {
 		exp += "\n\nSource: " + p.Source
 	}

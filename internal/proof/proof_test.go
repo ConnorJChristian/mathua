@@ -2,6 +2,8 @@ package proof
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -519,5 +521,92 @@ func TestPublicModulesShipNoProofs(t *testing.T) {
 	}
 	if dirs := mods.ProofDirs(); len(dirs) != 0 {
 		t.Fatalf("committed modules contain proofs/: %v", dirs)
+	}
+}
+
+func writingProblem() Problem {
+	p := testProblem()
+	p.ID = "t.definition"
+	p.Kind = KindWriting
+	p.Title = "Define a term"
+	p.Statement = "Write a formal sentence definition of a term in your field."
+	p.Reference = "A tariff is a tax that a government levies on imported goods."
+	p.Caps = []Cap{{Error: "off-task", Max: 0}}
+	return p
+}
+
+func TestWritingProblemUsesWritingJudge(t *testing.T) {
+	f := newFakeAPI(t, scores(7))
+	b, err := NewBank(testProblem(), writingProblem())
+	if err != nil {
+		t.Fatal(err)
+	}
+	g := New(Config{APIKey: "k", APIBase: f.srv.URL, Model: "m", Runs: 1, MonthlyUSD: 10, Timeout: 10 * time.Second}, b, NewMemStore())
+	out := g.GradeProof(context.Background(), b.Problem("t.definition"), "A tariff is a tax on imports.")
+	if out.Report == nil || out.Report.Score != 7 {
+		t.Fatalf("writing not graded: %+v", out)
+	}
+	sys := f.bodies[0]["system"].([]any)
+	instr := sys[0].(map[string]any)["text"].(string)
+	block := sys[1].(map[string]any)["text"].(string)
+	if !strings.Contains(instr, "academic writing") || strings.Contains(instr, "written proofs") {
+		t.Fatalf("writing problem got the proof instructions: %.80s", instr)
+	}
+	if !strings.Contains(block, "WRITING TASK") || !strings.Contains(block, "MODEL ANSWER") || strings.Contains(block, "REFERENCE PROOF") {
+		t.Fatalf("writing block: %s", block)
+	}
+	if user := fmt.Sprint(f.bodies[0]["messages"]); !strings.Contains(user, "STUDENT TEXT") {
+		t.Fatalf("user message: %s", user)
+	}
+	// A proof in the same bank keeps the proof judge.
+	g.GradeProof(context.Background(), b.Problem("t.sqrt2"), goodProof)
+	if instr := f.bodies[1]["system"].([]any)[0].(map[string]any)["text"].(string); !strings.Contains(instr, "written proofs") {
+		t.Fatal("a proof lost the proof instructions")
+	}
+	if out := g.GradeProof(context.Background(), b.Problem("t.definition"), "  "); !strings.Contains(out.Unavailable, "writing") {
+		t.Fatalf("empty writing message: %q", out.Unavailable)
+	}
+}
+
+func TestWritingServedQuestion(t *testing.T) {
+	b, _ := NewBank(writingProblem())
+	sp, ok := b.ProblemFor("t.definition")
+	if !ok || !strings.HasPrefix(sp.Question, "**Write.**") || !strings.Contains(sp.Question, Marker+WritingMarker) {
+		t.Fatalf("%+v", sp)
+	}
+	if !grader.IsProofAnswer(sp.Answer) {
+		t.Fatal("a writing problem must be graded and counted like a proof")
+	}
+	if !strings.HasPrefix(sp.Explanation, "**A model answer.**") {
+		t.Fatalf("explanation: %s", sp.Explanation)
+	}
+	if p := testProblem(); strings.Contains(Served(&p).Question, WritingMarker) {
+		t.Fatal("a proof carries the writing marker")
+	}
+}
+
+func TestWritingKindValidatesAndFingerprints(t *testing.T) {
+	p := writingProblem()
+	p.Kind = "essay"
+	if _, err := NewBank(p); err == nil || !strings.Contains(err.Error(), "kind") {
+		t.Fatalf("unknown kind accepted: %v", err)
+	}
+	w, pr := writingProblem(), writingProblem()
+	pr.Kind = ""
+	if w.Fingerprint() == pr.Fingerprint() {
+		t.Fatal("changing the kind changes what the judge is shown, so it must change the fingerprint")
+	}
+	// A proof's fingerprint is what it was before kinds existed, so the
+	// grades already cached under it stay valid.
+	q := testProblem()
+	raw, _ := json.Marshal(struct {
+		S, G, R string
+		M       []Milestone
+		C       []Cap
+		A       []string
+	}{q.Statement, q.Given, q.Reference, q.Milestones, q.Caps, q.Alternatives})
+	h := sha256.Sum256(raw)
+	if q.Fingerprint() != hex.EncodeToString(h[:8]) {
+		t.Fatal("a proof's fingerprint changed")
 	}
 }

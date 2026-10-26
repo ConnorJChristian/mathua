@@ -50,7 +50,11 @@ func proofCommand(args []string) error {
 	case "list":
 		for _, id := range g.Bank.IDs() {
 			p := g.Bank.Problem(id)
-			fmt.Printf("%-30s %-28s L%d %d samples  %s\n", id, p.Concept, p.Level, len(p.Samples), p.Title)
+			kind := p.Kind
+			if kind == "" {
+				kind = proof.KindProof
+			}
+			fmt.Printf("%-30s %-28s %-7s L%d %d samples  %s\n", id, p.Concept, kind, p.Level, len(p.Samples), p.Title)
 		}
 		fmt.Printf("%d problems\n", g.Bank.Len())
 		return nil

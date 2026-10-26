@@ -143,7 +143,7 @@ func (g *Grader) CacheKey(p *Problem, proof string) string {
 // cache and spends its whole output budget. Text is reckoned at three
 // characters a token, which overcounts English and LaTeX.
 func (g *Grader) estimate(p *Problem, proof string) float64 {
-	chars := len(instructions) + len(proof) + 200
+	chars := len(instructionsFor(p)) + len(proof) + 200
 	if p != nil {
 		chars += len(problemBlock(p))
 	} else {
@@ -184,10 +184,10 @@ type run struct {
 func (g *Grader) GradeProof(ctx context.Context, p *Problem, proof string) Outcome {
 	proof = NormalizeProof(proof)
 	if proof == "" {
-		return Outcome{Unavailable: "Write your proof in the box first"}
+		return Outcome{Unavailable: "Write your " + p.noun() + " in the box first"}
 	}
 	if len(proof) > maxProofCharacters {
-		return Outcome{Unavailable: fmt.Sprintf("That proof is longer than %d characters; shorten it and submit again", maxProofCharacters)}
+		return Outcome{Unavailable: fmt.Sprintf("That %s is longer than %d characters; shorten it and submit again", p.noun(), maxProofCharacters)}
 	}
 	key := g.CacheKey(p, proof)
 	if raw, ok, err := g.Store.ProofGrade(ctx, key); err == nil && ok {
@@ -257,7 +257,7 @@ func (g *Grader) GradeProof(ctx context.Context, p *Problem, proof string) Outco
 				reason = "the judge's reply could not be read"
 			}
 		}
-		out.Unavailable = "Your proof was not graded (" + reason + "). Nothing was recorded; submit again."
+		out.Unavailable = "Your " + p.noun() + " was not graded (" + reason + "). Nothing was recorded; submit again."
 		return out
 	}
 	out.Report = g.aggregate(p, valid)

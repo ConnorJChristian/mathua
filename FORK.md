@@ -364,6 +364,36 @@ proofs stored with each problem. `mathua proof spend` shows the month's spend
 and `mathua proof list` the problems. In Docker, run them with
 `docker compose exec mathua /mathua proof ...`.
 
+### Writing problems
+
+A problem in `proofs/*.json` may set `"kind": "writing"` (the default,
+`"proof"`, may be left out). It is then a piece of academic writing rather
+than a proof: a definition, a general-specific paragraph, a data commentary,
+a summary, a critique, a research-paper introduction. The file format is the
+same, read differently:
+
+| Field | For a writing problem |
+| --- | --- |
+| `statement` | The task, with any source text or data it works from. |
+| `given` | Optional notes shown under the task (length, audience). |
+| `reference_proof` | A model answer written to the standard asked for. |
+| `milestones` | The rubric, 7 points, from the section's own criteria (moves, register, accuracy to the source, flow). |
+| `caps` | Fatal problems, such as off-task, copying the source, the wrong genre. |
+| `alternatives` | Other acceptable approaches. |
+| `samples` | Synthetic texts with intended scores, by convention `strong`, `weak` and `off-task`. |
+
+The judge's instructions switch from checking a proof to grading academic
+writing against the rubric (genre and moves, register, accuracy to the
+source or data, clarity and flow). It is as strict and returns the same
+verdict, so everything else is shared: k runs and the median, the grade
+cache, the spend guard, ungraded rather than wrong on any failure,
+calibration (`mathua proof calibrate -synthetic` includes writing samples)
+and `MATHUA_PROOF_COUNTS_FOR_MASTERY`, under which a writing problem counts
+exactly as a proof does. The served question begins **Write.** and carries
+`<!--writing-answer-->` after the proof marker; the app labels the box "Your
+writing", counts words, and shows the model answer after grading. `mathua
+proof list` shows each problem's kind.
+
 ### Written-answer flashcards
 
 About a quarter of imported flashcards ask for a proof, a derivation or a
