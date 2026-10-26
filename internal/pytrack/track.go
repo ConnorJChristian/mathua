@@ -176,7 +176,12 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 	} else {
 		idx = rand.Intn(len(items))
 	}
-	return g.track.Problem(g.c, &items[idx])
+	p := g.track.Problem(g.c, &items[idx])
+	if ctx.NoProofs || ctx.NoCards || ctx.ObjectiveOnly {
+		// A quiz, placement or a test asks for no written answer.
+		p = PlainRecall(p)
+	}
+	return p
 }
 
 // Problem renders one item as a served question.
@@ -211,7 +216,11 @@ func (t *Track) Problem(c *Concept, it *Item) generator.Problem {
 		} else if c.Book.Title != "" {
 			exp += "\n\nSource: " + c.Book.Title
 		}
-		return generator.Problem{Question: q, Answer: prefixRecall + itemKey(c.ID, it.ID), Explanation: exp}
+		p := generator.Problem{Question: q, Answer: prefixRecall + itemKey(c.ID, it.ID), Explanation: exp}
+		if t.servesWritten(c, it) {
+			p = writtenProblem(p, it)
+		}
+		return p
 	case KindMath:
 		type field struct {
 			Label   string `json:"label"`
@@ -310,7 +319,20 @@ func (t *Track) Grade(expected, answer string) grader.Result {
 			return grader.Result{Correct: true, Score: 1}
 		case "wrong":
 			return grader.Result{Feedback: "Marked as missed"}
+		case "":
+			return grader.Result{Feedback: "Reveal the answer, then mark whether you had it"}
 		default:
+			// A written answer to a written-answer card (written.go).
+			// One that cannot be graded is ungraded, never a miss: the
+			// learner can still reveal the back and mark it themselves.
+			key := strings.TrimPrefix(expected, prefixRecall)
+			if it := t.Bank.Item(key); it != nil && Classify(it).Written {
+				c := t.Bank.Concept(key[:max(0, strings.LastIndex(key, "#"))])
+				if c == nil || writtenGrader == nil {
+					return grader.Result{Unavailable: true, Feedback: "Written answers are not being graded now. Use “Just show me the answer” and mark it yourself."}
+				}
+				return writtenGrader.GradeWritten(t.card(c, it), answer)
+			}
 			return grader.Result{Feedback: "Reveal the answer, then mark whether you had it"}
 		}
 	case strings.HasPrefix(expected, prefixCode):

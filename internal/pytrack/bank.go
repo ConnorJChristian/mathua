@@ -92,6 +92,10 @@ type Item struct {
 
 	// Recall card, and the worked solution of a math item.
 	Back string `json:"back,omitempty"`
+	// Grading overrides how a recall card is graded (fork change): "llm"
+	// always serves it for a written answer graded by the proof judge, "self"
+	// never does. Empty leaves it to Classify (written.go).
+	Grading string `json:"grading,omitempty"`
 
 	// Math item.
 	Parts []Part `json:"parts,omitempty"`
@@ -119,12 +123,15 @@ type Bank struct {
 	chapters []Chapter
 	concepts map[string]*Concept
 	items    map[string]*Item // "<concept>#<item>"
+	// bankOf names the bank file each concept is in, without ".json".
+	bankOf map[string]string
 }
 
 // LoadBank reads and validates every *.json bank file in the given folders
 // (each module's bank/ folder), in folder order and then file-name order.
 func LoadBank(dirs ...string) (*Bank, error) {
-	b := &Bank{concepts: map[string]*Concept{}, items: map[string]*Item{}}
+	b := &Bank{concepts: map[string]*Concept{}, items: map[string]*Item{}, bankOf: map[string]string{}}
+	var files []string // the bank file of each chapter, in order
 	for _, dir := range dirs {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -170,6 +177,7 @@ func LoadBank(dirs ...string) (*Bank, error) {
 				}
 			}
 			b.chapters = append(b.chapters, ch)
+			files = append(files, strings.TrimSuffix(name, ".json"))
 		}
 	}
 	for ci := range b.chapters {
@@ -183,6 +191,7 @@ func LoadBank(dirs ...string) (*Bank, error) {
 				return nil, fmt.Errorf("concept %q appears twice in the bank", c.ID)
 			}
 			b.concepts[c.ID] = c
+			b.bankOf[c.ID] = files[ci]
 			for j := range c.Items {
 				it := &c.Items[j]
 				b.items[itemKey(c.ID, it.ID)] = it
@@ -223,6 +232,9 @@ func validateConcept(c *Concept) error {
 		if it.Kind != KindRecall && it.Kind != KindMath && strings.TrimSpace(it.Explain) == "" {
 			return fmt.Errorf("%s: explain is required", where)
 		}
+		if it.Grading != "" && it.Kind != KindRecall {
+			return fmt.Errorf("%s: only a recall card takes a grading override", where)
+		}
 		switch it.Kind {
 		case KindChoice:
 			if strings.TrimSpace(it.Correct) == "" || len(it.Wrong) < 2 && !binaryChoice(it) {
@@ -252,6 +264,9 @@ func validateConcept(c *Concept) error {
 				}
 			}
 		case KindRecall:
+			if it.Grading != "" && it.Grading != GradingLLM && it.Grading != GradingSelf {
+				return fmt.Errorf("%s: grading must be %q or %q", where, GradingLLM, GradingSelf)
+			}
 			if strings.TrimSpace(it.Back) == "" {
 				return fmt.Errorf("%s: recall card needs a back", where)
 			}
@@ -318,6 +333,10 @@ func (b *Bank) ConceptIDs() []string {
 	}
 	return out
 }
+
+// BankOf names the bank file a concept is in, without ".json"
+// ("anki_calculus"), or "" for an unknown concept.
+func (b *Bank) BankOf(conceptID string) string { return b.bankOf[conceptID] }
 
 // Item resolves "<concept>#<item>".
 func (b *Bank) Item(key string) *Item { return b.items[key] }
