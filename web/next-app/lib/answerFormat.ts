@@ -48,6 +48,10 @@ export function formatForGradingType(gradingType?: string): AnswerFormat {
       return { hint: 'Separate values with commas, e.g. 2, 3 or (2, 3)', inputMode: 'text' }
     case 'complex':
       return { hint: 'Answer as a + bi', inputMode: 'text' }
+    case 'set':
+      return { hint: 'List the elements in braces, e.g. {1, 2, 3}, or ∅', inputMode: 'text' }
+    case 'interval':
+      return { hint: 'Answer in interval notation, e.g. (2, 5] or [0, ∞)', inputMode: 'text' }
     default:
       return { hint: 'Answer in the form shown', inputMode: 'text' }
   }

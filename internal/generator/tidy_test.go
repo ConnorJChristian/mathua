@@ -61,6 +61,8 @@ func TestTidyAnswer(t *testing.T) {
 		"y = 1x - 3":          "y = x - 3",
 		"12":                  "12",
 		"1/11":                "1/11",
+		// Scientific notation: x is the times sign, not a variable.
+		"1x10^1": "1x10^1",
 	}
 	for in, want := range cases {
 		if got := TidyAnswer(in); got != want {

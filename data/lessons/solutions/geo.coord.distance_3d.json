@@ -1,15 +1,15 @@
 {
   "concept": "geo.coord.distance_3d",
-  "setup": "The two points are the origin and a point in space whose coordinates are given.",
+  "setup": "The distance between two points in space is the square root of the sum of the squared coordinate differences: Pythagoras applied twice, first across a face of the box the points span, then through it.",
   "steps": [
     {
-      "fact": "distance",
-      "say": "The distance formula in space adds the third squared difference to the two in the plane, because the answer is Pythagoras applied twice: first within a face of the box, then across it."
+      "fact": "dx",
+      "say": "Subtract coordinate by coordinate: the differences are [[dx]], [[dy]] and [[dz]]. Their signs do not matter, because each is squared."
     },
     {
-      "fact": "distance",
-      "say": "The three differences here form a Pythagorean quadruple, so the square root is exact and the distance is \\([[distance]]\\). When it is not, the answer is left as a square root rather than rounded."
+      "fact": "sum_sq",
+      "say": "Squaring and adding: [[dx_sq]] + [[dy_sq]] + [[dz_sq]] = [[sum_sq]], and √[[sum_sq]] = [[distance]]."
     }
   ],
-  "answer": "So the distance is \\([[distance]]\\) units."
+  "answer": "So the distance is [[distance]] units."
 }

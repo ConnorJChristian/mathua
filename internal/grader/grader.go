@@ -12,6 +12,11 @@ const (
 	GradingOrdering       GradingType = "ordering"
 	GradingTuple          GradingType = "tuple"
 	GradingComplex        GradingType = "complex"
+	// GradingSet compares finite sets ({1, 2, 3}, ∅) ignoring order and
+	// repeats; GradingInterval compares intervals and unions of intervals
+	// ((2, 5], [0, ∞)) as sets of reals. See sets.go.
+	GradingSet      GradingType = "set"
+	GradingInterval GradingType = "interval"
 	// GradingBank covers every question-bank question (internal/pytrack):
 	// multiple choice, "what does this print", code tasks checked by hidden
 	// tests, and recall cards. The grading itself lives in internal/pytrack,

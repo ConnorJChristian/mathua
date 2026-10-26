@@ -4,7 +4,7 @@
   "steps": [
     {
       "fact": "dx",
-      "say": "For the ordinary case, take the horizontal change and the vertical change between the points: the horizontal move is [[dx]] and the vertical move is [[dy]]."
+      "say": "Take the horizontal change and the vertical change between the points: the horizontal move is [[dx]] and the vertical move is [[dy]]."
     },
     {
       "fact": "dx_sq",

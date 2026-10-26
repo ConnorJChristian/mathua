@@ -1,11 +1,11 @@
 {
   "concept": "alg.func.monotonicity",
-  "setup": "f(x) = [[fn]] on [[domain]], and you want whether it rises or falls.",
+  "setup": "The question is the direction of \\(f(x) = [[fn]]\\) on \\([[domain]]\\): f is increasing if \\(x_1 < x_2\\) gives \\(f(x_1) < f(x_2)\\), and decreasing if it gives \\(f(x_1) > f(x_2)\\).",
   "steps": [
     {
       "fact": "why",
-      "say": "Read the direction off the slope or the derivative: [[why]]."
+      "say": "On this domain, [[why]]."
     }
   ],
-  "answer": "So the function is [[dir]]."
+  "answer": "So the function is [[dir]] there."
 }

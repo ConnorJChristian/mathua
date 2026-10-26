@@ -68,6 +68,9 @@ describe('editor vs text', () => {
     ['tuple', 'math'],
     ['ordering', 'math'],
     ['comparison', 'math'],
+    // A roster {1, 2, 3} or an interval [0, ∞) needs braces, brackets and ∞.
+    ['set', 'math'],
+    ['interval', 'math'],
   ])('grading_type %s → %s editor', (gradingType, editor) => {
     expect(editorForGradingType(gradingType)).toBe(editor)
   })

@@ -57,13 +57,8 @@ func TestConvertedConceptsAreNumericInTheCorpus(t *testing.T) {
 func TestConvertedAnswersRecomputeFromFacts(t *testing.T) {
 	reg := batchRegistry(t)
 
-	for i := 0; i < 100; i++ {
-		p := sample(t, reg, "alg.func.domain", i)
-		k := convFactInt(t, p.Facts, "k")
-		if p.Answer != strconv.Itoa(k) {
-			t.Fatalf("domain: k=%d answer=%s", k, p.Answer)
-		}
-	}
+	// alg.func.domain answers an interval now; functions_sets_test.go checks
+	// it point by point against the formula.
 
 	for i := 0; i < 100; i++ {
 		p := sample(t, reg, "alg.func.irrational", i)

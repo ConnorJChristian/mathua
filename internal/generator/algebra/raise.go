@@ -157,29 +157,6 @@ func (g *transformationsGen) Generate(ctx generator.GeneratorContext) generator.
 
 type inverseDomainGen struct{}
 
-func (g *inverseDomainGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	return algPickMC([]algMCClaim{
-		{
-			q:           "If f has domain [0, infinity) and range [2, 5], then the domain of the inverse function is...",
-			correct:     "[2, 5]",
-			distractors: []string{"[0, infinity)", "[0, 5]", "the whole real line"},
-			reason:      "The inverse takes each value of f as an input, so its domain is the range of f.",
-		},
-		{
-			q:           "The domain of the inverse of a one-to-one function f is...",
-			correct:     "the range of f",
-			distractors: []string{"the domain of f", "the whole real line", "the set where f is increasing"},
-			reason:      "Swapping inputs and outputs swaps domain and range.",
-		},
-		{
-			q:           "If f is not one-to-one on its domain, then f...",
-			correct:     "has no inverse unless the domain is restricted",
-			distractors: []string{"is always invertible", "has an inverse equal to its reciprocal", "is its own inverse"},
-			reason:      "An inverse must send each output back to one input, which requires distinct inputs to give distinct outputs.",
-		},
-	})
-}
-
 // ---------------------------------------------------------------------------
 // Exponential graphs (numeric)
 // ---------------------------------------------------------------------------

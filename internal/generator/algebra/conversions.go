@@ -29,17 +29,6 @@ func convInt(n int) string { return strconv.Itoa(n) }
 
 type domainConvertedGen struct{}
 
-func (g *domainConvertedGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	k := 1 + rand.Intn(19)
-	return generator.Problem{
-		Question: fmt.Sprintf("The function \\(f(x) = \\sqrt{x - %d}\\) is defined over the reals only where the radicand is not negative. What is the smallest integer in its domain?", k),
-		Answer:   convInt(k),
-		Explanation: fmt.Sprintf("The radicand \\(x - %d\\) must be at least zero, so \\(x \\ge %d\\). The smallest integer that satisfies that is %d, and every smaller integer makes the radicand negative.",
-			k, k, k),
-		Facts: map[string]string{"k": convInt(k), "answer": convInt(k)},
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Square roots of perfect squares and cube roots of perfect cubes
 // ---------------------------------------------------------------------------

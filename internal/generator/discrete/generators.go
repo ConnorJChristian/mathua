@@ -341,61 +341,6 @@ func (g *quantifiersGen) Generate(ctx generator.GeneratorContext) generator.Prob
 
 type setOpsGen struct{}
 
-func (g *setOpsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	allElements := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-
-	type pair struct {
-		a, b []int
-	}
-	pairs := []pair{
-		{[]int{1, 2, 3}, []int{3, 4, 5}},
-		{[]int{2, 4, 6, 8}, []int{1, 2, 3, 4}},
-		{[]int{1, 3, 5}, []int{2, 4, 6}},
-		{[]int{1, 2, 3, 4, 5}, []int{4, 5, 6, 7}},
-		{[]int{1, 4, 7, 10}, []int{2, 5, 8}},
-	}
-	p := pairs[rand.Intn(len(pairs))]
-
-	aStr := formatSet(p.a)
-	bStr := formatSet(p.b)
-
-	ops := []struct {
-		name   string
-		desc   string
-		answer string
-		exp    string
-	}{
-		{
-			"union", fmt.Sprintf("\\(A \\cup B\\) where \\(A=%s\\), \\(B=%s\\)", aStr, bStr),
-			formatSet(union(p.a, p.b)),
-			fmt.Sprintf("A ∪ B = %s (all elements in A or B)", formatSet(union(p.a, p.b))),
-		},
-		{
-			"intersection", fmt.Sprintf("\\(A \\cap B\\) where \\(A=%s\\), \\(B=%s\\)", aStr, bStr),
-			formatSet(intersection(p.a, p.b)),
-			fmt.Sprintf("A ∩ B = %s (elements in both A and B)", formatSet(intersection(p.a, p.b))),
-		},
-		{
-			"complement", fmt.Sprintf("the complement of \\(A=%s\\) in \\(U=%s\\)", aStr, formatSet(allElements)),
-			formatSet(complement(p.a, allElements)),
-			fmt.Sprintf("A' = %s (elements in U but not in A)", formatSet(complement(p.a, allElements))),
-		},
-		{
-			"difference", fmt.Sprintf("\\(A - B\\) where \\(A=%s\\), \\(B=%s\\)", aStr, bStr),
-			formatSet(difference(p.a, p.b)),
-			fmt.Sprintf("A − B = %s (elements in A but not in B)", formatSet(difference(p.a, p.b))),
-		},
-	}
-
-	op := ops[rand.Intn(len(ops))]
-
-	return generator.Problem{
-		Question:    fmt.Sprintf("What is %s?", op.desc),
-		Answer:      op.answer,
-		Explanation: op.exp,
-	}
-}
-
 func union(a, b []int) []int {
 	m := make(map[int]bool)
 	for _, v := range a {
@@ -481,60 +426,6 @@ func formatSet(s []int) string {
 // ----- 6. venn -----
 
 type vennGen struct{}
-
-func (g *vennGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	type scenario struct {
-		a, b, both, universe int
-	}
-	scenarios := []scenario{
-		{10, 15, 5, 30},
-		{8, 12, 3, 25},
-		{6, 9, 4, 20},
-		{15, 10, 6, 30},
-		{12, 8, 2, 25},
-	}
-	s := scenarios[rand.Intn(len(scenarios))]
-
-	unionSize := s.a + s.b - s.both
-	compUnion := s.universe - unionSize
-	onlyA := s.a - s.both
-	onlyB := s.b - s.both
-
-	type qType struct {
-		question string
-		answer   int
-		exp      string
-	}
-	questions := []qType{
-		{
-			fmt.Sprintf("Given \\(|A|=%d\\), \\(|B|=%d\\), \\(|A \\cap B|=%d\\), \\(|U|=%d\\), how many elements are in \\(A \\cup B\\)?", s.a, s.b, s.both, s.universe),
-			unionSize,
-			fmt.Sprintf("|A∪B| = |A| + |B| − |A∩B| = %d + %d − %d = %d", s.a, s.b, s.both, unionSize),
-		},
-		{
-			fmt.Sprintf("Given \\(|A|=%d\\), \\(|B|=%d\\), \\(|A \\cap B|=%d\\), \\(|U|=%d\\), how many elements are in the complement of \\(A \\cup B\\)?", s.a, s.b, s.both, s.universe),
-			compUnion,
-			fmt.Sprintf("|(A∪B)'| = |U| − |A∪B| = %d − %d = %d", s.universe, unionSize, compUnion),
-		},
-		{
-			fmt.Sprintf("Given \\(|A|=%d\\), \\(|B|=%d\\), \\(|A \\cap B|=%d\\), how many elements are in \\(A\\) only (not in \\(B\\))?", s.a, s.b, s.both),
-			onlyA,
-			fmt.Sprintf("|A only| = |A| − |A∩B| = %d − %d = %d", s.a, s.both, onlyA),
-		},
-		{
-			fmt.Sprintf("Given \\(|A|=%d\\), \\(|B|=%d\\), \\(|A \\cap B|=%d\\), how many elements are in \\(B\\) only (not in \\(A\\))?", s.a, s.b, s.both),
-			onlyB,
-			fmt.Sprintf("|B only| = |B| − |A∩B| = %d − %d = %d", s.b, s.both, onlyB),
-		},
-	}
-
-	q := questions[rand.Intn(len(questions))]
-	return generator.Problem{
-		Question:    q.question,
-		Answer:      fmt.Sprintf("%d", q.answer),
-		Explanation: q.exp,
-	}
-}
 
 // ----- 7. permutations -----
 
@@ -1117,34 +1008,6 @@ func (g *equivalenceGen) Generate(ctx generator.GeneratorContext) generator.Prob
 // ----- relations -----
 
 type relationsGen struct{}
-
-func (g *relationsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	scale := int(1 + ctx.Difficulty*4)
-	type entry struct {
-		q string
-		a string
-		e string
-	}
-	easy := []entry{
-		{"How many equivalence classes does congruence mod 3 give on Z? (enter a number)", "3", "Residues 0, 1, 2 give classes [0], [1], [2]: 3 classes."},
-		{"How many partitions does a 2-element set have? (enter a number)", "2", "Either {a,b} together or {a}|{b}: 2 partitions (Bell B_2=2)."},
-		{"Is relation {(1,1),(2,2)} on {1,2} reflexive? (yes/no)", "yes", "Every element relates to itself."},
-		{"Is {(1,2)} on {1,2} symmetric? (yes/no)", "no", "Contains (1,2) but not (2,1)."},
-		{"Is {(1,2),(2,3)} on {1,2,3} transitive? (yes/no)", "no", "Has (1,2) and (2,3) but is missing (1,3)."},
-		{"Is the relation 'divides' on N reflexive? (yes/no)", "yes", "Every n divides itself."},
-	}
-	hard := []entry{
-		{"Is relation {(a,b): a≡b mod 3} on Z an equivalence relation? (yes/no)", "yes", "Modulo is reflexive, symmetric, transitive."},
-		{"Does equivalence relation partition the set into disjoint classes? (yes/no)", "yes", "Classes are [a] = {b: a~b} forming a partition."},
-		{"Is the number of equivalence relations on {1,2,3} equal to the Bell number B_3=5? (yes/no)", "yes", "B_3=5 partitions of a 3-element set."},
-	}
-	pool := easy
-	if scale > 3 {
-		pool = append(easy, hard...)
-	}
-	e := pool[rand.Intn(len(pool))]
-	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
-}
 
 // ----- pigeonhole -----
 

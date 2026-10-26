@@ -290,28 +290,6 @@ func (g *structuralGen) Generate(ctx generator.GeneratorContext) generator.Probl
 
 type powersetGen struct{}
 
-func (g *powersetGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	n := 4 + rand.Intn(5) // 4..8
-	k := 1 + rand.Intn(n-1)
-	choose := 1
-	for i := 1; i <= k; i++ {
-		choose = choose * (n - k + i) / i
-	}
-	total := 1 << n
-	q := fmt.Sprintf("A set has %d elements. How many of its subsets have exactly %d elements?", n, k)
-	p := generator.Problem{
-		Question: q,
-		Answer:   strconv.Itoa(choose),
-		Facts: map[string]string{
-			"n": strconv.Itoa(n), "k": strconv.Itoa(k), "value": strconv.Itoa(choose),
-			"total": strconv.Itoa(total),
-		},
-	}
-	p.Explanation = fmt.Sprintf("Choosing a %d-element subset means choosing %d of the %d elements, which is C(%d, %d) = %d. The whole power set has 2^%d = %d members.",
-		k, k, n, n, k, choose, n, total)
-	return p
-}
-
 // ----- 8. partial order -----
 
 type partialOrderGen struct{}
