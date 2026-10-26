@@ -179,6 +179,11 @@ type Engine struct {
 	// tracks holds the per-track views of dag (track.go), built on first use.
 	tracks trackViews
 
+	// xpCarry holds each learner's fractional XP not yet paid (awardXP). In memory only:
+	// a restart loses at most one XP per learner.
+	xpCarryMu sync.Mutex
+	xpCarry   map[string]float64
+
 	dag      *concepts.DAG
 	repo     storage.Repository
 	sched    *scheduler.Scheduler
@@ -1276,7 +1281,10 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 		// study), not the flat TaskLesson 10.
 		taskType = TaskMultistep
 	}
-	xp := computeXPForTask(gr.Correct, elapsedSeconds, sessionFields.timeThreshold, progress.Streak, taskType)
+	// Priced at the served question's difficulty (fork change: XP tracks effort and
+	// difficulty, not only the topic). taskType still names the task in the audit trail.
+	_ = taskType
+	xp := e.awardXP(studentID, xppolicy.AwardValue(gr.Correct, elapsedSeconds, sessionFields.timeThreshold, difficultyOrNil(sessionFields.questionDifficulty)))
 
 	// PR 1.5: consecutive-miss tracking — halt after 2 (XP=0) + remedial queue.
 	halted := false
@@ -1534,7 +1542,7 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 	if err != nil {
 		return nil, fmt.Errorf("record attempt: %w", err)
 	}
-	xp := computeXPForTask(gr.Correct, elapsedSeconds, timeThreshold, progress.Streak, taskType)
+	xp := e.awardXP(studentID, xppolicy.AwardValue(gr.Correct, elapsedSeconds, timeThreshold, difficulty))
 
 	// PR 1.5: negative XP for rushing/guessing + halt flag at 2 consecutive misses.
 	missKey := studentID + "|" + conceptID
@@ -1624,6 +1632,27 @@ func sourceForTaskType(taskType string) string {
 // Single source of truth lives in internal/xp; this delegates to it.
 func taskBaseXP(taskType string) int {
 	return xppolicy.BaseXP(taskType)
+}
+
+// awardXP pays a fractional XP value in whole XP, carrying the remainder to the learner's
+// next answer so that fractions add up instead of rounding away. A positive value always
+// pays at least 1, so a correct answer never shows 0 XP.
+func (e *Engine) awardXP(studentID string, value float64) int {
+	if value <= 0 {
+		return 0
+	}
+	e.xpCarryMu.Lock()
+	defer e.xpCarryMu.Unlock()
+	if e.xpCarry == nil {
+		e.xpCarry = map[string]float64{}
+	}
+	total := value + e.xpCarry[studentID]
+	paid := int(math.Floor(total))
+	if paid < 1 {
+		paid = 1
+	}
+	e.xpCarry[studentID] = math.Max(0, total-float64(paid))
+	return paid
 }
 
 // computeXPForTask is the MA-differed XP calculator (10/5/15/20).
@@ -2871,7 +2900,7 @@ func (e *Engine) BackfillWeeklyXP(now time.Time) (int, error) {
 				threshold = concept.MasteryThreshold.AvgTimeSeconds
 			}
 		}
-		amount := xppolicy.Award(true, 0, threshold, 0, TaskLesson)
+		amount := xppolicy.AwardAt(true, 0, threshold, nil)
 		if amount <= 0 {
 			continue
 		}
