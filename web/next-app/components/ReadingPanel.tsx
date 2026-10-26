@@ -20,11 +20,15 @@ export default function ReadingPanel({ reading, texts }: { reading?: ReadingPdf;
   const [key, setKey] = useState(initial)
   useEffect(() => setKey(initial), [initial])
 
-  if (!texts || texts.length < 2) return reading ? <PdfReader reading={reading} /> : null
+  if (!texts || texts.length === 0) return reading ? <PdfReader reading={reading} /> : null
+  // One PDF text: the embedded reader alone, with no picker. A single text of any other
+  // kind (lecture notes, an online book) falls through, so it is still shown.
+  if (texts.length === 1 && texts[0].kind === 'pdf' && reading) return <PdfReader reading={reading} />
 
   const chosen = texts.find((t) => t.key === key) ?? texts[0]
   return (
     <div className="mt-4">
+      {texts.length > 1 && (
       <div role="radiogroup" aria-label="Text" className="flex flex-wrap items-center gap-1.5">
         <span className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted mr-1">Text</span>
         {texts.map((t) => (
@@ -45,8 +49,23 @@ export default function ReadingPanel({ reading, texts }: { reading?: ReadingPdf;
           </button>
         ))}
       </div>
+      )}
       {chosen.kind === 'pdf' ? (
         <PdfReader reading={{ title: chosen.source, url: chosen.url ?? '', page: chosen.page, end_page: chosen.end_page }} />
+      ) : chosen.kind === 'file' && chosen.url && /\.html?($|[?#])/i.test(chosen.url) ? (
+        // Lecture notes (a rendered notebook) read in place, like a PDF section.
+        <div className="mt-3 border border-mathua-border bg-mathua-bg">
+          <p className="px-3 pt-2.5 font-mono text-[10px] uppercase tracking-wider text-mathua-muted">Read · {chosen.source}</p>
+          <iframe title={chosen.source} src={absolute(chosen.url)} sandbox="allow-same-origin" className="mt-2 w-full h-[70vh] bg-white" />
+          <a
+            href={absolute(chosen.url)}
+            target="_blank"
+            rel="noreferrer"
+            className="m-3 inline-flex border border-mathua-border px-2.5 min-h-[32px] items-center font-mono text-[11px] text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue"
+          >
+            Open in a new tab
+          </a>
+        </div>
       ) : (
         <div className="mt-3 border border-mathua-border bg-mathua-bg px-3 py-2.5">
           <p className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted">Read</p>

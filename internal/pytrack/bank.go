@@ -282,8 +282,10 @@ func validateConcept(c *Concept) error {
 				if strings.TrimSpace(p.Answer) == "" || strings.Contains(p.Answer, "\n") {
 					return fmt.Errorf("%s: every part needs a one-line answer", where)
 				}
-				if p.Grading != "numeric" && p.Grading != "expression" {
-					return fmt.Errorf("%s: part grading must be numeric or expression", where)
+				switch p.Grading {
+				case "numeric", "expression", "set", "interval":
+				default:
+					return fmt.Errorf("%s: part grading must be numeric, expression, set or interval", where)
 				}
 				if len(it.Parts) > 1 && strings.TrimSpace(p.Label) == "" {
 					return fmt.Errorf("%s: every part of a multi-part item needs a label", where)

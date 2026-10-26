@@ -300,6 +300,10 @@ func unitCoefficientAt(s string, i int, math bool) bool {
 	if s[j] == 'e' && (isDigit(after) || after == '-' || after == '+') {
 		return false
 	}
+	// 1x10^1 is scientific notation with x as the times sign.
+	if s[j] == 'x' && isDigit(after) {
+		return false
+	}
 	if isLetter(after) && (!math || spaced) {
 		// "1st", "1 cm": a word, not a variable.
 		return false

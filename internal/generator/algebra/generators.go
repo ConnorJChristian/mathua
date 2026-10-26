@@ -1264,29 +1264,7 @@ func (g *eqTrinomialGen) Generate(ctx generator.GeneratorContext) generator.Prob
 
 type funcAbsValGen struct{}
 
-func (g *funcAbsValGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	x := rand.Intn(10) - 5
-	return generator.Problem{
-		Question:    fmt.Sprintf("If \\(f(x) = |x|\\), what is \\(f(%d)\\)?", x),
-		Answer:      fmt.Sprintf("%d", mathutil.Abs(x)),
-		Explanation: fmt.Sprintf("\\(|%d| = %d\\)", x, mathutil.Abs(x)),
-		Facts:       map[string]string{"x": strconv.Itoa(x), "abs": strconv.Itoa(mathutil.Abs(x))},
-	}
-}
-
 type funcCompositeGen struct{}
-
-func (g *funcCompositeGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	x := rand.Intn(5) + 1
-	a := rand.Intn(4) + 1
-	b := rand.Intn(4) + 1
-	return generator.Problem{
-		Question:    fmt.Sprintf("If \\(f(x) = %dx\\) and \\(g(x) = x + %d\\), what is \\(f(g(%d))\\)?", a, b, x),
-		Answer:      fmt.Sprintf("%d", a*(x+b)),
-		Explanation: fmt.Sprintf("\\(g(%d) = %d+%d = %d\\). \\(f(g(%d)) = f(%d) = %d \\times %d = %d\\)", x, x, b, x+b, x, x+b, a, x+b, a*(x+b)),
-		Facts:       map[string]string{"a": strconv.Itoa(a), "b": strconv.Itoa(b), "x": strconv.Itoa(x), "gx": strconv.Itoa(x + b), "y": strconv.Itoa(a * (x + b))},
-	}
-}
 
 type funcDirichletGen struct{}
 
@@ -1372,95 +1350,7 @@ func (g *graphAnalysisGen) Generate(ctx generator.GeneratorContext) generator.Pr
 
 type funcInverseGen struct{}
 
-func (g *funcInverseGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	a := rand.Intn(5) + 2
-	b := rand.Intn(10) - 5
-	return generator.Problem{
-		Question:    fmt.Sprintf("If \\(f(x) = %dx + %d\\), what is \\(f^{-1}(x)\\)?", a, b),
-		Answer:      fmt.Sprintf("(x %+d)/%d", -b, a),
-		Explanation: fmt.Sprintf("\\(y = %dx + %d\\) → \\(x = \\frac{y %+d}{%d}\\) → \\(f^{-1}(x) = \\frac{x %+d}{%d}\\)", a, b, -b, a, -b, a),
-		Facts:       map[string]string{"a": strconv.Itoa(a), "b": strconv.Itoa(b), "neg_b": strconv.Itoa(-b)},
-	}
-}
-
 type monotonicityGen struct{}
-
-// Fork change: several families of functions, not only f(x) = ax, so the
-// topic tests reading monotonicity off a slope, a derivative, a base or a
-// domain rather than the sign of one coefficient.
-func (g *monotonicityGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	dirWord := func(up bool) string {
-		if up {
-			return "increasing"
-		}
-		return "decreasing"
-	}
-	a := rand.Intn(5) + 1
-	b := rand.Intn(9) - 4
-	var fn, domain, why string
-	var up bool
-	switch rand.Intn(7) {
-	case 0:
-		if rand.Intn(2) == 0 {
-			a = -a
-		}
-		fn, domain, up = fmt.Sprintf("%dx", a), "\\mathbb{R}", a > 0
-		why = fmt.Sprintf("a line through the origin with slope %d", a)
-	case 1:
-		if rand.Intn(2) == 0 {
-			a = -a
-		}
-		sign := "+"
-		if b < 0 {
-			sign, b = "-", -b
-		}
-		fn, domain, up = fmt.Sprintf("%dx %s %d", a, sign, b), "\\mathbb{R}", a > 0
-		why = fmt.Sprintf("a line with slope %d; the intercept does not change the direction", a)
-	case 2:
-		if rand.Intn(2) == 0 {
-			fn, domain, up = fmt.Sprintf("%dx^{2}", a), "[0, \\infty)", true
-			why = fmt.Sprintf("f'(x) = %dx > 0 for x > 0", 2*a)
-		} else {
-			fn, domain, up = fmt.Sprintf("%dx^{2}", a), "(-\\infty, 0]", false
-			why = fmt.Sprintf("f'(x) = %dx < 0 for x < 0", 2*a)
-		}
-	case 3:
-		base := []string{"2", "3", "5", "e"}[rand.Intn(4)]
-		if rand.Intn(2) == 0 {
-			fn, domain, up = fmt.Sprintf("%s^{x}", base), "\\mathbb{R}", true
-			why = fmt.Sprintf("an exponential with base %s > 1 grows", base)
-		} else {
-			fn, domain, up = fmt.Sprintf("%s^{-x}", base), "\\mathbb{R}", false
-			why = fmt.Sprintf("%s^{-x} = (1/%s)^{x}, a base between 0 and 1, which decays", base, base)
-		}
-	case 4:
-		fn, domain, up = fmt.Sprintf("\\frac{%d}{x}", a), "(0, \\infty)", false
-		why = fmt.Sprintf("f'(x) = -%d/x^{2} < 0 for every x > 0", a)
-	case 5:
-		if rand.Intn(2) == 0 {
-			fn, domain, up = "x^{3}", "\\mathbb{R}", true
-			why = "f'(x) = 3x^{2} \\ge 0, zero only at x = 0, so f rises everywhere"
-		} else {
-			fn, domain, up = "-x^{3}", "\\mathbb{R}", false
-			why = "f'(x) = -3x^{2} \\le 0, so f falls everywhere"
-		}
-	default:
-		if rand.Intn(2) == 0 {
-			fn, domain, up = fmt.Sprintf("\\ln(x) + %d", a), "(0, \\infty)", true
-			why = "f'(x) = 1/x > 0 on the domain"
-		} else {
-			fn, domain, up = fmt.Sprintf("\\sqrt{x}"), "[0, \\infty)", true
-			why = "f'(x) = 1/(2\\sqrt{x}) > 0 for x > 0"
-		}
-	}
-	dir := dirWord(up)
-	return generator.Problem{
-		Question:    fmt.Sprintf("Is \\(f(x) = %s\\) increasing or decreasing on \\(%s\\)?", fn, domain),
-		Answer:      dir,
-		Explanation: fmt.Sprintf("\\(f(x) = %s\\) is %s on \\(%s\\): %s.", fn, dir, domain, why),
-		Facts:       map[string]string{"fn": fn, "domain": domain, "why": why, "dir": dir, "a": strconv.Itoa(a), "sign": map[bool]string{true: "positive", false: "negative"}[up]},
-	}
-}
 
 type funcRationalGen struct{}
 
@@ -1529,31 +1419,6 @@ func (g *ineqAbsValGen) Generate(ctx generator.GeneratorContext) generator.Probl
 }
 
 type ineqIntervalGen struct{}
-
-func (g *ineqIntervalGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	a := rand.Intn(5) - 3
-	b := a + rand.Intn(5) + 2
-	type interval struct {
-		q, a, key string
-	}
-	// key is published as its own fact so an authored schema can key one step
-	// per bracket shape. A shared "shape" fact would be present on every
-	// question, so every step would render every time.
-	types := []interval{
-		{fmt.Sprintf("Write in interval notation: \\%d \\leq x < %d\\).", a, b), fmt.Sprintf("[%d,%d)", a, b), "a_left_closed"},
-		{fmt.Sprintf("Write in interval notation: \\(x > %d\\).", a), fmt.Sprintf("(%d,\\infty)", a), "a_right_unbounded"},
-		{fmt.Sprintf("Write in interval notation: \\(x \\leq %d\\).", b), fmt.Sprintf("(-\\infty,%d]", b), "a_left_unbounded"},
-		{fmt.Sprintf("Write in interval notation: \\%d < x < %d\\).", a, b), fmt.Sprintf("(%d,%d)", a, b), "a_both_open"},
-	}
-	e := types[rand.Intn(len(types))]
-	facts := map[string]string{"a": strconv.Itoa(a), "b": strconv.Itoa(b), e.key: "yes"}
-	return generator.Problem{
-		Question:    e.q,
-		Answer:      e.a,
-		Explanation: fmt.Sprintf("The interval notation for this set is %s.", e.a),
-		Facts:       facts,
-	}
-}
 
 type ineqIrrationalGen struct{}
 

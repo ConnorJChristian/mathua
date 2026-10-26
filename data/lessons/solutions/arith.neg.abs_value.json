@@ -8,7 +8,7 @@
     },
     {
       "fact": "abs",
-      "say": "[[n]] is [[n]] units from zero."
+      "say": "[[n]] is [[abs]] units from zero."
     }
   ],
   "answer": "The absolute value is [[abs]]."

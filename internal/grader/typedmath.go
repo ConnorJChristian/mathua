@@ -13,6 +13,7 @@ import (
 //	x_{2}        -> x_2
 //	\cdot, ×     -> *
 //	\, \; \!     -> spacing dropped
+//	{: and :}    -> dropped (the math box's AsciiMath for invisible brackets)
 //	\frac{a}{b}  -> (a)/(b)
 //	β, \beta     -> beta (and the other Greek letters)
 //	x2           -> x_2, when the expected answer writes subscripts
@@ -27,7 +28,7 @@ func NormalizeTypedMath(s, expected string) string {
 		s = strings.ReplaceAll(s, g[0], g[1])
 		s = strings.ReplaceAll(s, "\\"+g[1], g[1])
 	}
-	s = strings.NewReplacer("\\cdot", "*", "\\times", "*", "×", "*", "·", "*", "\\left", "", "\\right", "", "\\,", " ", "\\;", " ", "\\:", " ", "\\!", "", "\\ ", " ", "−", "-").Replace(s)
+	s = strings.NewReplacer("\\cdot", "*", "\\times", "*", "×", "*", "·", "*", "{:", "", ":}", "", "\\left", "", "\\right", "", "\\,", " ", "\\;", " ", "\\:", " ", "\\!", "", "\\ ", " ", "−", "-").Replace(s)
 	// Innermost braces first, until nothing changes: "\\sqrt{x^{2}+5}"
 	// needs the power rewritten before the root can be.
 	for i := 0; i < 8; i++ {

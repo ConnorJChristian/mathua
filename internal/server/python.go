@@ -155,6 +155,18 @@ func (s *Server) readingOptions(conceptID string) []readingOption {
 			}
 		}
 	}
+	// Lecture notes that teach the concept (a module's notes.json), last: the textbook
+	// stays the default reading, and the lecture is one click away (fork change).
+	for _, n := range mods.NotesFor(conceptID) {
+		o := readingOption{Key: "notes:" + n.Module, Kind: "link", Book: "Lecture notes", Source: n.Title, URL: n.URL}
+		if n.File != "" {
+			o.Kind = "file"
+			o.URL = "/api/modules/" + url.PathEscape(n.Module) + "/files/" + escapePath(n.File)
+		}
+		if o.URL != "" {
+			out = append(out, o)
+		}
+	}
 	return out
 }
 
@@ -164,7 +176,7 @@ func (s *Server) readingOptions(conceptID string) []readingOption {
 // the learner reached the topic through, in priority order) picks the one
 // shown first; the rest stay one click away.
 func (s *Server) readingStep(conceptID string, texts []string) (readingText, bool) {
-	if len(s.eng.Modules().ReadingsFor(conceptID)) == 0 {
+	if len(s.eng.Modules().ReadingsFor(conceptID)) == 0 && len(s.eng.Modules().NotesFor(conceptID)) == 0 {
 		return readingText{}, false
 	}
 	opts := s.readingOptions(conceptID)
@@ -231,7 +243,9 @@ func (s *Server) readingStep(conceptID string, texts []string) (readingText, boo
 	}
 	b.WriteString("\n\nPress Next when you have read it.")
 	rt := readingText{Source: o.Source, Body: b.String(), PDF: pdf}
-	if len(opts) > 1 {
+	// A lone non-PDF file (lecture notes) is sent as a text too, so the lesson can show
+	// it in place rather than only as a link.
+	if len(opts) > 1 || o.Kind == "file" {
 		rt.Texts = opts
 	}
 	return rt, true

@@ -1,15 +1,11 @@
 {
   "concept": "alg.func.composite",
-  "setup": "f(x) = [[a]]x and g(x) = x + [[b]], and you want f(g([[x]])).",
+  "setup": "\\((f \\circ g)(x) = f(g(x))\\): apply g first, then apply f to the result. It is defined only where g(x) lies in the domain of f.",
   "steps": [
     {
-      "fact": "gx",
-      "say": "A composite is read inside out: g([[x]]) first, and its result becomes the input to f."
-    },
-    {
-      "fact": "y",
-      "say": "g([[x]]) = [[gx]], so f is applied to [[gx]]: [[a]] × [[gx]] = [[y]]."
+      "fact": "why",
+      "say": "[[why]]"
     }
   ],
-  "answer": "So f(g([[x]])) = [[y]]."
+  "answer": "So the answer is [[answer]]."
 }

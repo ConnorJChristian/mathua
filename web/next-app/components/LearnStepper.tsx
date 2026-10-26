@@ -91,6 +91,11 @@ function catalogEntries() {
 // Profile dedupe via lib/nextUp; re-exported under the guard's name for tests.
 export { hrefConceptId as headConceptId }
 
+// A section has primary material when the server gave it a reading (a PDF) or any text.
+function hasReading(kp?: { reading?: unknown; texts?: unknown[] }): boolean {
+  return !!kp && (!!kp.reading || (Array.isArray(kp.texts) && kp.texts.length > 0))
+}
+
 export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   const [entries, setEntries] = useState<Entry[]>([])
   const [kps, setKps] = useState<KpInfo[]>([])
@@ -678,13 +683,29 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             return (
               <div key={e.key} className="border border-mathua-border bg-mathua-surface p-6">
                 <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">{ikp?.label || 'Learn'}</p>
-                <KatexContent externalLinks={isPy} className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || 'Worked example unavailable — start practicing instead.'}</KatexContent>
-                {/* Figures for this knowledge point, plus the concept's own diagram. The
-                    worked example is text lifted out of the lesson body, so its figures do
-                    not come with it; selecting them per knowledge point is what keeps the
-                    shorter surface shorter without discarding instruction. */}
-                <LessonAssets assets={ikp?.assets} />
-                {(ikp?.reading || ikp?.texts) && <ReadingPanel reading={ikp.reading} texts={ikp.texts} />}
+                {/* Fork change: the textbook and lecture material is the lesson. When a topic
+                    has a reading it comes first, and Mathua's own worked example sits below it,
+                    collapsed but one click away. A topic with no reading keeps the worked
+                    example as its lesson. */}
+                {hasReading(ikp) ? (
+                  <>
+                    <ReadingPanel reading={ikp!.reading} texts={ikp!.texts} />
+                    <details className="mt-4 border border-mathua-border bg-mathua-bg px-3 py-2">
+                      <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Mathua&apos;s summary and worked example</summary>
+                      <KatexContent externalLinks={isPy} className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || 'No worked example for this section.'}</KatexContent>
+                      <LessonAssets assets={ikp?.assets} />
+                    </details>
+                  </>
+                ) : (
+                  <>
+                    <KatexContent externalLinks={isPy} className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || 'Worked example unavailable — start practicing instead.'}</KatexContent>
+                    {/* Figures for this knowledge point, plus the concept's own diagram. The
+                        worked example is text lifted out of the lesson body, so its figures do
+                        not come with it; selecting them per knowledge point is what keeps the
+                        shorter surface shorter without discarding instruction. */}
+                    <LessonAssets assets={ikp?.assets} />
+                  </>
+                )}
                 {diagram && (
                   <figure className="mt-4">
                     <LessonDiagram src={diagram} alt={`Diagram for ${ikp?.label || 'this topic'}`} />
@@ -718,10 +739,20 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             return (
               <div key={e.key} className="border-t-2 border-mathua-blue pt-4">
                 <details>
-                  <summary className="font-mono text-[11px] uppercase tracking-wider text-mathua-blue cursor-pointer">Next: {ikp?.label || `Knowledge point ${e.kpIndex + 1}`} (worked example)</summary>
-                  <KatexContent className="mt-2 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || ''}</KatexContent>
-                  <LessonAssets assets={ikp?.assets} />
-                  {(ikp?.reading || ikp?.texts) && <ReadingPanel reading={ikp.reading} texts={ikp.texts} />}
+                  <summary className="font-mono text-[11px] uppercase tracking-wider text-mathua-blue cursor-pointer">Next: {ikp?.label || `Knowledge point ${e.kpIndex + 1}`} ({hasReading(ikp) ? 'reading' : 'worked example'})</summary>
+                  {hasReading(ikp) && <ReadingPanel reading={ikp!.reading} texts={ikp!.texts} />}
+                  {hasReading(ikp) ? (
+                    <details className="mt-3">
+                      <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Mathua&apos;s summary and worked example</summary>
+                      <KatexContent className="mt-2 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || ''}</KatexContent>
+                      <LessonAssets assets={ikp?.assets} />
+                    </details>
+                  ) : (
+                    <>
+                      <KatexContent className="mt-2 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || ''}</KatexContent>
+                      <LessonAssets assets={ikp?.assets} />
+                    </>
+                  )}
                 </details>
               </div>
             )

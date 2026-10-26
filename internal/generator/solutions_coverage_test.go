@@ -62,7 +62,6 @@ var generatorExplained = map[string]string{
 	// algebra — table-driven
 	"alg.func.dirichlet":            "table-driven: fixed question, fixed answer",
 	"alg.func.even_odd":             "table-driven: fixed question, fixed answer",
-	"alg.func.inverse_domain":       "table-driven: fixed question, fixed answer",
 	"alg.func.sigmoid":              "table-driven: fixed question, fixed answer",
 	"alg.func.transformations":      "table-driven: fixed question, fixed answer",
 	"alg.log.graph":                 "table-driven: fixed question, fixed answer",

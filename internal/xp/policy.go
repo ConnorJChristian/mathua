@@ -170,6 +170,36 @@ func Award(correct bool, elapsed, timeThreshold float64, streak int, taskType st
 	return int(float64(base) * PerformanceMultiplier(elapsed, timeThreshold))
 }
 
+// AwardValue is the XP a correct answer is worth at the difficulty it was served at
+// (0.3-1.0), unrounded: expected minutes x (0.5 + difficulty) x the in-time bonus. Within a
+// topic a hard question is worth 1.5x the medium price and an easy one 0.8x, so XP tracks
+// effort and difficulty rather than only the topic. Nil difficulty (an older attempt, an
+// imported card) keeps the medium price. A correct answer is worth at least 1 and at most
+// 5 x 1.1; a wrong one 0.
+//
+// Callers round it with a per-learner carry (engine.awardXP), so the fractions add up over
+// answers instead of rounding away: whole-number rounding made an easy and a medium
+// question in a two-minute topic both pay 2.
+func AwardValue(correct bool, elapsed, timeThreshold float64, difficulty *float64) float64 {
+	if !correct {
+		return 0
+	}
+	if timeThreshold <= 0 {
+		timeThreshold = 10
+	}
+	d := BaseDifficulty("")
+	if difficulty != nil && *difficulty > 0 {
+		d = math.Min(1, *difficulty)
+	}
+	v := math.Max(1, math.Min(5, timeThreshold/60.0*(0.5+d)))
+	return v * PerformanceMultiplier(elapsed, timeThreshold)
+}
+
+// AwardAt rounds AwardValue on its own (no carry), for callers without a learner.
+func AwardAt(correct bool, elapsed, timeThreshold float64, difficulty *float64) int {
+	return int(math.Round(AwardValue(correct, elapsed, timeThreshold, difficulty)))
+}
+
 // ExpectedXP is the estimator's per-attempt expectation: award value scaled by probability of
 // correctness. Never use face base value as an expectation.
 func ExpectedXP(pCorrect, elapsed, timeThreshold float64, streak int, taskType string) float64 {

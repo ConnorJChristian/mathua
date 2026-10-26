@@ -1,15 +1,11 @@
 {
   "concept": "alg.func.absolute_value",
-  "setup": "f(x) = |x|, and you want f([[x]]).",
+  "setup": "|a − b| is the distance between a and b on the number line, so |x − c| is the distance from x to c, and |E| is the distance from E to 0.",
   "steps": [
     {
-      "fact": "x",
-      "say": "The absolute value is the distance from zero, so it drops the sign and keeps the size."
-    },
-    {
-      "fact": "abs",
-      "say": "|[[x]]| is therefore [[abs]]."
+      "fact": "why",
+      "say": "[[why]]"
     }
   ],
-  "answer": "So f([[x]]) = [[abs]]."
+  "answer": "So the answer is [[answer]]."
 }
