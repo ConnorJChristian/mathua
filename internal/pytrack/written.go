@@ -109,7 +109,7 @@ var (
 	tagRe      = regexp.MustCompile(`(?s)<[^>]*>`)
 	mathRe     = regexp.MustCompile(`(?s)\\\(.*?\\\)|\\\[.*?\\\]|\$\$.*?\$\$|\$[^$\n]+\$`)
 	quotedRe   = regexp.MustCompile(`“[^”]*”|"[^"]*"`)
-	cropNoteRe = regexp.MustCompile(`(?i)⚠?\s*graph auto-extracted[^.]*\.?`)
+	cropNoteRe = regexp.MustCompile(`(?i)\x{26A0}?\s*graph auto-extracted[^.]*\.?`)
 	spaceRe    = regexp.MustCompile(`\s+`)
 
 	// clozeRe is a cloze deletion: the card asks for the missing words.
