@@ -1,0 +1,11 @@
+{
+  "concept": "alg.func.inverse_domain",
+  "setup": "A function has an inverse exactly when it is one-to-one. The inverse swaps inputs and outputs, so the domain of f⁻¹ is the range of f, and the range of f⁻¹ is the domain of f.",
+  "steps": [
+    {
+      "fact": "why",
+      "say": "[[why]]"
+    }
+  ],
+  "answer": "So the answer is [[answer]]."
+}

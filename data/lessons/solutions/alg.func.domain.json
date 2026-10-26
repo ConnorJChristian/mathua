@@ -1,15 +1,11 @@
 {
   "concept": "alg.func.domain",
-  "setup": "The function is \\(f(x) = \\sqrt{x - [[k]]}\\).",
+  "setup": "The natural domain of \\(f(x) = [[fn]]\\) is every real x for which the formula gives a real number. A square root needs a radicand that is not negative, a logarithm needs a strictly positive argument, and a denominator must not be 0.",
   "steps": [
     {
-      "fact": "k",
-      "say": "A square root is defined over the reals when its radicand is not negative, so the domain needs \\(x - [[k]] \\ge 0\\)."
-    },
-    {
-      "fact": "answer",
-      "say": "That is \\(x \\ge [[k]]\\), and the smallest integer that satisfies it is \\([[answer]]\\)."
+      "fact": "why",
+      "say": "[[why]]"
     }
   ],
-  "answer": "So the domain begins at \\(x = [[answer]]\\)."
+  "answer": "So the domain is [[domain]]."
 }

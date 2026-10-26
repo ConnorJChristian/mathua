@@ -25,6 +25,10 @@ func TestLenientForms(t *testing.T) {
 		{GradingMultipleChoice, "B", "b", true},
 		{GradingMultipleChoice, "y=x^2/2+C", "y = x^2/2 + C", true},
 		{GradingMultipleChoice, "y=x^2/2+C", "x^2/2 + c", true},
+		// The inverse named before it, as a learner copies the question.
+		{GradingSymbolic, "(x - 4)/3", "f^(-1)(x) = (x-4)/3", true},
+		{GradingSymbolic, "(x - 4)/3", "f^{-1}(x)=(x-4)/3", true},
+		{GradingSymbolic, "(x - 4)/3", "f^(-1)(x) = (x+4)/3", false},
 	}
 	for _, c := range cases {
 		got := r.Grade(c.gt, c.expected, c.answer)

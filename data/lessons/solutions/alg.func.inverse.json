@@ -1,15 +1,16 @@
 {
   "concept": "alg.func.inverse",
-  "setup": "f(x) = [[a]]x + [[b]], and you want f⁻¹(x).",
+  "setup": "The inverse undoes \\(f(x) = [[fn]]\\): write y = f(x), solve for x in terms of y, then rename y as x.",
   "steps": [
     {
-      "fact": "a",
-      "say": "The inverse undoes f, so write y = [[a]]x + [[b]] and solve for x in terms of y."
+      "fact": "why",
+      "say": "[[why]]"
     },
     {
-      "fact": "neg_b",
-      "say": "Rearranging gives x = (y + [[neg_b]]) / [[a]]. Swapping the letters back — the inverse takes y where the function took x."
+      "fact": "restricted",
+      "optional": true,
+      "say": "On all of ℝ a parabola is not one-to-one, so it has no inverse. On one side of its vertex it is, and the restriction decides which square root to take. The inverse is defined for x ≥ [[k]], the range of f."
     }
   ],
-  "answer": "So f⁻¹(x) = (x + [[neg_b]])/[[a]]."
+  "answer": "So f⁻¹(x) = [[inverse]]."
 }

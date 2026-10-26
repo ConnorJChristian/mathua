@@ -110,7 +110,8 @@ func (r *Router) Close() {}
 
 // leadingAssignRe matches a learner's "x = ", "y=", "f'(x) =", "dy/dx =" in
 // front of an answer whose expected form has no equals sign.
-var leadingAssignRe = regexp.MustCompile(`^\s*(?:[a-zA-Z]\w*(?:\([a-zA-Z]\))?'*|d[a-zA-Z]/d[a-zA-Z])\s*=\s*`)
+// An inverse is named too: "f^(-1)(x) =", "f^{-1}(x)=", "f⁻¹(x) =".
+var leadingAssignRe = regexp.MustCompile(`^\s*(?:[a-zA-Z]\w*(?:\^\(-1\)|\^\{-1\}|\^-1|⁻¹)?(?:\([a-zA-Z]\))?'*|d[a-zA-Z]/d[a-zA-Z])\s*=\s*`)
 
 // lenient normalises what a learner typed in the ways that never change the
 // answer: a leading "x =" when the expected answer has none, and spaces inside
