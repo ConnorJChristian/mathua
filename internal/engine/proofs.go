@@ -2,6 +2,7 @@ package engine
 
 import (
 	"math/rand"
+	"strings"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/generator"
@@ -121,6 +122,17 @@ func practiceOnly(expected string) bool {
 		return true
 	}
 	return grader.IsProofAnswer(expected) && !proofsCountForMastery()
+}
+
+// plainRecall turns a written-answer flashcard (internal/pytrack written.go:
+// the front, the proof marker, the recall marker, the back) back into a plain
+// flashcard. Any other problem is returned unchanged.
+func plainRecall(p generator.Problem) generator.Problem {
+	if strings.HasPrefix(p.Answer, "recall:") && strings.Contains(p.Question, proof.Marker) {
+		p.Question = strings.Replace(p.Question, proof.Marker+"\n\n", "", 1)
+		p.Question = strings.Replace(p.Question, proof.Marker, "", 1)
+	}
+	return p
 }
 
 // proofsCountForMastery is a variable so tests can switch it.

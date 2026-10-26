@@ -173,6 +173,11 @@ func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			p = m.cards[rand.Intn(len(m.cards))].Generate(ctx)
 		}
 		if p.Question != "" && grader.IsBankAnswer(p.Answer) {
+			if ctx.NoProofs {
+				// A quiz asks for no written answer: a written-answer
+				// flashcard comes as the plain flashcard it also is.
+				p = plainRecall(p)
+			}
 			p.Question = CardMarker + "\n" + p.Question
 			p.Raw = true
 			return p

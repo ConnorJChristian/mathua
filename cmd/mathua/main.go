@@ -25,6 +25,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/planning"
 	"github.com/chuma-beep/mathua/internal/proof"
 	"github.com/chuma-beep/mathua/internal/pytrack"
+	"github.com/chuma-beep/mathua/internal/recallproof"
 	"github.com/chuma-beep/mathua/internal/repair"
 	"github.com/chuma-beep/mathua/internal/server"
 	"github.com/chuma-beep/mathua/internal/solutions"
@@ -478,6 +479,12 @@ func configureProofGrader(repo storage.Repository) {
 	if st, ok := repo.(proof.Store); ok {
 		g.SetStore(st)
 	}
+	// Written-answer flashcards share the judge, the store and the budget.
+	if rg, err := recallproof.Install(); err != nil {
+		log.Printf("warning: written-answer flashcards unavailable: %v", err)
+	} else if rg.On() {
+		fmt.Printf("written-answer flashcards: graded by %s (MATHUA_LLM_RECALL; banks %s)\n", g.Cfg.Model, recallBanks(rg.Cfg))
+	}
 	switch {
 	case g.Bank.Len() == 0:
 		return
@@ -487,4 +494,16 @@ func configureProofGrader(repo storage.Repository) {
 		fmt.Printf("proof grading: %d problems, model %s, %d runs, budget $%.2f/month, counts for mastery: %v\n",
 			g.Bank.Len(), g.Cfg.Model, g.Cfg.Runs, g.Cfg.MonthlyUSD, g.Cfg.CountsForMastery)
 	}
+}
+
+// recallBanks describes which banks' written-answer cards are graded.
+func recallBanks(c recallproof.Config) string {
+	out := "all"
+	if len(c.Banks) > 0 {
+		out = strings.Join(c.Banks, ", ")
+	}
+	if len(c.Exclude) > 0 {
+		out += " except " + strings.Join(c.Exclude, ", ")
+	}
+	return out
 }

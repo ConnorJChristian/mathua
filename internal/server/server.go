@@ -31,6 +31,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/lessons"
 	"github.com/chuma-beep/mathua/internal/mastery"
 	"github.com/chuma-beep/mathua/internal/proof"
+	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/quiz"
 	"github.com/chuma-beep/mathua/internal/scoring"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -4712,7 +4713,9 @@ const gradingDeadline = 20 * time.Second
 // judge's own timeout plus a margin; every other grader still finishes far
 // inside it under its own timeouts (SymPy, the Python runner).
 func GradingDeadline() time.Duration {
-	if g, err := proof.Default(); err == nil && g.Enabled() {
+	// A proof, or a written answer to a flashcard (pytrack written.go), is
+	// graded by the proof judge and may first need its marking scheme.
+	if g, err := proof.Default(); err == nil && (g.Enabled() || pytrack.WrittenGradingOn()) {
 		if d := g.Cfg.Timeout + 15*time.Second; d > gradingDeadline {
 			return d
 		}
