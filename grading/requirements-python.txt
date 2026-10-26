@@ -11,6 +11,10 @@ pandas==3.1.0
 matplotlib==3.11.2
 scikit-learn==1.9.1
 scipy==1.17.1
+# pandas' Styler (DataFrame.style: formatting, highlighting, gradients,
+# in-cell bars) renders through Jinja2, an optional pandas dependency.
+jinja2==3.1.6
+markupsafe==3.0.4
 # Econometrics: regressions by formula, and the data sets of Wooldridge's
 # Introductory Econometrics, bundled with the package so learner code never
 # needs the network.
