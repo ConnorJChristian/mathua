@@ -323,17 +323,7 @@ func (t *Track) Grade(expected, answer string) grader.Result {
 			return grader.Result{Feedback: "Reveal the answer, then mark whether you had it"}
 		default:
 			// A written answer to a written-answer card (written.go).
-			// One that cannot be graded is ungraded, never a miss: the
-			// learner can still reveal the back and mark it themselves.
-			key := strings.TrimPrefix(expected, prefixRecall)
-			if it := t.Bank.Item(key); it != nil && Classify(it).Written {
-				c := t.Bank.Concept(key[:max(0, strings.LastIndex(key, "#"))])
-				if c == nil || writtenGrader == nil {
-					return grader.Result{Unavailable: true, Feedback: "Written answers are not being graded now. Use “Just show me the answer” and mark it yourself."}
-				}
-				return writtenGrader.GradeWritten(t.card(c, it), answer)
-			}
-			return grader.Result{Feedback: "Reveal the answer, then mark whether you had it"}
+			return t.gradeWritten(strings.TrimPrefix(expected, prefixRecall), answer)
 		}
 	case strings.HasPrefix(expected, prefixCode):
 		return t.gradeCode(strings.TrimPrefix(expected, prefixCode), answer)

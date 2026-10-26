@@ -11,7 +11,7 @@ import (
 
 // Written-answer recall cards (fork change).
 //
-// About a third of the imported flashcards ask for a proof, a derivation or a
+// About a quarter of the imported flashcards ask for a proof, a derivation or a
 // justification ("use the total differential to show that the MRS is a/b").
 // Marking such a card yourself after reading a one-line back is easy to get
 // wrong in your own favour. When a language-model judge is configured
@@ -20,9 +20,11 @@ import (
 // card. The learner can still reveal the back and mark it themselves.
 //
 // The card stays a recall card throughout: its answer key keeps the "recall:"
-// prefix, so it is practice exactly as a self-graded card is (never served in
-// placement or a course test, and evidence only on the terms the proof grader
-// sets; see engine.practiceOnly).
+// prefix, so the engine records it exactly as a self-graded card (practice,
+// never mastery evidence, never a miss toward a halt; engine.practiceOnly),
+// with the judge's verdict in place of the learner's own mark. Placement and
+// course tests never serve a recall card (GeneratorContext.ObjectiveOnly), and
+// a quiz serves this one as a plain flashcard (NoProofs; PlainRecall).
 
 // Grading overrides on a recall item ("grading" in the bank file).
 const (
@@ -50,12 +52,16 @@ type RecallCard struct {
 	Back   string
 }
 
-// WrittenGrader grades written answers to recall cards. internal/proof
-// installs one (SetWrittenGrader) when a judge is configured.
+// WrittenGrader grades written answers to recall cards. internal/recallproof
+// installs one (SetWrittenGrader) at startup.
 type WrittenGrader interface {
+	// On reports that written answers can be graded at all (a key, and
+	// MATHUA_LLM_RECALL not 0).
+	On() bool
 	// ServeWritten reports whether the card should be served for a written
 	// answer now: grading is on for its bank, the month's budget is not spent
-	// and its marking scheme has not failed to generate.
+	// and its marking scheme has not failed to generate. It must be cheap and
+	// must not call the model: cards are rendered at startup too.
 	ServeWritten(card RecallCard) bool
 	// GradeWritten grades a written answer. A result it cannot give is
 	// Unavailable, never a miss.
@@ -67,6 +73,30 @@ var writtenGrader WrittenGrader
 // SetWrittenGrader installs the written-answer grader; nil uninstalls it.
 func SetWrittenGrader(w WrittenGrader) { writtenGrader = w }
 
+// WrittenGradingOn reports an installed written-answer grader that is on, so
+// the server can allow a written answer the time its grading takes.
+func WrittenGradingOn() bool { return writtenGrader != nil && writtenGrader.On() }
+
+// notGradedNow is the reason a written answer was not graded when no grader
+// can take it: the learner can still reveal the back and mark it.
+const notGradedNow = "Written answers are not being graded now. Use “Just show me the answer” and mark it yourself."
+
+// gradeWritten grades a written answer to the recall card key. Anything that
+// cannot be graded is Unavailable: nothing is recorded and the learner can
+// still self-grade.
+func (t *Track) gradeWritten(key, answer string) grader.Result {
+	it := t.Bank.Item(key)
+	var c *Concept
+	if i := strings.LastIndex(key, "#"); i > 0 {
+		c = t.Bank.Concept(key[:i])
+	}
+	w := writtenGrader
+	if it == nil || c == nil || it.Kind != KindRecall || !Classify(it).Written || w == nil {
+		return grader.Result{Unavailable: true, Feedback: notGradedNow}
+	}
+	return w.GradeWritten(t.card(c, it), answer)
+}
+
 // Classification is why a recall card is, or is not, a written-answer card.
 type Classification struct {
 	Written bool
@@ -76,53 +106,82 @@ type Classification struct {
 }
 
 var (
-	tagRe       = regexp.MustCompile(`(?s)<[^>]*>`)
-	mathRe      = regexp.MustCompile(`(?s)\\\(.*?\\\)|\\\[.*?\\\]|\$\$.*?\$\$`)
-	quotedRe    = regexp.MustCompile(`“[^”]*”|"[^"]*"`)
-	cropNoteRe  = regexp.MustCompile(`(?i)⚠?\s*graph auto-extracted[^.]*?(p\.\s*\d+)?`)
-	spaceRe     = regexp.MustCompile(`\s+`)
-	figureRe    = regexp.MustCompile(`\b(the|this|these) (figures?|diagrams?|graphs?|pictures?|charts?|plots?)( below| above)? (shows?|below|above|depicts?)\b|\bshown in the (figure|diagram|graph)\b|\bthe figures? (labeled|labelled)\b`)
-	visualTask  = regexp.MustCompile(`\b(sketch|draw|graph|plot|schedule|table of values|phase diagram)\b`)
-	showSubject = regexp.MustCompile(`\b(figures?|graphs?|tables?|diagrams?|results?|data|outputs?|plots?|charts?|panels?|screens?|they|which|will|would|does|do|can|may|might|to)\s+shows?\b`)
-	showModal   = regexp.MustCompile(`\b(have|has|need|needs|must|would|should|ought) to show\b|\bwhat (would|do|does|must|should) [^.?!]{0,40}\bshow\b`)
-	showThatRe  = regexp.MustCompile(`\bshow\b[^.?!;:]{0,80}?\bthat\b`)
-	showBareRe  = regexp.MustCompile(`\bshow\s+(\S+)`)
-	showVisual  = regexp.MustCompile(`\bshow\s+(your|all|the|each|its|their)?\s*(work|working|steps|calculations?|graphs?|plots?|diagrams?|figures?|pictures?|sketch|tables?|on (a|the) (graph|diagram|number line))\b`)
-	orShowRe    = regexp.MustCompile(`\bor show\b`)
-	proveRe     = regexp.MustCompile(`\b(dis)?prove\b`)
-	verifyRe    = regexp.MustCompile(`\bverify\b`)
-	verifyThat  = regexp.MustCompile(`\bverify that\b`)
-	confirmRe   = regexp.MustCompile(`\bconfirm\b`)
-	argueRe     = regexp.MustCompile(`\b(derive|justify|demonstrate|explain why)\b`)
-	verifyNoise = regexp.MustCompile(`\bverify (the )?crop\b|\bverify (it |this |your answer )?(numerically|graphically|with a (graph|calculator|plot)|on a (graph|calculator))\b`)
+	tagRe      = regexp.MustCompile(`(?s)<[^>]*>`)
+	mathRe     = regexp.MustCompile(`(?s)\\\(.*?\\\)|\\\[.*?\\\]|\$\$.*?\$\$|\$[^$\n]+\$`)
+	quotedRe   = regexp.MustCompile(`“[^”]*”|"[^"]*"`)
+	cropNoteRe = regexp.MustCompile(`(?i)⚠?\s*graph auto-extracted[^.]*\.?`)
+	spaceRe    = regexp.MustCompile(`\s+`)
+
+	// clozeRe is a cloze deletion: the card asks for the missing words.
+	clozeRe = regexp.MustCompile(`\[\.\.\.\]|\[…\]|\{\{c\d+::`)
+	// figureRe is a prompt that leans on a picture the judge cannot see.
+	figureRe = regexp.MustCompile(`\b(the|this|these) (figures?|diagrams?|pictures?|charts?|plots?)( below| above)? (shows?|below|above|depicts?)\b|\bshown in the (figure|diagram)\b|\bthe figures? (labeled|labelled)\b`)
+	// computerRe is a computer exercise: its answers are numbers read off
+	// output the learner produced, not an argument.
+	computerRe = regexp.MustCompile(`\bwoo\.data\b|\bsm\.ols\b|\bnp\.|\bpd\.|\bplt\.|\brng\b|\bimport \w|\bcomputer exercise\b|\bpython\b|\bdataframe\b`)
+	// visualRe is a task carried out on a graph, sketch, table or diagram.
+	// "graph" alone is not one: in graph theory it is the object of proof.
+	visualRe = regexp.MustCompile(`\b(sketch|draw|plot|plotting|graphically|illustrate (it |this |them )?(on|with|in) (a|the) (graph|diagram|figure)|schedule|table of values|diagram|on (a|the) (graph|number line|same axes)|use (a|the) graph|graph (it|them|the function|both|each|this|these))\b|^graph\b|[.;:] graph\b`)
+
+	// Phrases that mention a keyword without asking for an argument.
+	notAskedRe = regexp.MustCompile(strings.Join([]string{
+		// "show your work" on a numeric answer
+		`\bshow (all )?(your |the |each |all )?(work|working|steps|calculations?)\b`,
+		// a subject that shows: "the results show", "what does this show"
+		`\b(figures?|graphs?|tables?|diagrams?|results?|data|outputs?|plots?|charts?|panels?|screens?|they|which|this|these|it|will|would|does|do|did|can|may|might|could) shows?\b`,
+		`\bwhat (would|do|does|did|must|should|can) [^.?!]{0,40}\b(show|prove|demonstrate|verify|confirm)\b`,
+		// a method question: "how do you prove", "what is needed to show"
+		`\bhow (do|would|can|could|should|might|does|did|to) (you |we |one |i )?(\w+ ){0,2}(prove|show|verify|derive|justify|demonstrate|confirm)\b`,
+		`\bhow (you|we|one|i) (would|could|can|might|should|will) (\w+ ){0,2}(prove|show|verify|derive|justify|demonstrate|confirm)\b`,
+		`\b(is|are|was|were|be|been|need|needs|have|has|had|must|helpful|useful|used|enough|suffices?|ought|trying|try|tries|want|wants|easier|hard|harder|easy|way|ways|order|able|attempt|attempts|strategy|technique|method) to (prove|show|verify|derive|justify|demonstrate|confirm)\b`,
+		`\b(showing|proving|deriving|verifying)\b`,
+		// "compute it, or show that it does not exist": the task is the computation
+		`\bor (to )?(show|prove|explain)\b[^.?!;]*`,
+		// checking a computed answer
+		`\b(verify|confirm|check) (your|the|this|that|each) (answer|result|solution|value)s?\b`,
+		`\bverify (it |this |them )?(numerically|graphically|with a (graph|calculator|plot)|on a (graph|calculator)|by (graph|calculator|substitution))\b`,
+		`\bverify (the )?crop\b`,
+	}, "|"))
+
+	proveRe   = regexp.MustCompile(`\b(dis)?prove\b`)
+	argueRe   = regexp.MustCompile(`\b(derive|justify|demonstrate|explain why|argue that|establish that)\b`)
+	verifyRe  = regexp.MustCompile(`\b(verify|confirm)\b`)
+	showThat  = regexp.MustCompile(`\bshow\b[^.?!;:]{0,80}?\bthat\b`)
+	showClaim = regexp.MustCompile(`\bshow\b[^.?!;:]{0,80}?\b(is|are|has|have|equals?|satisf(y|ies)|converges?|diverges?|exists?|holds?|impl(y|ies)|lies|lie|forms?|spans?|defines?|cannot|must|gives?|yields?|reduces?|becomes?|remains?|belongs?|commutes?|preserves?)\b`)
+	// showFormula is "show \(f'(x) > 0\)." with the claim all mathematics.
+	showFormula = regexp.MustCompile(`\bshow math( and math)?\s*([.?!;]|$)`)
+	showHow     = regexp.MustCompile(`\bshow,|\bshow (algebraically|analytically|mathematically|formally|rigorously|directly|explicitly|carefully|how|why|by|using|from|without|whether)\b`)
 )
 
-// showFollowers are the words after a bare "show" that make it a request for
-// an argument: "show algebraically", "show how", "show, by evaluating".
-var showFollowers = map[string]bool{
-	"algebraically": true, "analytically": true, "mathematically": true, "formally": true,
-	"rigorously": true, "directly": true, "explicitly": true, "carefully": true,
-	"how": true, "why": true, "it": true, "there": true, "this": true, "by": true,
-	"using": true, "with": true, "from": true, "both": true, "without": true,
-	"math": true, "every": true, "any": true, "whether": true,
-}
-
-// plainPrompt is the prompt as words: tags, entities and mathematics removed,
-// quoted titles dropped, lower case.
+// plainPrompt is the prompt as words: tags, entities, mathematics (as "math")
+// and quoted titles removed, lower case.
 func plainPrompt(s string) string {
 	s = strings.NewReplacer("<br>", " ", "<br/>", " ", "<br />", " ", "</div>", " ", "</p>", " ").Replace(s)
 	s = tagRe.ReplaceAllString(s, " ")
 	s = html.UnescapeString(s)
 	s = cropNoteRe.ReplaceAllString(s, " ")
-	s = mathRe.ReplaceAllString(s, " MATH ")
+	s = mathRe.ReplaceAllString(s, " math ")
 	s = quotedRe.ReplaceAllString(s, " ")
-	s = strings.ToLower(spaceRe.ReplaceAllString(s, " "))
-	return s
+	return strings.TrimSpace(strings.ToLower(spaceRe.ReplaceAllString(s, " ")))
 }
 
 // Classify reports whether a recall card asks for a written proof,
 // derivation or justification. A "grading" override in the bank wins. Only
 // recall cards are ever written-answer cards.
+//
+// The rules, in order:
+//   - the override;
+//   - exclusions the judge cannot work with: a picture on the front, a back
+//     that is only a picture, a prompt that refers to a figure, a cloze
+//     deletion, a computer exercise;
+//   - phrases that mention a keyword without asking for an argument are
+//     removed ("show your work", "what does this show", "how do you prove",
+//     "compute it or show it does not exist", "verify your answer");
+//   - "prove", "derive", "justify", "demonstrate", "explain why", "argue
+//     that" in what is left make a written-answer card;
+//   - "show", "verify" and "confirm" do too, unless the task is done on a
+//     graph, sketch, table or diagram; "show" must ask for a claim ("show
+//     that", "show \(A\) is invertible", "show how", "show, by ...").
 func Classify(it *Item) Classification {
 	if it.Kind != KindRecall {
 		return Classification{Reason: "not a recall card"}
@@ -141,68 +200,53 @@ func Classify(it *Item) Classification {
 	if strings.Contains(it.Back, "<img") && len(strings.TrimSpace(tagRe.ReplaceAllString(it.Back, ""))) < 40 {
 		return Classification{Reason: "the back is a picture"}
 	}
+	if clozeRe.MatchString(it.Prompt) {
+		return Classification{Reason: "a cloze card"}
+	}
 	p := plainPrompt(it.Prompt)
-	if figureRe.MatchString(p) {
+	switch {
+	case figureRe.MatchString(p):
 		return Classification{Reason: "refers to a figure"}
+	case computerRe.MatchString(p):
+		return Classification{Reason: "a computer exercise"}
 	}
-	excluded := ""
-	note := func(r string) {
-		if excluded == "" {
-			excluded = r
-		}
-	}
-	if m := proveRe.FindString(p); m != "" {
+	q := notAskedRe.ReplaceAllString(p, " ")
+	if m := proveRe.FindString(q); m != "" {
 		return Classification{Written: true, Reason: m}
 	}
-	if m := argueRe.FindString(p); m != "" {
+	if m := argueRe.FindString(q); m != "" {
 		return Classification{Written: true, Reason: m}
 	}
-	if verifyRe.MatchString(p) {
-		if verifyNoise.MatchString(p) && !verifyThat.MatchString(p) {
-			note("verify graphically")
-		} else {
-			return Classification{Written: true, Reason: "verify"}
+	visual := visualRe.MatchString(p)
+	if m := verifyRe.FindString(q); m != "" {
+		if visual {
+			return Classification{Reason: m + " on a graph or table"}
 		}
+		return Classification{Written: true, Reason: m}
 	}
-	if confirmRe.MatchString(p) {
-		if visualTask.MatchString(p) {
-			note("confirm from a graph or table")
-		} else {
-			return Classification{Written: true, Reason: "confirm"}
+	if !strings.Contains(q, "show") {
+		if keywordRe.MatchString(p) {
+			return Classification{Reason: "keyword not a request"}
 		}
+		return Classification{}
 	}
-	// "show": an imperative asking for an argument, not "the figures show",
-	// "what would you have to show", "show your work", "show the graph", or
-	// "compute it or show it does not exist".
-	if strings.Contains(p, "show") {
-		if visualTask.MatchString(p) || strings.Contains(p, "graphically") {
-			return Classification{Reason: "show on a graph"}
-		}
-		q := showSubject.ReplaceAllString(p, " ")
-		q = showModal.ReplaceAllString(q, " ")
-		if showVisual.MatchString(q) {
-			note(strings.TrimSpace(showVisual.FindString(q)))
-			q = showVisual.ReplaceAllString(q, " ")
-		}
-		if orShowRe.MatchString(q) {
-			note("or show")
-			q = orShowRe.ReplaceAllString(q, " ")
-		}
-		if showThatRe.MatchString(q) {
-			return Classification{Written: true, Reason: "show that"}
-		}
-		for _, m := range showBareRe.FindAllStringSubmatch(q, -1) {
-			w := strings.Trim(m[1], ",.;:")
-			if showFollowers[w] || strings.HasPrefix(m[1], ",") || strings.HasSuffix(m[1], ",") {
-				return Classification{Written: true, Reason: "show " + w}
-			}
-		}
-		if strings.Contains(q, "show") {
-			note("show (not a request for an argument)")
-		}
+	if visual {
+		return Classification{Reason: "show on a graph"}
 	}
-	return Classification{Reason: excluded}
+	switch {
+	case showThat.MatchString(q):
+		return Classification{Written: true, Reason: "show that"}
+	case showHow.MatchString(q):
+		return Classification{Written: true, Reason: "show how"}
+	case showClaim.MatchString(q), showFormula.MatchString(q):
+		return Classification{Written: true, Reason: "show"}
+	}
+	return Classification{Reason: "show (no claim)"}
 }
+
+// keywordRe finds any of the keywords, for reporting why a card that has one
+// is not a written-answer card.
+var keywordRe = regexp.MustCompile(`\b(prove|show|verify|justify|derive|confirm|demonstrate|explain why)\b`)
 
 // card is an item as the written-answer grader sees it.
 func (t *Track) card(c *Concept, it *Item) RecallCard {
@@ -254,6 +298,8 @@ func writtenProblem(p generator.Problem, it *Item) generator.Problem {
 
 // PlainRecall turns a written-answer card back into a plain recall card (a
 // quiz serves no written answers). Any other problem is returned unchanged.
+// internal/engine strips the marker the same way for a card served in a
+// generated topic's quiz (engine.plainRecall).
 func PlainRecall(p generator.Problem) generator.Problem {
 	if strings.HasPrefix(p.Answer, prefixRecall) && strings.Contains(p.Question, WrittenMarker) {
 		p.Question = strings.Replace(p.Question, WrittenMarker+"\n\n", "", 1)
