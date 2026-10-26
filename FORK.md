@@ -321,6 +321,8 @@ that lists it as a prerequisite. About half of a topic's questions are
 cards (`MATHUA_CARD_SHARE`). A recall card the learner grades themselves is
 practice only: it never moves mastery, counts toward a halt or reschedules
 a review. The mastery test covers only topics studied on followed courses.
+It comes due after 50 XP, 4 topics worked and a gap since the last one: 20
+hours by default, or `MATHUA_QUIZ_GAP_HOURS` (168 for a weekly test).
 
 ## Proof grading
 

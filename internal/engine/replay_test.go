@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chuma-beep/mathua/internal/leaderboard"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
 
@@ -45,10 +46,16 @@ func TestBackfillWeeklyXP_RestoresTheWeekFromRealAttempts(t *testing.T) {
 			t.Fatalf("record attempt: %v", err)
 		}
 	}
-	record("s-learner", learner.ID, "practice", true, now.Add(-time.Hour))
-	record("s-learner", learner.ID, "practice", false, now.Add(-time.Hour))
-	record("s-learner", learner.ID, "diagnostic", true, now.Add(-time.Hour))
-	record("s-guest", guest.ID, "practice", true, now.Add(-time.Hour))
+	// "Earlier this week": an hour ago, unless the week began less than an
+	// hour ago (Monday just after midnight UTC), when an hour ago is last week.
+	recent := now.Add(-time.Hour)
+	if ws := leaderboard.WeekStart(now); recent.Before(ws) {
+		recent = ws.Add((now.Sub(ws)) / 2)
+	}
+	record("s-learner", learner.ID, "practice", true, recent)
+	record("s-learner", learner.ID, "practice", false, recent)
+	record("s-learner", learner.ID, "diagnostic", true, recent)
+	record("s-guest", guest.ID, "practice", true, recent)
 	record("s-learner", learner.ID, "practice", true, now.AddDate(0, 0, -8))
 
 	eng := &Engine{repo: repo}

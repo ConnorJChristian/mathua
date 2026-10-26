@@ -8,7 +8,9 @@ import (
 	"hash/fnv"
 	"log"
 	"math"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -1680,9 +1682,21 @@ const (
 	// QuizGateTopics is how many distinct topics must have been worked on
 	// since the last test (practice or review, not the test itself).
 	QuizGateTopics = 4
-	// QuizGateGap is the least time between two tests.
+	// QuizGateGap is the default least time between two tests.
 	QuizGateGap = 20 * time.Hour
 )
+
+// quizGateGap is the least time between two tests. MATHUA_QUIZ_GAP_HOURS
+// overrides the default, so an install can test weekly (168) instead of
+// nightly: a learner who studies daily otherwise sits a check nearly every day.
+func quizGateGap() time.Duration {
+	if v := strings.TrimSpace(os.Getenv("MATHUA_QUIZ_GAP_HOURS")); v != "" {
+		if h, err := strconv.ParseFloat(v, 64); err == nil && h >= 0 {
+			return time.Duration(h * float64(time.Hour))
+		}
+	}
+	return QuizGateGap
+}
 
 // QuizDue reports whether the mastery-check gate is reached: enough XP, enough
 // distinct topics worked since the last test, and enough time since it.
@@ -1709,7 +1723,7 @@ func (e *Engine) QuizDue(studentID string) (bool, error) {
 			return true, nil
 		}
 	}
-	if time.Since(lastAt) < QuizGateGap {
+	if time.Since(lastAt) < quizGateGap() {
 		return false, nil
 	}
 	attempts, err := e.repo.GetAttemptsForStudent(studentID)
