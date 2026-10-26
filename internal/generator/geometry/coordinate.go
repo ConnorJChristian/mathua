@@ -46,19 +46,49 @@ func (g *slopeGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	}
 }
 
-// distance3DGen uses a Pythagorean quadruple, so the distance in space is whole.
+// distance3DGen uses a Pythagorean quadruple, so the distance in space is
+// whole. Difficulty moves the first point off the origin, then permutes and
+// signs the differences so both points have negative coordinates.
 type distance3DGen struct{}
 
+var pythagoreanQuads = [][4]int{
+	{1, 2, 2, 3}, {2, 3, 6, 7}, {1, 4, 8, 9}, {4, 4, 7, 9}, {2, 6, 9, 11}, {6, 6, 7, 11},
+	{3, 4, 12, 13}, {2, 5, 14, 15}, {2, 10, 11, 15}, {1, 12, 12, 17}, {8, 9, 12, 17}, {6, 10, 15, 19},
+}
+
 func (g *distance3DGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	type quad struct{ a, b, c, d int }
-	quads := []quad{{1, 2, 2, 3}, {2, 3, 6, 7}, {3, 4, 12, 13}, {2, 6, 9, 11}, {4, 4, 7, 9}}
-	q := quads[rand.Intn(len(quads))]
+	pool := pythagoreanQuads[:6]
+	if ctx.Difficulty >= 0.45 {
+		pool = pythagoreanQuads
+	}
+	q := pool[rand.Intn(len(pool))]
+	d := []int{q[0], q[1], q[2]}
+	var p1 [3]int
+	if ctx.Difficulty >= 0.45 {
+		for i := range p1 {
+			p1[i] = rand.Intn(11) - 5
+		}
+	}
+	if ctx.Difficulty >= 0.7 {
+		rand.Shuffle(3, func(i, j int) { d[i], d[j] = d[j], d[i] })
+		for i := range d {
+			if rand.Intn(2) == 0 {
+				d[i] = -d[i]
+			}
+		}
+	}
+	p2 := [3]int{p1[0] + d[0], p1[1] + d[1], p1[2] + d[2]}
+	sq := d[0]*d[0] + d[1]*d[1] + d[2]*d[2]
 	return generator.Problem{
-		Question: fmt.Sprintf("Find the distance between the points \\((0,0,0)\\) and \\((%d,%d,%d)\\).", q.a, q.b, q.c),
-		Answer:   fmt.Sprintf("%d", q.d),
-		Explanation: fmt.Sprintf("The distance formula extends to three dimensions by adding the third squared difference: sqrt(%d + %d + %d) = sqrt(%d) = %d.",
-			q.a*q.a, q.b*q.b, q.c*q.c, q.d*q.d, q.d),
-		Facts: map[string]string{"distance": fmt.Sprintf("%d", q.d)},
+		Question: fmt.Sprintf("Find the distance between the points \\((%d,%d,%d)\\) and \\((%d,%d,%d)\\).", p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]),
+		Answer:   fmt.Sprintf("%d", q[3]),
+		Explanation: fmt.Sprintf("The coordinate differences are %d, %d and %d. The distance is sqrt(%d + %d + %d) = sqrt(%d) = %d.",
+			d[0], d[1], d[2], d[0]*d[0], d[1]*d[1], d[2]*d[2], sq, q[3]),
+		Facts: map[string]string{
+			"dx": fmt.Sprintf("%d", d[0]), "dy": fmt.Sprintf("%d", d[1]), "dz": fmt.Sprintf("%d", d[2]),
+			"dx_sq": fmt.Sprintf("%d", d[0]*d[0]), "dy_sq": fmt.Sprintf("%d", d[1]*d[1]), "dz_sq": fmt.Sprintf("%d", d[2]*d[2]),
+			"sum_sq": fmt.Sprintf("%d", sq), "distance": fmt.Sprintf("%d", q[3]),
+		},
 	}
 }
 

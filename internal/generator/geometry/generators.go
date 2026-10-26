@@ -521,7 +521,7 @@ func (g *coordDistanceGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		y := rand.Intn(9) - 4
 		dx := rand.Intn(8) + 2 // 2..9
 		return generator.Problem{
-			Question:    fmt.Sprintf("Find the distance between \\((%d,%d)\\) and \\((%d,%d)\\). (enter a number)", x1, y, x1+dx, y),
+			Question:    fmt.Sprintf("Find the distance between \\((%d,%d)\\) and \\((%d,%d)\\).", x1, y, x1+dx, y),
 			Answer:      fmt.Sprintf("%d", dx),
 			Explanation: fmt.Sprintf("Same y-coordinate, so the distance is \\(|%d-%d| = %d\\).", x1+dx, x1, dx),
 			Facts:       map[string]string{"x1": strconv.Itoa(x1), "x2": strconv.Itoa(x1 + dx), "y": strconv.Itoa(y), "dist": strconv.Itoa(dx), "dx": strconv.Itoa(dx), "dy": "0", "dx_sq": strconv.Itoa(dx * dx), "dy_sq": "0", "sum_sq": strconv.Itoa(dx * dx)},
