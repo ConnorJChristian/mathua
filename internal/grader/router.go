@@ -37,6 +37,11 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 	// choice against its key): the learner's text must reach it untouched.
 	// lenient() used to strip a leading "query = " from SQL tasks (fork fix).
 	if !IsBankAnswer(expected) {
+		// The math box exports invisible brackets as "{:" and ":}" whatever
+		// the concept's type; only the typed-math types used to drop them,
+		// so "{:14:}" failed a multiple-choice key of 14. Bank answers are
+		// left alone: a code answer may contain "{:" legitimately.
+		answer = strings.NewReplacer("{:", "", ":}", "").Replace(answer)
 		if res, ok := gradeSetLike(gradingType, expected, answer); ok {
 			return res
 		}

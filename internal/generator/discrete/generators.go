@@ -341,61 +341,6 @@ func (g *quantifiersGen) Generate(ctx generator.GeneratorContext) generator.Prob
 
 type setOpsGen struct{}
 
-func (g *setOpsGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	allElements := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-
-	type pair struct {
-		a, b []int
-	}
-	pairs := []pair{
-		{[]int{1, 2, 3}, []int{3, 4, 5}},
-		{[]int{2, 4, 6, 8}, []int{1, 2, 3, 4}},
-		{[]int{1, 3, 5}, []int{2, 4, 6}},
-		{[]int{1, 2, 3, 4, 5}, []int{4, 5, 6, 7}},
-		{[]int{1, 4, 7, 10}, []int{2, 5, 8}},
-	}
-	p := pairs[rand.Intn(len(pairs))]
-
-	aStr := formatSet(p.a)
-	bStr := formatSet(p.b)
-
-	ops := []struct {
-		name   string
-		desc   string
-		answer string
-		exp    string
-	}{
-		{
-			"union", fmt.Sprintf("\\(A \\cup B\\) where \\(A=%s\\), \\(B=%s\\)", aStr, bStr),
-			formatSet(union(p.a, p.b)),
-			fmt.Sprintf("A ∪ B = %s (all elements in A or B)", formatSet(union(p.a, p.b))),
-		},
-		{
-			"intersection", fmt.Sprintf("\\(A \\cap B\\) where \\(A=%s\\), \\(B=%s\\)", aStr, bStr),
-			formatSet(intersection(p.a, p.b)),
-			fmt.Sprintf("A ∩ B = %s (elements in both A and B)", formatSet(intersection(p.a, p.b))),
-		},
-		{
-			"complement", fmt.Sprintf("the complement of \\(A=%s\\) in \\(U=%s\\)", aStr, formatSet(allElements)),
-			formatSet(complement(p.a, allElements)),
-			fmt.Sprintf("A' = %s (elements in U but not in A)", formatSet(complement(p.a, allElements))),
-		},
-		{
-			"difference", fmt.Sprintf("\\(A - B\\) where \\(A=%s\\), \\(B=%s\\)", aStr, bStr),
-			formatSet(difference(p.a, p.b)),
-			fmt.Sprintf("A − B = %s (elements in A but not in B)", formatSet(difference(p.a, p.b))),
-		},
-	}
-
-	op := ops[rand.Intn(len(ops))]
-
-	return generator.Problem{
-		Question:    fmt.Sprintf("What is %s?", op.desc),
-		Answer:      op.answer,
-		Explanation: op.exp,
-	}
-}
-
 func union(a, b []int) []int {
 	m := make(map[int]bool)
 	for _, v := range a {
@@ -481,60 +426,6 @@ func formatSet(s []int) string {
 // ----- 6. venn -----
 
 type vennGen struct{}
-
-func (g *vennGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	type scenario struct {
-		a, b, both, universe int
-	}
-	scenarios := []scenario{
-		{10, 15, 5, 30},
-		{8, 12, 3, 25},
-		{6, 9, 4, 20},
-		{15, 10, 6, 30},
-		{12, 8, 2, 25},
-	}
-	s := scenarios[rand.Intn(len(scenarios))]
-
-	unionSize := s.a + s.b - s.both
-	compUnion := s.universe - unionSize
-	onlyA := s.a - s.both
-	onlyB := s.b - s.both
-
-	type qType struct {
-		question string
-		answer   int
-		exp      string
-	}
-	questions := []qType{
-		{
-			fmt.Sprintf("Given \\(|A|=%d\\), \\(|B|=%d\\), \\(|A \\cap B|=%d\\), \\(|U|=%d\\), how many elements are in \\(A \\cup B\\)?", s.a, s.b, s.both, s.universe),
-			unionSize,
-			fmt.Sprintf("|A∪B| = |A| + |B| − |A∩B| = %d + %d − %d = %d", s.a, s.b, s.both, unionSize),
-		},
-		{
-			fmt.Sprintf("Given \\(|A|=%d\\), \\(|B|=%d\\), \\(|A \\cap B|=%d\\), \\(|U|=%d\\), how many elements are in the complement of \\(A \\cup B\\)?", s.a, s.b, s.both, s.universe),
-			compUnion,
-			fmt.Sprintf("|(A∪B)'| = |U| − |A∪B| = %d − %d = %d", s.universe, unionSize, compUnion),
-		},
-		{
-			fmt.Sprintf("Given \\(|A|=%d\\), \\(|B|=%d\\), \\(|A \\cap B|=%d\\), how many elements are in \\(A\\) only (not in \\(B\\))?", s.a, s.b, s.both),
-			onlyA,
-			fmt.Sprintf("|A only| = |A| − |A∩B| = %d − %d = %d", s.a, s.both, onlyA),
-		},
-		{
-			fmt.Sprintf("Given \\(|A|=%d\\), \\(|B|=%d\\), \\(|A \\cap B|=%d\\), how many elements are in \\(B\\) only (not in \\(A\\))?", s.a, s.b, s.both),
-			onlyB,
-			fmt.Sprintf("|B only| = |B| − |A∩B| = %d − %d = %d", s.b, s.both, onlyB),
-		},
-	}
-
-	q := questions[rand.Intn(len(questions))]
-	return generator.Problem{
-		Question:    q.question,
-		Answer:      fmt.Sprintf("%d", q.answer),
-		Explanation: q.exp,
-	}
-}
 
 // ----- 7. permutations -----
 

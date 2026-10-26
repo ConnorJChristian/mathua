@@ -18,3 +18,24 @@ func TestAsciiMathInvisibleBracketsAreDropped(t *testing.T) {
 		t.Errorf("{:12:} not read as 12: %s", res.Feedback)
 	}
 }
+
+// Every type, not only the typed-math ones: a multiple-choice concept with a
+// number or a word for its key is answered in the same math box.
+func TestInvisibleBracketsDroppedForEveryType(t *testing.T) {
+	r := NewRouter()
+	for _, c := range []struct {
+		gt       GradingType
+		key, ans string
+	}{
+		{GradingMultipleChoice, "14", "{:14:}"},
+		{GradingMultipleChoice, "increasing", "{:increasing:}"},
+		{GradingComparison, "<", "{:<:}"},
+	} {
+		if res := r.Grade(c.gt, c.key, c.ans); !res.Correct {
+			t.Errorf("%s: %q not read as %q: %s", c.gt, c.ans, c.key, res.Feedback)
+		}
+	}
+	if r.Grade(GradingMultipleChoice, "14", "{:15:}").Correct {
+		t.Error("{:15:} accepted for 14")
+	}
+}
