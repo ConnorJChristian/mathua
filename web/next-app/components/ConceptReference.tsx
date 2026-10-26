@@ -139,7 +139,7 @@ export default function ConceptReference({ conceptId, variant = 'panel', emptyAc
       {blocks.length > 0 && (
         <div data-testid="reference-blocks">
           <h3 className="font-mono text-[11px] text-mathua-muted mb-2 uppercase tracking-wider">
-            Worked examples ({blocks.length})
+            {variant === 'page' && readingKp ? `Mathua's worked examples (${blocks.length})` : `Worked examples (${blocks.length})`}
           </h3>
           <div className="space-y-3">
             {blocks.map((b, i) => (
@@ -147,7 +147,7 @@ export default function ConceptReference({ conceptId, variant = 'panel', emptyAc
                 <div className="flex items-start gap-2 min-w-0">
                   <div className="flex-1 min-w-0">
                     {b.body ? (
-                      <details open={i === 0}>
+                      <details open={i === 0 && !(variant === 'page' && readingKp)}>
                         <summary className="font-mono text-xs text-mathua-primary cursor-pointer">
                           {i + 1}. {b.label ? stripMathDelimiters(b.label) : 'Worked example'}
                           {b.also.length > 0 && (
