@@ -146,6 +146,38 @@
     transition: background 0.3s ease, color 0.3s ease;
   }
 
+  /* The page scrollbar is part of the theme, not the browser's default chrome.
+     Firefox uses the standard properties and WebKit uses the pseudo-elements,
+     because neither engine accepts the other's syntax. The track stays
+     transparent so the strip reads as a blue marker over the page rather than
+     a second panel; the thumb follows --accent-blue in both themes. */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-blue) transparent;
+  }
+
+  html::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  html::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html::-webkit-scrollbar-thumb {
+    background: var(--accent-blue);
+    border-radius: 0;
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-blue-hover);
+  }
+
+  html::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
   @media (max-width: 640px) {
     body {
       font-size: 16px;

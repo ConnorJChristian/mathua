@@ -18,6 +18,7 @@ import {
   type MyLeague,
 } from '../../lib/api'
 import { resolveAvatar } from '../../lib/dicebear'
+import { scrollToPageTop } from '../../lib/scroll'
 
 type Tab = LeaderboardView | 'league'
 
@@ -241,6 +242,11 @@ export default function LeaderboardPage() {
     setPage(1)
   }, [])
 
+  const changePage = useCallback((next: number) => {
+    setPage(next)
+    scrollToPageTop()
+  }, [])
+
   const retry = useCallback(() => setReload((n) => n + 1), [])
 
   if (!mounted) return <div style={{ background: 'var(--bg)', minHeight: '100vh' }} />
@@ -330,7 +336,7 @@ export default function LeaderboardPage() {
               ) : (
                 <>
                   <BoardTable board={board} view={tab} />
-                  <PageControls board={board} onPage={setPage} busy={loading} />
+                  <PageControls board={board} onPage={changePage} busy={loading} />
                 </>
               )}
             </>

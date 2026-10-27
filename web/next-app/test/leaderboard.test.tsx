@@ -98,6 +98,7 @@ describe('the leaderboard page', () => {
   })
 
   it('pages through the standings without dropping the selected view', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
     getLeaderboard.mockImplementation((view: string, page: number) =>
       Promise.resolve(board({ view: view as LeaderboardBoard['view'], page, total: 60, total_pages: 3 })),
     )
@@ -107,6 +108,10 @@ describe('the leaderboard page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     await waitFor(() => expect(getLeaderboard).toHaveBeenLastCalledWith('weekly', 2, 25))
     expect(getLeaderboard).not.toHaveBeenCalledWith('all_time', 2, 25)
+    // A page turn is not a route change, so ScrollToTopOnNavigate cannot see
+    // it. The page control asks for the top explicitly.
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'auto' })
+    scrollTo.mockRestore()
   })
 
   it('keeps a learner outside the page discoverable without duplicating them', async () => {

@@ -20,6 +20,7 @@ import {
   totalPagesFor,
 } from '../../lib/glossary/search'
 import { mathSearchEntries } from '../../lib/glossary/mathQuery'
+import { scrollToPageTop } from '../../lib/scroll'
 
 /**
  * The mathematical glossary: a standalone reference for symbols, notation
@@ -110,7 +111,6 @@ function GlossaryPageInner() {
   const [mode, setMode] = useState<GlossarySearchMode>('text')
   const [mathLatex, setMathLatex] = useState('')
   const [page, setPageState] = useState(1)
-  const resultsTopRef = useRef<HTMLDivElement>(null)
   const pendingScrollId = useRef<string | null>(null)
 
   const inCategory =
@@ -151,10 +151,7 @@ function GlossaryPageInner() {
     if (push) router.push(url, { scroll: false })
     else router.replace(url, { scroll: false })
     if (scroll) {
-      const reduced =
-        typeof window !== 'undefined' &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      resultsTopRef.current?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' })
+      scrollToPageTop()
     }
   }
 
@@ -239,7 +236,7 @@ function GlossaryPageInner() {
           onClear={clear}
         />
 
-        <div className="mt-6" ref={resultsTopRef}>
+        <div className="mt-6">
           {results.length === 0 ? (
             <div className="border border-mathua-border bg-mathua-surface px-4 py-8 text-center">
               <p className="font-mono text-xs text-mathua-primary">
