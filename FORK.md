@@ -278,6 +278,54 @@ A local module can author code tasks the same way the Python track does:
 `statsmodels`, the `wooldridge` data sets and `ISLP` (data and model helpers
 only), so tasks can use real econometrics data with no network.
 
+### Prerequisites across modules
+
+The graph is one DAG over the corpus and every module, so a topic's
+prerequisites may be anywhere in it: a Hoy heading rests on the corpus's
+`calc.deriv.partial`, an econometrics code task on a pandas topic from
+`python-dsh`, an Anki deck on the Hoy topic it practises. That is what lets
+a learner struggling on a topic be sent back to the right concept whatever
+book it came from, and what lets two courses that share a concept plan it
+once.
+
+Where a link is declared depends on how the topic was authored:
+
+- **Authored banks** (`topic()` / `concept()` in `src/`): the third
+  argument is the prerequisite list, written as concept ids. Add one with
+  `python3 scripts/add_prereq.py <module> <topic> <prerequisite>...`, then
+  rebuild the bank. The build refuses an id that is not in the graph, a
+  topic that lists itself or an id twice, and a cycle, so a bad link never
+  reaches a `concepts/` file. The Docker check runs the same test.
+- **Anki modules**: each subject's `after` list in the subjects file.
+  `python3 scripts/anki_prereqs.py <module>` re-applies the file to the
+  module's `concepts/` without a re-import (`--check` only reports drift).
+- **Base-corpus concepts** (`data/concepts/*.json`): upstream's; the fork
+  links into them and does not edit them.
+
+A link should name the specific concept at the right level (a chapter-7
+Hoy topic depends on `calc.deriv.partial`, not on the calculus domain), and
+practice sets (`Practice ·` decks) are never prerequisites of anything.
+
+Checks, from quick to thorough:
+
+- The server refuses to start on a dangling prerequisite, a cycle or a
+  duplicate id (`internal/concepts`).
+- `go run scripts/validate_graph.go` builds the install's graph and also
+  rejects duplicate labels.
+- `go run ./scripts/audit_graph` (`internal/graphaudit`) reviews the whole
+  local graph: isolated topics, module topics whose prerequisites never
+  leave their module, look-alike concepts across modules (tie them with
+  `encompasses` or a link; do not delete), chains that wander back into a
+  domain they left, key prerequisites, missing subdomains and labels, topics
+  no course lists, and a shortlist of cross-module prerequisites by label
+  similarity. `-review r.md` writes the shortlist to go through by hand;
+  `-v` prints it. `TestPublicGraph` keeps the public graph clean in CI.
+
+When a learner misses twice in a row on a topic, or misses it on a test,
+the engine queues the topic's `key_prerequisites`, or, as no module topic
+has any, its direct prerequisites from any module, unmastered and weakest
+first, before serving the topic again at an easier variant.
+
 ## Library, readings and course texts
 
 - **Library** (`/library`): every book and source your topics come from,
