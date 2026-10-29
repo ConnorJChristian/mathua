@@ -148,3 +148,19 @@ func TestCourseView_NearestNextAndHonestDue(t *testing.T) {
 		t.Errorf("reviews_due = %d, want 1 (q mastered and past due)", v.ReviewsDue)
 	}
 }
+
+// A course that ranks its lecture notes among its texts ("notes:<module>")
+// had the raw key listed on its page as a book: "notes:ma-program (online)".
+func TestCourseTextNotesKey(t *testing.T) {
+	titles := map[string]string{"m/book.pdf": "A Book"}
+	libIDs := map[string]string{"m/book.pdf": "m-book"}
+	if got := resolveCourseText("notes:ma-program", titles, libIDs); got.Title != "Lecture notes" || got.Kind != "notes" || got.URL != "" {
+		t.Errorf("notes key resolved to %+v", got)
+	}
+	if got := resolveCourseText("m/book.pdf", titles, libIDs); got.Title != "A Book" || got.Kind != "pdf" || got.LibraryID != "m-book" {
+		t.Errorf("file key resolved to %+v", got)
+	}
+	if got := resolveCourseText("web:Statistical Learning", titles, libIDs); got.Title != "Statistical Learning" || got.Kind != "web" {
+		t.Errorf("web key resolved to %+v", got)
+	}
+}

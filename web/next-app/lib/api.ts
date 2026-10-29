@@ -2352,7 +2352,7 @@ export interface CourseTopic {
 // Fork change: a page of lecture notes (a notebook rendered to HTML, or a link).
 export interface CourseNote { title: string; unit?: string; unit_seq?: number; seq?: number; url: string; topic?: string }
 export interface CourseModule { title: string; topics: CourseTopic[]; mastered: number }
-export interface CourseText { key: string; title: string; kind: 'pdf' | 'web'; url?: string; library_id?: string }
+export interface CourseText { key: string; title: string; kind: 'pdf' | 'web' | 'notes'; url?: string; library_id?: string }
 export interface CourseView {
   id: string
   name: string

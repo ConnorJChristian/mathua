@@ -346,7 +346,7 @@ function CourseContent() {
                 <ul className="border border-mathua-border divide-y divide-mathua-border bg-mathua-surface">
                   {view.texts.map((t) => (
                     <li key={t.key} className="px-3 py-2 font-mono text-xs min-w-0">
-                      {t.library_id ? <Link href={`/library?book=${encodeURIComponent(t.library_id)}`} className="text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.title} →</Link> : <span className="text-mathua-secondary">{t.title} (online)</span>}
+                      {t.library_id ? <Link href={`/library?book=${encodeURIComponent(t.library_id)}`} className="text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.title} →</Link> : <span className="text-mathua-secondary">{t.title}{t.kind === 'web' ? ' (online)' : ''}</span>}
                     </li>
                   ))}
                 </ul>

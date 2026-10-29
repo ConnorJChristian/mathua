@@ -72,6 +72,31 @@ type courseText struct {
 	LibraryID string `json:"library_id,omitempty"`
 }
 
+// resolveCourseText turns one of a course's authority-text keys into what the
+// course page lists. "notes:<module>" (a module's lecture notes, which a
+// course ranks among its texts so they open in the lesson) used to fall
+// through to the file case and was listed as "notes:ma-program (online)".
+func resolveCourseText(tx string, titles, libIDs map[string]string) courseText {
+	ct := courseText{Key: tx}
+	switch {
+	case strings.HasPrefix(tx, "web:"):
+		ct.Kind, ct.Title = "web", strings.TrimPrefix(tx, "web:")
+	case strings.HasPrefix(tx, "notes:"):
+		ct.Kind, ct.Title = "notes", "Lecture notes"
+	default:
+		ct.Kind = "pdf"
+		ct.Title = titles[tx]
+		if ct.Title == "" {
+			ct.Title = tx
+		}
+		if i := strings.IndexByte(tx, '/'); i > 0 {
+			ct.URL = "/api/modules/" + url.PathEscape(tx[:i]) + "/files/" + escapePath(tx[i+1:])
+		}
+		ct.LibraryID = libIDs[tx]
+	}
+	return ct
+}
+
 type courseView struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -321,21 +346,7 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		libIDs[key] = slug(key)
 	}
 	for _, tx := range c.Texts {
-		ct := courseText{Key: tx}
-		if strings.HasPrefix(tx, "web:") {
-			ct.Kind, ct.Title = "web", strings.TrimPrefix(tx, "web:")
-		} else {
-			ct.Kind = "pdf"
-			ct.Title = titles[tx]
-			if ct.Title == "" {
-				ct.Title = tx
-			}
-			if i := strings.IndexByte(tx, '/'); i > 0 {
-				ct.URL = "/api/modules/" + url.PathEscape(tx[:i]) + "/files/" + escapePath(tx[i+1:])
-			}
-			ct.LibraryID = libIDs[tx]
-		}
-		out.Texts = append(out.Texts, ct)
+		out.Texts = append(out.Texts, resolveCourseText(tx, titles, libIDs))
 	}
 	out.Videos = courseVideos(mods, c.ID)
 	// Lecture notes: the course's own pages, then every topic's, each once,
