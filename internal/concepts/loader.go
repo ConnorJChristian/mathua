@@ -35,22 +35,42 @@ func LoadDir(dir string) (*DAG, error) {
 // module may name base concepts as prerequisites; a duplicate id anywhere is
 // an error, as it is within the base corpus.
 func LoadDirs(base string, extra ...string) (*DAG, error) {
-	raw, err := readConceptDir(base)
+	raw, _, err := ReadRawDirs(base, extra...)
 	if err != nil {
 		return nil, err
 	}
+	return Build(raw)
+}
+
+// ReadRawDirs reads what LoadDirs reads, before validation: the base corpus
+// with its enrichment applied, then each extra folder. The second result
+// names, for each concept, the folder it was read from, so an audit can
+// tell a module's concepts from the corpus's (fork change,
+// internal/graphaudit).
+func ReadRawDirs(base string, extra ...string) ([]Concept, []string, error) {
+	raw, err := readConceptDir(base)
+	if err != nil {
+		return nil, nil, err
+	}
 	// Merge enrichment heuristics (Variants, Encompasses, InterferenceGroup, KeyPrerequisites)
 	if err := mergeEnrichment(base, raw); err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	from := make([]string, len(raw))
+	for i := range from {
+		from[i] = base
 	}
 	for _, dir := range extra {
 		batch, err := readConceptDir(dir)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		raw = append(raw, batch...)
+		for range batch {
+			from = append(from, dir)
+		}
 	}
-	return Build(raw)
+	return raw, from, nil
 }
 
 func readConceptDir(dir string) ([]Concept, error) {
@@ -115,20 +135,27 @@ func mergeEnrichment(dir string, raw []Concept) error {
 			if !ok {
 				return fmt.Errorf("enrichment id %q not found in DAG", e.ID)
 			}
-			if len(e.Encompasses) > 0 {
-				c.Encompasses = append(c.Encompasses, e.Encompasses...)
-			}
-			if len(e.KeyPrerequisites) > 0 {
-				c.KeyPrerequisites = append(c.KeyPrerequisites, e.KeyPrerequisites...)
-			}
+			// The overlay may repeat what the domain file already says (the
+			// corpus does for calc.limit.concept); a repeated id would queue
+			// one remedial step twice and a repeated variant double a label.
+			c.Encompasses = appendMissing(c.Encompasses, e.Encompasses)
+			c.KeyPrerequisites = appendMissing(c.KeyPrerequisites, e.KeyPrerequisites)
 			if e.InterferenceGroup != "" {
 				if c.InterferenceGroup != "" && c.InterferenceGroup != e.InterferenceGroup {
 					return fmt.Errorf("concept %q interference_group conflict: %q vs %q", e.ID, c.InterferenceGroup, e.InterferenceGroup)
 				}
 				c.InterferenceGroup = e.InterferenceGroup
 			}
-			if len(e.Variants) > 0 {
-				c.Variants = append(c.Variants, e.Variants...)
+			for _, v := range e.Variants {
+				dup := false
+				for _, have := range c.Variants {
+					if have.Label == v.Label {
+						dup = true
+					}
+				}
+				if !dup {
+					c.Variants = append(c.Variants, v)
+				}
 			}
 		} else if e.InterferenceGroup != "" && len(e.Members) > 0 {
 			for _, mid := range e.Members {
@@ -144,6 +171,23 @@ func mergeEnrichment(dir string, raw []Concept) error {
 		}
 	}
 	return nil
+}
+
+// appendMissing appends the ids of add that have is missing, in order.
+func appendMissing(have, add []string) []string {
+	for _, id := range add {
+		seen := false
+		for _, h := range have {
+			if h == id {
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			have = append(have, id)
+		}
+	}
+	return have
 }
 
 // Build validates a concept slice (no cycles, orphan prereqs, empty/duplicate IDs), topo-sorts, and returns a DAG.

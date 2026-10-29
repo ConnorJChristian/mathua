@@ -325,3 +325,43 @@ func TestVariants_InvalidDifficulty(t *testing.T) {
 		t.Fatal("expected error for invalid variant difficulty")
 	}
 }
+
+// Fork fix: enrichment.json repeats, for calc.limit.concept, the encompasses,
+// key_prerequisites and variants the domain file already carries. The overlay
+// must not double them: a repeated key prerequisite queued one remedial step
+// twice, and a repeated variant doubled the label.
+func TestEnrichment_DoesNotRepeatWhatTheDomainFileSays(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("d.json", `[
+		{"id":"a","label":"A","domain":"d","prerequisites":[],"mastery_threshold":{"streak":1,"avg_time_seconds":1}},
+		{"id":"b","label":"B","domain":"d","prerequisites":["a"],"encompasses":["a"],"key_prerequisites":["a"],
+		 "variants":[{"difficulty":0.3,"time_thresh":10,"label":"easy"}],
+		 "mastery_threshold":{"streak":1,"avg_time_seconds":1}}
+	]`)
+	write("enrichment.json", `[{"id":"b","encompasses":["a"],"key_prerequisites":["a"],
+		"variants":[{"difficulty":0.3,"time_thresh":10,"label":"easy"},{"difficulty":0.7,"time_thresh":10,"label":"hard"}]}]`)
+	d, err := LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := d.Concept("b")
+	if len(b.Encompasses) != 1 || len(b.KeyPrerequisites) != 1 {
+		t.Errorf("overlay repeated the domain file: encompasses %v, key %v", b.Encompasses, b.KeyPrerequisites)
+	}
+	if len(b.Variants) != 2 {
+		t.Errorf("variants: want easy and hard once each, got %+v", b.Variants)
+	}
+	// The real corpus has the case.
+	real, err := LoadDir("../../data/concepts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c := real.Concept("calc.limit.concept"); len(c.KeyPrerequisites) != 1 || len(c.Variants) != 2 {
+		t.Errorf("calc.limit.concept: key %v, variants %d", c.KeyPrerequisites, len(c.Variants))
+	}
+}
