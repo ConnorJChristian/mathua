@@ -17,4 +17,18 @@ describe('ReadingPanel with lecture notes', () => {
     expect(frame.getAttribute('src')).toContain('/api/modules/m/files/lectures/pie.html')
     expect(screen.queryByRole('radiogroup')).toBeNull()
   })
+
+  // The rendered notebook typesets its formulas with its own script
+  // (MathJax), so the frame must allow scripts; and it must not share the
+  // app's origin, or the page could read the login token from storage.
+  it('lets the notes run their scripts without sharing the app origin', () => {
+    render(
+      <ReadingPanel
+        texts={[{ key: 'notes:m', kind: 'file', book: 'Lecture notes', source: '5-Pie charts', url: '/api/modules/m/files/lectures/pie.html' }]}
+      />,
+    )
+    const sandbox = screen.getByTitle('5-Pie charts').getAttribute('sandbox') ?? ''
+    expect(sandbox.split(/\s+/)).toContain('allow-scripts')
+    expect(sandbox).not.toContain('allow-same-origin')
+  })
 })
