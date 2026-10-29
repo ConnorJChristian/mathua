@@ -15,6 +15,11 @@ import (
 //	\, \; \!     -> spacing dropped
 //	{: and :}    -> dropped (the math box's AsciiMath for invisible brackets)
 //	\frac{a}{b}  -> (a)/(b)
+//	x², x³       -> x^(2), x^(3)
+//	\frac34      -> (3)/(4)
+//	\sqrt[3]{L}, root(3)(L) -> (L)^(1/3)
+//	\ln x, ∗     -> ln x, *
+//	f_(L K)      -> f_LK
 //	β, \beta     -> beta (and the other Greek letters)
 //	x2           -> x_2, when the expected answer writes subscripts
 //
@@ -28,13 +33,26 @@ func NormalizeTypedMath(s, expected string) string {
 		s = strings.ReplaceAll(s, g[0], g[1])
 		s = strings.ReplaceAll(s, "\\"+g[1], g[1])
 	}
-	s = strings.NewReplacer("\\cdot", "*", "\\times", "*", "×", "*", "·", "*", "{:", "", ":}", "", "\\left", "", "\\right", "", "\\,", " ", "\\;", " ", "\\:", " ", "\\!", "", "\\ ", " ", "−", "-").Replace(s)
+	// \frac34 and \frac1{12}: the digit arguments TeX allows without braces.
+	s = fracDigitsRe.ReplaceAllString(s, "\\frac{$1}{$2}")
+	s = fracDigitBraceRe.ReplaceAllString(s, "\\frac{$1}{")
+	s = fracBraceDigitRe.ReplaceAllString(s, "\\frac{$1}{$2}")
+	// Function names keep their names without the backslash: \ln x is ln x.
+	s = funcNameRe.ReplaceAllString(s, "$1")
+	s = strings.NewReplacer("\\cdot", "*", "\\times", "*", "×", "*", "·", "*", "∗", "*", "\\ast", "*", "{:", "", ":}", "", "\\left", "", "\\right", "", "\\,", " ", "\\;", " ", "\\:", " ", "\\!", "", "\\ ", " ", "−", "-",
+		// Superscript digits typed from a keyboard ("3x²"), and the inverse
+		// sign of f⁻¹ (fork fix).
+		"⁻¹", "^(-1)", "¹", "^(1)", "²", "^(2)", "³", "^(3)", "⁴", "^(4)").Replace(s)
 	// Innermost braces first, until nothing changes: "\\sqrt{x^{2}+5}"
 	// needs the power rewritten before the root can be.
 	for i := 0; i < 8; i++ {
 		next := supBraceRe.ReplaceAllString(s, "^($1)")
 		next = subBraceRe.ReplaceAllString(next, "_$1")
 		next = fracRe.ReplaceAllString(next, "($1)/($2)")
+		// An nth root, as LaTeX writes it and as the math box exports it
+		// (root(3)(L)), is a fractional power.
+		next = nthRootRe.ReplaceAllString(next, "($2)^(1/$1)")
+		next = rootExportRe.ReplaceAllString(next, "($2)^(1/$1)")
 		next = sqrtRe.ReplaceAllString(next, "sqrt($1)")
 		if next == s {
 			break
@@ -43,6 +61,16 @@ func NormalizeTypedMath(s, expected string) string {
 	}
 	// "(1)/(3)": a bracketed plain number is the number.
 	s = unwrapNumbers(s)
+	// A multi-letter subscript the math box exports with spaces, "f_(L K)",
+	// is the one name f_LK.
+	s = subGroupRe.ReplaceAllStringFunc(s, func(m string) string {
+		sub := subGroupRe.FindStringSubmatch(m)
+		out := "_" + strings.ReplaceAll(sub[1], " ", "")
+		if sub[2] != "" {
+			out += "*" + sub[2] // f_(K K)f_(L L): a product of two names
+		}
+		return out
+	})
 	if subscriptRe.MatchString(expected) {
 		s = bareSubscriptRe.ReplaceAllString(s, "${1}${2}_$3")
 	}
@@ -50,6 +78,13 @@ func NormalizeTypedMath(s, expected string) string {
 }
 
 var (
+	fracDigitsRe      = regexp.MustCompile(`\\d?frac(\d)(\d)`)
+	fracDigitBraceRe  = regexp.MustCompile(`\\d?frac(\d)\{`)
+	fracBraceDigitRe  = regexp.MustCompile(`\\d?frac\{([^{}]*)\}(\d)`)
+	funcNameRe        = regexp.MustCompile(`\\(ln|log|exp|sin|cos|tan|sec|csc|cot|arcsin|arccos|arctan|sinh|cosh|tanh|max|min|det)\b`)
+	nthRootRe         = regexp.MustCompile(`\\sqrt\[(\d+)\]\{([^{}]*)\}`)
+	rootExportRe      = regexp.MustCompile(`root\((\d+)\)\(([^()]*)\)`)
+	subGroupRe        = regexp.MustCompile(`_\(([A-Za-z0-9]+(?: [A-Za-z0-9]+)+)\)([A-Za-z]?)`)
 	greekRunRe        = regexp.MustCompile(`([αβγδεθλμπρστφω])([A-Za-z\\\\])`)
 	bareNumberParenRe = regexp.MustCompile(`\((-?\d+(?:\.\d+)?)\)`)
 	sqrtRe            = regexp.MustCompile(`\\sqrt\{([^{}]*)\}`)
