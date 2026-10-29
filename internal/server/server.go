@@ -1556,7 +1556,7 @@ func (s *Server) handleGoalPlan(w http.ResponseWriter, r *http.Request) {
 		readiness = float64(correct) / float64(total)
 	}
 
-	writeJSON(w, map[string]interface{}{
+	out := map[string]interface{}{
 		"readiness":               readiness,
 		"total_tested":            total,
 		"correct_count":           correct,
@@ -1573,7 +1573,43 @@ func (s *Server) handleGoalPlan(w http.ResponseWriter, r *http.Request) {
 		"completion_estimates": report.CompletionEstimates,
 		"course_id":            placementCourse,
 		"sections":             sections,
-	})
+	}
+	if placementCourse != "" {
+		s.coursePlacementResult(out, studentID, placementCourse)
+	}
+	writeJSON(w, out)
+}
+
+// coursePlacementResult makes a course placement's results agree with the
+// course page. "Start here" is the course page's own next topic, read after the
+// placement was applied, rather than the diagnostic's frontier over the whole
+// graph, which named a different topic. The completion estimate priced a
+// generic destination in XP ("10 XP → ≈404 days") and contradicted the
+// course's date; it gives way to the course's own pace: its date, the topics
+// due by then that are left, and the topics a week that takes.
+func (s *Server) coursePlacementResult(out map[string]interface{}, studentID, courseID string) {
+	out["completion_estimates"] = nil
+	view, err := s.courseView(studentID, courseID)
+	if err != nil || view == nil {
+		return
+	}
+	if view.NextTopic != nil {
+		out["frontier_label"] = view.NextTopic.Label
+		out["frontier_id"] = view.NextTopic.ID
+		out["frontier_conditional"] = false
+	}
+	left := view.DueTotal - view.DueMastered
+	pace := map[string]interface{}{"topics_left": left}
+	if view.Due != "" {
+		pace["due"] = view.Due
+	}
+	if view.DaysLeft != nil {
+		pace["days_left"] = *view.DaysLeft
+		if *view.DaysLeft > 0 && left > 0 {
+			pace["per_week"] = math.Round(float64(left)/float64(*view.DaysLeft)*7*10) / 10
+		}
+	}
+	out["course_pace"] = pace
 }
 
 // completionEstimates prices the learner's saved destination at a few example

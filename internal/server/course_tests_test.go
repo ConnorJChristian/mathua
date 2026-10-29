@@ -223,3 +223,48 @@ func TestCourseTests_UngradedIsNeverAMiss(t *testing.T) {
 		t.Fatalf("progress changed by an ungraded answer: %+v %v", p, err)
 	}
 }
+
+// A course placement's results agree with the course page: "Start here" is the
+// course page's next topic, and the XP completion estimate gives way to the
+// course's own pace.
+func TestCoursePlacementResults_MatchTheCoursePage(t *testing.T) {
+	mux, _ := courseTestServer(t)
+	token, _ := guestTokenAndID(t, mux)
+	code, body := postJSONRaw(t, mux, "/api/goal/diagnostic", `{"course_id":"plan.ok"}`, token)
+	if code != 200 {
+		t.Fatalf("placement start: %d %s", code, body)
+	}
+	m := decodeMap(t, body)
+	sess, cid := m["session_id"].(string), m["concept_id"].(string)
+	for i := 0; i < 60; i++ {
+		code, body = postJSONRaw(t, mux, "/api/goal/diagnostic/answer", fmt.Sprintf(`{"session_id":%q,"concept_id":%q,"answer":"42","elapsed":3}`, sess, cid), token)
+		if code != 200 {
+			t.Fatalf("answer %d: %d %s", i, code, body)
+		}
+		m = decodeMap(t, body)
+		if m["done"] == true {
+			break
+		}
+		cid, _ = m["concept_id"].(string)
+	}
+	code, body = postJSONRaw(t, mux, "/api/goal/plan", fmt.Sprintf(`{"session_id":%q}`, sess), token)
+	if code != 200 {
+		t.Fatalf("plan: %d %s", code, body)
+	}
+	plan := decodeMap(t, body)
+	view := decodeMap(t, authedGet(t, mux, "/api/courses/view?id=plan.ok", token).Body.String())
+	next, _ := view["next_topic"].(map[string]interface{})
+	if next == nil {
+		t.Fatalf("the course page names no next topic: %v", view)
+	}
+	if plan["frontier_label"] != next["label"] || plan["frontier_id"] != next["id"] {
+		t.Errorf("Start here = %v (%v), the course page says %v (%v)", plan["frontier_label"], plan["frontier_id"], next["label"], next["id"])
+	}
+	if plan["completion_estimates"] != nil {
+		t.Errorf("completion_estimates = %v; a course placement reports the course's pace instead", plan["completion_estimates"])
+	}
+	pace, _ := plan["course_pace"].(map[string]interface{})
+	if pace == nil || pace["topics_left"] == nil {
+		t.Errorf("course_pace = %v", plan["course_pace"])
+	}
+}

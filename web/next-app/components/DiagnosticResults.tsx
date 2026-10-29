@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import type { GoalPlanRes } from '../lib/api'
 import { domainLabel } from '../lib/domains'
+import { formatDue } from '../lib/dates'
 
 
 interface Props {
@@ -16,7 +17,10 @@ export default function DiagnosticResults({ plan, onStartPractice }: Props) {
 
   const domains = new Set([...Object.keys(plan.weak_areas), ...Object.keys(plan.strong_areas)])
   const readinessPct = Math.round(plan.readiness * 100)
-  const estimates = plan.completion_estimates ? Object.entries(plan.completion_estimates).sort((a, b) => Number(a[0]) - Number(b[0])) : []
+  // A course placement reports the course's own pace (its date and the topics due by
+  // then); the XP estimate priced a generic destination and contradicted the date.
+  const pace = plan.course_pace
+  const estimates = !pace && plan.completion_estimates ? Object.entries(plan.completion_estimates).sort((a, b) => Number(a[0]) - Number(b[0])) : []
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -31,7 +35,15 @@ export default function DiagnosticResults({ plan, onStartPractice }: Props) {
           {plan.placement_course_id && (
             <p className="font-mono text-xs text-mathua-secondary mt-1">Suggested course: {plan.placement_course_id}</p>
           )}
-          {estimates.length > 0 && (
+          {pace ? (
+            pace.topics_left > 0 && (
+              <p className="font-mono text-[11px] text-mathua-muted mt-2">
+                {pace.due
+                  ? `${pace.topics_left} topic${pace.topics_left === 1 ? '' : 's'} left before ${formatDue(pace.due)}${pace.per_week ? ` · ${pace.per_week} a week` : ''}`
+                  : `${pace.topics_left} topic${pace.topics_left === 1 ? '' : 's'} left in this course`}
+              </p>
+            )
+          ) : estimates.length > 0 && (
             <p className="font-mono text-[11px] text-mathua-muted mt-2">
               Estimated completion: {estimates.map(([xp, when]) => `${xp} XP → ${when}`).join(' · ')}
             </p>

@@ -745,6 +745,10 @@ export interface GoalPlanRes {
   // Fork change: a course placement test's per-section summary.
   course_id?: string
   sections?: CourseTestSection[] | null
+  /** A course placement: the course page's next topic, which "Start here" names. */
+  frontier_id?: string
+  /** A course placement: the course's own pace, in place of the XP completion estimate. */
+  course_pace?: { due?: string; days_left?: number; topics_left: number; per_week?: number }
 }
 
 /**

@@ -52,4 +52,20 @@ describe('DiagnosticResults', () => {
     render(<DiagnosticResults plan={base} />)
     expect(screen.queryByText(/Start here:/)).toBeNull()
   })
+
+  it("gives a course placement the course's pace, not an XP estimate", () => {
+    render(
+      <DiagnosticResults
+        plan={{
+          ...base,
+          frontier_label: 'Sets, elements and subsets',
+          completion_estimates: { '10': '≈404 days' },
+          course_pace: { due: '2026-12-06', days_left: 38, topics_left: 19, per_week: 3.5 },
+        }}
+      />,
+    )
+    expect(screen.getByText('Start here: Sets, elements and subsets')).toBeInTheDocument()
+    expect(screen.queryByText(/404 days/)).toBeNull()
+    expect(screen.getByText(/19 topics left before .* · 3.5 a week/)).toBeInTheDocument()
+  })
 })
