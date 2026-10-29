@@ -135,16 +135,21 @@ type Question struct {
 }
 
 type AnswerResult struct {
-	Correct        bool           `json:"correct"`
-	Feedback       string         `json:"feedback"`
-	NewStatus      mastery.Status `json:"new_status"`
-	Explanation    string         `json:"explanation"`
-	Streak         int            `json:"streak"`
-	RequiredStreak int            `json:"required_streak"`
-	XP             int            `json:"xp"`
-	ExpectedAnswer string         `json:"expected_answer"`
-	Halted         bool           `json:"halted,omitempty"`
-	Remedial       []string       `json:"remedial,omitempty"`
+	Correct   bool           `json:"correct"`
+	Feedback  string         `json:"feedback"`
+	NewStatus mastery.Status `json:"new_status"`
+	// ToMaster is how many more correct answers in a row take the concept to
+	// MASTERED under the evidence rule (mastery.CorrectToMaster): 0 when it
+	// is mastered, -1 when that cannot be said (a self-graded card moves no
+	// mastery, or right answers alone would not get there soon).
+	ToMaster       int      `json:"to_master"`
+	Explanation    string   `json:"explanation"`
+	Streak         int      `json:"streak"`
+	RequiredStreak int      `json:"required_streak"`
+	XP             int      `json:"xp"`
+	ExpectedAnswer string   `json:"expected_answer"`
+	Halted         bool     `json:"halted,omitempty"`
+	Remedial       []string `json:"remedial,omitempty"`
 	// Ungraded marks a grader infrastructure fault: the answer was NOT
 	// evaluated and nothing was recorded. Clients should retry, not penalize.
 	Ungraded bool `json:"ungraded,omitempty"`
@@ -1384,11 +1389,24 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 // is a stronger source than a caller could supply, for the same reason the expected answer
 // does.
 func (e *Engine) SubmitStudyAnswer(studentID, conceptID, answer string, elapsedSeconds float64, questionText string) (*AnswerResult, error) {
+	return e.submitStudy(studentID, conceptID, answer, elapsedSeconds, questionText, false)
+}
+
+// SubmitStudyDontKnow records an admitted unknown ("I don't know") on a Learn
+// question, with the same semantics as the quiz and placement button: a miss
+// for the evidence, the streak and the halt count, graded against the
+// question's anchor so its worked solution comes back, but no XP and never
+// the rushing penalty (an instant admission is honesty, not rushing).
+func (e *Engine) SubmitStudyDontKnow(studentID, conceptID string, elapsedSeconds float64, questionText string) (*AnswerResult, error) {
+	return e.submitStudy(studentID, conceptID, "", elapsedSeconds, questionText, true)
+}
+
+func (e *Engine) submitStudy(studentID, conceptID, answer string, elapsedSeconds float64, questionText string, dontKnow bool) (*AnswerResult, error) {
 	taskType := TaskLesson
 	if strings.HasSuffix(conceptID, ".word") {
 		taskType = TaskMultistep
 	}
-	return e.submitAnswerWithTask(studentID, conceptID, answer, "", elapsedSeconds, taskType, true, false, questionText, nil)
+	return e.submitAnswerWithTask(studentID, conceptID, answer, "", elapsedSeconds, taskType, true, dontKnow, questionText, nil)
 }
 
 // SubmitQuizAnswer is the single-path quiz grader: TaskQuiz base XP (20),
@@ -1545,6 +1563,10 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 		return nil, fmt.Errorf("record attempt: %w", err)
 	}
 	xp := e.awardXP(studentID, xppolicy.AwardValue(gr.Correct, elapsedSeconds, timeThreshold, difficulty))
+	toMaster := -1
+	if !practiceOnly(expected) {
+		toMaster = e.correctToMaster(studentID, conceptID, newStatus, timeThreshold, difficulty)
+	}
 
 	// PR 1.5: negative XP for rushing/guessing + halt flag at 2 consecutive misses.
 	missKey := studentID + "|" + conceptID
@@ -1590,6 +1612,7 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 		Feedback:       gr.Feedback,
 		Diagnosis:      gr.Diagnosis,
 		NewStatus:      newStatus,
+		ToMaster:       toMaster,
 		EvidenceScore:  evidence.Score,
 		EvidenceBand:   mastery.EvidenceBand(evidence),
 		Explanation:    explanation,
@@ -2651,6 +2674,38 @@ func (e *Engine) buildEvidenceWindow(studentID, conceptID string, current master
 	window = append(window, prior...)
 	window = append(window, current)
 	return mastery.BuildEvidence(window, opts)
+}
+
+// correctToMaster reads the concept's recorded evidence window (the answer just
+// graded included) and runs the ladder forward (mastery.CorrectToMaster). A
+// further answer is assumed on time, at the difficulty just served.
+func (e *Engine) correctToMaster(studentID, conceptID string, status mastery.Status, timeThreshold float64, difficulty *float64) int {
+	if status == mastery.StatusMastered {
+		return 0
+	}
+	opts := mastery.EvidenceOptions{}
+	if c := e.dag.Concept(conceptID); c != nil {
+		opts.TimeThreshold = c.MasteryThreshold.AvgTimeSeconds
+	}
+	var window []mastery.Attempt
+	if e.repo != nil {
+		rows, err := e.repo.GetRecentAttemptsForConcept(studentID, conceptID, mastery.EvidenceWindow)
+		if err != nil {
+			return -1
+		}
+		for _, r := range rows {
+			window = append(window, mastery.Attempt{Correct: r.Correct, Elapsed: r.ElapsedSeconds, Difficulty: r.Difficulty, Instance: r.Question})
+		}
+	}
+	d := mastery.NeutralDifficulty
+	if difficulty != nil {
+		d = *difficulty
+	}
+	elapsed := timeThreshold
+	if opts.TimeThreshold > 0 && opts.TimeThreshold < elapsed {
+		elapsed = opts.TimeThreshold
+	}
+	return mastery.CorrectToMaster(status, window, opts, mastery.Attempt{Elapsed: elapsed, Difficulty: &d, Instance: "next"})
 }
 
 // isSelfGraded reports a recall flashcard: the learner's own verdict is the

@@ -338,3 +338,42 @@ func max(a, b int) int {
 	}
 	return b
 }
+
+// MaxToMaster bounds CorrectToMaster's walk. The window is EvidenceWindow wide
+// and the ladder climbs one rung per answer, so a run of correct answers
+// reaches mastery well inside it; past it the answer is "not by right answers
+// alone", which callers report as unknown.
+const MaxToMaster = 3 * EvidenceWindow
+
+// CorrectToMaster is how many more correct answers, in a row, take a concept
+// from `current` to MASTERED under the same rule the engine decides on: each
+// answer is appended to the evidence window and the ladder (Machine.Next)
+// climbs at most one rung per answer. `window` is the recorded attempts,
+// newest last; `next` is the shape of a further correct answer (its elapsed
+// time and difficulty). Zero means already mastered; -1 means not within
+// MaxToMaster answers.
+func CorrectToMaster(current Status, window []Attempt, opts EvidenceOptions, next Attempt) int {
+	if current == StatusMastered {
+		return 0
+	}
+	m := &Machine{}
+	w := append([]Attempt(nil), window...)
+	status := current
+	next.Correct = true
+	for n := 1; n <= MaxToMaster; n++ {
+		a := next
+		if a.Instance != "" {
+			// Distinct instances, as a real session serves them.
+			a.Instance = a.Instance + "#" + string(rune('a'+n))
+		}
+		w = append(w, a)
+		if len(w) > EvidenceWindow {
+			w = w[len(w)-EvidenceWindow:]
+		}
+		status = m.Next(status, TransitionCtx{Evidence: BuildEvidence(w, opts)})
+		if status == StatusMastered {
+			return n
+		}
+	}
+	return -1
+}

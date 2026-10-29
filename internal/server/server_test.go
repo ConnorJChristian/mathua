@@ -2146,3 +2146,62 @@ func TestQuestionPayloadCarriesTheDeclaredAnswerFormat(t *testing.T) {
 		t.Errorf("answer_input_mode = %v, want text rather than the numeric default", got)
 	}
 }
+
+// "I don't know" in a lesson has the tests' semantics: an admitted unknown is
+// a miss for the evidence and the halt count, is graded against the served
+// question so its worked solution comes back, earns no XP and never the
+// rushing penalty, and is not refused for being quick.
+func TestStudyAnswer_DontKnow(t *testing.T) {
+	_, mux, _ := guestServer(t)
+	token, studentID := quizGuest(t, mux)
+	serve := func() (question, answer string) {
+		rec := httptest.NewRecorder()
+		get := httptest.NewRequest("GET", "/api/lessons/a/practice?student_id="+studentID+"&count=1", nil)
+		get.Header.Set("Authorization", "Bearer "+token)
+		mux.ServeHTTP(rec, get)
+		var set struct {
+			Questions []struct{ Question, Answer string } `json:"questions"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &set); err != nil || len(set.Questions) == 0 {
+			t.Fatalf("practice: %d %s", rec.Code, rec.Body.String())
+		}
+		return set.Questions[0].Question, set.Questions[0].Answer
+	}
+	type verdict struct {
+		Correct        bool   `json:"correct"`
+		XP             int    `json:"xp"`
+		Halted         bool   `json:"halted"`
+		Explanation    string `json:"explanation"`
+		ExpectedAnswer string `json:"expected_answer"`
+		ToMaster       int    `json:"to_master"`
+	}
+	var got []verdict
+	for i := 0; i < 3; i++ {
+		question, anchored := serve()
+		body, _ := json.Marshal(map[string]interface{}{
+			"concept_id": "a", "answer": "", "elapsed": 0.2, "question": question, "dont_know": true,
+		})
+		rec := httptest.NewRecorder()
+		post := httptest.NewRequest("POST", "/api/study/answer", bytes.NewReader(body))
+		post.Header.Set("Authorization", "Bearer "+token)
+		mux.ServeHTTP(rec, post)
+		if rec.Code != 200 {
+			t.Fatalf("don't know %d: %d %s", i, rec.Code, rec.Body.String())
+		}
+		var v verdict
+		json.Unmarshal(rec.Body.Bytes(), &v)
+		if v.Correct || v.XP != 0 {
+			t.Errorf("don't know %d: correct %v xp %d, want a miss with no XP and no rushing penalty", i, v.Correct, v.XP)
+		}
+		if v.ExpectedAnswer != anchored || v.Explanation == "" {
+			t.Errorf("don't know %d: the served solution should come back: %+v", i, v)
+		}
+		if v.ToMaster <= 0 {
+			t.Errorf("don't know %d: to_master = %d, want the right answers still needed", i, v.ToMaster)
+		}
+		got = append(got, v)
+	}
+	if got[0].Halted || !got[1].Halted {
+		t.Errorf("halts: %v, %v; an admitted unknown counts toward the halt like a miss", got[0].Halted, got[1].Halted)
+	}
+}

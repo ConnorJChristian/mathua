@@ -722,3 +722,29 @@ func TestLadder_HarderEvidenceNeverHurts(t *testing.T) {
 		t.Errorf("slow answers gave a higher rung (%v) than fast (%v)", HighestRung(slow), fast)
 	}
 }
+
+// "N more correct to master" is the ladder itself, run forward: an unseen
+// concept needs a full evidence window of right answers, and a run already
+// under way needs fewer.
+func TestCorrectToMaster(t *testing.T) {
+	opts := EvidenceOptions{TimeThreshold: 60}
+	d := 0.6
+	right := Attempt{Correct: true, Elapsed: 20, Difficulty: &d, Instance: "q"}
+	wrong := Attempt{Correct: false, Elapsed: 20, Difficulty: &d, Instance: "w"}
+	if got := CorrectToMaster(StatusMastered, nil, opts, right); got != 0 {
+		t.Errorf("mastered: %d, want 0", got)
+	}
+	if got := CorrectToMaster(StatusUnseen, nil, opts, right); got != MasteryEvidenceFloor {
+		t.Errorf("unseen, no attempts: %d, want %d (the evidence floor)", got, MasteryEvidenceFloor)
+	}
+	// Two right answers already recorded and the concept practising: four more.
+	two := []Attempt{right, right}
+	if got := CorrectToMaster(StatusPracticing, two, opts, right); got != MasteryEvidenceFloor-2 {
+		t.Errorf("practicing after two right: %d, want %d", got, MasteryEvidenceFloor-2)
+	}
+	// Misses in the window have to be pushed out of it first.
+	misses := []Attempt{wrong, wrong, wrong, wrong}
+	if got := CorrectToMaster(StatusUnseen, misses, opts, right); got <= 2 {
+		t.Errorf("after four misses: %d, want more than the two answers that fill the window", got)
+	}
+}

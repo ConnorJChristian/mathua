@@ -3135,6 +3135,10 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 		Question  string  `json:"question"`
 		// Fork change: set when the learner chose a locked topic by hand.
 		Override bool `json:"override"`
+		// DontKnow is the "I don't know" button: an admitted unknown, recorded
+		// as a miss with no XP and no rushing penalty, as in tests and
+		// placement. The answer is ignored.
+		DontKnow bool `json:"dont_know"`
 	}
 	if err := decodeJSON(w, r, &req); err != nil {
 		writeError(w, "invalid request", 400)
@@ -3179,7 +3183,7 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 	if req.Elapsed > 600 {
 		req.Elapsed = 600
 	}
-	if req.Elapsed < MinAnswerSeconds {
+	if !req.DontKnow && req.Elapsed < MinAnswerSeconds {
 		writeError(w, "answer submitted too quickly", 400)
 		return
 	}
@@ -3190,7 +3194,13 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 		writeTopicLocked(w, el)
 		return
 	}
-	res, err := s.eng.SubmitStudyAnswer(studentID, req.ConceptID, req.Answer, req.Elapsed, req.Question)
+	var res *engine.AnswerResult
+	var err error
+	if req.DontKnow {
+		res, err = s.eng.SubmitStudyDontKnow(studentID, req.ConceptID, req.Elapsed, req.Question)
+	} else {
+		res, err = s.eng.SubmitStudyAnswer(studentID, req.ConceptID, req.Answer, req.Elapsed, req.Question)
+	}
 	if err != nil {
 		if errors.Is(err, engine.ErrUnknownConcept) {
 			writeError(w, "unknown concept", 404)
@@ -3223,6 +3233,9 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 		"xp":              res.XP,
 		"expected_answer": displayAnswer(res.ExpectedAnswer),
 		"halted":          res.Halted,
+		// More correct answers in a row to master the concept, by the
+		// evidence rule: 0 when mastered, -1 when that cannot be said.
+		"to_master": res.ToMaster,
 		// An answer the grader could not evaluate (a proof judge with no key,
 		// no budget or no reply) recorded nothing; the client keeps the
 		// answer for a retry instead of showing a miss.
