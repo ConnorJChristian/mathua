@@ -2088,11 +2088,16 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The served question deliberately carries no answer and no explanation.
+	// Both live in the server-side study anchor until the learner submits, so a
+	// network inspector cannot read the verdict before producing evidence
+	// (upstream fix, ported: a multiple-choice card's key named its right
+	// option). Bank says the question takes the question-bank inputs, which
+	// the client used to read off the key's prefix (fork change).
 	type qInfo struct {
 		Question        string `json:"question"`
-		Answer          string `json:"answer"`
-		Explanation     string `json:"explanation"`
 		Source          string `json:"source,omitempty"`
+		Bank            bool   `json:"bank,omitempty"`
 		AnswerHint      string `json:"answer_hint,omitempty"`
 		AnswerInputMode string `json:"answer_input_mode,omitempty"`
 	}
@@ -2121,7 +2126,7 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 				if src == "" {
 					src = "curated"
 				}
-				questions[i] = qInfo{Question: q.Question, Answer: displayAnswer(q.Answer), Explanation: q.Explanation, Source: src, AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
+				questions[i] = qInfo{Question: q.Question, Source: src, Bank: grader.IsBankAnswer(q.Answer), AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
 			}
 			qa := make(map[string]engine.Anchor, len(dbQs))
 			for _, q := range dbQs {
@@ -2206,7 +2211,7 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 	}
 	questions := make([]qInfo, len(problems))
 	for i, p := range problems {
-		questions[i] = qInfo{Question: p.Question, Answer: displayAnswer(p.Answer), Explanation: p.Explanation, Source: "generator", AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
+		questions[i] = qInfo{Question: p.Question, Source: "generator", Bank: grader.IsBankAnswer(p.Answer), AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
 	}
 	writeJSON(w, map[string]interface{}{"questions": questions, "concept_id": conceptID})
 }

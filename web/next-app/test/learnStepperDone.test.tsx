@@ -70,14 +70,19 @@ beforeEach(() => {
     concept_id: CID,
     kps: [{ label: 'Add single digits', subgoals: [], worked_example: '2 + 3 = 5' }],
   })
-  vi.mocked(getLessonPractice).mockResolvedValue({ questions: QS, concept_id: CID })
+  vi.mocked(getLessonPractice).mockResolvedValue({
+    questions: QS.map(({ answer: _answer, explanation: _explanation, ...q }) => q),
+    concept_id: CID,
+  })
   vi.mocked(getLessonReadiness).mockResolvedValue({ concept_id: CID, ready: true, weak: [], missing: [] })
   // The server grades by looking the question up in its own anchor; the mock
-  // mirrors that rather than trusting a caller-supplied expected answer.
+  // mirrors that rather than trusting a caller-supplied expected answer. The
+  // expected answer comes back only after submission.
   vi.mocked(submitStudyAnswer).mockImplementation(async (_cid, answer, _elapsed, question) => ({
     correct: answer.trim() === (QS.find(q => q.question === question)?.answer ?? '').trim(),
     feedback: 'Correct!',
     explanation: '',
+    expected_answer: QS.find(q => q.question === question)?.answer ?? '',
     xp: 1,
   }))
   // Shelf head fetch on done: an experienced learner, nothing due.
@@ -222,6 +227,7 @@ describe('LearnStepper explanation after submission', () => {
       correct: true,
       feedback: 'Correct!',
       explanation: '2 and 3 make 5: start at 2 and count on 3.',
+      expected_answer: '5',
       xp: 2,
     })
     render(<LearnStepper conceptId={CID} />)
@@ -233,8 +239,10 @@ describe('LearnStepper explanation after submission', () => {
     // The reasoning for *this* instance, on the correct branch too.
     expect(await screen.findByText('2 and 3 make 5: start at 2 and count on 3.')).toBeTruthy()
     expect(screen.getByText('Why')).toBeTruthy()
-    // The card locked: the answer is restated, not just scored.
+    // The card locked: the answer returned by the submission is restated from
+    // the response, because the practice DTO no longer carries it.
     expect(screen.getByText('Answer:')).toBeTruthy()
+    expect(screen.getByText('5')).toBeTruthy()
   }, 15000)
 
   it('shows the served explanation after a wrong answer, and never "Incorrect"', async () => {
@@ -242,6 +250,7 @@ describe('LearnStepper explanation after submission', () => {
       correct: false,
       feedback: 'Incorrect',
       explanation: 'Start at 2 and count on 3 to reach 5, not 6.',
+      expected_answer: '5',
       xp: 0,
     })
     render(<LearnStepper conceptId={CID} />)
@@ -265,6 +274,7 @@ describe('LearnStepper explanation after submission', () => {
       feedback: 'Incorrect',
       diagnosis: 'You are exactly one away, so a count or a boundary is off by one.',
       explanation: 'Start at 2 and count on 3 to reach 5.',
+      expected_answer: '5',
       xp: 0,
     })
     render(<LearnStepper conceptId={CID} />)
@@ -279,6 +289,7 @@ describe('LearnStepper explanation after submission', () => {
       feedback: 'Incorrect',
       diagnosis: '',
       explanation: 'Start at 2 and count on 3 to reach 5.',
+      expected_answer: '5',
       xp: 0,
     })
     render(<LearnStepper conceptId={CID} />)
@@ -290,7 +301,7 @@ describe('LearnStepper explanation after submission', () => {
   })
 
   it('leaves no empty section when the server sends no explanation', async () => {
-    vi.mocked(submitStudyAnswer).mockResolvedValue({ correct: true, feedback: 'Correct!', explanation: '', xp: 1 })
+    vi.mocked(submitStudyAnswer).mockResolvedValue({ correct: true, feedback: 'Correct!', explanation: '', expected_answer: '5', xp: 1 })
     render(<LearnStepper conceptId={CID} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Next →' }))

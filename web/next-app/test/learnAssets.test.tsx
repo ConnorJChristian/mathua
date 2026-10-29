@@ -183,7 +183,7 @@ describe('/learn figures', () => {
     )
     vi.mocked(getLessonPractice).mockResolvedValue({
       concept_id: CID,
-      questions: [{ question: '2 + 3 = ?', answer: '5', explanation: 'Add them.' }],
+      questions: [{ question: '2 + 3 = ?' }],
     })
     const { container } = await renderStepper()
     // The loop must still be live: a lesson can answer every question it is asked.

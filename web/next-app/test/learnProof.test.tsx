@@ -26,6 +26,9 @@ Element.prototype.scrollIntoView = vi.fn() as unknown as typeof Element.prototyp
 
 const CID = 'arith.add.single'
 const PROOF_Q = '<!--card-->\n**Prove.** Every convergent sequence is bounded.\n\n<!--proof-answer-->'
+// The served questions carry no answer and no explanation: those come back
+// with the submission. A bank-served one says so with a flag.
+const served = (qs: typeof QS) => qs.map(({ answer, explanation: _e, ...q }) => ({ ...q, ...(/^(mc|out|code|recall|math|term|proof):/.test(answer) ? { bank: true } : {}) }))
 const QS = [
   { question: PROOF_Q, answer: 'proof:abbott.convergent_bounded', explanation: 'A reference proof.' },
   { question: '2 + 3 = ?', answer: '5', explanation: 'Add them.' },
@@ -36,7 +39,7 @@ const QS = [
 beforeEach(() => {
   vi.mocked(getNext).mockResolvedValue({ primary: null, alternatives: [], generatedAt: '' } as unknown as Awaited<ReturnType<typeof getNext>>)
   vi.mocked(getLessonKPs).mockResolvedValue({ concept_id: CID, kps: [{ label: 'Add single digits', subgoals: [], worked_example: '2 + 3 = 5' }] })
-  vi.mocked(getLessonPractice).mockResolvedValue({ questions: QS, concept_id: CID })
+  vi.mocked(getLessonPractice).mockResolvedValue({ questions: served(QS), concept_id: CID })
   vi.mocked(getLessonReadiness).mockResolvedValue({ concept_id: CID, ready: true, weak: [], missing: [] })
   vi.mocked(submitStudyAnswer).mockImplementation(async (_cid, answer, _elapsed, question) => {
     if (question === PROOF_Q) {
@@ -45,7 +48,8 @@ beforeEach(() => {
         proof: { score: 7, max: 7, runs: [7, 7, 6, 7, 7], fully_correct: true, milestones: [{ id: 'm1', desc: 'Bounds the tail', points: 7, met: 'yes' }], feedback: 'Complete.', counts_for_mastery: false },
       }
     }
-    return { correct: answer.trim() === (QS.find(q => q.question === question)?.answer ?? ''), feedback: 'Correct!', explanation: '', xp: 1 }
+    const key = QS.find(q => q.question === question)?.answer ?? ''
+    return { correct: answer.trim() === key, feedback: 'Correct!', explanation: '', expected_answer: key, xp: 1 }
   })
   vi.mocked(getUserInfo).mockReturnValue({ student_id: 's1', diagnostic_completed: true } as ReturnType<typeof getUserInfo>)
   vi.mocked(getActivity).mockResolvedValue([])
@@ -96,5 +100,18 @@ describe('a proof in Learn', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Check' }))
     expect(await screen.findByText(/ANTHROPIC_API_KEY is not set/)).toBeTruthy()
     expect((screen.getByRole('textbox', { name: 'Your proof' }) as HTMLTextAreaElement).value).toBe('My proof.')
+  }, 15000)
+
+  it('says that a typed answer was not graded and keeps it (fork fix)', async () => {
+    vi.mocked(getLessonPractice).mockResolvedValue({ questions: served(QS.slice(1)), concept_id: CID })
+    vi.mocked(submitStudyAnswer).mockResolvedValueOnce({ correct: false, ungraded: true, feedback: 'Grading service timed out', xp: 0 })
+    render(<LearnStepper conceptId={CID} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Next →' }))
+    await answerCurrent('5')
+    expect(await screen.findByText(/Grading service timed out/)).toBeTruthy()
+    expect((answerField() as HTMLInputElement).value).toBe('5')
+    // Nothing was recorded: the same question is still the one to answer.
+    expect(screen.getByText('2 + 3 = ?')).toBeTruthy()
+    expect(screen.queryByText('4 + 1 = ?')).toBeNull()
   }, 15000)
 })

@@ -57,7 +57,7 @@ const setup = (opts: { missing?: { id: string; label: string; status?: string }[
   })
   vi.mocked(getLessonPractice).mockResolvedValue({
     concept_id: CID,
-    questions: [{ question: '2 + 3 = ?', answer: '5', explanation: 'Add them.' }],
+    questions: [{ question: '2 + 3 = ?' }],
   })
   vi.mocked(getLessonReadiness).mockResolvedValue({
     concept_id: CID,
