@@ -144,7 +144,7 @@ func gradeSymPy(expected, answer string) Result {
 	// symbolic answers (5^4 vs 625) never depend on the subprocess either.
 	if ev, ok := constEvalNumeric(expected); ok {
 		if av, ok2 := constEvalNumeric(answer); ok2 {
-			if math.Abs(ev-av) < 1e-9 {
+			if math.Abs(ev-av) < 1e-9 || fractionAsDecimal(expected, answer) {
 				return Result{Correct: true, Score: 1}
 			}
 			return Result{Correct: false, Score: 0, Feedback: "Not equivalent"}

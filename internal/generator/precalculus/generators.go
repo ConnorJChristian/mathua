@@ -113,9 +113,18 @@ func canonPoly(coeffs map[int]int) string {
 	return strings.TrimSpace(b.String())
 }
 
+var numRouter = grader.NewRouter()
+
 func gradeNum(expected, user string, tol float64) grader.Result {
+	// The spellings the shared numeric grader reads (a fraction, a thousands
+	// separator, a typeset minus, a leading "x =") are right here too; the
+	// tolerance below is for a rounded decimal (fork fix: "4,372" and "−1"
+	// were "not a number").
+	if r := numRouter.Grade(grader.GradingNumeric, expected, user); r.Correct {
+		return r
+	}
 	e, err1 := strconv.ParseFloat(strings.TrimSpace(expected), 64)
-	uStr := strings.TrimSpace(user)
+	uStr := strings.NewReplacer("−", "-", ",", "").Replace(strings.TrimSpace(user))
 	uStr = strings.TrimSuffix(uStr, ".0")
 	u, err2 := strconv.ParseFloat(uStr, 64)
 	if err1 != nil || err2 != nil {

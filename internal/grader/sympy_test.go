@@ -112,3 +112,23 @@ func TestSympyGrade_MultipleRequests(t *testing.T) {
 		}
 	}
 }
+
+// A wrong answer whose values are tiny everywhere the check samples (twice
+// a derivative with a fifth-power denominator) must not pass on an absolute
+// tolerance (fork fix: the relative scale had a floor of 1).
+func TestSympyGrade_TinyValuedWrongAnswerIsRefused(t *testing.T) {
+	if !sympyAvailable(t) {
+		t.Skip("SymPy not available")
+	}
+	r := NewRouter()
+	key := "-(1464x^2)/((122x^3-49)^5)"
+	if r.Grade(GradingExpression, key, "2*("+key+")").Correct {
+		t.Error("twice the key graded correct")
+	}
+	if !r.Grade(GradingExpression, key, "-1464*x^2*(122*x^3-49)^(-5)").Correct {
+		t.Error("an equivalent spelling of the key graded wrong")
+	}
+	if !r.Grade(GradingExpression, "(x+1)^2 - x^2 - 2x", "1").Correct {
+		t.Error("a cancelling difference graded wrong")
+	}
+}

@@ -1,7 +1,6 @@
 package grader
 
 import (
-	"math"
 	"regexp"
 	"strings"
 )
@@ -46,20 +45,13 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 			return res
 		}
 		answer = lenient(gradingType, expected, answer)
+		expected = readAlike(gradingType, expected)
 	}
 	switch gradingType {
 	case GradingNumeric:
 		res := r.numeric.grade(expected, answer)
-		if !res.Correct && !res.Unavailable {
-			// A fraction answered as a rounded decimal (61/3 as 20.333): the
-			// same number to three places is the same answer (fork fix).
-			if ev, ok := constEvalNumeric(expected); ok {
-				if av, ok2 := constEvalNumeric(answer); ok2 && strings.Contains(expected, "/") && strings.Contains(answer, ".") {
-					if math.Abs(ev-av) <= 0.0006+1e-9 {
-						return Result{Correct: true, Score: 1}
-					}
-				}
-			}
+		if !res.Correct && !res.Unavailable && fractionAsDecimal(expected, answer) {
+			return Result{Correct: true, Score: 1}
 		}
 		return res
 	case GradingPolynomial, GradingExpression, GradingSymbolic:
@@ -136,6 +128,49 @@ func lenient(gradingType GradingType, expected, answer string) string {
 		a = NormalizeTypedMath(a, e)
 	}
 	return a
+}
+
+// readAlike puts the expected answer through the same spelling rules as the
+// learner's (NormalizeTypedMath), for the typed-math types. A key written
+// with a Greek letter or LaTeX ("α (alpha) and β (beta)", "x^{2}") used to
+// be compared with a learner's answer that had been rewritten ("alpha
+// (alpha) and beta (beta)"), so the key's own text graded wrong (fork fix).
+func readAlike(gradingType GradingType, expected string) string {
+	switch gradingType {
+	case GradingNumeric, GradingPolynomial, GradingExpression, GradingSymbolic, GradingTuple:
+		return NormalizeTypedMath(expected, expected)
+	}
+	return expected
+}
+
+// fractionAsDecimal reports a fraction key answered as the same number
+// rounded to three or more decimal places (61/3 as 20.333): the same answer
+// (fork fix). The key rounded to the answer's places must be the answer, so
+// 0.334 is not 1/3, and the answer must have the key's sign and not be
+// zero: a flat window of 0.0006 let -0.00015 pass for 1/6561. The numeric
+// and the expression graders both accept it, so a key's grader does not
+// decide whether a rounded decimal passes.
+func fractionAsDecimal(expected, answer string) bool {
+	if !strings.Contains(expected, "/") || !strings.Contains(answer, ".") {
+		return false
+	}
+	ev, ok := constEvalNumeric(expected)
+	if !ok {
+		return false
+	}
+	a := normalise(answer)
+	av, ok := constEvalNumeric(a)
+	if !ok {
+		return false
+	}
+	places, ok := decimalPlaces(a)
+	if !ok || places < 3 {
+		return false
+	}
+	if av == 0 || (av < 0) != (ev < 0) {
+		return false
+	}
+	return roundsTo(ev, places, av)
 }
 
 // looksLikeMath reports an expected "choice" that is an expression rather

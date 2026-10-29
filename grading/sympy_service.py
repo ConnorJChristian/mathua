@@ -197,6 +197,12 @@ def _numerical_check(ee, ea, num_points: int = 10) -> tuple[bool, str]:
     # skipped. Skipping them used to let a check where every sample was large,
     # as for 70x^4(2x^5+9)^6 on [-5, 5], test nothing and report "equivalent"
     # for any answer at all. A check that tests nothing now fails.
+    #
+    # The scale's floor is small too (fork fix): with a floor of 1 the
+    # tolerance was absolute for values below 1, so twice a derivative whose
+    # samples are all tiny, -1464x^2/(122x^3-49)^5 on [-5, 5], passed as the
+    # derivative. Cancellation noise sits far below 1e-12, so the floor
+    # refuses a different value without refusing an equal one.
     compared = 0
     for _ in range(num_points * 3):
         if compared >= num_points:
@@ -216,7 +222,7 @@ def _numerical_check(ee, ea, num_points: int = 10) -> tuple[bool, str]:
         if not all(map(_finite, (ee_val.real, ee_val.imag, ea_val.real, ea_val.imag))):
             continue
         compared += 1
-        scale = max(1.0, abs(ee_val), abs(ea_val))
+        scale = max(1e-6, abs(ee_val), abs(ea_val))
         if abs(ee_val - ea_val) > 1e-6 * scale:
             return False, "Not equivalent"
 
