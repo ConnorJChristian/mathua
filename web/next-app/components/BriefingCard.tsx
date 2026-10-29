@@ -46,6 +46,18 @@ export const QUIZ_BRIEFING: BriefingItem[] = [
   },
 ]
 
+// A course's review test is not the mastery check: it asks one question per
+// topic the course has taught (11 for a course well under way, not "up to 5"),
+// and those topics come from the course, not from recent lessons.
+export const COURSE_TEST_BRIEFING: BriefingItem[] = [
+  {
+    title: 'One question per topic · timed · closed book',
+    detail: 'Each question has its own timer. Keep books and notes shut.',
+  },
+  QUIZ_BRIEFING[2],
+  QUIZ_BRIEFING[3],
+]
+
 export const REVIEW_BRIEFING: BriefingItem[] = [
   {
     title: 'Only what is due for review',

@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import KatexContent from '../../components/KatexContent'
 import Loading from '../../components/Loading'
 import SectionHeader from '../../components/SectionHeader'
-import BriefingCard, { QUIZ_BRIEFING } from '../../components/BriefingCard'
+import BriefingCard, { COURSE_TEST_BRIEFING, QUIZ_BRIEFING } from '../../components/BriefingCard'
 import ReportButton from '../../components/ReportButton'
 import { startQuizSession, submitQuizAnswer, skipQuizQuestion, type CourseTestSection } from '../../lib/api'
 import CourseTestSummary from '../../components/CourseTestSummary'
@@ -264,7 +264,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
               One question on each of the topics this course has taught you, weakest first. Answers count as mastery evidence, and topics you miss go back into review.
             </p>
           )}
-          <BriefingCard eyebrow="Before you start" items={QUIZ_BRIEFING} />
+          <BriefingCard eyebrow="Before you start" items={courseId ? COURSE_TEST_BRIEFING : QUIZ_BRIEFING} />
           <div className="mt-6 text-center">
             <button
               type="button"
@@ -363,7 +363,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
       <div className="max-w-2xl mx-auto min-w-0 overflow-hidden px-2 sm:px-0">
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-mathua-muted justify-center">
           <span className={quizAccuracy.correct / Math.max(quizAccuracy.total, 1) >= 0.7 ? 'text-mathua-green' : ''}>{quizAccuracy.correct}/{quizAccuracy.total} correct</span>
-          {quizLastResult?.xp ? <span className="text-yellow-400">+{quizLastResult.xp} XP (TaskQuiz 20)</span> : null}
+          {quizLastResult?.xp ? <span className="text-yellow-400">+{quizLastResult.xp} XP</span> : null}
           {quizClosedBook ? <span className="text-mathua-muted">Closed book</span> : null}
           {quizCourses.length > 0 ? <span className="text-mathua-muted break-words [overflow-wrap:anywhere]">Covers: {quizCourses.map((c) => c.replace(/: study plan$/, '')).join(' · ')}</span> : null}
         </div>

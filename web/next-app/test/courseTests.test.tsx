@@ -90,6 +90,11 @@ describe('QuizHost as a course review test', () => {
     })
     render(<QuizHost courseId="plan.x" scope="full" />)
     expect(screen.getByText('Full course review')).toBeTruthy()
+    // The mastery check's briefing promised "up to 5 questions" from "your recent
+    // lessons" on a course test that asks one per taught topic.
+    expect(screen.queryByText(/Up to 5 questions/)).toBeNull()
+    expect(screen.queryByText(/recent lessons/)).toBeNull()
+    expect(screen.getByText(/One question per topic/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /start quiz/i }))
     await screen.findByText(/quiz question 1 of 1/i)
     expect(api.startQuizSession).toHaveBeenCalledWith({ courseId: 'plan.x', scope: 'full' })
@@ -104,10 +109,30 @@ describe('QuizHost as a course review test', () => {
     expect(screen.getByText(/Needs review \(1\)/)).toBeTruthy()
   })
 
+  it('shows the XP an answer earned without an internal label', async () => {
+    vi.mocked(api.startQuizSession).mockResolvedValue({
+      session_id: 's2', concept_id: 'a', concept_name: 'Topic A', question: '2 + 3', grading_type: 'numeric',
+      done: false, questions_total: 2, closed_book: true, course_id: 'plan.x', test: 'review',
+    })
+    vi.mocked(api.submitQuizAnswer).mockResolvedValue({
+      done: false, correct: true, xp: 1, concept_id: 'b', concept_name: 'Topic B', question: '1 + 1', grading_type: 'numeric',
+    })
+    render(<QuizHost courseId="plan.x" scope="review" />)
+    fireEvent.click(screen.getByRole('button', { name: /start quiz/i }))
+    await screen.findByText(/quiz question 1 of 2/i)
+    fireEvent.change(screen.getByLabelText('answer'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: /check answer/i }))
+    const xp = await screen.findByText(/\+1 XP/)
+    // It read "+1 XP (TaskQuiz 20)": an engine constant's name, and a number
+    // that was not the award.
+    expect(xp.textContent).toBe('+1 XP')
+  })
+
   it('keeps the mastery check unchanged without a course', async () => {
     vi.mocked(api.startQuizSession).mockResolvedValue({ session_id: 's', done: true })
     render(<QuizHost />)
     expect(screen.getByText('Mastery check')).toBeTruthy()
+    expect(screen.getByText(/Up to 5 questions/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /start quiz/i }))
     await waitFor(() => expect(api.startQuizSession).toHaveBeenCalledWith(undefined))
     expect(track).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'test_start' }))
