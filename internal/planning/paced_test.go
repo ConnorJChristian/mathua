@@ -180,3 +180,68 @@ func TestPlansOrderPaced_AfterDueModulesDoNotSetThePace(t *testing.T) {
 		t.Errorf("Y's first topic should come before X's material after its due date: y1=%d x05=%d (%v)", rank["y1"], rank["x05"], rank)
 	}
 }
+
+// Fork change: two courses from different books share a prerequisite that
+// lives in a third module (or the corpus). The planner orders them as one
+// graph: the shared prerequisite is one node with one rank, placed before
+// the first plan topic that needs it, and a topic both courses list is
+// ranked once, by the course that reaches it first.
+func TestPlansOrderPaced_TwoCoursesShareAPrerequisite(t *testing.T) {
+	th := concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 10}
+	cs := []concepts.Concept{
+		{ID: "calc.partial", Label: "Partial derivatives", Domain: "calculus", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "py.frame", Label: "DataFrames", Domain: "python_pandas", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "hoy.1", Label: "Hoy 1", Domain: "mathematical_economics", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "hoy.2", Label: "Hoy 2", Domain: "mathematical_economics", Prerequisites: []string{"calc.partial"}, MasteryThreshold: th},
+		{ID: "eq.1", Label: "Econometrics 1", Domain: "econometrics_python", Prerequisites: []string{"py.frame"}, MasteryThreshold: th},
+		{ID: "eq.2", Label: "Econometrics 2", Domain: "econometrics_python", Prerequisites: []string{"calc.partial", "eq.1"}, MasteryThreshold: th},
+		{ID: "shared", Label: "Listed by both", Domain: "statistics", Prerequisites: []string{}, MasteryThreshold: th},
+	}
+	d, err := concepts.Build(cs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "courses.json")
+	os.WriteFile(path, []byte(`[
+		{"id":"plan.hoy","name":"Hoy","grade":"1","description":"","plan":["hoy.1","hoy.2","shared"],"due":"2026-11-01"},
+		{"id":"plan.eq","name":"Econometrics","grade":"1","description":"","plan":["eq.1","shared","eq.2"],"due":"2026-12-01"}
+	]`), 0644)
+	p, err := Load(path, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	rank := p.PlansOrderPaced([]string{"plan.hoy", "plan.eq"}, nil, now)
+	if len(rank) != 7 {
+		t.Fatalf("every concept ranks once, shared ones included: %v", rank)
+	}
+	// The corpus prerequisite is pulled in before the first topic needing it,
+	// which is Hoy's second (the nearer course).
+	if rank["calc.partial"] >= rank["hoy.2"] || rank["calc.partial"] >= rank["eq.2"] {
+		t.Errorf("calc.partial must precede both topics that need it: %v", rank)
+	}
+	if rank["py.frame"] >= rank["eq.1"] {
+		t.Errorf("the pandas prerequisite precedes the task that needs it: %v", rank)
+	}
+	// Both courses' topics are present and interleaved by pace, not grouped by course.
+	if rank["eq.1"] > rank["shared"] && rank["eq.1"] > rank["hoy.2"] {
+		t.Errorf("the second course should not wait for the first to finish: %v", rank)
+	}
+	// Each course's own path still carries the shared prerequisite once.
+	for _, id := range []string{"plan.hoy", "plan.eq"} {
+		path, err := p.PathForCourse(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n := 0
+		for _, c := range path.Concepts {
+			if c.ID == "calc.partial" {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Errorf("%s path lists calc.partial %d times", id, n)
+		}
+	}
+}

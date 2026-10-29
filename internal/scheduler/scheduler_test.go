@@ -493,3 +493,41 @@ func TestNextSmart_FallsBackWithoutPrev(t *testing.T) {
 		t.Errorf("expected root a first with no history, got %+v", cands)
 	}
 }
+
+// Fork change: reviews from two books interleave by how overdue they are,
+// not by module or domain order in the graph.
+func TestNextReview_InterleavesModulesByOverdue(t *testing.T) {
+	th := concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 10}
+	d, err := concepts.Build([]concepts.Concept{
+		{ID: "hoy.a", Label: "Hoy A", Domain: "mathematical_economics", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "hoy.b", Label: "Hoy B", Domain: "mathematical_economics", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "eq.a", Label: "Econometrics A", Domain: "econometrics_python", Prerequisites: []string{}, MasteryThreshold: th},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New(d)
+	now := time.Now().UTC()
+	due := now.Add(-time.Hour)
+	snap := func(lastAttempted time.Time) *ConceptSnapshot {
+		return &ConceptSnapshot{Status: mastery.StatusMastered, Streak: 3, RequiredStreak: 3,
+			LastAttempted: lastAttempted, LastReviewed: lastAttempted, NextReviewDue: &due}
+	}
+	snaps := map[string]*ConceptSnapshot{
+		"hoy.a": snap(now.Add(-2 * 24 * time.Hour)),
+		"hoy.b": snap(now.Add(-3 * 24 * time.Hour)),
+		"eq.a":  snap(now.Add(-9 * 24 * time.Hour)), // the most overdue, in the other book
+	}
+	var order []string
+	for i := 0; i < 3; i++ {
+		next := s.NextReview(snaps, "")
+		if next == nil {
+			t.Fatalf("review %d: nothing due", i)
+		}
+		order = append(order, next.Concept.ID)
+		delete(snaps, next.Concept.ID)
+	}
+	if order[0] != "eq.a" || order[1] != "hoy.b" || order[2] != "hoy.a" {
+		t.Errorf("reviews should come most overdue first across books, got %v", order)
+	}
+}
