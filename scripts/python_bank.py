@@ -44,6 +44,8 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNNER = os.path.join(ROOT, "grading", "pyrunner.py")
+# internal/pytrack/bank.go MaxParts: the most typed answers one math item may ask for.
+MAX_PARTS = 4
 # MATHUA_ROOT names the install whose modules-local/ to build, as it does for
 # the server (internal/modules): a git worktree of this repository has an
 # empty modules-local/, so its script can build the main checkout's local
@@ -243,6 +245,14 @@ def check_item(cid, item):
     # whose non-recall item has no explanation, so catch it here instead.
     if item["kind"] not in ("recall", "math") and not item.get("explain", "").strip():
         errs.append("%s: explain is required" % where)
+    if item["kind"] == "math":
+        # Also mirrors bank.go (MaxParts): more typed answers than that and the
+        # server refuses the whole bank at startup.
+        labels = [p.get("label", "") for p in item.get("parts", [])]
+        if not 1 <= len(labels) <= MAX_PARTS:
+            errs.append("%s: a math item needs 1-%d parts, not %d" % (where, MAX_PARTS, len(labels)))
+        if len(set(labels)) != len(labels):
+            errs.append("%s: two parts share a label" % where)
     if item["kind"] == "output":
         res = run("run", item["code"])
         if res["error"]:
