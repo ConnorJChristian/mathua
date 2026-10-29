@@ -334,3 +334,20 @@ func TestRecommend_StudyPlanOrdersNewTopics(t *testing.T) {
 		t.Errorf("the plan puts c before b, got order %v", all(got))
 	}
 }
+
+// The mastery-check task printed the gate (50) as the XP earned, while the
+// Study page's banner, reading the same student, said 153: two numbers for one
+// fact on one screen.
+func TestMasteryCheckReportsXPEarned(t *testing.T) {
+	s := New(miniDAG(t))
+	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	res := s.Recommend(RecommendInput{Now: now, AttemptedDays: 30, ConceptsMastered: 5,
+		QuizDue: true, QuizXPSince: 153,
+		Snapshots: map[string]*ConceptSnapshot{"a": masteredAt(now)}})
+	if res.Primary == nil || res.Primary.Kind != KindMasteryCheck {
+		t.Fatalf("primary = %+v, want the mastery check", res.Primary)
+	}
+	if !strings.Contains(res.Primary.Detail, "153 XP") {
+		t.Errorf("detail = %q, want the 153 XP earned", res.Primary.Detail)
+	}
+}

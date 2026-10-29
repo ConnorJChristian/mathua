@@ -140,6 +140,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		return scheduler.RecommendationResponse{Alternatives: []scheduler.Recommendation{}}, err
 	}
 	quizDue, _ := e.QuizDue(studentID)
+	quizXP, _ := e.QuizXPSince(studentID)
 
 	// How far along the learner is, in the two terms the recommender needs. Mastered is
 	// effective MASTERED — decay applied, so a stale concept has left the count rather than
@@ -213,6 +214,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		Weakness:            weakness,
 		DueReviews:          due,
 		QuizDue:             quizDue,
+		QuizXPSince:         quizXP,
 		ConceptsMastered:    mastered,
 		AttemptedDays:       len(attemptedDays),
 		ExcludeConceptIds:   exclude,

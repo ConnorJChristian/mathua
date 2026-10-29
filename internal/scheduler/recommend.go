@@ -122,6 +122,9 @@ type RecommendInput struct {
 	DueReviews int
 	// QuizDue is whether the XP gate has been met since the last completed quiz.
 	QuizDue bool
+	// QuizXPSince is the learning XP earned since the last completed quiz, which the
+	// mastery-check task reports. Zero means unknown, and the gate itself is reported.
+	QuizXPSince int
 	// ConceptsMastered and AttemptedDays decide whether this learner is new enough to be
 	// offered the diagnostic rather than a concept.
 	ConceptsMastered int
@@ -238,7 +241,7 @@ func (s *Scheduler) Recommend(in RecommendInput) RecommendationResponse {
 			Reason:   ReasonMasteryReady,
 			Action:   Action{Type: KindMasteryCheck, Href: "/goals?quiz=1"},
 			Badge:    "Mastery check",
-			Detail:   fmt.Sprintf("You have earned %d XP since your last one — take it to lock in what you have learned", xp.QuizGateXP),
+			Detail:   fmt.Sprintf("You have earned %d XP since your last one — take it to lock in what you have learned", max(in.QuizXPSince, xp.QuizGateXP)),
 			CTA:      "Take the check →",
 			Priority: 100,
 		}
