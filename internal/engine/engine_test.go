@@ -1090,7 +1090,7 @@ func TestEngine_Diagnosis(t *testing.T) {
 		why           string
 	}{
 		"sign flipped": {"-42", false, true, "the magnitude is right, so the mistake is the sign"},
-		"off by one":   {"43", false, true, "43 is exactly one from 42"},
+		"one away":     {"43", false, false, "43 is one from 42, but concept a is not a count, so that names no mistake"},
 		"unrelated":    {"17", false, false, "nothing distinguishes 17 from 42"},
 		"right answer": {"42", true, false, "a correct answer has no mistake to name"},
 	}
