@@ -31,6 +31,13 @@ function escapeHtmlMath(s: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\\/g, '&#92;')
+    // Emphasis and code delimiters. The span's text is still Markdown text, so
+    // `\mathcal{L}_x$, $\mathcal{L}_y` paired its underscores into <em> across
+    // two spans and `(x^*, y^*)` paired its asterisks, handing KaTeX halves.
+    .replace(/_/g, '&#95;')
+    .replace(/\*/g, '&#42;')
+    .replace(/~/g, '&#126;')
+    .replace(/`/g, '&#96;')
     .replace(/\r\n/g, '&#10;')
     .replace(/[\n\r]/g, '&#10;')
 }
