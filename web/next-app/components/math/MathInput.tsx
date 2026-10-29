@@ -21,6 +21,7 @@ import dynamic from 'next/dynamic'
 import { Component, lazy, Suspense, useEffect, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import { Input } from '@/components/ui/input'
 import SymbolPalette from '@/components/SymbolPalette'
+import LatexField from './LatexField'
 import { presentationForQuestion } from './keyboards'
 import type { MathInputStatus, MathInputValue } from './types'
 import type { MathLiveFieldHandle } from './MathLiveField'
@@ -28,6 +29,9 @@ import type { MathLiveFieldHandle } from './MathLiveField'
 const SelfCheck = dynamic(() => import('./SelfCheck'), { ssr: false })
 
 const EMPTY: MathInputValue = { latex: '', plainAnswer: '' }
+
+/** Browser preference key for typed-LaTeX entry. */
+export const LATEX_PREF = 'mathua.latexInput'
 
 // `React.lazy` rather than `next/dynamic({ ssr: false })`.
 //
@@ -208,6 +212,27 @@ export default function MathInput({
   // when `MathLiveField` mounts and pushes `value` in.
   const [loadingText, setLoadingText] = useState('')
 
+  // Typed-LaTeX mode (fork change): a learner who writes LaTeX can type source instead of
+  // driving the visual editor. Remembered per browser; storage can be unavailable, so
+  // every read and write is guarded and the visual editor is the default.
+  const [latexMode, setLatexMode] = useState(false)
+  useEffect(() => {
+    try {
+      setLatexMode(window.localStorage.getItem(LATEX_PREF) === '1')
+    } catch {
+      /* storage blocked: stay on the visual editor */
+    }
+  }, [])
+  const toggleLatex = () => {
+    const next = !latexMode
+    setLatexMode(next)
+    try {
+      window.localStorage.setItem(LATEX_PREF, next ? '1' : '0')
+    } catch {
+      /* not remembered, still switched */
+    }
+  }
+
   const isDisabled = disabled === true || status === 'disabled'
   const layout = layoutClasses()
   // Only the standalone fallback needs a status *class*; see fallbackStatusClasses.
@@ -245,6 +270,38 @@ export default function MathInput({
       className={`w-full min-w-0 min-h-12 bg-mathua-code font-mono text-base ${fallbackShell} ${className ?? ''}`}
     />
   )
+
+  const modeToggle = (
+    <button
+      type="button"
+      onClick={toggleLatex}
+      disabled={isDisabled}
+      aria-pressed={latexMode}
+      className="mt-1.5 font-mono text-[11px] text-mathua-muted hover:text-mathua-blue underline-offset-2 hover:underline"
+    >
+      {latexMode ? 'Use the visual editor' : 'Type LaTeX instead'}
+    </button>
+  )
+
+  if (latexMode) {
+    return (
+      <div className={`mathua-math-input ${className ?? ''}`}>
+        <LatexField
+          value={typedLatex || value || ''}
+          onChange={v => {
+            setTypedLatex(v.latex)
+            onChange?.(v)
+          }}
+          onSubmit={() => onSubmit?.()}
+          disabled={isDisabled}
+          ariaLabel={ariaLabel}
+          id={id}
+          inputRef={fallbackRef}
+        />
+        {modeToggle}
+      </div>
+    )
+  }
 
   return (
     <MathLiveBoundary fallback={fallback} onFallback={() => setFallbackActive(true)}>
@@ -294,6 +351,7 @@ export default function MathInput({
         <Suspense fallback={null}>
           <SelfCheck latex={typedLatex} active={!isDisabled} />
         </Suspense>
+        {!fallbackActive && modeToggle}
       </div>
     </MathLiveBoundary>
   )
