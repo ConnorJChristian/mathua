@@ -327,6 +327,13 @@ a review. The mastery test covers only topics studied on followed courses.
 It comes due after 50 XP, 4 topics worked and a gap since the last one: 20
 hours by default, or `MATHUA_QUIZ_GAP_HOURS` (168 for a weekly test).
 
+A review floor keeps foundations a learner is long past out of the review
+queue: `MATHUA_REVIEW_FLOOR_DOMAINS` lists domains (for example
+`arithmetic,fractions,prealgebra,geometry`) whose mastered topics are never
+served as reviews, even topics the learner practised. A topic a followed
+course lists as its own, or one the learner pins, is reviewed as usual, and
+topics still being learned are untouched. Unset, there is no floor.
+
 ### Book exercises and practice that unlocks
 
 Two optional fields of a bank item (`bank/*.json`, written with

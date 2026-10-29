@@ -168,3 +168,56 @@ func TestCreditOnlyFoundationsAreNotReviewedOrSuggested(t *testing.T) {
 		t.Errorf("pinned f4 is not recommended: %+v", recs(resp))
 	}
 }
+
+// Below the review floor, practice of one's own does not bring a mastered
+// topic back as a review: f2 (arithmetic) was practised and is due, yet with
+// arithmetic under the floor it is not served. q (statistics, above the floor)
+// still is, and a pin lifts the floor for f2.
+func TestReviewFloorStopsPractisedFoundations(t *testing.T) {
+	e, sid := creditOnlyFixture(t)
+	past := time.Now().Add(-time.Hour)
+	upsert := func(p storage.ConceptProgress) {
+		t.Helper()
+		p.StudentID = sid
+		p.SM2EFactor = 2.5
+		if err := e.repo.UpsertProgress(&p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	upsert(storage.ConceptProgress{ConceptID: "f2", Status: "MASTERED", Attempts: 9, LastReviewed: &past, LastAttempted: &past, NextReviewDue: &past})
+
+	// Without a floor the practised foundation is due, as before.
+	t.Setenv("MATHUA_REVIEW_FLOOR_DOMAINS", "")
+	if n, _ := e.ReviewsDue(sid); n != 1 {
+		t.Fatalf("no floor: ReviewsDue = %d, want 1 (f2)", n)
+	}
+
+	t.Setenv("MATHUA_REVIEW_FLOOR_DOMAINS", "arithmetic, fractions")
+	if n, _ := e.ReviewsDue(sid); n != 0 {
+		t.Errorf("floor: ReviewsDue = %d, want 0", n)
+	}
+	if served := reviewServed(t, e, sid, 10); len(served) != 0 {
+		t.Errorf("floor: review session served %v", served)
+	}
+	resp, err := e.RecommendNext(sid, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range recs(resp) {
+		if r.ConceptID == "f2" {
+			t.Errorf("floor: recommended f2 (%s)", r.Badge)
+		}
+	}
+
+	upsert(storage.ConceptProgress{ConceptID: "q", Status: "MASTERED", Attempts: 6, LastReviewed: &past, LastAttempted: &past, NextReviewDue: &past})
+	if served := reviewServed(t, e, sid, 10); len(served) != 1 || !served["q"] {
+		t.Errorf("floor: served %v, want q (statistics is above the floor)", served)
+	}
+
+	if _, err := e.SetPins(sid, []string{"f2"}); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := e.ReviewsDue(sid); n != 2 {
+		t.Errorf("floor + pin: ReviewsDue = %d, want 2 (f2 pinned, q)", n)
+	}
+}

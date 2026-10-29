@@ -84,7 +84,7 @@ func (e *Engine) ReviewsDueTrack(studentID, track string) (int, error) {
 	}
 	now := time.Now()
 	count := 0
-	skip := e.creditOnlyOffCourse(studentID, progress)
+	skip := e.notReviewed(studentID, progress)
 	for _, p := range progress {
 		if !e.InTrack(p.ConceptID, track) || skip[p.ConceptID] {
 			continue
@@ -179,8 +179,9 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	}
 	e.mu.Unlock()
 	// Credit-only foundations no followed course asks for are neither
-	// reviewed nor offered as new (creditOnlyOffCourse).
-	for cid := range e.creditOnlyOffCourse(studentID, progress) {
+	// reviewed nor offered as new (creditOnlyOffCourse), and mastered topics
+	// below the review floor are not served again (belowReviewFloor).
+	for cid := range e.notReviewed(studentID, progress) {
 		exclude = append(exclude, cid)
 	}
 
