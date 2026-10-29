@@ -4673,12 +4673,29 @@ func newUUID() string {
 // Accept-Encoding: gzip. JSON lesson/graph payloads compress ~8-10x.
 type gzipResponseWriter struct {
 	http.ResponseWriter
-	gz *gzip.Writer
+	gz          *gzip.Writer
+	wroteHeader bool
+}
+
+// WriteHeader states the encoding as the status goes out, not only before the
+// handler runs: http.FileServer's error path deletes Content-Encoding (Go 1.23
+// and later), and the body that follows is gzipped all the same, so a missing
+// page reached the browser as gzip bytes labelled plain text.
+func (g *gzipResponseWriter) WriteHeader(code int) {
+	if !g.wroteHeader {
+		g.wroteHeader = true
+		g.Header().Set("Content-Encoding", "gzip")
+		g.Header().Del("Content-Length")
+	}
+	g.ResponseWriter.WriteHeader(code)
 }
 
 func (g *gzipResponseWriter) Write(b []byte) (int, error) {
 	if g.Header().Get("Content-Type") == "" {
 		g.Header().Set("Content-Type", "application/json")
+	}
+	if !g.wroteHeader {
+		g.WriteHeader(http.StatusOK)
 	}
 	return g.gz.Write(b)
 }
