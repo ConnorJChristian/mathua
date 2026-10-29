@@ -350,6 +350,13 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		}
 	}
 
+	// The learner's own pick wins: the earliest unmastered topic of this
+	// course they pinned for the week, in course order, is what is next here
+	// (the Study queue leads with pins too, so the two agree).
+	if pin := firstOpenPin(out); pin != nil {
+		out.NextTopic = pin
+	}
+
 	// Texts, resolved to titles and library ids.
 	titles := map[string]string{}
 	libIDs := map[string]string{}
@@ -414,6 +421,26 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		out.Notes = []courseNote{}
 	}
 	return out, nil
+}
+
+// firstOpenPin is the course's earliest pinned topic not yet mastered: its
+// modules in order, then the prerequisites the plan needs.
+func firstOpenPin(v *courseView) *courseTopic {
+	for _, m := range v.Modules {
+		for _, t := range m.Topics {
+			if t.Pinned && t.Status != "mastered" {
+				nt := t
+				return &nt
+			}
+		}
+	}
+	for _, t := range v.Prerequisites {
+		if t.Pinned && t.Status != "mastered" {
+			nt := t
+			return &nt
+		}
+	}
+	return nil
 }
 
 // deckCounts is how many flashcard decks cover each generated topic

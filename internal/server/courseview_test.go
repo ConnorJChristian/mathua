@@ -216,3 +216,25 @@ func TestCourseView_DueTotalLeavesOutAfterDueModules(t *testing.T) {
 		t.Errorf("after_due flags: %+v", v.Modules)
 	}
 }
+
+// A course's "Up next" follows the learner's pins: the earliest pinned topic
+// of the course that is not mastered, in course order, ahead of the first
+// open topic. A mastered pin, or one from another unit pinned later in the
+// course, does not take its place.
+func TestCourseView_UpNextPrefersEarliestOpenPin(t *testing.T) {
+	mux, store, s, token, sid := courseViewFixture(t)
+	var v courseView
+	json.Unmarshal(authedGet(t, mux, "/api/courses/view?id=plan.u", token).Body.Bytes(), &v)
+	if v.NextTopic == nil || v.NextTopic.ID != "a" {
+		t.Fatalf("no pins: next = %+v, want a", v.NextTopic)
+	}
+	now := time.Now()
+	store.UpsertProgress(&storage.ConceptProgress{StudentID: sid, ConceptID: "b", Status: "MASTERED", Attempts: 6, LastAttempted: &now, LastReviewed: &now})
+	if _, err := s.eng.SetPins(sid, []string{"d", "b", "c"}); err != nil {
+		t.Fatal(err)
+	}
+	json.Unmarshal(authedGet(t, mux, "/api/courses/view?id=plan.u", token).Body.Bytes(), &v)
+	if v.NextTopic == nil || v.NextTopic.ID != "c" {
+		t.Fatalf("pins d, b (mastered), c: next = %+v, want c (the earliest open pin in course order)", v.NextTopic)
+	}
+}
