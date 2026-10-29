@@ -320,7 +320,11 @@ def module_dir(src):
 def graph_path(src, chapter):
     """concepts/<domain>.json, or concepts/<graph_file>.json when the chapter
     names one: two chapters in one domain need separate files, or the second
-    build overwrites the first's concepts."""
+    build overwrites the first's concepts. None for a chapter with
+    "graph": False, whose concepts are decks of items filed under other
+    topics through the module's cards.json, not topics of their own."""
+    if chapter.get("graph", True) is False:
+        return None
     return os.path.join(module_dir(src), "concepts", chapter.get("graph_file", chapter["domain"]) + ".json")
 
 
@@ -371,17 +375,19 @@ def main(argv):
             print("ERROR", e)
         failed |= bool(errors)
         text = render(chapter)
-        graph = render_graph(chapter)
         dst = out_path(src)
         gdst = graph_path(src, chapter)
+        graph = render_graph(chapter) if gdst else ""
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        os.makedirs(os.path.dirname(gdst), exist_ok=True)
+        if gdst:
+            os.makedirs(os.path.dirname(gdst), exist_ok=True)
         if mode == "build":
             if not errors:
                 with open(dst, "w", encoding="utf-8") as f:
                     f.write(text)
-                with open(gdst, "w", encoding="utf-8") as f:
-                    f.write(graph)
+                if gdst:
+                    with open(gdst, "w", encoding="utf-8") as f:
+                        f.write(graph)
             print("%s: %d concepts, %d questions%s" % (rel(src), len(chapter["concepts"]), n,
                                                       "" if not errors else " (not written: errors)"))
         else:
@@ -390,7 +396,7 @@ def main(argv):
             except FileNotFoundError:
                 current = ""
             try:
-                gcurrent = open(gdst, encoding="utf-8").read()
+                gcurrent = open(gdst, encoding="utf-8").read() if gdst else ""
             except FileNotFoundError:
                 gcurrent = ""
             if current != text or gcurrent != graph:

@@ -362,7 +362,9 @@ Serving rules:
   the time, so the rest of the topic is not crowded out. After that, the
   practice versions that unlock after them mix in with everything else.
 - Items filed under a topic through `cards.json` follow the same rules, so a
-  book exercise can belong to a generated topic.
+  book exercise can belong to a generated topic. The items can live in a
+  deck that is not itself a topic: an authoring file whose `CHAPTER` sets
+  `"graph": False` gets a bank but no `concepts/` node.
 - Placement never serves a book exercise: it stays objective and quick, and
   a book page needs the PDF and reading time. A course review test may ask
   one. Neither counts a book exercise or an item that unlocks after another
