@@ -23,7 +23,7 @@ import 'mathlive'
 import { MathfieldElement } from 'mathlive'
 import { layoutsForMode } from './layouts'
 import type { MathKeyboardMode } from './keyboards'
-import { toPlainAnswer } from './plainAnswer'
+import { latexPlaceholder, toPlainAnswer } from './plainAnswer'
 import type { MathInputValue } from './types'
 
 /*
@@ -362,7 +362,7 @@ export default function MathLiveField({
       ref={ref}
       class="mathua-math-field"
       data-status={status === 'correct' || status === 'incorrect' ? status : undefined}
-      placeholder={placeholder}
+      placeholder={latexPlaceholder(placeholder)}
       aria-label={ariaLabel}
       onInput={emit}
       onFocus={installKeyboard}

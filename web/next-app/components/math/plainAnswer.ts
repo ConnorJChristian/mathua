@@ -106,3 +106,15 @@ export function toPlainAnswer(plainText: string): string {
     fixNameSpacing(fixFractionParens(fixMixedNumbers(fixDivision(plainText)))),
   )
 }
+/**
+ * A placeholder for the math editor. MathLive renders its placeholder as LaTeX,
+ * so the hosts' plain "Your answer" came out as italic math with the space
+ * swallowed ("Youranswer"). Plain words are wrapped in \text{...}; a
+ * placeholder that is already LaTeX is passed through.
+ */
+export function latexPlaceholder(text?: string): string | undefined {
+  if (!text) return text
+  if (text.includes('\\')) return text
+  const escaped = text.replace(/[{}#$%&_^~]/g, c => `\\${c}`)
+  return `\\text{${escaped}}`
+}

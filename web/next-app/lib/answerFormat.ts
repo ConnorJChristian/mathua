@@ -29,6 +29,9 @@ export function formatForQuestion(q: QuestionFormatFields): AnswerFormat {
   return { hint: hint || fallback.hint, inputMode: mode }
 }
 
+/** How to type the set symbols the keyboard lacks; the graders accept each spelling. */
+export const TYPE_SYMBOLS = 'type oo for ∞, U for ∪, {} for ∅'
+
 export function formatForGradingType(gradingType?: string): AnswerFormat {
   switch (gradingType) {
     case 'numeric':
@@ -49,9 +52,9 @@ export function formatForGradingType(gradingType?: string): AnswerFormat {
     case 'complex':
       return { hint: 'Answer as a + bi', inputMode: 'text' }
     case 'set':
-      return { hint: 'List the elements in braces, e.g. {1, 2, 3}, or ∅', inputMode: 'text' }
+      return { hint: `List the elements in braces, e.g. {1, 2, 3}, or ∅; ${TYPE_SYMBOLS}`, inputMode: 'text' }
     case 'interval':
-      return { hint: 'Answer in interval notation, e.g. (2, 5] or [0, ∞)', inputMode: 'text' }
+      return { hint: `Answer in interval notation, e.g. (2, 5] or [0, ∞); ${TYPE_SYMBOLS}`, inputMode: 'text' }
     default:
       return { hint: 'Answer in the form shown', inputMode: 'text' }
   }

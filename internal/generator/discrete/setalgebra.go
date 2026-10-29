@@ -96,7 +96,7 @@ func (g *setOpsGen) Grade(expected, answer string) grader.Result {
 }
 
 func (g *setOpsGen) AnswerFormat() generator.AnswerFormat {
-	return generator.AnswerFormat{Hint: "List the elements in braces, e.g. {1, 2, 3}; write ∅ or {} for the empty set", InputMode: "text"}
+	return generator.AnswerFormat{Hint: "List the elements in braces, e.g. {1, 2, 3}; type oo for ∞, U for ∪, {} for ∅", InputMode: "text"}
 }
 
 func setOpsBasic() generator.Problem {

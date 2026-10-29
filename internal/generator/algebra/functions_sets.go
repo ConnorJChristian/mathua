@@ -132,7 +132,7 @@ func gradeSetOrInterval(gt grader.GradingType, expected, answer string) grader.R
 	return grader.NewRouter().Grade(gt, expected, answer)
 }
 
-const intervalHint = "Answer in interval notation, e.g. (2, 5] or [0, ∞); join pieces with ∪ or U"
+const intervalHint = "Answer in interval notation, e.g. (2, 5] or [0, ∞); join pieces with ∪; type oo for ∞, U for ∪, {} for ∅"
 
 // ---------------------------------------------------------------- interval notation
 
