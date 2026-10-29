@@ -108,6 +108,56 @@ func textMatches(key string, o readingOption) bool {
 	return key == o.Key
 }
 
+// withBankOption adds a question bank's own source to a concept's texts,
+// unless it repeats one. A bank names its book in its own style ("Hoy et al.,
+// Mathematics for Economics (3e)") and a module's books.json in another
+// ("Mathematics for Economics (3rd ed.)"), so comparing names exactly let the
+// same book through twice: the second button opened nothing and only
+// repeated the section. A source with no link is dropped when a module reading
+// is the same book; one with a link (an online copy, another edition) stays.
+func withBankOption(out []readingOption, o readingOption) []readingOption {
+	for _, have := range out {
+		if have.Book == o.Book {
+			return out
+		}
+		if o.URL == "" && have.Kind != "web" && sameBook(have.Book, o.Book) {
+			return out
+		}
+	}
+	return append(out, o)
+}
+
+// bookCore is a book name without its author prefix, edition, year or
+// subtitle, lowercased: "Swales & Feak, Academic Writing for Graduate
+// Students (3rd ed.)" and "Academic Writing for Graduate Students: Essential
+// Tasks and Skills (3rd ed.)" both give "academic writing for graduate
+// students".
+func bookCore(name string) string {
+	s := name
+	for {
+		i := strings.Index(s, "(")
+		j := strings.Index(s, ")")
+		if i < 0 || j < i {
+			break
+		}
+		s = s[:i] + s[j+1:]
+	}
+	if i := strings.Index(s, ":"); i > 0 {
+		s = s[:i]
+	}
+	if i := strings.Index(s, ", "); i > 0 && len(strings.TrimSpace(s[i+2:])) >= 8 {
+		s = s[i+2:]
+	}
+	return strings.ToLower(strings.Join(strings.Fields(s), " "))
+}
+
+// sameBook reports whether two names, as a bank and a module write them,
+// name one book.
+func sameBook(a, b string) bool {
+	ca, cb := bookCore(a), bookCore(b)
+	return len(ca) >= 8 && ca == cb
+}
+
 // readingOptions lists the texts a concept is read in: module readings first,
 // then the question bank's own source.
 func (s *Server) readingOptions(conceptID string) []readingOption {
@@ -145,13 +195,7 @@ func (s *Server) readingOptions(conceptID string) []readingOption {
 				if c.Book.Section != "" {
 					src += ", " + c.Book.Section
 				}
-				dup := false
-				for _, o := range out {
-					dup = dup || o.Book == name
-				}
-				if !dup {
-					out = append(out, readingOption{Key: "web:" + name, Kind: "web", Book: name, Source: src, URL: c.Book.URL})
-				}
+				out = withBankOption(out, readingOption{Key: "web:" + name, Kind: "web", Book: name, Source: src, URL: c.Book.URL})
 			}
 		}
 	}
