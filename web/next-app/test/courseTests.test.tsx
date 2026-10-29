@@ -128,6 +128,50 @@ describe('QuizHost as a course review test', () => {
     expect(xp.textContent).toBe('+1 XP')
   })
 
+  it('says when the review test counted as the weekly mastery check', async () => {
+    vi.mocked(api.startQuizSession).mockResolvedValue({
+      session_id: 's3', concept_id: 'a', concept_name: 'Topic A', question: '2 + 3', grading_type: 'numeric',
+      done: false, questions_total: 1, closed_book: true, course_id: 'plan.x', test: 'review',
+    })
+    vi.mocked(api.submitQuizAnswer).mockResolvedValue({
+      done: true, correct: true, xp: 1, counted_as_mastery_check: true,
+      sections: [{ title: 'Unit one', total: 1, passed: [{ id: 'a', label: 'Topic A' }], missed: [] }],
+    })
+    render(<QuizHost courseId="plan.x" scope="review" />)
+    fireEvent.click(screen.getByRole('button', { name: /start quiz/i }))
+    await screen.findByText(/quiz question 1 of 1/i)
+    fireEvent.change(screen.getByLabelText('answer'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: /check answer/i }))
+    expect(await screen.findByText(/Review test complete/, {}, { timeout: 3000 })).toBeTruthy()
+    expect(screen.getByText("This counted as this week's mastery check.")).toBeTruthy()
+  })
+
+  it('prints a right answer\'s verdict once', async () => {
+    vi.mocked(api.startQuizSession).mockResolvedValue({
+      session_id: 's4', concept_id: 'a', concept_name: 'Topic A', question: '2 + 3', grading_type: 'numeric',
+      done: false, questions_total: 2, closed_book: true,
+    })
+    // The server holds back non-token feedback on an assessment, so a right
+    // answer arrives with none; the screen used to fill in its own "Correct!"
+    // under the "✓ Correct!" verdict.
+    vi.mocked(api.submitQuizAnswer).mockResolvedValue({
+      done: false, correct: true, xp: 1, concept_id: 'b', concept_name: 'Topic B', question: '1 + 1', grading_type: 'numeric',
+    })
+    render(<QuizHost />)
+    fireEvent.click(screen.getByRole('button', { name: /start quiz/i }))
+    await screen.findByText(/quiz question 1 of 2/i)
+    fireEvent.change(screen.getByLabelText('answer'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: /check answer/i }))
+    await screen.findByRole('button', { name: /next/i })
+    expect(screen.getAllByText(/Correct!/)).toHaveLength(1)
+  })
+
+  it('describes how XP is priced now, not speed and streaks', () => {
+    render(<QuizHost />)
+    expect(screen.queryByText(/streaks earn more/i)).toBeNull()
+    expect(screen.getByText(/Harder questions/)).toBeTruthy()
+  })
+
   it('keeps the mastery check unchanged without a course', async () => {
     vi.mocked(api.startQuizSession).mockResolvedValue({ session_id: 's', done: true })
     render(<QuizHost />)

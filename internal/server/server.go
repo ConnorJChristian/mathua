@@ -3685,10 +3685,13 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if prob == nil {
+		counted := false
 		if studentID != "" {
 			// Batch 1: completing a quiz resets the 150 XP gate baseline.
 			if err := s.eng.RecordQuizCompletion(studentID); err != nil {
 				log.Printf("handleQuizAnswer: RecordQuizCompletion failed for %s: %v", studentID, err)
+			} else {
+				counted = true
 			}
 		}
 		s.mu.Lock()
@@ -3700,6 +3703,7 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 		// them. A verdict built anywhere else leaks by default; through the helper it does not.
 		done := map[string]interface{}{"done": true, "correct": gr.Correct, "feedback": feedback, "diagnosis": gr.Diagnosis, "explanation": explanation, "xp": xp, "new_status": newStatus, "remedial": remedial, "retake_available": true}
 		s.addCourseTestSummary(done, sess)
+		markMasteryCheck(done, sess, counted)
 		writeAssessmentVerdict(w, done)
 		return
 	}
@@ -3795,9 +3799,12 @@ func (s *Server) handleQuizSkip(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if prob == nil {
+		counted := false
 		if studentID != "" && qEng.HasAttempts(sess) {
 			if err := s.eng.RecordQuizCompletion(studentID); err != nil {
 				log.Printf("handleQuizSkip: RecordQuizCompletion failed for %s: %v", studentID, err)
+			} else {
+				counted = true
 			}
 		}
 		s.mu.Lock()
@@ -3806,6 +3813,7 @@ func (s *Server) handleQuizSkip(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 		done := map[string]interface{}{"done": true, "correct": false, "feedback": "Skipped — no XP awarded.", "xp": 0, "retake_available": true}
 		s.addCourseTestSummary(done, sess)
+		markMasteryCheck(done, sess, counted)
 		writeJSON(w, done)
 		return
 	}
@@ -3911,6 +3919,8 @@ const (
 	assessmentKeyCourseID = "course_id"
 	assessmentKeyTest     = "test"
 	assessmentKeySections = "sections"
+	// The finished course test restarted the mastery check (markMasteryCheck).
+	assessmentKeyCountedAsCheck = "counted_as_mastery_check"
 )
 
 // assessmentVerdictKeys is the allowlist, as a set for lookup. Declared
@@ -3936,6 +3946,7 @@ var assessmentVerdictKeys = map[string]bool{
 	assessmentKeyCourseID:        true,
 	assessmentKeyTest:            true,
 	assessmentKeySections:        true,
+	assessmentKeyCountedAsCheck:  true,
 }
 
 // assessmentGraderTokens are the only feedback strings allowed through, and

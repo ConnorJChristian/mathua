@@ -7,6 +7,18 @@ interface ProgressBarProps {
   className?: string
 }
 
+/**
+ * The number of the question on screen. The server's `answered` count goes up
+ * as soon as an answer is graded, while the screen still shows that question
+ * and its feedback, so "answered + 1" named the next question too early
+ * ("QUESTION 2" above question 1's verdict). While feedback is showing, the
+ * question on screen is the one just answered.
+ */
+export function shownQuestionNumber(progress: { answered: number } | null | undefined, questionCount: number, showingFeedback: boolean): number {
+  if (!progress) return questionCount
+  return Math.max(1, progress.answered + (showingFeedback ? 0 : 1))
+}
+
 // Shared progress bar for the Diagnostic (MA parity: adaptive, no exact
 // total is promised). The bar is driven by the monotonic cover fraction
 // (coverDone/coverSize, never decreases); visible copy is just the

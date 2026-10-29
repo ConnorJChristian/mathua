@@ -4,7 +4,7 @@ import type { RefObject } from 'react'
 import Link from 'next/link'
 import KatexContent from '../../components/KatexContent'
 import SectionHeader from '../../components/SectionHeader'
-import ProgressBar from '../../components/ProgressBar'
+import ProgressBar, { shownQuestionNumber } from '../../components/ProgressBar'
 import ReportButton from '../../components/ReportButton'
 import BriefingCard, { DIAGNOSTIC_BRIEFING } from '../../components/BriefingCard'
 import SubmitErrorBlock, { type SubmitError } from '../../components/SubmitErrorBlock'
@@ -302,10 +302,10 @@ export function DiagnosticStep({
   const bankKind = isBank ? pythonKind(question) : null
   return (
     <>
-      <SectionHeader label={`Question ${progress ? progress.answered + 1 : questionCount}`} title={conceptName} />
+      <SectionHeader label={`Question ${shownQuestionNumber(progress, questionCount, lastResult !== null)}`} title={conceptName} />
       <div className="max-w-2xl mx-auto px-2 sm:px-0 min-w-0 overflow-hidden">
         <ProgressBar
-          answered={progress ? progress.answered + 1 : questionCount}
+          answered={shownQuestionNumber(progress, questionCount, lastResult !== null)}
           coverDone={progress ? progress.cover_done : 0}
           coverSize={progress ? progress.cover_size : 0}
         />

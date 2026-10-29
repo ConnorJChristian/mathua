@@ -170,6 +170,11 @@ func TestCourseTests_ViewPlacementAndReview(t *testing.T) {
 	if missed != 3 {
 		t.Errorf("missed = %d, sections %v", missed, secs)
 	}
+	// Finishing it restarts the mastery check's gate and gap, and the end
+	// screen has to be told so.
+	if last["counted_as_mastery_check"] != true {
+		t.Errorf("a finished course test should say it counted as the mastery check: %v", last)
+	}
 }
 
 // A grader that is down never records a miss, in either test: the answer is

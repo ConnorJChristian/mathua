@@ -42,7 +42,7 @@ export const QUIZ_BRIEFING: BriefingItem[] = [
   },
   {
     title: 'XP for each correct answer · retake anytime',
-    detail: 'Faster answers and longer streaks earn more. No penalty for retaking.',
+    detail: 'Harder questions and topics that take longer earn more; an answer within the expected time earns a little extra. No penalty for retaking.',
   },
 ]
 

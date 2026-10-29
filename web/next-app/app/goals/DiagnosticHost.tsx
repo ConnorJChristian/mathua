@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import KatexContent from '../../components/KatexContent'
 import SectionHeader from '../../components/SectionHeader'
-import ProgressBar from '../../components/ProgressBar'
+import ProgressBar, { shownQuestionNumber } from '../../components/ProgressBar'
 import ReportButton from '../../components/ReportButton'
 import {
   startGoalDiagnostic,
@@ -28,6 +28,7 @@ import SubmitErrorBlock, {
 import { GOALS_DIAG_KEY } from './constants'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import { track, answerStyle } from '../../lib/events'
+import { verdictDetail } from '../../lib/verdict'
 
 const EMPTY_PLAN: GoalPlanRes = {
   readiness: 1,
@@ -210,7 +211,8 @@ export default function DiagnosticHost({
       track({ kind: 'answer', concept: conceptId.current, data: { surface: 'placement', correct, dont_know: dontKnow, style: answerStyle(answer), feedback: data.feedback ?? '' } })
       // An admitted unknown is not a wrong answer, so it does not get the wrong answer's words.
       // Empty here, because the verdict line states it; the engine's accounting is untouched.
-      const feedback = dontKnow ? '' : data.feedback || (correct ? 'Correct!' : 'Not quite.')
+      // The verdict line above it says right or wrong; the feedback adds only what the grader said.
+      const feedback = dontKnow ? '' : verdictDetail(data.feedback)
       setAccuracy(prev => ({
         correct: prev.correct + (correct ? 1 : 0),
         total: prev.total + 1,
@@ -349,10 +351,10 @@ export default function DiagnosticHost({
 
   return (
     <>
-      <SectionHeader label={`Question ${progress ? progress.answered + 1 : questionCount}`} title={conceptName} />
+      <SectionHeader label={`Question ${shownQuestionNumber(progress, questionCount, lastResult !== null)}`} title={conceptName} />
       <div className="max-w-2xl mx-auto min-w-0 overflow-hidden px-2 sm:px-0">
         <ProgressBar
-          answered={progress ? progress.answered + 1 : questionCount}
+          answered={shownQuestionNumber(progress, questionCount, lastResult !== null)}
           coverDone={progress ? progress.cover_done : 0}
           coverSize={progress ? progress.cover_size : estimatedTotal}
         />

@@ -1663,6 +1663,8 @@ export interface QuizAnswerRes {
 	course_id?: string
 	test?: string
 	sections?: CourseTestSection[] | null
+	/** A finished course test restarted the mastery check (its XP gate and gap). */
+	counted_as_mastery_check?: boolean
 }
 
 interface QuizSessionBody {

@@ -131,3 +131,20 @@ func (s *Server) addCourseTestSummary(out map[string]interface{}, sess *quiz.Ses
 	out["test"] = kind
 	out["sections"] = s.eng.CourseTestSummary(courseID, results, nil)
 }
+
+// markMasteryCheck says on a finished course test that it counted as the
+// mastery check. Completing any quiz records a completion, which restarts the
+// mastery check's XP gate and its gap (a week, with MATHUA_QUIZ_GAP_HOURS=168),
+// so a course review test quietly stood in for the weekly check and the
+// check's banner disappeared without a word. The end screen now says so.
+func markMasteryCheck(out map[string]interface{}, sess *quiz.Session, recorded bool) {
+	if !recorded || sess == nil {
+		return
+	}
+	sess.Lock()
+	course := sess.CourseID
+	sess.Unlock()
+	if course != "" {
+		out["counted_as_mastery_check"] = true
+	}
+}

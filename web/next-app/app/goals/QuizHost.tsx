@@ -23,6 +23,7 @@ import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInp
 import PythonAnswer from '../../components/python/PythonAnswer'
 import { displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
 import { track, questionHash, answerStyle } from '../../lib/events'
+import { verdictDetail } from '../../lib/verdict'
 
 // 'failed' exists because 'done' used to carry two meanings. Any thrown request
 // set phase to 'done', and the done screen reads "No questions available" while
@@ -74,6 +75,9 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
   const [emptyMessage, setEmptyMessage] = useState('')
   const [submitError, setSubmitError] = useState<SubmitError | null>(null)
   const [finished, setFinished] = useState(false)
+  // A finished course test restarts the mastery check's gate and gap; the
+  // server says so, and the end screen passes it on.
+  const [countedAsCheck, setCountedAsCheck] = useState(false)
   const [skipCount, setSkipCount] = useState(0)
   const [answerFormat, setAnswerFormat] = useState<AnswerFormat>(() => formatForGradingType())
   // Next question staged from the submit response — revealed by goNextQuiz(),
@@ -119,6 +123,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
       setSubmitError(null)
       setSkipCount(0)
       setFinished(false)
+      setCountedAsCheck(false)
       setPhase('quiz')
     } catch {
       toast.error('Quiz failed to start — try again.')
@@ -151,7 +156,8 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
       const correct = data.correct || false
       track({ kind: 'answer', concept: quizConceptId.current, data: { surface: 'mastery_check', q: questionHash(quizQuestion), correct, elapsed, dont_know: dontKnow, style: answerStyle(answer), feedback: data.feedback ?? '' } })
       // An admitted unknown is not a wrong answer, so it does not get the wrong answer's words.
-      const feedback = dontKnow ? '' : data.feedback || (correct ? 'Correct!' : 'Not quite.')
+      // The verdict line already says right or wrong: no default "Correct!" under a "✓ Correct!".
+      const feedback = dontKnow ? '' : verdictDetail(data.feedback)
       setQuizAccuracy(prev => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }))
       setQuizLastResult({ correct, feedback, conceptId: quizConceptId.current, xp: data.xp, dontKnow })
       if (data.remedial?.length) {
@@ -161,6 +167,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
       if (data.done) {
         setFinished(true)
         setSections(data.sections ?? [])
+        setCountedAsCheck(!!data.counted_as_mastery_check)
         if (courseId) track({ kind: 'test_finish', data: { course: courseId, test: testName, correct: quizAccuracy.correct + (correct ? 1 : 0), total: quizAccuracy.total + 1 } })
         setTimeout(() => {
           setPhase('done')
@@ -209,6 +216,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
       if (data.done) {
         setFinished(true)
         setSections(data.sections ?? [])
+        setCountedAsCheck(!!data.counted_as_mastery_check)
         if (courseId) track({ kind: 'test_finish', data: { course: courseId, test: testName, correct: quizAccuracy.correct, total: quizAccuracy.total } })
         setQuizLastResult({ correct: false, feedback: 'Skipped — no XP awarded.', conceptId: quizConceptId.current, xp: 0 })
         setTimeout(() => {
@@ -320,7 +328,10 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
         ) : (
           <>
             <SectionHeader label={courseId ? 'Review test complete' : 'Quiz complete'} title={`${quizAccuracy.correct}/${quizAccuracy.total} correct`} />
-            <p className="font-mono text-sm text-mathua-secondary mt-4">XP awarded per correct answer, more for faster answers. Retake anytime.</p>
+            <p className="font-mono text-sm text-mathua-secondary mt-4">XP for each correct answer, priced by the question&apos;s difficulty and expected time. Retake anytime.</p>
+            {courseId && countedAsCheck && (
+              <p role="status" className="font-mono text-sm text-mathua-primary mt-2">This counted as this week&apos;s mastery check.</p>
+            )}
             {sections.length > 0 && (
               <div className="mt-6">
                 <CourseTestSummary sections={sections} mode="review" courseId={courseId} />
