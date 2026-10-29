@@ -80,7 +80,8 @@
     "grading_type": "bank",
     "prerequisites": [
       "py.ml.categorical_text",
-      "py.ml.holdout_cv"
+      "py.ml.holdout_cv",
+      "ml.data.scaling"
     ],
     "mastery_threshold": {
       "streak": 4,
@@ -95,7 +96,8 @@
     "grading_type": "bank",
     "prerequisites": [
       "py.ml.categorical_text",
-      "py.ml.holdout_cv"
+      "py.ml.holdout_cv",
+      "stat.prob.bayes"
     ],
     "mastery_threshold": {
       "streak": 4,
@@ -109,7 +111,8 @@
     "subdomain": "python_ml.05_06_linear_regression",
     "grading_type": "bank",
     "prerequisites": [
-      "py.ml.pipelines"
+      "py.ml.pipelines",
+      "ml.linreg.least_squares"
     ],
     "mastery_threshold": {
       "streak": 4,
@@ -167,7 +170,8 @@
     "grading_type": "bank",
     "prerequisites": [
       "py.ml.estimator_api",
-      "py.np.aggregates"
+      "py.np.aggregates",
+      "ml.pca.variance_percent"
     ],
     "mastery_threshold": {
       "streak": 4,

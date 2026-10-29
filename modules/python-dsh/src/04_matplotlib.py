@@ -675,7 +675,7 @@ concept(
 
 # ---------------------------------------------------------------- 4.05
 concept(
-    "py.mpl.histograms", "Histograms and binning", ["py.mpl.interfaces", "py.np.aggregates"],
+    "py.mpl.histograms", "Histograms and binning", ["py.mpl.interfaces", "py.np.aggregates", "stat.data.histogram"],
     "4.05", "Histograms, Binnings, and Density", "04.05-histograms-and-binnings",
     """
     A histogram counts how many values fall into each bin.

@@ -96,8 +96,7 @@ def main(argv):
                 changed += 1
         if dirty and not check:
             with open(path, "w", encoding="utf-8") as f:
-                json.dump(nodes, f, indent=1, ensure_ascii=False)
-                f.write("\n")
+                json.dump(nodes, f, indent=1, ensure_ascii=False)  # as the importer writes it
     for e in errors:
         print("ERROR", e)
     if errors:

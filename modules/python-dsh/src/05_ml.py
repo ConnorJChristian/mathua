@@ -696,7 +696,7 @@ concept(
     ]),
 
 concept(
-    "py.ml.pipelines", "Derived features, imputation and pipelines", ["py.ml.categorical_text", "py.ml.holdout_cv"],
+    "py.ml.pipelines", "Derived features, imputation and pipelines", ["py.ml.categorical_text", "py.ml.holdout_cv", "ml.data.scaling"],
     "5.04", "Feature Engineering", "05.04-feature-engineering",
     """
     Some features are built from others. `PolynomialFeatures` adds powers and
@@ -832,7 +832,7 @@ concept(
 
 # ---------------------------------------------------------------- 5.05
 concept(
-    "py.ml.naive_bayes", "Naive Bayes classification", ["py.ml.categorical_text", "py.ml.holdout_cv"],
+    "py.ml.naive_bayes", "Naive Bayes classification", ["py.ml.categorical_text", "py.ml.holdout_cv", "stat.prob.bayes"],
     "5.05", "In Depth: Naive Bayes Classification", "05.05-naive-bayes",
     """
     Naive Bayes classifiers apply Bayes' rule with a bold simplification: given
@@ -971,7 +971,7 @@ concept(
 
 # ---------------------------------------------------------------- 5.06
 concept(
-    "py.ml.linear_regression", "Linear regression and basis functions", ["py.ml.pipelines"],
+    "py.ml.linear_regression", "Linear regression and basis functions", ["py.ml.pipelines", "ml.linreg.least_squares"],
     "5.06", "In Depth: Linear Regression", "05.06-linear-regression",
     """
     `LinearRegression` is ordinary least squares. With several features it
@@ -1503,7 +1503,7 @@ concept(
 
 # ---------------------------------------------------------------- 5.09
 concept(
-    "py.ml.pca", "Principal component analysis", ["py.ml.estimator_api", "py.np.aggregates"],
+    "py.ml.pca", "Principal component analysis", ["py.ml.estimator_api", "py.np.aggregates", "ml.pca.variance_percent"],
     "5.09", "In Depth: Principal Component Analysis", "05.09-principal-component-analysis",
     """
     PCA finds new axes for the data, ordered by how much variance each

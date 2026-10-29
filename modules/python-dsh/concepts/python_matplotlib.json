@@ -93,7 +93,8 @@
     "grading_type": "bank",
     "prerequisites": [
       "py.mpl.interfaces",
-      "py.np.aggregates"
+      "py.np.aggregates",
+      "stat.data.histogram"
     ],
     "mastery_threshold": {
       "streak": 4,
