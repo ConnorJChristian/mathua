@@ -626,7 +626,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 	}
 
 	// PR 1.5 halt: after 2 consecutive misses, serve the remedial queue first
-	// (KeyPrerequisites then the concept at an easier variant) before resuming.
+	// (the prerequisites the miss sends the learner back to, then the concept at an easier variant) before resuming.
 	if as.halted && len(as.remedialQueue) > 0 {
 		cid := as.remedialQueue[0]
 		as.remedialQueue = as.remedialQueue[1:]
@@ -1307,16 +1307,12 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 			xp = 0
 			as.halted = true
 			as.remedialDifficulty = 0.3
-			if c := e.dag.Concept(sessionFields.conceptID); c != nil {
-				if len(c.Variants) > 0 {
-					as.remedialDifficulty = c.Variants[0].Difficulty
-				}
-				for _, kp := range c.KeyPrerequisites {
-					if e.dag.Concept(kp) != nil {
-						as.remedialQueue = append(as.remedialQueue, kp)
-						remedial = append(remedial, kp)
-					}
-				}
+			if c := e.dag.Concept(sessionFields.conceptID); c != nil && len(c.Variants) > 0 {
+				as.remedialDifficulty = c.Variants[0].Difficulty
+			}
+			for _, kp := range e.remedialPrerequisites(studentID, sessionFields.conceptID) {
+				as.remedialQueue = append(as.remedialQueue, kp)
+				remedial = append(remedial, kp)
 			}
 			as.remedialQueue = append(as.remedialQueue, sessionFields.conceptID)
 			remedial = append(remedial, sessionFields.conceptID)
@@ -1576,6 +1572,12 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 	missKey := studentID + "|" + conceptID
 	halted := false
 	var remedial []string
+	// The prerequisites a quiz miss sends the learner back to, read before
+	// the lock (it needs the progress table).
+	var missPrereqs []string
+	if !gr.Correct {
+		missPrereqs = e.remedialPrerequisites(studentID, conceptID)
+	}
 	e.mu.Lock()
 	if !gr.Correct && grader.IsProofAnswer(expected) && !proofsCountForMastery() {
 		// A practice-only proof is feedback, not evidence: it neither counts
@@ -1596,9 +1598,12 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 			}
 		}
 		// Batch 1: immediate remedial enqueue on quiz miss — missed concept
-		// plus its key prerequisites surface first in Study after the quiz.
-		if taskType == TaskQuiz {
-			e.enqueueQuizRemedialLocked(studentID, conceptID)
+		// after the prerequisites it is remedied through, surface first in Study after the quiz.
+		// Fork change: so does a second miss in a row on a topic practised
+		// through Learn (a locked topic practised anyway, say): the learner
+		// is struggling, and the prerequisites, from any module, come first.
+		if taskType == TaskQuiz || halted {
+			e.enqueueQuizRemedialLocked(studentID, conceptID, missPrereqs)
 			remedial = append([]string(nil), e.quizRemedial[studentID]...)
 		}
 	} else {
@@ -1807,9 +1812,10 @@ func (e *Engine) RecordQuizCompletion(studentID string) error {
 	return e.repo.RecordQuizCompletion(studentID, total)
 }
 
-// enqueueQuizRemedialLocked queues a missed quiz concept plus its key
-// prerequisites for immediate Study review. Caller holds e.mu.
-func (e *Engine) enqueueQuizRemedialLocked(studentID, conceptID string) {
+// enqueueQuizRemedialLocked queues a missed quiz concept, after the
+// prerequisites it should be remedied through (remedialPrerequisites), for
+// immediate Study review. Caller holds e.mu.
+func (e *Engine) enqueueQuizRemedialLocked(studentID, conceptID string, prereqs []string) {
 	queue := e.quizRemedial[studentID]
 	seen := make(map[string]bool, len(queue)+4)
 	for _, id := range queue {
@@ -1825,13 +1831,93 @@ func (e *Engine) enqueueQuizRemedialLocked(studentID, conceptID string) {
 		seen[id] = true
 		queue = append(queue, id)
 	}
-	if c := e.dag.Concept(conceptID); c != nil {
-		for _, kp := range c.KeyPrerequisites {
-			push(kp)
-		}
+	for _, kp := range prereqs {
+		push(kp)
 	}
 	push(conceptID)
 	e.quizRemedial[studentID] = queue
+}
+
+// maxRemedialPrereqs caps how many prerequisites one miss sends the learner
+// back to.
+const maxRemedialPrereqs = 3
+
+// remedialPrerequisites names the prerequisites a struggling learner is sent
+// back to on conceptID (fork change). The concept's key_prerequisites, when
+// it has any; otherwise its direct prerequisites, wherever in the graph they
+// live (a Hoy topic's calculus concept, a code task's pandas topic), the
+// ones the learner has not mastered first and the weakest of those first,
+// capped at maxRemedialPrereqs. Only concepts that can be practised (a
+// registered generator) are named: an unservable id would stop the session.
+// Upstream queued key prerequisites only, and module topics have none, so a
+// miss on one never led anywhere but back to itself.
+func (e *Engine) remedialPrerequisites(studentID, conceptID string) []string {
+	c := e.dag.Concept(conceptID)
+	if c == nil {
+		return nil
+	}
+	servable := func(id string) bool {
+		if e.dag.Concept(id) == nil || e.registry == nil {
+			return false
+		}
+		_, err := e.registry.Get(id)
+		return err == nil
+	}
+	var out []string
+	seen := map[string]bool{}
+	add := func(id string) {
+		if !seen[id] && servable(id) {
+			seen[id] = true
+			out = append(out, id)
+		}
+	}
+	if len(c.KeyPrerequisites) > 0 {
+		for _, kp := range c.KeyPrerequisites {
+			add(kp)
+		}
+		return out
+	}
+	if len(c.Prerequisites) == 0 {
+		return nil
+	}
+	progress, err := e.repo.GetAllProgress(studentID)
+	if err != nil {
+		progress = nil
+	}
+	type cand struct {
+		id       string
+		mastered bool
+		weakness float64
+		order    int
+	}
+	cands := make([]cand, 0, len(c.Prerequisites))
+	for i, pid := range c.Prerequisites {
+		k := cand{id: pid, weakness: 0.5, order: i}
+		if p := progress[pid]; p != nil {
+			k.mastered = p.Status == string(mastery.StatusMastered)
+			k.weakness = p.WeaknessScore
+			if k.mastered {
+				k.weakness = 0
+			}
+		}
+		cands = append(cands, k)
+	}
+	sort.SliceStable(cands, func(i, j int) bool {
+		if cands[i].mastered != cands[j].mastered {
+			return !cands[i].mastered
+		}
+		if cands[i].weakness != cands[j].weakness {
+			return cands[i].weakness > cands[j].weakness
+		}
+		return cands[i].order < cands[j].order
+	})
+	for _, k := range cands {
+		if len(out) >= maxRemedialPrereqs {
+			break
+		}
+		add(k.id)
+	}
+	return out
 }
 
 // QuizRemedial returns a snapshot of pending quiz-miss remedial concepts.
