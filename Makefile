@@ -44,6 +44,13 @@ e2e-hermetic:
 	cd web/next-app && rm -rf out && NEXT_PUBLIC_API_URL=http://192.0.2.1:9099 npx next build
 	cd web/next-app && npx playwright test
 
+# Grade every question's own answer key (and its spellings, and wrong
+# answers) through the server's path: the committed modules, your
+# modules-local/ and every generator (internal/gradecheck). Needs python3
+# with SymPy on PATH. GRADECHECK_FLAGS=-code also runs every code task.
+gradecheck:
+	go run ./scripts/gradecheck -local $(GRADECHECK_FLAGS)
+
 validate:
 	go run scripts/validate_graph.go
 	go run ./cmd/validate-mastery-units
