@@ -19,10 +19,9 @@ func TestDiagnose_Numeric(t *testing.T) {
 			"You have the right number with the sign flipped — the answer is 7.",
 			"the magnitude is right and only the sign is wrong",
 		},
-		"off by one": {
-			GradingNumeric, "12", "13",
-			"You are exactly one away, so a count or a boundary is off by one.",
-			"an adjacent integer is a distinct, common error",
+		"one away outside a count": {
+			GradingNumeric, "12", "13", "",
+			"an optimum or a coordinate one away is a coincidence, not an off-by-one",
 		},
 		"rounded too early": {
 			GradingNumeric, "3.14", "3.1",
@@ -113,6 +112,45 @@ func TestOrdinal(t *testing.T) {
 	for n, want := range map[int]string{1: "1st", 2: "2nd", 3: "3rd", 4: "4th", 11: "11th", 12: "12th", 13: "13th", 21: "21st", 22: "22nd", 23: "23rd", 101: "101st"} {
 		if got := ordinal(n); got != want {
 			t.Errorf("ordinal(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
+
+// "Exactly one away" names a mistake only where the answer is a count. On an
+// optimisation answer (x* = 4, answered 5) it told the learner a count or a
+// boundary was off, which is not what happened.
+func TestDiagnose_OffByOneOnlyForCounts(t *testing.T) {
+	const offByOne = "You are exactly one away, so a count or a boundary is off by one."
+	cases := map[string]struct {
+		counting         bool
+		expected, answer string
+		want             string
+	}{
+		"count, one away":         {true, "12", "13", offByOne},
+		"count, one below":        {true, "7", "6", offByOne},
+		"not a count, one away":   {false, "4", "5", ""},
+		"count, decimals one off": {true, "2.5", "3.5", ""},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := DiagnoseIn(GradingNumeric, tc.counting, tc.expected, tc.answer); got != tc.want {
+				t.Errorf("DiagnoseIn = %q, want %q", got, tc.want)
+			}
+		})
+	}
+	for _, c := range []struct {
+		domain, sub string
+		want        bool
+	}{
+		{"arithmetic", "arithmetic.addition", true},
+		{"discrete_math", "discrete_math.combinatorics", true},
+		{"algebra", "algebra.sequences", true},
+		{"calculus", "calculus.derivatives", false},
+		{"calculus", "calculus.multivariable", false},
+		{"statistics", "statistics.inference", false},
+	} {
+		if got := IsCountingContext(c.domain, c.sub); got != c.want {
+			t.Errorf("IsCountingContext(%s, %s) = %v, want %v", c.domain, c.sub, got, c.want)
 		}
 	}
 }

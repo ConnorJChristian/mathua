@@ -1059,8 +1059,10 @@ func diagramForConcept(id string) string {
 // gradeAnswer uses the generator's own grader when available, otherwise falls back to the type-based router.
 func (e *Engine) gradeAnswer(conceptID string, expectedAnswer, userAnswer string) grader.Result {
 	gradingType := grader.GradingNumeric
+	counting := false
 	if c := e.dag.Concept(conceptID); c != nil {
 		gradingType = grader.GradingType(c.GradingType)
+		counting = grader.IsCountingContext(c.Domain, c.Subdomain)
 	}
 	var res grader.Result
 	// One of your flashcards served in this concept's practice grades as the
@@ -1084,7 +1086,7 @@ func (e *Engine) gradeAnswer(conceptID string, expectedAnswer, userAnswer string
 	if !res.Correct && !res.Unavailable && res.Diagnosis == "" {
 		// A grader that already named the mistake (the Python track reports
 		// the hidden check that failed) keeps its own diagnosis.
-		res.Diagnosis = grader.Diagnose(gradingType, expectedAnswer, userAnswer)
+		res.Diagnosis = grader.DiagnoseIn(gradingType, counting, expectedAnswer, userAnswer)
 	}
 	return res
 }

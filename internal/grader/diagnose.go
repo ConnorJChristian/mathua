@@ -16,12 +16,22 @@ import (
 // silence — a learner told the wrong reason for a mistake learns the wrong
 // lesson, which is the opposite of what an explanation is for.
 func Diagnose(gradingType GradingType, expected, answer string) string {
+	return DiagnoseIn(gradingType, false, expected, answer)
+}
+
+// DiagnoseIn is Diagnose for a question whose context is known. counting says
+// the answer is a count (how many elements, terms, factors, edges...): only
+// there does an answer one away name a mistake, a count or a boundary off by
+// one. Anywhere else, an optimum at x = 4 answered as 5, two integers one
+// apart are a coincidence, and calling it an off-by-one teaches the wrong
+// lesson.
+func DiagnoseIn(gradingType GradingType, counting bool, expected, answer string) string {
 	if strings.TrimSpace(answer) == "" {
 		return ""
 	}
 	switch gradingType {
 	case GradingNumeric:
-		return diagnoseNumeric(expected, answer)
+		return diagnoseNumeric(expected, answer, counting)
 	case GradingComparison:
 		return diagnoseComparison(expected, answer)
 	case GradingTuple, GradingOrdering:
@@ -34,7 +44,7 @@ func Diagnose(gradingType GradingType, expected, answer string) string {
 // diagnoseNumeric reports the mistakes that are visible in the numbers alone:
 // a sign dropped, a count off by one, or an answer that is the right number
 // rounded to fewer decimal places.
-func diagnoseNumeric(expected, answer string) string {
+func diagnoseNumeric(expected, answer string, counting bool) string {
 	e, eIsFloat, eOK := parseNumeric(normalise(expected))
 	a, aIsFloat, aOK := parseNumeric(normalise(answer))
 	if !eOK || !aOK {
@@ -48,7 +58,7 @@ func diagnoseNumeric(expected, answer string) string {
 	switch {
 	case e == -a:
 		return fmt.Sprintf("You have the right number with the sign flipped — the answer is %s.", strings.TrimSpace(answer))
-	case math.Abs(e-a) == 1:
+	case counting && !eIsFloat && !aIsFloat && e == math.Trunc(e) && a == math.Trunc(a) && math.Abs(e-a) == 1:
 		return "You are exactly one away, so a count or a boundary is off by one."
 	}
 	// Fewer decimal places than the expected value usually means the answer was
@@ -130,4 +140,24 @@ func decimalsOf(s string) int {
 		return 0
 	}
 	return len(s) - strings.Index(s, ".") - 1
+}
+
+// countingDomains and countingSubdomains are where a numeric answer is a count:
+// arithmetic, counting and combinatorics, graphs (vertices, edges, colours) and
+// number theory (divisors, residues), plus sequences, where an index or a
+// number of terms is off by one.
+var countingDomains = map[string]bool{
+	"arithmetic":    true,
+	"discrete_math": true,
+	"graph_theory":  true,
+	"number_theory": true,
+}
+
+// IsCountingContext reports whether a concept's numeric answers are counts, so
+// an answer one away is a count or a boundary off by one.
+func IsCountingContext(domain, subdomain string) bool {
+	if countingDomains[domain] {
+		return true
+	}
+	return strings.HasSuffix(subdomain, ".sequences") || strings.HasSuffix(subdomain, ".combinatorics") || strings.HasSuffix(subdomain, ".recurrence")
 }
