@@ -43,6 +43,10 @@ type Attempt struct {
 type Engine struct {
 	dag      *concepts.DAG
 	registry *generator.Registry
+	// History, when set, gives each question the learner's record on its
+	// topic (generator.GeneratorContext.History), so an item that unlocks
+	// after another is served once the learner has earned it.
+	History func(studentID, conceptID string) generator.History
 }
 
 func NewEngine(dag *concepts.DAG, reg *generator.Registry) *Engine {
@@ -91,6 +95,9 @@ func (e *Engine) NextQuestion(s *Session) (*generator.Problem, string, error) {
 			difficulty = d
 		}
 		gctx := generator.GeneratorContext{Difficulty: difficulty, NoProofs: true}
+		if e.History != nil && s.StudentID != "" {
+			gctx.History = e.History(s.StudentID, c.ID)
+		}
 		if s.Objective {
 			gctx.NoCards, gctx.ObjectiveOnly = true, true
 		}

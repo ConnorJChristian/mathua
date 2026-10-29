@@ -638,7 +638,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 		if as.remedialDifficulty > 0 {
 			diff = as.remedialDifficulty
 		}
-		ctx := generator.GeneratorContext{Difficulty: diff, Seed: hashSeed(studentID + "|" + cid + "|" + as.attemptID)}
+		ctx := generator.GeneratorContext{Difficulty: diff, Seed: hashSeed(studentID + "|" + cid + "|" + as.attemptID), History: e.LearnerHistory(studentID, cid)}
 		prob, err := e.registry.GenerateContext(cid, ctx)
 		if err != nil {
 			return nil, fmt.Errorf("generate remedial problem: %w", err)
@@ -687,7 +687,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 	prevQuestion := as.questionText
 	attemptID := newAttemptID()
 	seedBase := hashSeed(studentID + "|" + next.Concept.ID + "|" + attemptID)
-	ctx := generator.GeneratorContext{Difficulty: difficulty, Seed: seedBase}
+	ctx := generator.GeneratorContext{Difficulty: difficulty, Seed: seedBase, History: e.LearnerHistory(studentID, next.Concept.ID)}
 	prob, err := e.registry.GenerateContext(next.Concept.ID, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("generate problem: %w", err)
@@ -767,7 +767,7 @@ func (e *Engine) NextReviewQuestionTrack(sessionID, studentID, track string) (*Q
 	prevQuestion := as.questionText
 	attemptID := newAttemptID()
 	seedBase := hashSeed(studentID + "|" + next.Concept.ID + "|" + attemptID)
-	ctx := generator.GeneratorContext{Difficulty: difficulty, Seed: seedBase}
+	ctx := generator.GeneratorContext{Difficulty: difficulty, Seed: seedBase, History: e.LearnerHistory(studentID, next.Concept.ID)}
 	prob, err := e.registry.GenerateContext(next.Concept.ID, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("generate problem: %w", err)

@@ -2111,7 +2111,10 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]interface{}{"questions": []interface{}{}})
 		return
 	}
-	problems, err := reg.BatchGenerateContext(conceptID, count+len(excluded)+5, generator.GeneratorContext{Difficulty: diff, Seed: seed})
+	// Fork change: the learner's record on this topic, so items that unlock
+	// after a book exercise stay hidden until it is answered correctly and
+	// book exercises come first.
+	problems, err := reg.BatchGenerateContext(conceptID, count+len(excluded)+5, generator.GeneratorContext{Difficulty: diff, Seed: seed, History: s.eng.LearnerHistory(s.lessonStudentID(r), conceptID)})
 	if err != nil {
 		writeError(w, err.Error(), 404)
 		return
@@ -3474,6 +3477,7 @@ func (s *Server) handleQuizSession(w http.ResponseWriter, r *http.Request) {
 	// The quiz draws from the track the learner is on, so its fallback (the
 	// first concepts in curriculum order) is also the right track's.
 	qEng := quiz.NewEngine(quizDAG, s.eng.GetGeneratorRegistry())
+	qEng.History = s.eng.LearnerHistory
 	sess := qEng.Start(quizConcepts)
 	// PR 1.4: per-concept 80% difficulty target from weakness map.
 	if studentID != "" {
@@ -3634,6 +3638,7 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 	}
 	// Record via quiz engine (advance index)
 	qEng := quiz.NewEngine(s.eng.GetDAG(), s.eng.GetGeneratorRegistry())
+	qEng.History = s.eng.LearnerHistory
 	qEng.RecordAnswer(sess, req.ConceptID, gr.Correct)
 	// Single-path quiz grading: the engine owns TaskQuiz XP atomically —
 	// one progress update, one AddXP, DB and response agree by construction.
@@ -3777,6 +3782,7 @@ func (s *Server) handleQuizSkip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	qEng := quiz.NewEngine(s.eng.GetDAG(), s.eng.GetGeneratorRegistry())
+	qEng.History = s.eng.LearnerHistory
 	qEng.SkipQuestion(sess)
 	var prob *generator.Problem
 	var cid string

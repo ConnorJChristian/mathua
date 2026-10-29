@@ -101,6 +101,15 @@ type Problem struct {
 	Caps         []Cap       `json:"caps,omitempty"`
 	Alternatives []string    `json:"alternatives,omitempty"`
 	Samples      []Sample    `json:"samples,omitempty"`
+	// BookRef makes a page of the learner's book the statement (fork
+	// change): the exercise is read from the PDF, and Statement only says
+	// what to write ("Prove the claim in the exercise shown above"). The
+	// reference proof states the claim in the bank's own words, which is
+	// what the judge grades against.
+	BookRef *generator.BookRef `json:"book_ref,omitempty"`
+	// UnlocksAfter names another proof problem of the same topic: this one
+	// is not served to a learner until they have proved that one correctly.
+	UnlocksAfter string `json:"unlocks_after,omitempty"`
 }
 
 // File is one proofs/*.json file.
@@ -114,6 +123,9 @@ type File struct {
 type Bank struct {
 	order    []string
 	problems map[string]*Problem
+	// FileExists reports whether a module's files/ folder has a file, for
+	// book references. Nil treats every book PDF as missing.
+	FileExists func(module, file string) bool
 }
 
 // LoadBank reads and validates every *.json file in the given folders (each
@@ -157,7 +169,23 @@ func LoadBank(dirs ...string) (*Bank, error) {
 			}
 		}
 	}
-	return b, nil
+	return b, b.checkUnlocks()
+}
+
+// checkUnlocks verifies every unlocks_after names another problem filed
+// under the same topic.
+func (b *Bank) checkUnlocks() error {
+	for _, id := range b.order {
+		p := b.problems[id]
+		if p.UnlocksAfter == "" {
+			continue
+		}
+		prev := b.problems[p.UnlocksAfter]
+		if prev == nil || prev.ID == p.ID || prev.Concept != p.Concept {
+			return fmt.Errorf("proof problem %q: unlocks_after %q must name another problem of topic %q", p.ID, p.UnlocksAfter, p.Concept)
+		}
+	}
+	return nil
 }
 
 // NewBank builds a bank from problems already in memory (tests, tools).
@@ -174,7 +202,7 @@ func NewBank(ps ...Problem) (*Bank, error) {
 		b.problems[p.ID] = &p
 		b.order = append(b.order, p.ID)
 	}
-	return b, nil
+	return b, b.checkUnlocks()
 }
 
 // Validate checks a problem's marking scheme is usable.
@@ -197,6 +225,9 @@ func (p *Problem) Validate() error {
 	}
 	if strings.Contains(p.Statement, Marker) || strings.Contains(p.Statement, WritingMarker) {
 		return fmt.Errorf("%s: the statement may not contain the proof marker", where)
+	}
+	if err := p.BookRef.Validate(); err != nil {
+		return fmt.Errorf("%s: %w", where, err)
 	}
 	total := 0
 	seen := map[string]bool{}
@@ -321,11 +352,17 @@ func Served(p *Problem) generator.Problem {
 }
 
 // ProblemFor serves one problem by id. With it the bank is an item server for
-// the engine's card mixing (internal/engine/cards.go).
+// the engine's card mixing (internal/engine/cards.go). A book-reference
+// problem opens with the book header (generator.BookHeader).
 func (b *Bank) ProblemFor(id string) (generator.Problem, bool) {
 	p := b.Problem(id)
 	if p == nil {
 		return generator.Problem{}, false
 	}
-	return Served(p), true
+	sp := Served(p)
+	if p.BookRef != nil {
+		ok := b.FileExists != nil && b.FileExists(p.BookRef.Module, p.BookRef.File)
+		sp.Question = generator.BookHeader(*p.BookRef, ok) + "\n\n" + sp.Question
+	}
+	return sp, true
 }

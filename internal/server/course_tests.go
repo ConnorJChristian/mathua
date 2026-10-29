@@ -56,6 +56,7 @@ func (s *Server) startCourseReview(w http.ResponseWriter, studentID, courseID st
 	}
 	dag := s.eng.GetDAG()
 	qEng := quiz.NewEngine(dag, s.eng.GetGeneratorRegistry())
+	qEng.History = s.eng.LearnerHistory
 	sess := qEng.StartLimit(picked, len(picked))
 	sess.Objective = true
 	sess.CourseID = courseID

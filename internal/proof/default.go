@@ -1,6 +1,7 @@
 package proof
 
 import (
+	"os"
 	"sync"
 
 	"github.com/chuma-beep/mathua/internal/generator"
@@ -30,6 +31,14 @@ func Default() (*Grader, error) {
 		if err != nil {
 			defaultErr = err
 			return
+		}
+		b.FileExists = func(module, file string) bool {
+			p := mods.FilePath(module, file)
+			if p == "" {
+				return false
+			}
+			st, err := os.Stat(p)
+			return err == nil && !st.IsDir()
 		}
 		defaultG = New(ConfigFromEnv(), b, nil)
 		grader.SetProofGrader(defaultG.Grade)
@@ -61,6 +70,9 @@ func (g *Grader) ByConcept() map[string][]string { return g.Bank.ByConcept() }
 
 // ProblemFor serves one problem by id.
 func (g *Grader) ProblemFor(id string) (generator.Problem, bool) { return g.Bank.ProblemFor(id) }
+
+// Problem returns a problem by id, or nil.
+func (g *Grader) Problem(id string) *Problem { return g.Bank.Problem(id) }
 
 // Share is the fraction of a topic's practice that is proofs.
 func (g *Grader) Share() float64 { return g.Cfg.Share }

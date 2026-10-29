@@ -2320,3 +2320,13 @@ func (s *SQLiteStore) DiagnosticAttemptResponse(attemptID string) (string, bool,
 	}
 	return response, true, nil
 }
+
+// ItemOutcomes implements Repository.
+func (s *SQLiteStore) ItemOutcomes(studentID, conceptID string) ([]ItemOutcome, error) {
+	rows, err := s.db.Query(fmt.Sprintf(itemOutcomesSQL, "?", "?"), studentID, conceptID)
+	if err != nil {
+		return nil, fmt.Errorf("item outcomes: %w", err)
+	}
+	defer rows.Close()
+	return scanItemOutcomes(rows)
+}

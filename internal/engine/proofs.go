@@ -74,14 +74,124 @@ func (m *proofMixGen) mixesProofs() {}
 func (m *proofMixGen) mixesCards() {}
 
 func (m *proofMixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
-	if !ctx.NoCards && !ctx.NoProofs && !ctx.ObjectiveOnly && rand.Float64() < m.src.Share() && m.src.Serving() {
-		if p, ok := m.src.ProblemFor(m.ids[rand.Intn(len(m.ids))]); ok && grader.IsProofAnswer(p.Answer) {
-			p.Question = CardMarker + "\n" + p.Question
-			p.Raw = true
-			return p
+	if !ctx.NoCards && !ctx.NoProofs && !ctx.ObjectiveOnly {
+		// Fork change: a book exercise to prove comes first until the
+		// learner proves it (generator.PickBook), while proofs are graded.
+		if !ctx.NoBookRefs {
+			if ids, tried := m.pendingBooks(ctx); len(ids) > 0 && m.src.Serving() {
+				if k := generator.PickBook(tried); k >= 0 {
+					if p, ok := m.serve(ids[k]); ok {
+						return p
+					}
+				}
+			}
+			if generator.HasBookPending(m.base, ctx) {
+				return m.base.Generate(ctx)
+			}
+		}
+		if rand.Float64() < m.src.Share() && m.src.Serving() {
+			if ids := m.servable(ctx); len(ids) > 0 {
+				if p, ok := m.serve(ids[rand.Intn(len(ids))]); ok {
+					return p
+				}
+			}
 		}
 	}
 	return m.base.Generate(ctx)
+}
+
+func (m *proofMixGen) serve(id string) (generator.Problem, bool) {
+	p, ok := m.src.ProblemFor(id)
+	if !ok || !grader.IsProofAnswer(p.Answer) {
+		return generator.Problem{}, false
+	}
+	p.Question = CardMarker + "\n" + p.Question
+	p.Raw = true
+	return p, true
+}
+
+// proofGate is a proof source that knows each problem's book reference and
+// unlocks_after (proof.Grader). Without it no problem is gated.
+type proofGate interface {
+	Problem(id string) *proof.Problem
+}
+
+func (m *proofMixGen) gate(id string) (book bool, after string) {
+	if g, ok := m.src.(proofGate); ok {
+		if p := g.Problem(id); p != nil {
+			return p.BookRef != nil, p.UnlocksAfter
+		}
+	}
+	return false, ""
+}
+
+func proofOutcome(id string, ctx generator.GeneratorContext) (attempted, correct bool) {
+	if ctx.History == nil {
+		return false, false
+	}
+	return ctx.History.Outcome(grader.ProofPrefix+id, "")
+}
+
+// servable lists the topic's proofs ctx may serve: a book exercise only
+// outside placement, and a problem that unlocks after another only once the
+// learner has proved that one.
+func (m *proofMixGen) servable(ctx generator.GeneratorContext) []string {
+	var out []string
+	for _, id := range m.ids {
+		book, after := m.gate(id)
+		if book && ctx.NoBookRefs {
+			continue
+		}
+		if after != "" {
+			if _, correct := proofOutcome(after, ctx); !correct {
+				continue
+			}
+		}
+		out = append(out, id)
+	}
+	return out
+}
+
+// pendingBooks lists the servable book proofs not yet proved, in bank order.
+func (m *proofMixGen) pendingBooks(ctx generator.GeneratorContext) ([]string, []bool) {
+	var ids []string
+	var tried []bool
+	for _, id := range m.servable(ctx) {
+		if book, _ := m.gate(id); !book {
+			continue
+		}
+		if attempted, correct := proofOutcome(id, ctx); !correct {
+			ids = append(ids, id)
+			tried = append(tried, attempted)
+		}
+	}
+	return ids, tried
+}
+
+// BookPending implements generator.BookPender.
+func (m *proofMixGen) BookPending(ctx generator.GeneratorContext) bool {
+	if ctx.NoBookRefs || ctx.ObjectiveOnly || ctx.NoCards || ctx.NoProofs {
+		return generator.HasBookPending(m.base, ctx)
+	}
+	if ids, _ := m.pendingBooks(ctx); len(ids) > 0 && m.src.Serving() {
+		return true
+	}
+	return generator.HasBookPending(m.base, ctx)
+}
+
+// ItemServable and ItemBookPending forward a wrapped bank topic's gating.
+func (m *proofMixGen) ItemServable(item string, ctx generator.GeneratorContext) bool {
+	if gi, ok := m.base.(generator.GatedItems); ok {
+		return gi.ItemServable(item, ctx)
+	}
+	return true
+}
+
+func (m *proofMixGen) ItemBookPending(item string, ctx generator.GeneratorContext) (bool, bool) {
+	if gi, ok := m.base.(generator.GatedItems); ok {
+		return gi.ItemBookPending(item, ctx)
+	}
+	return false, false
 }
 
 // ObjectiveItems forwards a bank base's count (see mixGen.ObjectiveItems).

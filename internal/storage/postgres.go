@@ -2429,3 +2429,13 @@ func (s *PostgresStore) DiagnosticAttemptResponse(attemptID string) (string, boo
 	}
 	return response, true, nil
 }
+
+// ItemOutcomes implements Repository.
+func (s *PostgresStore) ItemOutcomes(studentID, conceptID string) ([]ItemOutcome, error) {
+	rows, err := s.db.Query(fmt.Sprintf(itemOutcomesSQL, "$1", "$2"), studentID, conceptID)
+	if err != nil {
+		return nil, fmt.Errorf("item outcomes: %w", err)
+	}
+	defer rows.Close()
+	return scanItemOutcomes(rows)
+}

@@ -547,6 +547,9 @@ func (e *Engine) NextQuestion(s *Session) (*generator.Problem, string, error) {
 		var err error
 		p, err = e.registry.GenerateContext(cid, generator.GeneratorContext{
 			Difficulty: clampDifficulty(difficulty), NoCards: true, NoProofs: true, ObjectiveOnly: true,
+			// A page of the learner's book needs the PDF and reading time:
+			// placement stays objective and quick (fork change).
+			NoBookRefs: true,
 		})
 		if err != nil {
 			return nil, "", err

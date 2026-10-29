@@ -164,26 +164,147 @@ type mixGen struct {
 func (m *mixGen) mixesCards() {}
 
 func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Fork change: a book exercise filed under this topic comes first until
+	// the learner answers it correctly (generator.PickBook), then the
+	// topic's own book exercises, then the usual mix.
+	if !ctx.NoBookRefs && !ctx.ObjectiveOnly {
+		if p, ok := m.pendingBook(ctx); ok {
+			return p
+		}
+		if generator.HasBookPending(m.base, ctx) {
+			return m.base.Generate(ctx)
+		}
+	}
 	if !ctx.NoCards && !ctx.ObjectiveOnly && rand.Float64() < m.share {
 		var p generator.Problem
 		if len(m.picks) > 0 {
-			pk := m.picks[rand.Intn(len(m.picks))]
-			p, _ = pk.gen.ProblemFor(pk.item)
+			if ok := m.servable(ctx, false); len(ok) > 0 {
+				pk := ok[rand.Intn(len(ok))]
+				p, _ = pk.gen.ProblemFor(pk.item)
+			}
 		} else {
 			p = m.cards[rand.Intn(len(m.cards))].Generate(ctx)
 		}
 		if p.Question != "" && grader.IsBankAnswer(p.Answer) {
-			if ctx.NoProofs {
-				// A quiz asks for no written answer: a written-answer
-				// flashcard comes as the plain flashcard it also is.
-				p = plainRecall(p)
+			return m.asCard(p, ctx)
+		}
+	}
+	// A course review test may ask a book exercise filed here (placement
+	// sets NoBookRefs); other filed cards stay out of tests.
+	if ctx.ObjectiveOnly && !ctx.NoBookRefs && rand.Float64() < m.share {
+		if ok := m.servable(ctx, true); len(ok) > 0 {
+			pk := ok[rand.Intn(len(ok))]
+			if p, found := pk.gen.ProblemFor(pk.item); found && p.Question != "" && grader.IsBankAnswer(p.Answer) {
+				return m.asCard(p, ctx)
 			}
-			p.Question = CardMarker + "\n" + p.Question
-			p.Raw = true
-			return p
 		}
 	}
 	return m.base.Generate(ctx)
+}
+
+// asCard marks a filed card for every answer host.
+func (m *mixGen) asCard(p generator.Problem, ctx generator.GeneratorContext) generator.Problem {
+	if ctx.NoProofs {
+		// A quiz asks for no written answer: a written-answer
+		// flashcard comes as the plain flashcard it also is.
+		p = plainRecall(p)
+	}
+	p.Question = CardMarker + "\n" + p.Question
+	p.Raw = true
+	return p
+}
+
+// servable lists the filed cards ctx may serve (generator.GatedItems: an
+// item that unlocks after another stays hidden until that one is answered
+// correctly); with books, only book exercises.
+func (m *mixGen) servable(ctx generator.GeneratorContext, books bool) []cardPick {
+	var out []cardPick
+	for _, pk := range m.picks {
+		gi, gated := pk.gen.(generator.GatedItems)
+		if gated && !gi.ItemServable(pk.item, ctx) {
+			continue
+		}
+		if books && (!gated || !bookItem(gi, pk.item, ctx)) {
+			continue
+		}
+		out = append(out, pk)
+	}
+	return out
+}
+
+// bookItem reports whether an item is a book exercise: one that is pending
+// for a learner who has done nothing.
+func bookItem(gi generator.GatedItems, item string, ctx generator.GeneratorContext) bool {
+	none := ctx
+	none.History = nil
+	none.NoBookRefs = false
+	pending, _ := gi.ItemBookPending(item, none)
+	return pending
+}
+
+// pendingBook serves the first filed book exercise the learner has not
+// answered correctly (generator.PickBook).
+func (m *mixGen) pendingBook(ctx generator.GeneratorContext) (generator.Problem, bool) {
+	var picks []cardPick
+	var tried []bool
+	for _, pk := range m.picks {
+		gi, ok := pk.gen.(generator.GatedItems)
+		if !ok || !gi.ItemServable(pk.item, ctx) {
+			continue
+		}
+		if pending, attempted := gi.ItemBookPending(pk.item, ctx); pending {
+			picks = append(picks, pk)
+			tried = append(tried, attempted)
+		}
+	}
+	k := generator.PickBook(tried)
+	if k < 0 {
+		return generator.Problem{}, false
+	}
+	p, found := picks[k].gen.ProblemFor(picks[k].item)
+	if !found || p.Question == "" {
+		return generator.Problem{}, false
+	}
+	return m.asCard(p, ctx), true
+}
+
+// BookPending implements generator.BookPender.
+func (m *mixGen) BookPending(ctx generator.GeneratorContext) bool {
+	if ctx.NoBookRefs || ctx.ObjectiveOnly {
+		return false
+	}
+	for _, pk := range m.picks {
+		if gi, ok := pk.gen.(generator.GatedItems); ok && gi.ItemServable(pk.item, ctx) {
+			if pending, _ := gi.ItemBookPending(pk.item, ctx); pending {
+				return true
+			}
+		}
+	}
+	return generator.HasBookPending(m.base, ctx)
+}
+
+// ItemServable and ItemBookPending forward a wrapped bank topic's gating, so
+// it can still be filed under another topic.
+func (m *mixGen) ItemServable(item string, ctx generator.GeneratorContext) bool {
+	if gi, ok := m.base.(generator.GatedItems); ok {
+		return gi.ItemServable(item, ctx)
+	}
+	return true
+}
+
+func (m *mixGen) ItemBookPending(item string, ctx generator.GeneratorContext) (bool, bool) {
+	if gi, ok := m.base.(generator.GatedItems); ok {
+		return gi.ItemBookPending(item, ctx)
+	}
+	return false, false
+}
+
+// ProblemFor keeps a wrapped bank topic able to serve its items by id.
+func (m *mixGen) ProblemFor(id string) (generator.Problem, bool) {
+	if is, ok := m.base.(itemServer); ok {
+		return is.ProblemFor(id)
+	}
+	return generator.Problem{}, false
 }
 
 // ObjectiveItems forwards a bank base's count, so a wrapped bank topic still

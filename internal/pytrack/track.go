@@ -8,6 +8,7 @@ import (
 	"hash/fnv"
 	"math"
 	"math/rand"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -81,6 +82,14 @@ func Default() (*Track, error) {
 			defaultErr = err
 			return
 		}
+		b.FileExists = func(module, file string) bool {
+			p := mods.FilePath(module, file)
+			if p == "" {
+				return false
+			}
+			st, err := os.Stat(p)
+			return err == nil && !st.IsDir()
+		}
 		defaultTrack = &Track{Bank: b, Runner: NewRunner()}
 	})
 	return defaultTrack, defaultErr
@@ -143,30 +152,149 @@ func objectiveKind(kind string) bool {
 	return kind == KindChoice || kind == KindOutput || kind == KindMath || kind == KindTerm
 }
 
-// ObjectiveItems is how many of this topic's items a test may serve.
+// ObjectiveItems is how many of this topic's items a test may serve. A book
+// reference (placement never serves one) and an item that unlocks after
+// another (a new learner has not unlocked it) are not counted, so the count
+// holds for every test and every learner.
 func (g *conceptGen) ObjectiveItems() int {
 	n := 0
 	for _, it := range g.c.Items {
-		if objectiveKind(it.Kind) {
+		if objectiveKind(it.Kind) && it.BookRef == nil && it.UnlocksAfter == "" {
 			n++
 		}
 	}
 	return n
 }
 
+// item finds one of this concept's items by id.
+func (g *conceptGen) item(id string) *Item {
+	for i := range g.c.Items {
+		if g.c.Items[i].ID == id {
+			return &g.c.Items[i]
+		}
+	}
+	return nil
+}
+
+// outcome reports what the learner in ctx has done with one of this
+// concept's items: whether they tried it and whether they got it right.
+func (g *conceptGen) outcome(it *Item, ctx generator.GeneratorContext) (attempted, correct bool) {
+	if ctx.History == nil {
+		return false, false
+	}
+	p := g.track.problem(g.c, it) // the header does not change the key
+	q := ""
+	if it.Kind == KindChoice {
+		q = generator.QuestionKey(p.Question)
+	}
+	return ctx.History.Outcome(p.Answer, q)
+}
+
+// ItemServable implements generator.GatedItems.
+func (g *conceptGen) ItemServable(itemID string, ctx generator.GeneratorContext) bool {
+	it := g.item(itemID)
+	return it != nil && g.servable(it, ctx)
+}
+
+func (g *conceptGen) servable(it *Item, ctx generator.GeneratorContext) bool {
+	if ctx.ObjectiveOnly && !objectiveKind(it.Kind) {
+		return false
+	}
+	if it.BookRef != nil && ctx.NoBookRefs {
+		return false
+	}
+	if it.UnlocksAfter != "" {
+		prev := g.item(it.UnlocksAfter)
+		if prev == nil {
+			return false
+		}
+		if _, correct := g.outcome(prev, ctx); !correct {
+			return false
+		}
+	}
+	return true
+}
+
+// ItemBookPending implements generator.GatedItems.
+func (g *conceptGen) ItemBookPending(itemID string, ctx generator.GeneratorContext) (pending, attempted bool) {
+	it := g.item(itemID)
+	if it == nil || it.BookRef == nil || ctx.NoBookRefs {
+		return false, false
+	}
+	attempted, correct := g.outcome(it, ctx)
+	return !correct, attempted
+}
+
+// pendingBooks lists the servable book items the learner has not answered
+// correctly, in bank order, with whether each was tried.
+func (g *conceptGen) pendingBooks(items []Item, ctx generator.GeneratorContext) ([]int, []bool) {
+	var idx []int
+	var tried []bool
+	for i := range items {
+		if items[i].BookRef == nil {
+			continue
+		}
+		attempted, correct := g.outcome(&items[i], ctx)
+		if !correct {
+			idx = append(idx, i)
+			tried = append(tried, attempted)
+		}
+	}
+	return idx, tried
+}
+
+// BookPending implements generator.BookPender: this topic still has a book
+// exercise the learner has not answered correctly. Tests never prefer them.
+func (g *conceptGen) BookPending(ctx generator.GeneratorContext) bool {
+	if ctx.NoBookRefs || ctx.ObjectiveOnly {
+		return false
+	}
+	for i := range g.c.Items {
+		if it := &g.c.Items[i]; it.BookRef != nil {
+			if _, correct := g.outcome(it, ctx); !correct {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Fork change: drop what this learner may not be served (an item that
+	// unlocks after another not yet answered correctly, a book page in
+	// placement, anything slow or self-graded in a test).
 	items := g.c.Items
-	if ctx.ObjectiveOnly {
+	gated := false
+	for i := range items {
+		if items[i].UnlocksAfter != "" || items[i].BookRef != nil || ctx.ObjectiveOnly {
+			gated = true
+			break
+		}
+	}
+	if gated {
 		var kept []Item
-		for _, it := range items {
-			if objectiveKind(it.Kind) {
-				kept = append(kept, it)
+		for i := range items {
+			if g.servable(&items[i], ctx) {
+				kept = append(kept, items[i])
 			}
 		}
 		if len(kept) == 0 {
 			return generator.Problem{}
 		}
 		items = kept
+	}
+	// Book exercises come first in practice until each is answered correctly
+	// (generator.PickBook); tests mix them in with the rest.
+	if !ctx.ObjectiveOnly && !ctx.NoBookRefs {
+		if idx, tried := g.pendingBooks(items, ctx); len(idx) > 0 {
+			if k := generator.PickBook(tried); k >= 0 {
+				p := g.track.Problem(g.c, &items[idx[k]])
+				if ctx.NoProofs || ctx.NoCards {
+					p = PlainRecall(p)
+				}
+				return p
+			}
+		}
 	}
 	// Prefer questions near the requested difficulty, but never starve: a
 	// concept whose bank has nothing near it serves from the whole bank.
@@ -190,8 +318,17 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 	return p
 }
 
-// Problem renders one item as a served question.
+// Problem renders one item as a served question. A book-reference item
+// opens with the book header (generator.BookHeader).
 func (t *Track) Problem(c *Concept, it *Item) generator.Problem {
+	p := t.problem(c, it)
+	if it.BookRef != nil {
+		p.Question = generator.BookHeader(*it.BookRef, t.Bank.fileExists(it.BookRef.Module, it.BookRef.File)) + "\n\n" + p.Question
+	}
+	return p
+}
+
+func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 	book := ""
 	if c.Book.URL != "" {
 		name := c.Book.Name

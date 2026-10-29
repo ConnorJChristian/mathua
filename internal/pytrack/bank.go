@@ -18,6 +18,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/chuma-beep/mathua/internal/generator"
 )
 
 // Book points a concept at the matching section of the Python Data Science
@@ -107,6 +109,16 @@ type Item struct {
 	// Math item.
 	Parts []Part `json:"parts,omitempty"`
 
+	// BookRef makes a page of the learner's own book the item's prompt
+	// (fork change): the item names an exercise and opens the PDF at it, and
+	// the bank keeps only the reference, the answer key and an explanation
+	// in its own words. Prompt then says what to enter, never the exercise.
+	BookRef *generator.BookRef `json:"book_ref,omitempty"`
+	// UnlocksAfter names another item of the same concept: this item is not
+	// served to a learner until they have answered that one correctly at
+	// least once (fork change). Practice versions of a book exercise use it.
+	UnlocksAfter string `json:"unlocks_after,omitempty"`
+
 	Explain string `json:"explain"`
 }
 
@@ -132,6 +144,14 @@ type Bank struct {
 	items    map[string]*Item // "<concept>#<item>"
 	// bankOf names the bank file each concept is in, without ".json".
 	bankOf map[string]string
+	// moduleDirs maps a module id to its folder, for the files/ a book
+	// reference points into: every module whose bank/ was loaded, by the
+	// folder's name, and its sibling folders (another module of the same
+	// install). Default replaces it with the module set's own lookup.
+	moduleDirs []string
+	// FileExists reports whether a module's files/ folder has a file. Nil
+	// uses moduleDirs.
+	FileExists func(module, file string) bool
 }
 
 // LoadBank reads and validates every *.json bank file in the given folders
@@ -140,6 +160,7 @@ func LoadBank(dirs ...string) (*Bank, error) {
 	b := &Bank{concepts: map[string]*Concept{}, items: map[string]*Item{}, bankOf: map[string]string{}}
 	var files []string // the bank file of each chapter, in order
 	for _, dir := range dirs {
+		b.moduleDirs = append(b.moduleDirs, filepath.Dir(filepath.Clean(dir)))
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			return nil, err
@@ -220,9 +241,24 @@ func validateConcept(c *Concept) error {
 	if len(c.Items) == 0 {
 		return fmt.Errorf("concept %q has no questions", c.ID)
 	}
+	ids := make(map[string]bool, len(c.Items))
+	for _, it := range c.Items {
+		ids[it.ID] = true
+	}
 	seen := map[string]bool{}
 	for _, it := range c.Items {
 		where := fmt.Sprintf("concept %q item %q", c.ID, it.ID)
+		if err := it.BookRef.Validate(); err != nil {
+			return fmt.Errorf("%s: %w", where, err)
+		}
+		if it.UnlocksAfter != "" {
+			if it.UnlocksAfter == it.ID || !ids[it.UnlocksAfter] {
+				return fmt.Errorf("%s: unlocks_after %q must name another item of the concept", where, it.UnlocksAfter)
+			}
+		}
+		if it.BookRef != nil && (it.Kind == KindOutput || it.Kind == KindCode) {
+			return fmt.Errorf("%s: a book reference takes a typed, term, choice or recall answer", where)
+		}
 		if it.ID == "" || strings.ContainsAny(it.ID, "#: ") {
 			return fmt.Errorf("%s: id must be non-empty without '#', ':' or spaces", where)
 		}
@@ -354,6 +390,38 @@ func negativeOption(o string) bool {
 		return true
 	}
 	return false
+}
+
+// fileExists reports whether a module's files/ folder has file.
+func (b *Bank) fileExists(module, file string) bool {
+	if b.FileExists != nil {
+		return b.FileExists(module, file)
+	}
+	if !safeRel(file) || module == "" || strings.ContainsAny(module, "/\\") || module == ".." {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, md := range b.moduleDirs {
+		for _, dir := range []string{md, filepath.Join(filepath.Dir(md), module)} {
+			if filepath.Base(dir) != module || seen[dir] {
+				continue
+			}
+			seen[dir] = true
+			if st, err := os.Stat(filepath.Join(dir, "files", filepath.FromSlash(file))); err == nil && !st.IsDir() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// safeRel reports a relative path that stays inside its folder.
+func safeRel(p string) bool {
+	if p == "" || filepath.IsAbs(p) || strings.HasPrefix(p, "/") || strings.HasPrefix(p, "\\") {
+		return false
+	}
+	clean := filepath.ToSlash(filepath.Clean(p))
+	return clean != ".." && !strings.HasPrefix(clean, "../")
 }
 
 // Concept returns the bank entry for a concept, or nil.

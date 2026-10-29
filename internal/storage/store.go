@@ -116,6 +116,45 @@ type AttemptRow struct {
 	Source    string
 }
 
+// ItemOutcome is one served bank item or proof and what a learner did with
+// it (Repository.ItemOutcomes).
+type ItemOutcome struct {
+	Expected string
+	Question string // multiple choice only
+	Correct  bool
+}
+
+// itemOutcomesSQL is the query behind ItemOutcomes; the placeholder style is
+// filled in per store. Only answer keys of bank items and proofs.
+const itemOutcomesSQL = `
+	SELECT expected,
+	       CASE WHEN expected LIKE 'mc:%%' THEN question ELSE '' END AS q,
+	       MAX(correct)
+	FROM attempts
+	WHERE student_id = %s AND concept_id = %s
+	  AND (expected LIKE 'mc:%%' OR expected LIKE 'math:%%' OR expected LIKE 'term:%%'
+	       OR expected LIKE 'recall:%%' OR expected LIKE 'proof:%%' OR expected LIKE 'out:%%'
+	       OR expected LIKE 'code:%%')
+	GROUP BY expected, q`
+
+func scanItemOutcomes(rows interface {
+	Next() bool
+	Scan(...any) error
+	Err() error
+}) ([]ItemOutcome, error) {
+	var out []ItemOutcome
+	for rows.Next() {
+		var o ItemOutcome
+		var correct int
+		if err := rows.Scan(&o.Expected, &o.Question, &correct); err != nil {
+			return nil, fmt.Errorf("scan item outcome: %w", err)
+		}
+		o.Correct = correct != 0
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
 type AttemptEntry struct {
 	// ID is the persistent row id (set on read; ignored on insert).
 	ID             int64     `json:"id,omitempty"`
@@ -593,6 +632,12 @@ type Repository interface {
 	//
 	// Backed by idx_attempts_cover (student_id, concept_id, timestamp) in both stores.
 	GetRecentAttemptsForConcept(studentID, conceptID string, limit int) ([]AttemptEntry, error)
+	// ItemOutcomes summarises a learner's answers to question-bank items and
+	// proofs on one topic (fork change): one row per distinct served answer
+	// key, with whether any answer was right. A multiple-choice key names the
+	// option, so for those the served question text is returned too.
+	// Generated questions are left out. Backed by idx_attempts_cover.
+	ItemOutcomes(studentID, conceptID string) ([]ItemOutcome, error)
 	GetAllAttempts() ([]AttemptEntry, error)
 
 	GetQuestions(conceptID string, count int) ([]Question, error)

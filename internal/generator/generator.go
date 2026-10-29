@@ -20,6 +20,16 @@ type GeneratorContext struct {
 	// placement and review tests set it. A bank topic with no such item
 	// returns an empty Problem; callers check ObjectiveItems first.
 	ObjectiveOnly bool
+	// NoBookRefs asks for no question whose prompt is a page of the
+	// learner's book (BookRef, fork change). Placement sets it: it must stay
+	// objective and quick, and a book page needs the PDF and reading time.
+	// Course review tests and practice leave it off.
+	NoBookRefs bool
+	// History is what this learner has done with the topic's questions, for
+	// items that unlock after another is answered correctly and for serving
+	// book exercises first. Nil means no learner is known: a gated item is
+	// then never served.
+	History History
 }
 
 // ObjectiveItemCounter is implemented by question-bank generators: how many
