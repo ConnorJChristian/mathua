@@ -33,3 +33,17 @@ describe('KatexContent: math is opaque to Markdown emphasis', () => {
     expect(container.querySelector('em')?.textContent).toBe('stressed')
   })
 })
+
+// Anki cloze cards turned into choices (scripts/anki_choice.py) mark the blank
+// as `<b>_____</b>`. 56 of them put it inside a formula, where KaTeX got the
+// HTML tag and the formula fell back to raw TeX in a dashed box.
+describe('KatexContent: a cloze blank inside math', () => {
+  it('renders as a TeX blank, not a fallback', () => {
+    const { container } = render(
+      <KatexContent>{'we write<br>\\(<b>_____</b>\\)<br>and \\(W = X \\cap Y =<b>_____</b>\\)'}</KatexContent>,
+    )
+    expect(container.querySelector('.math-fallback')).toBeNull()
+    expect(container.querySelectorAll('.katex').length).toBe(2)
+    expect(container.textContent).not.toContain('<b>')
+  })
+})

@@ -158,14 +158,19 @@ function prepareLessonMathInner(input: string): string {
   // replacement emits close-$ + space + open-$ (dollars preserved, separated).
   content = content.replace(/([^\s$><])\$\$([\\\w(])/g, '$1$ $$$2')
 
+  // A fill-in-the-blank card's blank is HTML (`<b>_____</b>`), and when the
+  // blank sits inside a formula KaTeX received the tag and showed the whole
+  // formula as a raw-TeX fallback. Inside math it is a TeX blank instead.
+  const texBlank = (s: string) => s.replace(/<b>\s*_{3,}\s*<\/b>/g, '\\underline{\\qquad}')
+
   // Display math: $$...$$
   content = content.replace(/\$\$([\s\S]*?)\$\$/g, (_, inner: string) => {
-    return '<span class="math-display">' + escapeHtmlMath(unwrapTextCommand(inner.trim())) + '</span>'
+    return '<span class="math-display">' + escapeHtmlMath(unwrapTextCommand(texBlank(inner.trim()))) + '</span>'
   })
 
   // Inline math: $...$
   content = content.replace(/\$([^$]+?)\$/g, (_, inner: string) => {
-    const trimmed = unwrapTextCommand(inner.trim())
+    const trimmed = unwrapTextCommand(texBlank(inner.trim()))
     if (trimmed.includes('\n')) {
       return '<span class="math-display">' + escapeHtmlMath(trimmed) + '</span>'
     }
