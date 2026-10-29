@@ -4,7 +4,10 @@
 
 @layer base {
   :root {
-    color-scheme: light dark;
+    /* Light is the default palette. `light` alone (not `light dark`) so native
+       controls, scrollbars and form fields paint light unless `.dark` is set;
+       with both listed the browser would follow the OS instead of the page. */
+    color-scheme: light;
     /* Top spacing mobile pages use to clear the sticky header. The header is in
        flow and collapses when the chrome hides (see components/Header.tsx), so
        this has to collapse with it or the page keeps an 80px hole. Desktop

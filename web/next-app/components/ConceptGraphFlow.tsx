@@ -649,7 +649,7 @@ function GraphInner({
   concepts,
   conceptStatuses,
   conceptProgress,
-  theme = 'dark',
+  theme = 'light',
   onPathNodes,
   selectedId,
   onSelectionChange,

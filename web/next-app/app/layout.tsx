@@ -68,7 +68,9 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0c0d0f',
+  // Light is the default palette; public/js/theme-init.js and lib/theme.ts
+  // rewrite this to the dark value when the visitor has chosen dark.
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -80,9 +82,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    // No `dark` class on the server: light is the default, and the pre-paint
+    // script below adds the class only when the visitor has chosen dark.
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="color-scheme" content="dark light" />
+        <meta name="color-scheme" content="light dark" />
         {/* KaTeX builds some glyphs (≠, ≤, overlays) from private-use codepoints
             that render as tofu until KaTeX_Main arrives. katex.min.css uses
             font-display:block with no preload, so slow networks show broken

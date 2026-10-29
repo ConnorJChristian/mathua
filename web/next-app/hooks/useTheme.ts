@@ -1,23 +1,22 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import {
+  type Theme,
+  DEFAULT_THEME,
+  applyTheme,
+  readStoredTheme,
+  resolveTheme,
+  writeStoredTheme,
+} from '../lib/theme'
 
-type Theme = 'dark' | 'light'
-
-const STORAGE_KEY = 'mathua-theme'
-
-function getSystemTheme(): Theme {
-  if (typeof window === 'undefined') return 'dark'
-  if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark'
-  if (window.matchMedia('(prefers-color-scheme: light)').matches) return 'light'
-  return 'dark'
-}
+export type { Theme }
 
 function getInitialTheme(): Theme {
-  if (typeof window === 'undefined') return 'dark'
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (saved === 'dark' || saved === 'light') return saved
-  return getSystemTheme()
+  if (typeof window === 'undefined') return DEFAULT_THEME
+  // Light unless the visitor chose dark. The OS preference is not consulted:
+  // the fork defaults to light, and only the toggle moves a visitor off it.
+  return resolveTheme(readStoredTheme(window.localStorage))
 }
 
 export function useTheme() {
@@ -30,25 +29,13 @@ export function useTheme() {
 
   useEffect(() => {
     if (!mounted) return
-    document.documentElement.classList.toggle('dark', theme === 'dark')
+    applyTheme(document, theme)
   }, [theme, mounted])
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const handler = (e: MediaQueryListEvent) => {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (!saved) {
-        setTheme(e.matches ? 'dark' : 'light')
-      }
-    }
-    mq.addEventListener('change', handler)
-    return () => mq.removeEventListener('change', handler)
-  }, [])
 
   const toggleTheme = useCallback(() => {
     const next: Theme = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
-    localStorage.setItem(STORAGE_KEY, next)
+    writeStoredTheme(window.localStorage, next)
   }, [theme])
 
   return { theme, mounted, toggleTheme }
