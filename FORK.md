@@ -324,6 +324,50 @@ a review. The mastery test covers only topics studied on followed courses.
 It comes due after 50 XP, 4 topics worked and a gap since the last one: 20
 hours by default, or `MATHUA_QUIZ_GAP_HOURS` (168 for a weekly test).
 
+### Book exercises and practice that unlocks
+
+Two optional fields of a bank item (`bank/*.json`, written with
+`scripts/python_bank.py`) serve a textbook's exercises from your own copy of
+the book without putting the book's text in the bank.
+
+`book_ref` makes a page of a PDF in a module's `files/` the item's prompt:
+
+```json
+"book_ref": {"file": "hoy-3e.pdf", "module": "ma-program", "page": 187,
+             "printed_page": 173, "label": "Hoy Exercise 5.4, #3"}
+```
+
+`page` is the PDF page the exercise starts on; `end_page` (when it runs
+over a page break) and `printed_page` (the number printed in the book) are
+optional. The item keeps its own answer kind (typed math, a term, multiple
+choice or a recall card) and its `prompt` says only what to enter. The
+served question names the exercise and its pages, and Learn, review and the
+tests show the page in the embedded PDF reader directly above the answer
+box. When the PDF is not in `files/`, the label and both page numbers are
+shown instead, so you can work from a paper copy. A proof problem
+(`proofs/*.json`) takes the same field; its `statement` then only says what
+to write, and its reference proof states the claim in the module's own
+words, which is what the judge grades against.
+
+`unlocks_after` names another item of the same concept (for a proof, another
+problem of the same topic). The item is not served to you until you have
+answered that one correctly at least once. The attempts table is the
+record: a bank item's answer key names the item (`math:<concept>#<item>`,
+`proof:<id>`), and for multiple choice the question text is compared too.
+
+Serving rules:
+
+- In practice, a topic serves its book exercises first, in bank order, until
+  each has a correct answer. An exercise you missed comes back about half
+  the time, so the rest of the topic is not crowded out. After that, the
+  practice versions that unlock after them mix in with everything else.
+- Items filed under a topic through `cards.json` follow the same rules, so a
+  book exercise can belong to a generated topic.
+- Placement never serves a book exercise: it stays objective and quick, and
+  a book page needs the PDF and reading time. A course review test may ask
+  one. Neither counts a book exercise or an item that unlocks after another
+  when deciding whether a topic has enough questions for a test.
+
 ## Proof grading
 
 A module may hold written-proof problems in `proofs/*.json`. Each problem
@@ -543,6 +587,8 @@ libraries installed:
 python3 scripts/python_bank.py build             # every module
 python3 scripts/python_bank.py build python-dsh  # one module
 python3 scripts/python_bank.py build numpy       # one chapter
+MATHUA_ROOT=../mathua python3 scripts/python_bank.py build ma-program
+                                                 # another install's modules-local/
 ```
 
 The build runs every snippet. It computes the expected output of each "what

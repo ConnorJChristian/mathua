@@ -14,6 +14,9 @@ and this script writes, next to them,
     python3 scripts/python_bank.py build numpy        # files or modules matching "numpy"
     python3 scripts/python_bank.py check              # verify the JSON is current
 
+With MATHUA_ROOT set, modules-local/ is read from that install instead of
+this checkout (a worktree builds the main checkout's local modules).
+
 Every snippet runs through grading/pyrunner.py, the same runner the server
 uses, so the bank is checked in the environment that grades learners:
 
@@ -41,6 +44,11 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUNNER = os.path.join(ROOT, "grading", "pyrunner.py")
+# MATHUA_ROOT names the install whose modules-local/ to build, as it does for
+# the server (internal/modules): a git worktree of this repository has an
+# empty modules-local/, so its script can build the main checkout's local
+# modules. Committed modules always come from this checkout.
+LOCAL_ROOT = os.path.abspath(os.environ.get("MATHUA_ROOT") or ROOT)
 BOOK = "https://jakevdp.github.io/PythonDataScienceHandbook/"
 
 
@@ -104,6 +112,23 @@ def task(id, prompt, solution, tests, explain, starter="", setup="", level=2, st
     return item
 
 
+def book_ref(file, module, page, label, printed_page=None, end_page=None):
+    """A page of the learner's own book as an item's prompt (fork change).
+
+    Set it as an item's "book_ref" field. The bank then stores only this
+    reference, the answer key and an explanation in the bank's own words:
+    never the exercise's text. "unlocks_after": "<item id>" on another item
+    of the same concept keeps that item back until this one is answered
+    correctly (practice versions of a book exercise).
+    """
+    ref = {"file": file, "module": module, "page": page, "label": label}
+    if end_page and end_page != page:
+        ref["end_page"] = end_page
+    if printed_page:
+        ref["printed_page"] = printed_page
+    return ref
+
+
 def check(name, code, hint=""):
     t = {"name": name, "code": dedent(code)}
     if hint:
@@ -155,7 +180,35 @@ def reflow(md):
     return "\n".join(out)
 
 
-HELPERS = {"concept": concept, "topic": topic, "mc": mc, "out": out, "task": task, "check": check}
+HELPERS = {"concept": concept, "topic": topic, "mc": mc, "out": out, "task": task, "check": check,
+           "book_ref": book_ref}
+
+
+def check_gating(cid, items):
+    """book_ref and unlocks_after, as internal/pytrack/bank.go validates them."""
+    errs = []
+    ids = {it["id"] for it in items}
+    for it in items:
+        where = "%s#%s" % (cid, it["id"])
+        ref = it.get("book_ref")
+        if ref is not None:
+            unknown = set(ref) - {"file", "module", "page", "end_page", "printed_page", "label"}
+            if unknown:
+                errs.append("%s: book_ref has unknown fields %s" % (where, sorted(unknown)))
+            if not all(str(ref.get(k, "")).strip() for k in ("file", "module", "label")):
+                errs.append("%s: book_ref needs file, module and label" % where)
+            if "\n" in ref.get("label", "") or "-->" in ref.get("label", ""):
+                errs.append("%s: book_ref label must be one line" % where)
+            if not isinstance(ref.get("page"), int) or ref["page"] < 1:
+                errs.append("%s: book_ref page must be 1 or more" % where)
+            elif ref.get("end_page") is not None and ref["end_page"] < ref["page"]:
+                errs.append("%s: book_ref end_page is before page" % where)
+            if it["kind"] in ("output", "code"):
+                errs.append("%s: a book reference takes a typed, term, choice or recall answer" % where)
+        after = it.get("unlocks_after")
+        if after is not None and (after == it["id"] or after not in ids):
+            errs.append("%s: unlocks_after %r must name another item of the concept" % (where, after))
+    return errs
 
 
 # ---------------------------------------------------------------- running
@@ -225,6 +278,7 @@ def build_chapter(path):
     jobs = []
     with cf.ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         for c in chapter["concepts"]:
+            errors.extend(check_gating(c["id"], c["items"]))
             for idx, item in enumerate(c["items"]):
                 jobs.append((c, idx, pool.submit(check_item, c["id"], item)))
         for c, idx, fut in jobs:
@@ -235,14 +289,23 @@ def build_chapter(path):
 
 
 def chapter_files(only=None, include_local=True):
-    areas = ["modules"] + (["modules-local"] if include_local else [])
+    areas = [os.path.join(ROOT, "modules")] + ([os.path.join(LOCAL_ROOT, "modules-local")] if include_local else [])
     files = []
     for area in areas:
-        files += sorted(glob.glob(os.path.join(ROOT, area, "*", "src", "[0-9][0-9]_*.py")))
+        files += sorted(glob.glob(os.path.join(area, "*", "src", "[0-9][0-9]_*.py")))
     if only:
         files = [f for f in files
                  if only in os.path.basename(f) or only == os.path.basename(module_dir(f))]
     return files
+
+
+def rel(path):
+    """A path for messages: relative to whichever root holds it."""
+    for root in (ROOT, LOCAL_ROOT):
+        r = os.path.relpath(path, root)
+        if not r.startswith(".."):
+            return r
+    return path
 
 
 def out_path(src):
@@ -319,7 +382,7 @@ def main(argv):
                     f.write(text)
                 with open(gdst, "w", encoding="utf-8") as f:
                     f.write(graph)
-            print("%s: %d concepts, %d questions%s" % (os.path.relpath(src, ROOT), len(chapter["concepts"]), n,
+            print("%s: %d concepts, %d questions%s" % (rel(src), len(chapter["concepts"]), n,
                                                       "" if not errors else " (not written: errors)"))
         else:
             try:
@@ -331,10 +394,10 @@ def main(argv):
             except FileNotFoundError:
                 gcurrent = ""
             if current != text or gcurrent != graph:
-                print("STALE %s: run `python3 scripts/python_bank.py build %s`" % (os.path.relpath(dst, ROOT), os.path.basename(module_dir(src))))
+                print("STALE %s: run `python3 scripts/python_bank.py build %s`" % (rel(dst), os.path.basename(module_dir(src))))
                 failed = True
             else:
-                print("%s: ok (%d questions)" % (os.path.relpath(src, ROOT), n))
+                print("%s: ok (%d questions)" % (rel(src), n))
     if mode == "build" and not failed:
         # The browser bundles its own copy of the concept graph; refresh it so
         # new concepts get labels on /learn and appear in the topic browser.
