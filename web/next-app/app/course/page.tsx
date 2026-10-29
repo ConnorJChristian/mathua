@@ -12,6 +12,7 @@ import PdfReader from '../../components/PdfReader'
 import VideoPlayer, { formatDuration } from '../../components/VideoPlayer'
 import { useTheme } from '../../hooks/useTheme'
 import { getCourseView, setActiveCourses, getCourseCatalog, getPins, setPins, type CourseNote, type CourseTopic, type CourseView, type CourseVideo } from '../../lib/api'
+import { courseTabs, NO_LECTURE_VIDEOS, type CourseTab } from '../../lib/courseTabs'
 import { API_BASE } from '../../lib/apiBase'
 import { getUserInfo } from '../../lib/auth'
 import { formatDue } from '../../lib/dates'
@@ -24,14 +25,7 @@ import CourseTestsSection from '../../components/CourseTestsSection'
 // lectures) and Grades (mastery per module). Every topic link carries
 // ?course= so the lesson opens in this course's text.
 
-type Tab = 'home' | 'modules' | 'readings' | 'videos' | 'grades'
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'home', label: 'Home' },
-  { id: 'modules', label: 'Modules' },
-  { id: 'readings', label: 'Readings' },
-  { id: 'videos', label: 'Lectures' },
-  { id: 'grades', label: 'Grades' },
-]
+type Tab = CourseTab
 
 // A lecture page served by the module files endpoint is a bare path; a link
 // stays as given.
@@ -214,7 +208,7 @@ function CourseContent() {
           </button>
         </div>
         <nav aria-label="Course sections" className="flex gap-1 border-b border-mathua-border mb-6 overflow-x-auto">
-          {TABS.map((t) => <button key={t.id} type="button" onClick={() => go(t.id)} className={tabBtn(t.id)} aria-current={tab === t.id}>{t.label}</button>)}
+          {courseTabs(view).map((t) => <button key={t.id} type="button" onClick={() => go(t.id)} className={tabBtn(t.id)} aria-current={tab === t.id}>{t.label}</button>)}
         </nav>
 
         {tab === 'home' && (
@@ -406,10 +400,10 @@ function CourseContent() {
         )}
         {tab === 'videos' && (
           allVideos.length === 0 ? (
-            <div className="border border-mathua-border bg-mathua-surface p-4 font-mono text-xs text-mathua-secondary leading-relaxed">
-              <p>No lecture videos yet.</p>
-              <p className="mt-2 text-mathua-muted">When the course&apos;s module lists lectures (<code>videos.json</code>, see FORK.md), they play here.</p>
-            </div>
+            // Lecture notes, when there are any, are the tab; no videos needs no apology then.
+            view.notes.length > 0 ? null : (
+              <div className="border border-mathua-border bg-mathua-surface p-4 font-mono text-xs text-mathua-secondary">{NO_LECTURE_VIDEOS}</div>
+            )
           ) : (
             <div className="space-y-4">
               <VideoPlayer videos={allVideos.map((x) => x.v)} title="Lectures" />
