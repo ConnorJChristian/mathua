@@ -8,10 +8,13 @@ build:
 # then start everything on http://localhost:8080 with a local SQLite database.
 # Includes your modules-local/ (internal/modules). It rewrites the bundled
 # concept list with them; run `go run ./scripts/merge_concepts` (no -local)
-# before committing, which test/moduleBundle.test.ts checks.
+# before committing, which test/moduleBundle.test.ts checks. `npm run build`,
+# not `npx next build`: its prebuild lays the concept graph out for your
+# modules too (data/flow.positions.json; restore web/next-app/data and
+# public/data before committing) and copies the PDF worker and math fonts.
 local:
 	go run ./scripts/merge_concepts -local
-	cd web/next-app && npm ci && rm -rf out && MATHUA_INCLUDE_LOCAL_MODULES=1 NEXT_PUBLIC_API_URL=http://localhost:8080 npx next build
+	cd web/next-app && npm ci && rm -rf out && MATHUA_INCLUDE_LOCAL_MODULES=1 NEXT_PUBLIC_API_URL=http://localhost:8080 npm run build
 	DATABASE_URL=sqlite:mathua.db go run ./cmd/mathua --port 8080
 
 build-all:
