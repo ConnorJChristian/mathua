@@ -454,6 +454,20 @@ func nextStaticFS(root string) http.Handler {
 				return
 			}
 		}
+		// Nothing at this path: the export's own 404 page, with a 404 status,
+		// instead of http.FileServer's plain "404 page not found". A directory
+		// still goes to the file server (its index, or its redirect).
+		if _, err := os.Stat(localPath); os.IsNotExist(err) {
+			if page, err := os.ReadFile(filepath.Join(root, "404.html")); err == nil {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Header().Set("Cache-Control", "no-cache")
+				w.WriteHeader(http.StatusNotFound)
+				if r.Method != http.MethodHead {
+					_, _ = w.Write(page)
+				}
+				return
+			}
+		}
 		fs.ServeHTTP(w, r)
 	})
 }

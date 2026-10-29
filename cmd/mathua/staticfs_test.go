@@ -1,12 +1,16 @@
 package main
 
 import (
+	"compress/gzip"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/chuma-beep/mathua/internal/server"
 )
 
 // The deployed routing of a Next.js static export, which is where the administration surface
@@ -154,5 +158,49 @@ func TestNextStaticFSUnknownRouteIs404(t *testing.T) {
 	// A path that only looks like a route must not be rewritten onto a real page.
 	if rec := get(t, root, "/admin.html.bak"); rec.Code == 200 {
 		t.Errorf("served a page for an unexpected filename")
+	}
+}
+
+// An unknown path gets the export's styled 404 page with a 404 status, not
+// http.FileServer's plain "404 page not found". Through the gzip middleware
+// too, which is how the server runs: the page must still say it is gzipped
+// (the earlier fix for missing pages rendering as binary noise).
+func TestNextStaticFSServesTheExport404Page(t *testing.T) {
+	root := writeExport(t, map[string]string{
+		"index.html": "<html>home</html>",
+		"404.html":   "<html>styled-not-found</html>",
+	})
+	rec := get(t, root, "/no-such-page")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "styled-not-found") {
+		t.Fatalf("body = %q, want the export's 404 page", rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
+		t.Errorf("Content-Type = %q", ct)
+	}
+
+	h := server.GzipMiddleware(nextStaticFS(root))
+	req := httptest.NewRequest(http.MethodGet, "/home", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	grec := httptest.NewRecorder()
+	h.ServeHTTP(grec, req)
+	if grec.Code != http.StatusNotFound || grec.Header().Get("Content-Encoding") != "gzip" {
+		t.Fatalf("gzipped 404: status %d, Content-Encoding %q", grec.Code, grec.Header().Get("Content-Encoding"))
+	}
+	zr, err := gzip.NewReader(grec.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(zr)
+	if !strings.Contains(string(body), "styled-not-found") {
+		t.Errorf("gzipped body = %q", body)
+	}
+
+	// An export without a 404 page keeps the file server's answer.
+	bare := writeExport(t, map[string]string{"index.html": "<html>home</html>"})
+	if rec := get(t, bare, "/no-such-page"); rec.Code != http.StatusNotFound {
+		t.Errorf("no 404.html: status = %d", rec.Code)
 	}
 }
