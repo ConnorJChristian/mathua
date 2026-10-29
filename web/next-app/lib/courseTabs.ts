@@ -27,3 +27,13 @@ export function courseTabs(view: Pick<CourseView, 'notes' | 'videos' | 'modules'
 
 /** What the Lectures tab says when a course has no lecture videos. */
 export const NO_LECTURE_VIDEOS = 'No lecture videos for this course.'
+
+/**
+ * The course page's line for written tasks it cannot grade: proofs and writing
+ * problems are left out of practice without an API key, and the page used to
+ * say nothing about them. Empty when there are none.
+ */
+export function ungradedTasksLine(n?: number): string {
+  if (!n || n <= 0) return ''
+  return n === 1 ? '1 writing/proof task needs an API key to be graded.' : `${n} writing/proof tasks need an API key to be graded.`
+}

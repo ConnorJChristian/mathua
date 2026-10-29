@@ -135,6 +135,10 @@ type courseView struct {
 	// Tests: which course tests this course offers and how long they are
 	// (fork change; engine.CourseTests has the viability rule).
 	Tests *engine.CourseTestInfo `json:"tests,omitempty"`
+	// UngradedTasks: written tasks (proofs, writing problems) on the course's
+	// topics that are left out of practice because no API key is set to
+	// grade them. Zero when they can be graded.
+	UngradedTasks int `json:"ungraded_tasks,omitempty"`
 }
 
 // GET /api/courses/view?id=plan.x — the course page's data.
@@ -411,6 +415,13 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 	if info, err := s.eng.CourseTests(studentID, courseID); err == nil {
 		out.Tests = info
 	}
+	var topics []string
+	for _, m := range out.Modules {
+		for _, t := range m.Topics {
+			topics = append(topics, t.ID)
+		}
+	}
+	out.UngradedTasks = s.eng.UngradedWrittenTasks(topics)
 	if out.Texts == nil {
 		out.Texts = []courseText{}
 	}

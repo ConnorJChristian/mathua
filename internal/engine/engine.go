@@ -184,6 +184,10 @@ type Engine struct {
 	// tracks holds the per-track views of dag (track.go), built on first use.
 	tracks trackViews
 
+	// writtenCatalog overrides the proof grader as the source of written tasks
+	// (proofs.go, UngradedWrittenTasks); nil uses proof.Default.
+	writtenCatalog writtenTaskCatalog
+
 	// xpCarry holds each learner's fractional XP not yet paid (awardXP). In memory only:
 	// a restart loses at most one XP per learner.
 	xpCarryMu sync.Mutex

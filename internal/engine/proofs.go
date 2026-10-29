@@ -247,3 +247,54 @@ func plainRecall(p generator.Problem) generator.Problem {
 
 // proofsCountForMastery is a variable so tests can switch it.
 var proofsCountForMastery = proof.CountsForMastery
+
+// writtenTaskCatalog is what the course page needs to know about written
+// tasks (proofs and writing problems, internal/proof): whether they can be
+// graded here, and which topics they belong to.
+type writtenTaskCatalog interface {
+	Enabled() bool
+	ByConcept() map[string][]string
+}
+
+// writtenTasks is the catalog the engine reports from: the process's proof
+// grader unless a test sets another.
+func (e *Engine) writtenTasks() writtenTaskCatalog {
+	if e.writtenCatalog != nil {
+		return e.writtenCatalog
+	}
+	g, err := proof.Default()
+	if err != nil || g == nil {
+		return nil
+	}
+	return g
+}
+
+// UngradedWrittenTasks counts the written tasks (proofs and writing problems)
+// filed under the given topics that are left out of practice because nothing
+// can grade them: no API key is set. Zero when they can be graded. Without
+// this the course page never said such tasks existed.
+func (e *Engine) UngradedWrittenTasks(topics []string) int {
+	cat := e.writtenTasks()
+	if cat == nil || cat.Enabled() {
+		return 0
+	}
+	by := cat.ByConcept()
+	n := 0
+	seen := map[string]bool{}
+	for _, t := range topics {
+		if seen[t] {
+			continue
+		}
+		seen[t] = true
+		n += len(by[t])
+	}
+	return n
+}
+
+// SetWrittenTaskCatalog replaces the written-task catalog (tests).
+func (e *Engine) SetWrittenTaskCatalog(c interface {
+	Enabled() bool
+	ByConcept() map[string][]string
+}) {
+	e.writtenCatalog = c
+}

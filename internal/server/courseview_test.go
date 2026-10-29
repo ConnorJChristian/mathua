@@ -238,3 +238,31 @@ func TestCourseView_UpNextPrefersEarliestOpenPin(t *testing.T) {
 		t.Fatalf("pins d, b (mastered), c: next = %+v, want c (the earliest open pin in course order)", v.NextTopic)
 	}
 }
+
+type fakeWritten struct {
+	enabled bool
+	by      map[string][]string
+}
+
+func (f fakeWritten) Enabled() bool                  { return f.enabled }
+func (f fakeWritten) ByConcept() map[string][]string { return f.by }
+
+// Without an API key, proofs and writing problems are left out of practice,
+// silently. The course view counts the ones on the course's topics, so the
+// page can say they exist.
+func TestCourseView_CountsWrittenTasksThatNeedAKey(t *testing.T) {
+	mux, _, s, token, _ := courseViewFixture(t)
+	by := map[string][]string{"a": {"p1", "p2"}, "e": {"p3"}, "elsewhere": {"p4"}}
+	s.eng.SetWrittenTaskCatalog(fakeWritten{enabled: false, by: by})
+	var v courseView
+	json.Unmarshal(authedGet(t, mux, "/api/courses/view?id=plan.u", token).Body.Bytes(), &v)
+	if v.UngradedTasks != 3 {
+		t.Errorf("ungraded_tasks = %d, want 3 (two on a, one on e; p4 is not on the course)", v.UngradedTasks)
+	}
+	s.eng.SetWrittenTaskCatalog(fakeWritten{enabled: true, by: by})
+	v = courseView{}
+	json.Unmarshal(authedGet(t, mux, "/api/courses/view?id=plan.u", token).Body.Bytes(), &v)
+	if v.UngradedTasks != 0 {
+		t.Errorf("with a grader: ungraded_tasks = %d, want 0", v.UngradedTasks)
+	}
+}

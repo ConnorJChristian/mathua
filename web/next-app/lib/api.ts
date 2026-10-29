@@ -2389,6 +2389,8 @@ export interface CourseView {
   prerequisites: CourseTopic[]
   needs_placement: boolean
   tests?: CourseTests
+  /** Proofs and writing problems on the course's topics that cannot be graded here (no API key). */
+  ungraded_tasks?: number
 }
 
 // Fork change: the course's placement and review tests (engine.CourseTests).

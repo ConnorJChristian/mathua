@@ -12,7 +12,7 @@ import PdfReader from '../../components/PdfReader'
 import VideoPlayer, { formatDuration } from '../../components/VideoPlayer'
 import { useTheme } from '../../hooks/useTheme'
 import { getCourseView, setActiveCourses, getCourseCatalog, getPins, setPins, type CourseNote, type CourseTopic, type CourseView, type CourseVideo } from '../../lib/api'
-import { courseTabs, NO_LECTURE_VIDEOS, type CourseTab } from '../../lib/courseTabs'
+import { courseTabs, NO_LECTURE_VIDEOS, ungradedTasksLine, type CourseTab } from '../../lib/courseTabs'
 import { API_BASE } from '../../lib/apiBase'
 import { getUserInfo } from '../../lib/auth'
 import { formatDue } from '../../lib/dates'
@@ -247,6 +247,9 @@ function CourseContent() {
                 </Link>
               )}
               {view.tests && (view.tests.placement || view.tests.review) && <CourseTestsSection view={view} />}
+              {ungradedTasksLine(view.ungraded_tasks) && (
+                <p className="font-mono text-[11px] text-mathua-secondary">{ungradedTasksLine(view.ungraded_tasks)}</p>
+              )}
               <section>
                 <h2 className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted mb-2">About</h2>
                 <p className="font-mono text-xs text-mathua-secondary leading-relaxed">{view.description}</p>
