@@ -72,6 +72,8 @@ RUN python3 -m venv /opt/venv \
         -r /check/grading/requirements-python-nodeps.txt
 COPY grading/pyrunner.py grading/sympy_service.py /check/grading/
 COPY scripts/python_bank.py /check/scripts/python_bank.py
+# The check also verifies every prerequisite link against the graph.
+COPY data/concepts/ /check/data/concepts/
 COPY modules/ /check/modules/
 COPY modules-local/ /check/modules-local/
 # Every authored bank, committed and local, is re-run against these pins.

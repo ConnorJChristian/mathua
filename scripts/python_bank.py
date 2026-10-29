@@ -281,6 +281,78 @@ def check_item(cid, item):
     return item, errs
 
 
+def graph_nodes():
+    """Every concept in the graph the server loads: id -> prerequisites, from
+    data/concepts and every module's concepts/ (local modules from LOCAL_ROOT)."""
+    nodes = {}
+    paths = glob.glob(os.path.join(ROOT, "data", "concepts", "*.json"))
+    paths += glob.glob(os.path.join(ROOT, "modules", "*", "concepts", "*.json"))
+    paths += glob.glob(os.path.join(LOCAL_ROOT, "modules-local", "*", "concepts", "*.json"))
+    for path in paths:
+        if os.path.basename(path) == "enrichment.json":
+            continue
+        with open(path, encoding="utf-8") as f:
+            for c in json.load(f):
+                nodes[c["id"]] = list(c.get("prerequisites", []))
+    return nodes
+
+
+def check_prereqs(chapters, nodes):
+    """Prerequisite hygiene across the graph (fork change): every `_prereqs`
+    id must exist (in the corpus, a module, or a chapter being built), no
+    topic lists itself or an id twice, and the graph with these chapters in
+    it has no cycle. The server refuses to start on any of these; a stale
+    concepts/ file would otherwise carry a typo until then."""
+    errs = []
+    graph = dict(nodes)
+    for chapter in chapters:
+        if chapter.get("graph", True) is False:
+            continue
+        for c in chapter["concepts"]:
+            graph[c["id"]] = list(c["_prereqs"])
+    for chapter in chapters:
+        if chapter.get("graph", True) is False:
+            continue
+        for c in chapter["concepts"]:
+            seen = set()
+            for p in c["_prereqs"]:
+                if p == c["id"]:
+                    errs.append("%s: lists itself as a prerequisite" % c["id"])
+                elif p in seen:
+                    errs.append("%s: prerequisite %s is listed twice" % (c["id"], p))
+                elif p not in graph:
+                    errs.append("%s: prerequisite %s is not in the graph (data/concepts or any module's concepts/)" % (c["id"], p))
+                seen.add(p)
+    # Cycles: a depth-first search from every node, white/grey/black.
+    state = {}
+    for start in graph:
+        if start in state:
+            continue
+        stack = [(start, iter(graph.get(start, [])))]
+        state[start] = 1
+        path = [start]
+        while stack:
+            node, it = stack[-1]
+            nxt = next(it, None)
+            if nxt is None:
+                state[node] = 2
+                stack.pop()
+                path.pop()
+                continue
+            if nxt not in graph:
+                continue
+            st = state.get(nxt)
+            if st == 1:
+                cyc = path[path.index(nxt):] + [nxt]
+                errs.append("cycle: " + " -> ".join(cyc))
+                return errs
+            if st is None:
+                state[nxt] = 1
+                path.append(nxt)
+                stack.append((nxt, iter(graph.get(nxt, []))))
+    return errs
+
+
 def build_chapter(path):
     ns = runpy.run_path(path, init_globals=dict(HELPERS))
     chapter = ns["CHAPTER"]
@@ -378,12 +450,24 @@ def main(argv):
     if not files:
         print("no authoring files found" + (" matching %r" % only if only else ""))
         return 1
+    built = []
     for src in files:
         chapter, errors = build_chapter(src)
+        built.append((src, chapter, errors))
+    # The graph is checked as a whole: a chapter's link into another module
+    # or the corpus is only as good as the id it names.
+    graph_errors = check_prereqs([ch for _, ch, _ in built], graph_nodes())
+    for e in graph_errors:
+        print("ERROR", e)
+    failed |= bool(graph_errors)
+    for src, chapter, errors in built:
         n = sum(len(c["items"]) for c in chapter["concepts"])
         for e in errors:
             print("ERROR", e)
         failed |= bool(errors)
+        # A bad link anywhere keeps every chapter unwritten: the server loads
+        # the graph as one and would refuse all of it.
+        errors = errors + graph_errors
         text = render(chapter)
         dst = out_path(src)
         gdst = graph_path(src, chapter)
