@@ -11,7 +11,7 @@ import SectionHeader from '../../components/SectionHeader'
 import { useTheme } from '../../hooks/useTheme'
 import { getCourseCatalog, getCourseView, getDueReviews, getNext, getPins, getScores, setPins, type CourseView, type Pin, type Recommendation } from '../../lib/api'
 import { getUserInfo } from '../../lib/auth'
-import { formatDue } from '../../lib/dates'
+import { formatDue, topicsPerWeek } from '../../lib/dates'
 import { hrefConceptId } from '../../lib/nextUp'
 import { track } from '../../lib/events'
 
@@ -188,7 +188,7 @@ export default function TodayPage() {
                   </p>
                   {v.due && (
                     <p className={`font-mono text-[10px] mt-0.5 ${v.days_left !== undefined && v.days_left < 14 ? 'text-amber-600 dark:text-amber-400' : 'text-mathua-muted'}`}>
-                      Due {formatDue(v.due)}{v.days_left !== undefined ? ` · ${v.days_left < 0 ? 'past due' : `${v.days_left} days`}` : ''}{v.days_left !== undefined && v.days_left > 0 && v.total - v.mastered > 0 ? ` · ${((v.total - v.mastered) / Math.max(v.days_left, 1) * 7).toFixed(1)} topics/week to finish` : ''}
+                      Due {formatDue(v.due)}{v.days_left !== undefined ? ` · ${v.days_left < 0 ? 'past due' : `${v.days_left} days`}` : ''}{topicsPerWeek(v) !== null ? ` · ${topicsPerWeek(v)!.toFixed(1)} topics/week to finish` : ''}
                     </p>
                   )}
                 </li>

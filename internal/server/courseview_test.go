@@ -164,3 +164,55 @@ func TestCourseTextNotesKey(t *testing.T) {
 		t.Errorf("web key resolved to %+v", got)
 	}
 }
+
+// courseViewFixture is a three-unit course over unconnected topics: Unit 1
+// (a, b), Unit 2 (c, d) and a unit taught after the course's date (e, f).
+func courseViewFixture(t *testing.T) (*http.ServeMux, *storage.SQLiteStore, *Server, string, string) {
+	t.Helper()
+	th := concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 60}
+	ids := []string{"a", "b", "c", "d", "e", "f"}
+	var cs []concepts.Concept
+	for _, id := range ids {
+		cs = append(cs, concepts.Concept{ID: id, Label: "Topic " + id, Domain: "d", GradingType: "numeric", MasteryThreshold: th})
+	}
+	d, _ := concepts.Build(cs)
+	store, _ := storage.NewSQLiteStore(":memory:")
+	t.Cleanup(func() { store.Close() })
+	reg := generator.NewRegistry()
+	for _, id := range ids {
+		reg.Register(id, &testGen{})
+	}
+	cp := filepath.Join(t.TempDir(), "courses.json")
+	os.WriteFile(cp, []byte(`[{"id":"plan.u","name":"U","due":"2099-12-01","plan":["a","b","c","d","e","f"],
+		"modules":[{"title":"Unit 1","topics":["a","b"]},{"title":"Unit 2","topics":["c","d"]},
+		           {"title":"Unit 3 (after the final)","topics":["e","f"],"after_due":true}]}]`), 0o644)
+	pl, err := planning.Load(cp, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New(engine.New(store, d, reg, nil, pl), store, auth.New(store))
+	mux := http.NewServeMux()
+	s.Register(mux)
+	token, sid := guestTokenAndID(t, mux)
+	return mux, store, s, token, sid
+}
+
+// Pacing counts the topics due by the course's date, not the whole plan: a
+// unit marked after_due stays on the page but out of the pace.
+func TestCourseView_DueTotalLeavesOutAfterDueModules(t *testing.T) {
+	mux, store, _, token, sid := courseViewFixture(t)
+	now := time.Now()
+	store.UpsertProgress(&storage.ConceptProgress{StudentID: sid, ConceptID: "a", Status: "MASTERED", Attempts: 6, LastAttempted: &now, LastReviewed: &now})
+	store.UpsertProgress(&storage.ConceptProgress{StudentID: sid, ConceptID: "e", Status: "MASTERED", Attempts: 6, LastAttempted: &now, LastReviewed: &now})
+	var v courseView
+	json.Unmarshal(authedGet(t, mux, "/api/courses/view?id=plan.u", token).Body.Bytes(), &v)
+	if v.Total != 6 || v.Mastered != 2 {
+		t.Fatalf("total %d mastered %d, want 6 and 2", v.Total, v.Mastered)
+	}
+	if v.DueTotal != 4 || v.DueMastered != 1 {
+		t.Errorf("due_total %d due_mastered %d, want 4 and 1 (unit 3 is after the date)", v.DueTotal, v.DueMastered)
+	}
+	if !v.Modules[2].AfterDue || v.Modules[0].AfterDue {
+		t.Errorf("after_due flags: %+v", v.Modules)
+	}
+}

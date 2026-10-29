@@ -302,8 +302,11 @@ The app opens on **Study** (`/today`): one queue across every course you
 follow, with the mastery test and the review session surfaced when due.
 **Courses** (`/courses`) shows each followed course as a card; a course's
 own page (`/course?id=`) has Home, Modules, Readings, Videos and Grades.
-A course's `courses.json` entry may carry `term` and `modules`
-(`[{"title", "topics": [...]}]`, each a slice of its plan); `videos.json`
+A course's `courses.json` entry may carry `term`, `due` and `modules`
+(`[{"title", "topics": [...]}]`, each a slice of its plan). A module with
+`"after_due": true` is taught after the due date: it stays on the course
+page, but pacing ("N topics/week to finish" and the queue's share for the
+course) counts only the topics due by the date. `videos.json`
 in a module maps a topic id or course id to `[{"title", "url"}]` (YouTube)
 or `[{"title", "file": "lecture.mp4"}]` (a file in `files/`).
 

@@ -2351,7 +2351,7 @@ export interface CourseTopic {
 }
 // Fork change: a page of lecture notes (a notebook rendered to HTML, or a link).
 export interface CourseNote { title: string; unit?: string; unit_seq?: number; seq?: number; url: string; topic?: string }
-export interface CourseModule { title: string; topics: CourseTopic[]; mastered: number }
+export interface CourseModule { title: string; topics: CourseTopic[]; mastered: number; after_due?: boolean }
 export interface CourseText { key: string; title: string; kind: 'pdf' | 'web' | 'notes'; url?: string; library_id?: string }
 export interface CourseView {
   id: string
@@ -2367,6 +2367,9 @@ export interface CourseView {
   notes: CourseNote[]
   total: number
   mastered: number
+  /** Topics due by the course's date (modules marked after_due left out), for pacing. */
+  due_total?: number
+  due_mastered?: number
   started: number
   reviews_due: number
   next_topic?: CourseTopic

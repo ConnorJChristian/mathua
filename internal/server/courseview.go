@@ -43,6 +43,8 @@ type courseModule struct {
 	Title    string        `json:"title"`
 	Topics   []courseTopic `json:"topics"`
 	Mastered int           `json:"mastered"`
+	// AfterDue: taught after the course's due date (planning.Module.AfterDue).
+	AfterDue bool `json:"after_due,omitempty"`
 }
 
 type courseVideo struct {
@@ -115,12 +117,17 @@ type courseView struct {
 	Videos        []courseVideo `json:"videos"`
 	// Notes: every page of lecture notes in the course, in lecture order
 	// (the course's own, then each topic's), fork change.
-	Notes      []courseNote `json:"notes"`
-	Total      int          `json:"total"`
-	Mastered   int          `json:"mastered"`
-	Started    int          `json:"started"`
-	ReviewsDue int          `json:"reviews_due"`
-	NextTopic  *courseTopic `json:"next_topic,omitempty"`
+	Notes    []courseNote `json:"notes"`
+	Total    int          `json:"total"`
+	Mastered int          `json:"mastered"`
+	// DueTotal and DueMastered count only the topics due by the course's
+	// date: modules marked after_due are left out. Pacing ("N topics a week
+	// to finish") is computed from these.
+	DueTotal    int          `json:"due_total"`
+	DueMastered int          `json:"due_mastered"`
+	Started     int          `json:"started"`
+	ReviewsDue  int          `json:"reviews_due"`
+	NextTopic   *courseTopic `json:"next_topic,omitempty"`
 	// NeedsPlacement: no plan topic is open yet and the plan rests on
 	// prerequisites the learner has not shown; the placement test is the way
 	// in (a module with no placement never sets it).
@@ -238,7 +245,7 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 	}
 	placed := map[string]bool{}
 	for _, m := range c.Modules {
-		cm := courseModule{Title: m.Title}
+		cm := courseModule{Title: m.Title, AfterDue: m.AfterDue}
 		for _, cid := range m.Topics {
 			if t := topic(cid); t != nil && !placed[cid] {
 				placed[cid] = true
@@ -276,9 +283,15 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 	for i := range out.Modules {
 		for _, t := range out.Modules[i].Topics {
 			out.Total++
+			if !out.Modules[i].AfterDue {
+				out.DueTotal++
+			}
 			if t.Status == "mastered" {
 				out.Modules[i].Mastered++
 				out.Mastered++
+				if !out.Modules[i].AfterDue {
+					out.DueMastered++
+				}
 			}
 			if t.Attempts > 0 {
 				out.Started++

@@ -61,6 +61,34 @@ func (c *Course) TextsFor(conceptID string) []string {
 type Module struct {
 	Title  string   `json:"title"`
 	Topics []string `json:"topics"`
+	// AfterDue marks a module taught after the course's due date (material
+	// after the final, say). Its topics stay on the plan and the path, but
+	// pacing does not count them toward the date: "N topics a week to
+	// finish" is the work due by the date, not the whole plan.
+	AfterDue bool `json:"after_due,omitempty"`
+}
+
+// AfterDueTopics is the set of plan topics taught only in modules marked
+// AfterDue. A topic also listed in a module that is due by the date is due.
+func (c *Course) AfterDueTopics() map[string]bool {
+	if c == nil {
+		return nil
+	}
+	due := map[string]bool{}
+	after := map[string]bool{}
+	for _, m := range c.Modules {
+		for _, id := range m.Topics {
+			if m.AfterDue {
+				after[id] = true
+			} else {
+				due[id] = true
+			}
+		}
+	}
+	for id := range due {
+		delete(after, id)
+	}
+	return after
 }
 
 type Path struct {
@@ -311,9 +339,13 @@ func (p *Planner) PlansOrderPaced(courseIDs []string, isDone func(id string) boo
 		for _, id := range c.Plan {
 			inPlan[id] = true
 		}
+		// Topics taught after the due date do not set the pace: the step
+		// spreads the work due by the date over the days left, and the
+		// later topics follow on past it.
+		afterDue := c.AfterDueTopics()
 		remaining := 0
 		for _, cc := range path.Concepts {
-			if inPlan[cc.ID] && !done(cc.ID) {
+			if inPlan[cc.ID] && !afterDue[cc.ID] && !done(cc.ID) {
 				remaining++
 			}
 		}

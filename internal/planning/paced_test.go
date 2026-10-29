@@ -128,3 +128,55 @@ func TestPlansOrderPaced_PrerequisitesDoNotInflatePace(t *testing.T) {
 		}
 	}
 }
+
+// Fork change: a module marked after_due (material taught after the final)
+// does not set the pace. X has four topics due in 20 days and eight more in
+// a module after its due date; Y has four topics due in 80 days. Counting
+// all twelve of X's topics toward its date put the whole of X, the material
+// after the final included, ahead of Y's first topic. Paced on the four that
+// are due, X's later module comes after Y has started.
+func TestPlansOrderPaced_AfterDueModulesDoNotSetThePace(t *testing.T) {
+	var cs []concepts.Concept
+	var xDue, xAfter []string
+	for i := 1; i <= 12; i++ {
+		id := fmt.Sprintf("x%02d", i)
+		cs = append(cs, concepts.Concept{ID: id, Label: id, Domain: "d", Prerequisites: []string{},
+			MasteryThreshold: concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 10}})
+		if i <= 4 {
+			xDue = append(xDue, `"`+id+`"`)
+		} else {
+			xAfter = append(xAfter, `"`+id+`"`)
+		}
+	}
+	for _, id := range []string{"y1", "y2", "y3", "y4"} {
+		cs = append(cs, concepts.Concept{ID: id, Label: id, Domain: "d", Prerequisites: []string{},
+			MasteryThreshold: concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 10}})
+	}
+	d, err := concepts.Build(cs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all := strings.Join(append(append([]string{}, xDue...), xAfter...), ",")
+	path := filepath.Join(t.TempDir(), "courses.json")
+	os.WriteFile(path, []byte(`[
+		{"id":"plan.x","name":"X","grade":"1","description":"","plan":[`+all+`],"due":"2026-10-21",
+		 "modules":[{"title":"Before the final","topics":[`+strings.Join(xDue, ",")+`]},
+		            {"title":"After the final","topics":[`+strings.Join(xAfter, ",")+`],"after_due":true}]},
+		{"id":"plan.y","name":"Y","grade":"1","description":"","plan":["y1","y2","y3","y4"],"due":"2026-12-20"}
+	]`), 0644)
+	p, err := Load(path, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := p.Course("plan.x").AfterDueTopics(); len(got) != 8 || !got["x05"] || got["x04"] {
+		t.Fatalf("AfterDueTopics = %v", got)
+	}
+	now := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	rank := p.PlansOrderPaced([]string{"plan.x", "plan.y"}, nil, now)
+	if rank["x04"] > rank["y1"] {
+		t.Errorf("X's due topics should still lead: x04=%d y1=%d", rank["x04"], rank["y1"])
+	}
+	if rank["y1"] > rank["x05"] {
+		t.Errorf("Y's first topic should come before X's material after its due date: y1=%d x05=%d (%v)", rank["y1"], rank["x05"], rank)
+	}
+}
