@@ -110,7 +110,7 @@ describe('LearnStepper done state (PR5)', () => {
     await answerCurrent('5')
 
     // Closure card with mastery feedback…
-    expect(await screen.findByText(/Complete — 2\/2 correct/)).toBeTruthy()
+    expect(await screen.findByText(/Session done · still learning — 2\/2 correct/)).toBeTruthy()
 
     // …and a Continue naming the head re-fetched AFTER the last answer,
     // labeled with the reason so the jump reads as intentional.
@@ -151,7 +151,7 @@ describe('LearnStepper done state (PR5)', () => {
     // carries no concept id — so `canContinue` is false and the card falls through to its
     // failure branch. That branch is the guarantee: a way out, and never a link that points
     // back at the concept just finished.
-    expect(await screen.findByText(/Complete — 2\/2 correct/)).toBeTruthy()
+    expect(await screen.findByText(/Session done · still learning — 2\/2 correct/)).toBeTruthy()
     const back = await screen.findByRole('link', { name: 'Back to Profile' })
     expect(back.getAttribute('href')).toBe('/profile')
     expect(screen.getByRole('button', { name: 'Practice again' })).toBeTruthy()
@@ -196,7 +196,7 @@ describe('LearnStepper done state (PR5)', () => {
         await vi.advanceTimersByTimeAsync(500)
       }
 
-      expect(screen.getByText(/Complete — 2\/2 correct/)).toBeTruthy()
+      expect(screen.getByText(/Session done · still learning — 2\/2 correct/)).toBeTruthy()
       // Shelf fetch hangs: past the timeout the failure branch renders.
       await vi.advanceTimersByTimeAsync(9000)
       expect(screen.getByRole('button', { name: 'Practice again' })).toBeTruthy()

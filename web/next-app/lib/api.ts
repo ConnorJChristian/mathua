@@ -1507,6 +1507,12 @@ export interface StudyAnswerRes {
 	 * from reading as a strong result.
 	 */
 	evidence_band?: string
+	/**
+	 * More correct answers in a row that would master the concept, by the server's evidence
+	 * rule (mastery.CorrectToMaster): 0 once mastered, -1 when that cannot be said (a
+	 * self-graded card moves no mastery).
+	 */
+	to_master?: number
 }
 
 interface StudyAnswerBody {
@@ -1516,6 +1522,7 @@ interface StudyAnswerBody {
 	student_id?: string
 	question?: string
 	override?: boolean
+	dont_know?: boolean
 }
 
 // No `expected` is sent: the server anchors every served question against its
@@ -1523,11 +1530,15 @@ interface StudyAnswerBody {
 // grade itself. A 409 means the server has no record of this question (the
 // anchor's TTL expired, or the tab was left open too long) and the caller
 // should re-serve rather than resubmit.
-export async function submitStudyAnswer(conceptId: string, answer: string, elapsed: number, question?: string, override?: boolean): Promise<StudyAnswerRes> {
+//
+// `dontKnow` is the "I don't know" button: an admitted unknown, a miss with no XP and no
+// rushing penalty, the same as in tests and placement. The answer is not graded.
+export async function submitStudyAnswer(conceptId: string, answer: string, elapsed: number, question?: string, override?: boolean, dontKnow?: boolean): Promise<StudyAnswerRes> {
 	const { getGuestId } = await import('./auth')
 	const headers = { 'Content-Type': 'application/json', ...getAuthHeaders() } satisfies Record<string, string>
 	const body: StudyAnswerBody = { concept_id: conceptId, answer, elapsed, question }
 	if (override) body.override = true
+	if (dontKnow) body.dont_know = true
 	const guestId = getGuestId()
 	if (guestId && !('Authorization' in headers)) {
 		body.student_id = guestId

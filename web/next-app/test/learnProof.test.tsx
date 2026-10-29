@@ -82,9 +82,9 @@ describe('a proof in Learn', () => {
     expect(await screen.findByText('2 + 3 = ?')).toBeTruthy()
     await answerCurrent('5')
     expect(await screen.findByText('4 + 1 = ?')).toBeTruthy()
-    expect(screen.queryByText(/Complete —/)).toBeNull()
+    expect(screen.queryByText(/Session done/)).toBeNull()
     await answerCurrent('5')
-    expect(await screen.findByText(/Complete — 2\/2 correct/)).toBeTruthy()
+    expect(await screen.findByText(/Session done · still learning — 2\/2 correct/)).toBeTruthy()
   }, 15000)
 
   it('says why a proof was not graded and keeps it', async () => {

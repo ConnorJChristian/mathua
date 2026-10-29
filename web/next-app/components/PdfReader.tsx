@@ -40,7 +40,12 @@ function absolute(url: string): string {
   return `${API_BASE}${url}`
 }
 
-export default function PdfReader({ reading }: { reading: ReadingPdf }) {
+/**
+ * `onUnavailable` is called when the PDF cannot be opened here (the file is
+ * not on this machine, or pdf.js failed), so the lesson can open its own
+ * summary instead of leaving the learner an error and nothing to read.
+ */
+export default function PdfReader({ reading, onUnavailable }: { reading: ReadingPdf; onUnavailable?: () => void }) {
   const start = Math.max(1, reading.page || 1)
   const end = reading.end_page && reading.end_page >= start ? reading.end_page : undefined
   const [page, setPage] = useState(start)
@@ -55,6 +60,13 @@ export default function PdfReader({ reading }: { reading: ReadingPdf }) {
   const taskRef = useRef<{ cancel: () => void } | null>(null)
 
   useEffect(() => setPage(start), [start, reading.url])
+
+  // Read through a ref so a new callback each render does not re-run the effect.
+  const unavailableRef = useRef(onUnavailable)
+  unavailableRef.current = onUnavailable
+  useEffect(() => {
+    if (status === 'error') unavailableRef.current?.()
+  }, [status])
 
   // Load the document once per file.
   useEffect(() => {

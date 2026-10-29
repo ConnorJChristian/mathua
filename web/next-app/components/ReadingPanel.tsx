@@ -15,15 +15,16 @@ function absolute(url: string): string {
   return /^https?:\/\//.test(url) ? url : `${API_BASE}${url}`
 }
 
-export default function ReadingPanel({ reading, texts }: { reading?: ReadingPdf; texts?: ReadingText[] }) {
+// `onUnavailable`: the PDF shown could not be opened here (see PdfReader).
+export default function ReadingPanel({ reading, texts, onUnavailable }: { reading?: ReadingPdf; texts?: ReadingText[]; onUnavailable?: () => void }) {
   const initial = texts?.find((t) => t.selected)?.key ?? texts?.[0]?.key ?? ''
   const [key, setKey] = useState(initial)
   useEffect(() => setKey(initial), [initial])
 
-  if (!texts || texts.length === 0) return reading ? <PdfReader reading={reading} /> : null
+  if (!texts || texts.length === 0) return reading ? <PdfReader reading={reading} onUnavailable={onUnavailable} /> : null
   // One PDF text: the embedded reader alone, with no picker. A single text of any other
   // kind (lecture notes, an online book) falls through, so it is still shown.
-  if (texts.length === 1 && texts[0].kind === 'pdf' && reading) return <PdfReader reading={reading} />
+  if (texts.length === 1 && texts[0].kind === 'pdf' && reading) return <PdfReader reading={reading} onUnavailable={onUnavailable} />
 
   const chosen = texts.find((t) => t.key === key) ?? texts[0]
   return (
@@ -51,7 +52,7 @@ export default function ReadingPanel({ reading, texts }: { reading?: ReadingPdf;
       </div>
       )}
       {chosen.kind === 'pdf' ? (
-        <PdfReader reading={{ title: chosen.source, url: chosen.url ?? '', page: chosen.page, end_page: chosen.end_page }} />
+        <PdfReader reading={{ title: chosen.source, url: chosen.url ?? '', page: chosen.page, end_page: chosen.end_page }} onUnavailable={onUnavailable} />
       ) : chosen.kind === 'file' && chosen.url && /\.html?($|[?#])/i.test(chosen.url) ? (
         // Lecture notes (a rendered notebook) read in place, like a PDF section.
         <div className="mt-3 border border-mathua-border bg-mathua-bg">

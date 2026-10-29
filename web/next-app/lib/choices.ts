@@ -29,3 +29,17 @@ export function parseChoices(question: string): ChoiceOption[] | null {
   }
   return opts
 }
+
+/**
+ * The option a learner picked, for echoing their answer back. A choice is
+ * submitted as the option's text, which is LaTeX source more often than not,
+ * so "you answered" printed `\((x^*, y^*) = …\)` verbatim. The echo names the
+ * option by its letter and renders its text instead. Null when the question
+ * has no options or the answer is not one of them.
+ */
+export function choiceEcho(question: string, answer: string): ChoiceOption | null {
+  const options = parseChoices(question)
+  if (!options) return null
+  const a = answer.trim().toLowerCase()
+  return options.find(o => o.text.trim().toLowerCase() === a) ?? null
+}

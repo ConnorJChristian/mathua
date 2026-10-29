@@ -33,16 +33,23 @@ interface Props {
   onSubmit?: () => void
   disabled?: boolean
   id?: string
+  /**
+   * A flashcard's "I had it" / "I missed it", submitted at once. A host that
+   * passes it needs no Check button for a card: the self-grade is the answer.
+   * Without it the pick only sets the value, for hosts that still submit on
+   * their own button.
+   */
+  onSelfGrade?: (verdict: 'right' | 'wrong') => void
 }
 
 const INDENT = '    '
 
-export default function PythonAnswer({ question, value, onChange, onSubmit, disabled, id }: Props) {
+export default function PythonAnswer({ question, value, onChange, onSubmit, disabled, id, onSelfGrade }: Props) {
   const kind = useMemo(() => pythonKind(question), [question])
   if (kind === 'mc') return null
   if (kind === 'proof') {
     if (isWrittenRecall(question)) {
-      return <WrittenRecall question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
+      return <WrittenRecall question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} onSelfGrade={onSelfGrade} />
     }
     if (isWritingQuestion(question)) {
       return <ProofBox value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} label="Your writing" />
@@ -53,7 +60,7 @@ export default function PythonAnswer({ question, value, onChange, onSubmit, disa
     return <TypedAnswer question={question} value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
   }
   if (kind === 'recall') {
-    return <RecallCard question={question} value={value} onChange={onChange} disabled={disabled} />
+    return <RecallCard question={question} value={value} onChange={onChange} disabled={disabled} onSelfGrade={onSelfGrade} />
   }
   if (kind === 'output') {
     return <OutputField value={value} onChange={onChange} onSubmit={onSubmit} disabled={disabled} id={id} />
@@ -111,11 +118,11 @@ function TypedAnswer({ question, value, onChange, onSubmit, disabled, id }: Prop
 // to the plain flashcard. Revealing the back is one-way: once the learner has
 // read it, a written answer would grade nothing, so the box is cleared and
 // only "I had it" / "I missed it" remain, exactly as for any flashcard.
-function WrittenRecall({ question, value, onChange, onSubmit, disabled, id }: Props) {
+function WrittenRecall({ question, value, onChange, onSubmit, disabled, id, onSelfGrade }: Props) {
   const [selfGrade, setSelfGrade] = useState(false)
   useEffect(() => setSelfGrade(false), [question])
   if (selfGrade) {
-    return <RecallCard question={question} value={value} onChange={onChange} disabled={disabled} revealed />
+    return <RecallCard question={question} value={value} onChange={onChange} disabled={disabled} revealed onSelfGrade={onSelfGrade} />
   }
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
@@ -137,7 +144,7 @@ function WrittenRecall({ question, value, onChange, onSubmit, disabled, id }: Pr
 
 // A flashcard. The back is part of the served question (a flashcard has no
 // secret to keep), shown only when the learner asks; the verdict is theirs.
-function RecallCard({ question, value, onChange, disabled, revealed = false }: Omit<Props, 'onSubmit' | 'id'> & { revealed?: boolean }) {
+function RecallCard({ question, value, onChange, disabled, revealed = false, onSelfGrade }: Omit<Props, 'onSubmit' | 'id'> & { revealed?: boolean }) {
   const [shown, setShown] = useState(revealed)
   useEffect(() => setShown(revealed), [question, revealed])
   const back = useMemo(() => recallBack(question), [question])
@@ -156,7 +163,10 @@ function RecallCard({ question, value, onChange, disabled, revealed = false }: O
   const pick = (v: 'right' | 'wrong', label: string) => (
     <button
       type="button"
-      onClick={() => onChange(v)}
+      onClick={() => {
+        onChange(v)
+        onSelfGrade?.(v)
+      }}
       disabled={disabled}
       aria-pressed={value === v}
       className={`border px-4 min-h-[44px] font-mono text-xs disabled:opacity-50 ${

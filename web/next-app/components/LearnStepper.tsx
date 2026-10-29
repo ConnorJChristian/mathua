@@ -23,7 +23,8 @@ import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
 import PythonAnswer from './python/PythonAnswer'
 import ProofReport from './ProofReport'
-import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayAnswer, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint, typedEcho } from '../lib/pythonQuestion'
+import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayAnswer, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint, pythonKind, recallBack, recallWhy, typedEcho } from '../lib/pythonQuestion'
+import { choiceEcho } from '../lib/choices'
 
 // Append-only learning feed: intro once, then each submit locks its card and
 // the next question opens below. Scrollback IS the performance history —
@@ -38,7 +39,7 @@ interface QEntry {
   checking: boolean
   servedAt: number
   firstInputAt?: number
-  feedback: { correct: boolean; text: string; diagnosis?: string; detail?: string; xp: number; proof?: ProofReportData } | null
+  feedback: { correct: boolean; text: string; diagnosis?: string; detail?: string; xp: number; proof?: ProofReportData; dontKnow?: boolean } | null
 }
 
 type Entry =
@@ -97,6 +98,61 @@ function hasReading(kp?: { reading?: unknown; texts?: unknown[] }): boolean {
   return !!kp && (!!kp.reading || (Array.isArray(kp.texts) && kp.texts.length > 0))
 }
 
+/**
+ * What blocks a gated topic: its prerequisites the server says are not met, and
+ * nothing else. The gate used to list every prerequisite, so a mastered one
+ * ("Partial derivatives: mastered") read as a reason the topic was locked.
+ */
+export function gateBlockers(r: ReadinessRes): EligibilityPrereq[] {
+  if (r.prerequisites && r.prerequisites.length > 0) return r.prerequisites.filter(p => !p.met)
+  return (r.missing ?? []).map(p => ({ conceptId: p.id, title: p.label, state: prereqStateFromStatus(p.status), met: false }))
+}
+
+/**
+ * A section's lesson material: its reading first, with Mathua's summary and
+ * worked example folded below it, or the worked example alone when the section
+ * has no reading. When the reading's PDF cannot be opened here, the summary
+ * opens by itself, so the lesson is never just an error message.
+ */
+function LessonMaterial({ kp, isPy, empty }: { kp?: KpInfo; isPy: boolean; empty: string }) {
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  if (kp && hasReading(kp)) {
+    return (
+      <>
+        <ReadingPanel reading={kp.reading} texts={kp.texts} onUnavailable={() => setSummaryOpen(true)} />
+        <details
+          open={summaryOpen}
+          onToggle={ev => setSummaryOpen((ev.currentTarget as HTMLDetailsElement).open)}
+          className="mt-4 border border-mathua-border bg-mathua-bg px-3 py-2"
+        >
+          <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Mathua&apos;s summary and worked example</summary>
+          <KatexContent externalLinks={isPy} className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{kp.worked_example || 'No worked example for this section.'}</KatexContent>
+          <LessonAssets assets={kp.assets} />
+        </details>
+      </>
+    )
+  }
+  return (
+    <>
+      <KatexContent externalLinks={isPy} className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{kp?.worked_example || empty}</KatexContent>
+      <LessonAssets assets={kp?.assets} />
+    </>
+  )
+}
+
+/**
+ * The end-of-session line. It said "Complete" whenever the questions ran out,
+ * while the topic could still be far from mastered. The server's evidence rule
+ * says how many more right answers mastery needs (`to_master`), and the line
+ * reports that instead.
+ */
+export function sessionDoneLine(o: { correct: number; answered: number; xp: number; band: string; toMaster: number | null; status: string }): string {
+  const tail = `${o.correct}/${o.answered} correct${o.xp > 0 ? ` · +${o.xp} XP` : ''}${o.band ? ` · ${o.band}` : ''}`
+  if (o.toMaster === 0 || o.status.toUpperCase() === 'MASTERED') return `✓ Mastered — ${tail}`
+  const more = o.toMaster !== null && o.toMaster > 0 ? ` (${o.toMaster} more correct to master)` : ''
+  return `Session done · still learning${more} — ${tail}`
+}
+
 export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   const [entries, setEntries] = useState<Entry[]>([])
   const [kps, setKps] = useState<KpInfo[]>([])
@@ -127,6 +183,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   // the same evidence the ladder decides on. The client used to compute its own score
   // and its own bands here; see test/masteryAuthority.test.ts.
   const [band, setBand] = useState('')
+  // What the last graded answer left: how many more right answers master the
+  // topic (server evidence rule) and its status. Read by the done card.
+  const [toMaster, setToMaster] = useState<number | null>(null)
+  const [lastStatus, setLastStatus] = useState('')
   const [difficulty, setDifficulty] = useState(0.4)
   const [consecutive, setConsecutive] = useState(0)
   const [misses, setMisses] = useState(0)
@@ -246,6 +306,8 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     setConsecutive(0)
     setMisses(0)
     setBannerDismissed(false)
+    setToMaster(null)
+    setLastStatus('')
     setNextShelf(null)
     setNextLoading(false)
     nextFetchedRef.current = false
@@ -263,6 +325,8 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     setConsecutive(0)
     setMisses(0)
     setBannerDismissed(false)
+    setToMaster(null)
+    setLastStatus('')
     setError('')
     seenRef.current = []
     setNextShelf(null)
@@ -428,20 +492,28 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     await advanceSection(from, 'exhausted')
   }
 
-  async function handleCheck(key: number) {
+  /**
+   * Grade the question in card `key`. `opts.answer` submits that answer instead
+   * of the typed one (a flashcard's self-grade, which submits on the click);
+   * `opts.dontKnow` is "I don't know": an admitted unknown, recorded by the
+   * server as a miss with no XP and no rushing penalty, as in tests.
+   */
+  async function handleCheck(key: number, opts: { answer?: string; dontKnow?: boolean } = {}) {
     const entry = entries.find(e => e.key === key && e.kind === 'q') as QEntry | undefined
-    if (!entry || !entry.answer.trim() || entry.checking || entry.feedback) return
-    setEntry(key, { checking: true })
+    const dontKnow = !!opts.dontKnow
+    const answer = dontKnow ? '' : (opts.answer ?? entry?.answer ?? '').trim()
+    if (!entry || entry.checking || entry.feedback || (!dontKnow && !answer)) return
+    setEntry(key, { checking: true, ...(opts.answer !== undefined ? { answer: opts.answer } : {}) })
     const elapsed = Math.max(0.5, (Date.now() - entry.servedAt) / 1000)
     try {
-      const res = await submitStudyAnswer(conceptId, entry.answer.trim(), elapsed, entry.q.question, override)
+      const res = await submitStudyAnswer(conceptId, answer, elapsed, entry.q.question, override, dontKnow)
       track({
         kind: 'answer',
         concept: conceptId,
         data: {
           surface: 'learn', q: questionHash(entry.q.question), source: entry.q.source, correct: !!res.correct,
           ungraded: !!res.ungraded, elapsed, first_key_s: entry.firstInputAt ? (entry.firstInputAt - entry.servedAt) / 1000 : null,
-          override, difficulty, style: answerStyle(entry.answer), feedback: res.feedback ?? '',
+          override, difficulty, style: answerStyle(answer), feedback: res.feedback ?? '', dont_know: dontKnow,
           proof_score: res.proof ? res.proof.score : null,
         },
       })
@@ -468,6 +540,8 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       setAnsweredCount(n => n + 1)
       if (res.correct) setCorrectCount(n => n + 1)
       if (res.evidence_band) setBand(res.evidence_band)
+      if (typeof res.to_master === 'number') setToMaster(res.to_master >= 0 ? res.to_master : null)
+      if (res.new_status) setLastStatus(res.new_status)
       if (res.correct) {
         const next = consecutive + 1
         const nextDiff = Math.min(1.0, difficulty + 0.15)
@@ -511,10 +585,11 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           feedback: {
             correct: false,
             text: res.explanation || entry.q.explanation,
-            diagnosis: res.diagnosis,
+            diagnosis: dontKnow ? undefined : res.diagnosis,
             detail: res.feedback,
             xp: 0,
             proof: res.proof,
+            dontKnow,
           },
         })
         appendAfter(350, async () => {
@@ -586,11 +661,14 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   // this renders its reason and a path into each prerequisite's own reference page.
   if (ineligible && entries.length === 0) {
     const title = concepts.find(c => c.id === conceptId)?.label ?? conceptId
+    const blockers = gateBlockers(ineligible)
+    // The gate limits practice, not reading: the topic's material stays open.
+    const readable = kps.filter(kp => hasReading(kp) || !!kp.worked_example)
     return (
       <div className="max-w-2xl mx-auto">
         <PrerequisitePanel
           topicTitle={title}
-          prerequisites={ineligible.prerequisites ?? []}
+          prerequisites={blockers}
           returnStack={prereqStack}
         />
         <div className="mt-4 flex flex-wrap gap-3">
@@ -610,6 +688,24 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             Back to Profile
           </Link>
         </div>
+        {readable.length > 0 && (
+          <section aria-label="Reading" className="mt-6 space-y-4">
+            <p className="font-mono text-[11px] text-mathua-secondary">
+              The reading is open now. Practice waits for the prerequisites above, or for Practice anyway.
+            </p>
+            {readable.map((kp, i) => (
+              <div key={i} className="border border-mathua-border bg-mathua-surface p-6">
+                <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">{kp.label || 'Learn'}</p>
+                <LessonMaterial kp={kp} isPy={isPy} empty="" />
+              </div>
+            ))}
+            {diagram && (
+              <figure>
+                <LessonDiagram src={diagram} alt={`Diagram for ${title}`} />
+              </figure>
+            )}
+          </section>
+        )}
       </div>
     )
   }
@@ -690,25 +786,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                     has a reading it comes first, and Mathua's own worked example sits below it,
                     collapsed but one click away. A topic with no reading keeps the worked
                     example as its lesson. */}
-                {hasReading(ikp) ? (
-                  <>
-                    <ReadingPanel reading={ikp!.reading} texts={ikp!.texts} />
-                    <details className="mt-4 border border-mathua-border bg-mathua-bg px-3 py-2">
-                      <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Mathua&apos;s summary and worked example</summary>
-                      <KatexContent externalLinks={isPy} className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || 'No worked example for this section.'}</KatexContent>
-                      <LessonAssets assets={ikp?.assets} />
-                    </details>
-                  </>
-                ) : (
-                  <>
-                    <KatexContent externalLinks={isPy} className="mt-3 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || 'Worked example unavailable — start practicing instead.'}</KatexContent>
-                    {/* Figures for this knowledge point, plus the concept's own diagram. The
-                        worked example is text lifted out of the lesson body, so its figures do
-                        not come with it; selecting them per knowledge point is what keeps the
-                        shorter surface shorter without discarding instruction. */}
-                    <LessonAssets assets={ikp?.assets} />
-                  </>
-                )}
+                <LessonMaterial kp={ikp} isPy={isPy} empty="Worked example unavailable — start practicing instead." />
                 {diagram && (
                   <figure className="mt-4">
                     <LessonDiagram src={diagram} alt={`Diagram for ${ikp?.label || 'this topic'}`} />
@@ -743,19 +821,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
               <div key={e.key} className="border-t-2 border-mathua-blue pt-4">
                 <details>
                   <summary className="font-mono text-[11px] uppercase tracking-wider text-mathua-blue cursor-pointer">Next: {ikp?.label || `Knowledge point ${e.kpIndex + 1}`} ({hasReading(ikp) ? 'reading' : 'worked example'})</summary>
-                  {hasReading(ikp) && <ReadingPanel reading={ikp!.reading} texts={ikp!.texts} />}
-                  {hasReading(ikp) ? (
-                    <details className="mt-3">
-                      <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Mathua&apos;s summary and worked example</summary>
-                      <KatexContent className="mt-2 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || ''}</KatexContent>
-                      <LessonAssets assets={ikp?.assets} />
-                    </details>
-                  ) : (
-                    <>
-                      <KatexContent className="mt-2 text-sm text-mathua-primary whitespace-pre-wrap">{ikp?.worked_example || ''}</KatexContent>
-                      <LessonAssets assets={ikp?.assets} />
-                    </>
-                  )}
+                  <LessonMaterial kp={ikp} isPy={isPy} empty="" />
                 </details>
               </div>
             )
@@ -786,7 +852,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             const upcoming: LockedSuccessor[] = upcomingLocked(catalogEntries(), shelfProgress, conceptId)
             return (
               <div key={e.key} className="border border-mathua-green-faint bg-mathua-surface p-6">
-                <p className="font-mono text-xs text-green-400">✓ Complete — {totalCorrect}/{totalAnswered} correct · +{totalXP} XP · {band}</p>
+                <p className={`font-mono text-xs ${toMaster === 0 || lastStatus.toUpperCase() === 'MASTERED' ? 'text-green-400' : 'text-mathua-primary'}`}>{sessionDoneLine({ correct: totalCorrect, answered: totalAnswered, xp: totalXP, band, toMaster, status: lastStatus })}</p>
                 {e.note && <p role="status" className="mt-2 font-mono text-[11px] text-mathua-secondary">{e.note}</p>}
                 <p className="mt-2 font-mono text-[11px] text-mathua-secondary">Scroll up to review anything. Reviews are scheduled automatically.</p>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -848,6 +914,12 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           const written = qPy && isWrittenRecall(qe.q.question)
           const writing = qPy && isWritingQuestion(qe.q.question)
           const shownAnswer = qPy ? displayAnswer(qe.q.answer) : qe.q.answer
+          // A plain flashcard: "I had it" / "I missed it" is the answer and submits at once,
+          // so there is no Check button and no "I don't know" (that is "I missed it").
+          const flashcard = qPy && pythonKind(qe.q.question) === 'recall'
+          const recalled = qPy && pyKind === 'recall'
+          const picked = !recalled && pyKind !== 'math' ? choiceEcho(qe.q.question, qe.answer) : null
+          const whyText = qe.feedback ? (recalled ? recallWhy(qe.q.question, qe.feedback.text) : qe.feedback.text) : ''
           return (
             <div key={qe.key} className={`border bg-mathua-surface p-6 ${qe.feedback?.correct ? 'border-mathua-green-faint' : qe.feedback ? 'border-mathua-red-faint' : 'border-mathua-border'}`}>
               <KatexContent className="text-sm text-mathua-primary font-mono whitespace-pre-wrap">{qPy ? displayQuestion(qe.q.question) : qe.q.question}</KatexContent>
@@ -862,9 +934,12 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                     value={qe.answer}
                     onChange={v => setEntry(qe.key, { answer: v })}
                     onSubmit={() => handleCheck(qe.key)}
+                    onSelfGrade={v => handleCheck(qe.key, { answer: v })}
                     disabled={qe.checking}
                   />
-                  <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 self-end">{qe.checking && pyKind === 'code' ? 'Checking…' : qe.checking && pyKind === 'proof' ? 'Grading…' : 'Check'}</button>
+                  {!flashcard && (
+                    <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 self-end">{qe.checking && pyKind === 'code' ? 'Checking…' : qe.checking && pyKind === 'proof' ? 'Grading…' : 'Check'}</button>
+                  )}
                   {qe.checking && pyKind === 'proof' && (
                     <p role="status" className="font-mono text-[11px] text-mathua-muted self-end">{writing ? 'Grading your writing against its rubric.' : 'Grading your proof against its marking scheme.'} This takes up to a minute.</p>
                   )}
@@ -889,19 +964,47 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   <button type="submit" disabled={qe.checking || !qe.answer.trim()} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 h-12 text-sm font-mono disabled:opacity-50 w-auto self-end sm:self-auto shrink-0">Check</button>
                 </form>
               )}
-              {!locked && <p className="mt-2 font-mono text-[11px] text-mathua-muted">{written && pyKind === 'proof' ? WRITTEN_RECALL_HINT : writing ? WRITING_HINT : pyKind ? pythonHint(pyKind) : format.hint}</p>}
+              {!locked && (
+                <div className="mt-2 flex items-start justify-between gap-2">
+                  <p className="font-mono text-[11px] text-mathua-muted">{written && pyKind === 'proof' ? WRITTEN_RECALL_HINT : writing ? WRITING_HINT : pyKind ? pythonHint(pyKind) : format.hint}</p>
+                  {/* The tests' "I don't know": an admitted unknown, not a wrong answer. It
+                      shows the worked solution without a guess typed to get there. */}
+                  {!flashcard && !written && (
+                    <button
+                      type="button"
+                      onClick={() => handleCheck(qe.key, { dontKnow: true })}
+                      disabled={qe.checking}
+                      className="shrink-0 font-mono text-[11px] text-mathua-muted hover:text-mathua-red underline underline-offset-2 disabled:opacity-50"
+                    >
+                      I don&apos;t know
+                    </button>
+                  )}
+                </div>
+              )}
               {locked && qe.feedback && (
                 <div className="mt-3">
                   <p className={`font-mono text-xs ${qe.feedback.correct ? 'text-green-400' : 'text-red-400'}`}>
-                    {qe.feedback.correct ? `✓ ${qe.feedback.xp ? `+${qe.feedback.xp} XP` : 'Correct'}` : '✗ Not quite.'}{' '}
+                    {qe.feedback.dontKnow ? 'No answer — here is how it goes.' : qe.feedback.correct ? `✓ ${qe.feedback.xp ? `+${qe.feedback.xp} XP` : 'Correct'}` : '✗ Not quite.'}{' '}
+                    {!qe.feedback.dontKnow && (
                     <span className="text-mathua-muted">{pyKind === 'code'
                         ? 'checked against the hidden tests'
                         : pyKind === 'proof'
                           ? 'graded against the marking scheme'
                           : pyKind === 'recall'
                           ? qe.answer === 'right' ? 'you had it' : 'you marked it missed'
-                          : `you answered “${pyKind === 'math' ? typedEcho(qe.q.question, qe.answer) : qPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
+                          : picked
+                            // A choice is echoed by its letter and rendered text, not its LaTeX source.
+                            ? <>you answered {picked.letter}) <KatexContent className="inline-block align-baseline [&_p]:inline [&_p]:m-0">{picked.text}</KatexContent></>
+                            : `you answered “${pyKind === 'math' ? typedEcho(qe.q.question, qe.answer) : qPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
+                    )}
                   </p>
+                  {/* A flashcard's back stays where the learner read it, once; the explanation
+                      below it no longer repeats it. */}
+                  {recalled && recallBack(qe.q.question) && (
+                    <div className="mt-2 border border-mathua-border bg-mathua-bg px-4 py-3">
+                      <KatexContent className="text-sm text-mathua-primary">{recallBack(qe.q.question)}</KatexContent>
+                    </div>
+                  )}
                   {pyKind === 'proof' && (
                     <details className="mt-1.5">
                       <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">{written ? 'Your answer' : writing ? 'Your writing' : 'Your proof'}</summary>
@@ -936,12 +1039,12 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   {pyKind === 'code' && !qe.feedback.correct && qe.feedback.detail && (
                     <pre data-diagnosis className="mt-2 max-h-64 overflow-auto border border-mathua-red-faint bg-mathua-bg px-3 py-2 font-mono text-[11px] text-red-400 whitespace-pre-wrap">{plainAnswer(qe.feedback.detail)}</pre>
                   )}
-                  {qe.feedback.text && (
+                  {whyText && (
                     <div className="mt-1.5">
                       <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">
                         {qe.feedback.correct ? 'Why' : 'How'}
                       </p>
-                      <KatexContent externalLinks={qPy} className="mt-1 text-xs font-mono text-mathua-secondary whitespace-pre-wrap">{qe.feedback.text}</KatexContent>
+                      <KatexContent externalLinks={qPy} className="mt-1 text-xs font-mono text-mathua-secondary whitespace-pre-wrap">{whyText}</KatexContent>
                     </div>
                   )}
                 </div>

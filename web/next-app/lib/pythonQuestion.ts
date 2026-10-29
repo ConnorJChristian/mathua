@@ -174,6 +174,19 @@ export function recallBack(question: string): string {
   return cut >= 0 ? question.slice(cut + RECALL_MARKER.length).trim() : ''
 }
 
+/**
+ * A recall card's explanation without its back. The server's explanation for a
+ * card starts with the back (internal/pytrack, KindRecall) and the learner has
+ * just read the back on the card, so printing the explanation whole showed it
+ * twice. Returns what follows the back: the card's note and source, or ''.
+ */
+export function recallWhy(question: string, explanation: string): string {
+  const back = recallBack(question)
+  const text = explanation.trim()
+  if (!back) return text
+  return text.startsWith(back) ? text.slice(back.length).trim() : text
+}
+
 export function displayAnswer(answer: string): string {
   if (answer.startsWith('code:') || answer.startsWith('recall:') || answer.startsWith('math:') || answer.startsWith('term:') || answer.startsWith('proof:')) return ''
   if (answer.startsWith('mc:')) return answer.slice(3)
