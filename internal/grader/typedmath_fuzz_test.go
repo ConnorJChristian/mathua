@@ -28,6 +28,9 @@ func TestNormalizeTypedMathRoundTrips(t *testing.T) {
 		{`\frac{1}{x}\,dx`, "1/x dx"},
 		{`0.5\times 10`, "0.5*10"},
 		{`x^{-1}`, "x^(-1)"},
+		{`e^{-2}`, "exp(-2)"},
+		{`1-e^{-20}`, "1-exp(-20)"},
+		{`e^-2`, "e^(-2)"},
 		{`\frac{\sqrt{2}}{2}`, "sqrt(2)/2"},
 	}
 	for _, c := range cases {
@@ -115,6 +118,8 @@ func TestNormalizeTypedMathEditorForms(t *testing.T) {
 		{`\frac{2\ln x}{x}`, "2*ln(x)/x"},
 		{`\ln|x+8|`, "ln|x+8|"},
 		{`x^{3}\cos x+3x^{2}\sin x`, "x^3*cos(x)+3x^2*sin(x)"},
+		{`b_{1} \log{\left(x_{1} \right)} + \log{\left(a \right)}`, "b_1*log(x_1) + log(a)"},
+		{`1 + \frac{\log{\left(2 \right)}}{\log{\left(b \right)}}`, "1 + log(2)/log(b)"},
 	} {
 		got := NormalizeTypedMath(c.typed, c.plain)
 		if !r.Grade(GradingExpression, c.plain, got).Correct {

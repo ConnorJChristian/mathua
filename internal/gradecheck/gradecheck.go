@@ -78,8 +78,12 @@ func (f Failure) Verdict() string {
 	switch f.Check {
 	case "wrong", "empty", "wrong letter":
 		return "ACCEPTED"
-	case "leak", "hint", "serve":
+	case "hint", "serve":
 		return "DEFECT"
+	case "leak":
+		// A prompt that holds its key may mean to ("which of these two
+		// verbs", "convert e^{1.5} to log form"): a note for the author.
+		return "NOTE"
 	}
 	return "REFUSED"
 }
@@ -109,11 +113,11 @@ type Options struct {
 }
 
 // Defects are the failures that are not a custom grader's own format
-// refusing an alternative spelling.
+// refusing an alternative spelling, and not a leak note.
 func (r Report) Defects() []Failure {
 	var out []Failure
 	for _, f := range r.Failures {
-		if f.Custom && f.Check == "variant" {
+		if (f.Custom && f.Check == "variant") || f.Check == "leak" {
 			continue
 		}
 		out = append(out, f)
@@ -499,9 +503,13 @@ func variants(pt pytrack.Part) []string {
 			if strings.Contains(a, "/") && !strings.ContainsAny(a, "()^ ") {
 				// A fraction: the same decimal to three places and to more.
 				if v != math.Trunc(v) {
-					// Rounded half away from zero, as a learner rounds.
-					add(strconv.FormatFloat(roundHalfAway(v, 3), 'f', 3, 64))
-					add(strconv.FormatFloat(roundHalfAway(v, 6), 'f', 6, 64))
+					// Rounded half away from zero, as a learner rounds; a
+					// rounding that is zero is no answer.
+					for _, n := range []int{3, 6} {
+						if r := roundHalfAway(v, n); r != 0 {
+							add(strconv.FormatFloat(r, 'f', n, 64))
+						}
+					}
 				}
 			} else if strings.Contains(a, ".") {
 				add(a + "0")                                           // a trailing zero

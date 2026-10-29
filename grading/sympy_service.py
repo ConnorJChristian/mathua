@@ -108,7 +108,11 @@ def preprocess(s: str) -> str:
                         result.append(s[i])
                         i += 1
                 else:
-                    # No parens: e^x -> exp(x)
+                    # No parens: e^x -> exp(x); e^-2 -> exp(-2) (a leading
+                    # sign is part of the exponent, fork fix).
+                    if i < len(s) and s[i] == '-':
+                        result.append('-')
+                        i += 1
                     while i < len(s) and (s[i].isalnum() or s[i] in '._'):
                         result.append(s[i])
                         i += 1

@@ -61,6 +61,9 @@ func NormalizeTypedMath(s, expected string) string {
 	}
 	// "(1)/(3)": a bracketed plain number is the number.
 	s = unwrapNumbers(s)
+	// SymPy's LaTeX writes a function's argument as \log{\left(x \right)}:
+	// braces round a bracketed group are only grouping.
+	s = braceParenRe.ReplaceAllString(s, "$1")
 	// A multi-letter subscript the math box exports with spaces, "f_(L K)",
 	// is the one name f_LK.
 	s = subGroupRe.ReplaceAllStringFunc(s, func(m string) string {
@@ -84,6 +87,7 @@ var (
 	funcNameRe        = regexp.MustCompile(`\\(ln|log|exp|sin|cos|tan|sec|csc|cot|arcsin|arccos|arctan|sinh|cosh|tanh|max|min|det)\b`)
 	nthRootRe         = regexp.MustCompile(`\\sqrt\[(\d+)\]\{([^{}]*)\}`)
 	rootExportRe      = regexp.MustCompile(`root\((\d+)\)\(([^()]*)\)`)
+	braceParenRe      = regexp.MustCompile(`\{(\([^{}]*\))\}`)
 	subGroupRe        = regexp.MustCompile(`_\(([A-Za-z0-9]+(?: [A-Za-z0-9]+)+)\)([A-Za-z]?)`)
 	greekRunRe        = regexp.MustCompile(`([αβγδεθλμπρστφω])([A-Za-z\\\\])`)
 	bareNumberParenRe = regexp.MustCompile(`\((-?\d+(?:\.\d+)?)\)`)
@@ -120,6 +124,11 @@ func unwrapNumbers(s string) string {
 		}
 		okBefore := before == 0 || strings.IndexByte(" +-*/^(", before) >= 0
 		okAfter := after == 0 || strings.IndexByte(" +-*/)", after) >= 0
+		// A negative exponent keeps its brackets: "e^(-2)" is not "e^-2",
+		// which the SymPy service cannot read (fork fix).
+		if before == '^' && s[m[2]] == '-' {
+			continue
+		}
 		if !okBefore || !okAfter {
 			continue
 		}
