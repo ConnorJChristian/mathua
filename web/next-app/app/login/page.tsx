@@ -196,6 +196,10 @@ function LoginInner() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [authDisabled, setAuthDisabled] = useState(false)
   const [providers, setProviders] = useState<OAuthProvider[]>([])
+  // Google sign-in is offered only when the server has it configured (a provider
+  // entry or a One Tap client id). It used to show whenever no other provider was
+  // configured, which is exactly the install with no external login at all.
+  const [googleConfigured, setGoogleConfigured] = useState(false)
 
   // Safe post-login target: same-origin paths only (never protocol-relative).
   const ret = (() => {
@@ -245,6 +249,7 @@ function LoginInner() {
       if (Array.isArray(cfg.providers)) {
         setProviders(cfg.providers.filter((p): p is OAuthProvider => p !== 'google' && p in OAUTH_LABELS))
       }
+      setGoogleConfigured((Array.isArray(cfg.providers) && cfg.providers.includes('google')) || !!cfg.google_client_id)
       const cid = cfg.google_client_id
       if (!cid || cancelled) return
       const src = 'https://accounts.google.com/gsi/client'
@@ -565,13 +570,15 @@ function LoginInner() {
             <button type="submit" disabled={state.loading || authDisabled} data-testid="auth-submit" className="w-full border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 font-medium text-sm disabled:opacity-50">
               {state.loading ? (<><Loading inline size={13} /> Loading…</>) : state.tab === 'signup' ? 'Create Account' : 'Login'}
             </button>
+            {(googleConfigured || providers.length > 0) && (
             <div className="flex items-center gap-3 my-2">
               <div className="h-px flex-1 bg-mathua-border" />
               <span className="font-mono text-[10px] uppercase text-mathua-muted">or</span>
               <div className="h-px flex-1 bg-mathua-border" />
             </div>
+            )}
             <div className="space-y-2">
-              {(providers.length === 0 || providers.includes('google')) && (
+              {googleConfigured && (
               <>
               <div id="g_id_onload" className="flex justify-center min-h-[44px] items-center" />
               {!googleReady && (

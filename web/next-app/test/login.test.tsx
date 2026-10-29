@@ -220,6 +220,21 @@ describe('LoginPage', () => {
     expect(await screen.findByText(/reset link is on its way/)).toBeInTheDocument()
   })
 
+  it('offers Google only when the server has it configured', async () => {
+    getConfigMock.mockResolvedValue({ auth_enabled: true, providers: [] })
+    const { unmount } = render(<LoginPage />)
+    await waitFor(() => expect(getConfigMock).toHaveBeenCalled())
+    await screen.findByTestId('auth-submit')
+    await new Promise(r => setTimeout(r, 0))
+    expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull()
+    expect(screen.queryByText('or')).toBeNull()
+    unmount()
+
+    getConfigMock.mockResolvedValue({ auth_enabled: true, providers: ['google'] })
+    render(<LoginPage />)
+    expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
+  })
+
   it('renders one button per configured non-google provider', async () => {
     getConfigMock.mockResolvedValue({ auth_enabled: true, providers: ['google', 'github', 'apple'] })
     render(<LoginPage />)
