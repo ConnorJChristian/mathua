@@ -12,6 +12,7 @@
 // The served answer is prefixed the same way (`code:`, `mc:`, `out:`); it is a
 // key, not something to show a learner as-is.
 
+import { stripBookMarker } from './bookRef'
 import { parseChoices } from './choices'
 
 export type PythonKind = 'code' | 'mc' | 'output' | 'recall' | 'math' | 'proof' | 'term'
@@ -144,7 +145,7 @@ const OPTIONS_RE = /\n\nA\)\s[\s\S]*$/
  * options into the choice buttons, so neither is printed twice.
  */
 export function displayQuestion(question: string): string {
-  question = question.replace(CARD_MARKER, '').replace(/^\n/, '')
+  question = stripBookMarker(question.replace(CARD_MARKER, '').replace(/^\n/, ''))
   const proof = question.indexOf(PROOF_MARKER)
   if (proof >= 0) return question.slice(0, proof).trimEnd()
   const typed = question.indexOf(TYPED_MARKER)

@@ -6,6 +6,7 @@ import KatexContent from './KatexContent'
 import LessonDiagram from './LessonDiagram'
 import ReadingPanel from './ReadingPanel'
 import LessonAssets from './LessonAssets'
+import BookRefPanel from './BookRefPanel'
 import ChoiceOptions from './ChoiceOptions'
 import ConceptReference from './ConceptReference'
 import PrerequisitePanel from './PrerequisitePanel'
@@ -850,6 +851,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           return (
             <div key={qe.key} className={`border bg-mathua-surface p-6 ${qe.feedback?.correct ? 'border-mathua-green-faint' : qe.feedback ? 'border-mathua-red-faint' : 'border-mathua-border'}`}>
               <KatexContent className="text-sm text-mathua-primary font-mono whitespace-pre-wrap">{qPy ? displayQuestion(qe.q.question) : qe.q.question}</KatexContent>
+              <BookRefPanel question={qe.q.question} />
               <ChoiceOptions question={qe.q.question} value={qe.answer} onPick={v => setEntry(qe.key, { answer: v })} disabled={locked || qe.checking} />
               {!locked && qPy && (
                 <form onSubmit={ev => { ev.preventDefault(); handleCheck(qe.key) }} className="mt-3 flex flex-col gap-2">

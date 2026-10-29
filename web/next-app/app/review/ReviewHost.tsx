@@ -11,6 +11,7 @@ import ReportButton from '../../components/ReportButton'
 import { getDueReviews, startReviewSession, submitReviewAnswer, type ProofReport as ProofReportData } from '../../lib/api'
 import ProofReport from '../../components/ProofReport'
 import { formatForGradingType, type AnswerFormat } from '../../lib/answerFormat'
+import BookRefPanel from '../../components/BookRefPanel'
 import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../components/SubmitErrorBlock'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
@@ -272,6 +273,7 @@ export default function ReviewHost() {
             <KatexContent className="text-mathua-primary text-lg font-mono font-light whitespace-pre-wrap break-words">{reviewQuestion}</KatexContent>
           </div>
           )}
+          <BookRefPanel question={reviewQuestion} />
           <ChoiceOptions question={reviewQuestion} value={reviewAnswerInput} onPick={setReviewAnswerInput} disabled={loading} />
           {!reviewLastResult ? (
             <>

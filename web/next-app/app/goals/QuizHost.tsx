@@ -11,6 +11,7 @@ import ReportButton from '../../components/ReportButton'
 import { startQuizSession, submitQuizAnswer, skipQuizQuestion, type CourseTestSection } from '../../lib/api'
 import CourseTestSummary from '../../components/CourseTestSummary'
 import { formatForGradingType, formatForQuestion, type AnswerFormat, type QuestionFormatFields } from '../../lib/answerFormat'
+import BookRefPanel from '../../components/BookRefPanel'
 import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, {
   MAX_SKIPS,
@@ -377,6 +378,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
             <KatexContent className="text-mathua-primary text-lg font-mono font-light whitespace-pre-wrap break-words">{quizQuestion}</KatexContent>
           </div>
           )}
+          <BookRefPanel question={quizQuestion} />
           <ChoiceOptions question={quizQuestion} value={quizAnswerInput} onPick={setQuizAnswerInput} disabled={loading} />
           {!quizLastResult ? (
             <>
