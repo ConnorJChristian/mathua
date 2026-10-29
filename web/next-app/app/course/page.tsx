@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
+import { courseReturnPath, withReturnStack } from '../../lib/learnReturn'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '../../components/Header'
@@ -56,8 +57,12 @@ function statusClass(t: CourseTopic): string {
   return 'text-mathua-muted'
 }
 
-function TopicRow({ t, courseId, onRead, onWatch, pinned, onPin }: { t: CourseTopic; courseId: string; onRead: (t: CourseTopic) => void; onWatch: (v: CourseVideo[]) => void; pinned?: boolean; onPin?: (id: string, on: boolean) => void }) {
-  const learn = `/learn?concept=${encodeURIComponent(t.id)}&course=${encodeURIComponent(courseId)}`
+function TopicRow({ t, courseId, tab, onRead, onWatch, pinned, onPin }: { t: CourseTopic; courseId: string; tab?: string; onRead: (t: CourseTopic) => void; onWatch: (v: CourseVideo[]) => void; pinned?: boolean; onPin?: (id: string, on: boolean) => void }) {
+  // Both links carry this course page as their return target, so the topic page offers
+  // "Back to course modules" instead of the profile (fork change).
+  const backHere = [courseReturnPath(courseId, tab)]
+  const learn = withReturnStack(`/learn?concept=${encodeURIComponent(t.id)}&course=${encodeURIComponent(courseId)}`, backHere)
+  const study = withReturnStack(`/study?concept=${encodeURIComponent(t.id)}&course=${encodeURIComponent(courseId)}`, backHere)
   const btn = 'shrink-0 border px-2.5 min-h-[30px] inline-flex items-center font-mono text-[11px]'
   return (
     <li className={`py-2 px-3 flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 ${pinned ? 'bg-mathua-blue-faint' : ''}`}>
@@ -69,7 +74,7 @@ function TopicRow({ t, courseId, onRead, onWatch, pinned, onPin }: { t: CourseTo
       ) : (
         <span className={`w-2 h-2 shrink-0 rounded-full ${t.status === 'mastered' ? 'bg-mathua-green' : t.attempts > 0 ? 'bg-mathua-blue' : t.locked ? 'bg-mathua-border' : 'bg-mathua-muted'}`} aria-hidden />
       )}
-      <Link href={`/study?concept=${encodeURIComponent(t.id)}`} className="min-w-0 flex-1 basis-40 font-mono text-xs text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.label}</Link>
+      <Link href={study} className="min-w-0 flex-1 basis-40 font-mono text-xs text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.label}</Link>
       <span className={`font-mono text-[10px] ${statusClass(t)}`}>{statusWord(t)}</span>
       {t.cards ? <span className="font-mono text-[10px] text-mathua-muted" title="Your flashcards cover this topic">{t.cards} deck{t.cards === 1 ? '' : 's'}</span> : null}
       <span className="flex items-center gap-1.5 ml-auto">
@@ -301,7 +306,7 @@ function CourseContent() {
                     {view.needs_placement && <Link href={`/onboard?course=${encodeURIComponent(view.id)}`} className="shrink-0 text-mathua-blue hover:underline text-[11px]">Place me →</Link>}
                   </summary>
                   <ol className="border-t border-mathua-border divide-y divide-mathua-border max-h-[50vh] overflow-auto">
-                    {view.prerequisites.map((t) => <TopicRow key={t.id} t={t} courseId={view.id} onRead={setReading} onWatch={setWatching} pinned={pins.has(t.id)} onPin={signedIn ? togglePin : undefined} />)}
+                    {view.prerequisites.map((t) => <TopicRow key={t.id} t={t} courseId={view.id} tab={tab} onRead={setReading} onWatch={setWatching} pinned={pins.has(t.id)} onPin={signedIn ? togglePin : undefined} />)}
                   </ol>
                 </details>
               )}
@@ -312,7 +317,7 @@ function CourseContent() {
                     <span className="shrink-0 text-mathua-muted text-[11px]">{m.mastered}/{m.topics.length}</span>
                   </summary>
                   <ol className="border-t border-mathua-border divide-y divide-mathua-border">
-                    {m.topics.map((t) => <TopicRow key={t.id} t={t} courseId={view.id} onRead={setReading} onWatch={setWatching} pinned={pins.has(t.id)} onPin={signedIn ? togglePin : undefined} />)}
+                    {m.topics.map((t) => <TopicRow key={t.id} t={t} courseId={view.id} tab={tab} onRead={setReading} onWatch={setWatching} pinned={pins.has(t.id)} onPin={signedIn ? togglePin : undefined} />)}
                   </ol>
                 </details>
               ))}

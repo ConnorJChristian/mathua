@@ -396,11 +396,30 @@ func main() {
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
+		// A module's own files (lecture notes, book sections rendered as HTML)
+		// are read inside the lesson, in an iframe on the app's own origin, so
+		// they may be framed by that origin and nothing else (fork change).
+		// Everything else stays unframeable.
+		if isModuleFile(r.URL.Path) {
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Set("Content-Security-Policy", "frame-ancestors 'self'")
+		} else {
+			w.Header().Set("X-Frame-Options", "DENY")
+		}
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("X-XSS-Protection", "0")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// isModuleFile reports a request for a module's files: /api/modules/<id>/files/...
+func isModuleFile(path string) bool {
+	rest, ok := strings.CutPrefix(path, "/api/modules/")
+	if !ok {
+		return false
+	}
+	_, after, found := strings.Cut(rest, "/")
+	return found && strings.HasPrefix(after, "files/")
 }
 
 func nextStaticFS(root string) http.Handler {

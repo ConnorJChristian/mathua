@@ -81,3 +81,20 @@ export function withReturnStack(path: string, stack: ReturnEntry[]): string {
   const sep = path.includes('?') ? '&' : '?'
   return path + stack.map((entry) => `${sep}return=${encodeURIComponent(entry)}`).join('')
 }
+
+/**
+ * A course page as a return target (fork change): a topic opened from a course's Modules or
+ * Home tab returns there, not to the profile. The tab is kept so "back" lands where the
+ * learner was.
+ */
+export function courseReturnPath(courseId: string, tab?: string): ReturnEntry {
+  const t = tab && tab !== 'home' ? `&tab=${encodeURIComponent(tab)}` : ''
+  return `/course?id=${encodeURIComponent(courseId)}${t}`
+}
+
+/** The words a back-link reads for a course return target, or null for any other target. */
+export function courseReturnLabel(href: string): string | null {
+  if (!href.startsWith('/course?')) return null
+  const tab = new URLSearchParams(href.slice('/course?'.length)).get('tab')
+  return tab === 'modules' ? 'course modules' : tab ? `the course (${tab})` : 'the course'
+}

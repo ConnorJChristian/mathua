@@ -13,7 +13,7 @@ import { track, questionHash, answerStyle } from '../lib/events'
 import { getLessonKPs, getLessonPractice, getLessonReadiness, submitStudyAnswer, getProgress, getErrorStatus, type EligibilityPrereq, type KpInfo, type PracticeQuestion, type ReadinessRes, type ConceptProgress, type ProofReport as ProofReportData } from '../lib/api'
 import { getUserInfo } from '../lib/auth'
 import { upcomingLocked, hrefConceptId, type Shelf, type LockedSuccessor } from '../lib/nextUp'
-import { backTarget, learnConceptPath, pushReturn, studyConceptPath, withReturnStack, type ReturnEntry } from '../lib/learnReturn'
+import { backTarget, courseReturnLabel, learnConceptPath, pushReturn, studyConceptPath, withReturnStack, type ReturnEntry } from '../lib/learnReturn'
 import { fetchShelf } from '../lib/recommendations'
 import { REQUIRED_IN_A_ROW } from '../lib/progression'
 import { formatForGradingType, type AnswerFormat } from '../lib/answerFormat'
@@ -155,7 +155,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   const back = backTarget(returnStack)
   const returnTo = returnStack.length > 0 ? hrefConceptId(returnStack[0]) : null
   // A learner reading "← Back to frac.add.diff" is reading a storage key.
-  const returnToLabel = returnTo ? (concepts.find(c => c.id === returnTo)?.label ?? returnTo) : null
+  const returnToLabel = (returnStack.length > 0 ? courseReturnLabel(returnStack[0]) : null) ?? (returnTo ? (concepts.find(c => c.id === returnTo)?.label ?? returnTo) : null)
   // The stack to put on any link that leaves this page, so this page is reachable again.
   const currentPath = learnConceptPath(conceptId)
   const prereqStack = pushReturn(returnStack, currentPath)

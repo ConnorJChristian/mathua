@@ -14,7 +14,7 @@ import { getUserInfo } from '../../lib/auth'
 import { concepts } from '../../lib/conceptData'
 import { domainLabel } from '../../lib/domains'
 import { masteryState } from '../../lib/progress'
-import { backTarget, learnConceptPath, parseReturnStack, pushReturn, studyConceptPath, withReturnStack } from '../../lib/learnReturn'
+import { backTarget, courseReturnLabel, learnConceptPath, parseReturnStack, pushReturn, studyConceptPath, withReturnStack } from '../../lib/learnReturn'
 import { hrefConceptId } from '../../lib/nextUp'
 
 // The reference and exploration surface.
@@ -120,7 +120,7 @@ function StudyContent() {
   }))
 
   const back = backTarget(returnStack)
-  const backLabel = back ? (concepts.find(c => c.id === hrefConceptId(back.href))?.label ?? '') : ''
+  const backLabel = back ? (courseReturnLabel(back.href) ?? concepts.find(c => c.id === hrefConceptId(back.href))?.label ?? '') : ''
   const mastered = readiness?.state === 'mastered' || readiness?.state === 'due_for_review'
   // A mastered concept is owed retrieval, not another tutorial (ADR-037); everything else enters
   // the one assessed loop, which enforces its own gate if the topic is locked.
