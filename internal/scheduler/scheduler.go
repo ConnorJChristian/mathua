@@ -259,6 +259,17 @@ func (s *Scheduler) NextReview(
 	snapshots map[string]*ConceptSnapshot,
 	prevConceptID string,
 ) *NextConcept {
+	return s.NextReviewSkipping(snapshots, prevConceptID, nil)
+}
+
+// NextReviewSkipping is NextReview with some concepts never served as a
+// review: the caller's rule for what is not worth reviewing (the engine's
+// credit-only foundations no followed course asks for).
+func (s *Scheduler) NextReviewSkipping(
+	snapshots map[string]*ConceptSnapshot,
+	prevConceptID string,
+	skip map[string]bool,
+) *NextConcept {
 	now := time.Now().UTC()
 	candidates := buildCandidates(s.dag, snapshots, now, prevConceptID)
 	if len(candidates) == 0 && prevConceptID != "" {
@@ -266,7 +277,7 @@ func (s *Scheduler) NextReview(
 	}
 	var reviews []Candidate
 	for _, c := range candidates {
-		if c.IsReview {
+		if c.IsReview && !skip[c.Concept.ID] {
 			reviews = append(reviews, c)
 		}
 	}

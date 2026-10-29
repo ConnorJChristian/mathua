@@ -84,8 +84,9 @@ func (e *Engine) ReviewsDueTrack(studentID, track string) (int, error) {
 	}
 	now := time.Now()
 	count := 0
+	skip := e.creditOnlyOffCourse(studentID, progress)
 	for _, p := range progress {
-		if !e.InTrack(p.ConceptID, track) {
+		if !e.InTrack(p.ConceptID, track) || skip[p.ConceptID] {
 			continue
 		}
 		if p.NextReviewDue == nil {
@@ -177,6 +178,11 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		}
 	}
 	e.mu.Unlock()
+	// Credit-only foundations no followed course asks for are neither
+	// reviewed nor offered as new (creditOnlyOffCourse).
+	for cid := range e.creditOnlyOffCourse(studentID, progress) {
+		exclude = append(exclude, cid)
+	}
 
 	// The server's record that placement happened. This is the authoritative
 	// guard against offering the diagnostic back as an active task; the

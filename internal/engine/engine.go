@@ -759,7 +759,7 @@ func (e *Engine) NextReviewQuestionTrack(sessionID, studentID, track string) (*Q
 	if as == nil {
 		as = &activeSession{studentID: studentID}
 	}
-	next := e.trackScheduler(track).NextReview(snapshots, as.lastConceptID)
+	next := e.trackScheduler(track).NextReviewSkipping(snapshots, as.lastConceptID, e.creditOnlyOffCourse(studentID, progress))
 	if next == nil {
 		return nil, nil
 	}
