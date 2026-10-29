@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -133,7 +134,25 @@ func constEvalNumeric(expr string) (float64, bool) {
 	return v, true
 }
 
+// sympySeq numbers requests, so a reply that belongs to an earlier, timed-out
+// request is never read as the answer to this one.
+var sympySeq uint64
+
+// killSympyLocked stops the service after a fault. The caller holds sympyMu.
+func killSympyLocked() {
+	if sympyCmd != nil && sympyCmd.Process != nil {
+		sympyCmd.Process.Kill()
+		sympyCmd.Wait()
+	}
+	sympyCmd = nil
+	sympyStdin = nil
+	sympyStdout = nil
+}
+
 func gradeSymPy(expected, answer string) Result {
+	if strings.TrimSpace(answer) == "" {
+		return emptyResult()
+	}
 	// Fast path: exact match after normalization needs no CAS at all, and
 	// guarantees that expected == answer is graded correct even if the SymPy
 	// runtime is unavailable (the reported "You: 5^4 · Correct: 5^4" ✗ bug).
@@ -167,7 +186,10 @@ func gradeSymPy(expected, answer string) Result {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	// The service bounds one grading at 3 s itself (signal.alarm); the rest
+	// covers its start-up (importing SymPy) and a loaded machine, where the
+	// old 3 s timed out before a trivial reply arrived (fork fix).
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Ensure pooled process is alive, guarded by mutex (held across I/O — pool is single stdin/stdout)
@@ -178,8 +200,9 @@ func gradeSymPy(expected, answer string) Result {
 		return Result{Correct: false, Score: 0, Feedback: "Grading service not found", Unavailable: true}
 	}
 
+	sympySeq++
 	req := sympyRequest{
-		ID:       "1",
+		ID:       strconv.FormatUint(sympySeq, 10),
 		Expected: expected,
 		Answer:   answer,
 	}
@@ -198,54 +221,58 @@ func gradeSymPy(expected, answer string) Result {
 	case err := <-writeDone:
 		if err != nil {
 			// Process likely died — kill and reset for next call
-			if sympyCmd != nil && sympyCmd.Process != nil {
-				sympyCmd.Process.Kill()
-				sympyCmd.Wait()
-			}
-			sympyCmd = nil
+			killSympyLocked()
 			return Result{Correct: false, Score: 0, Feedback: "Grading service write error", Unavailable: true}
 		}
 	case <-ctx.Done():
+		// The reply, if it ever comes, would be read as the next request's
+		// (fork fix: under load, a late reply graded the next answer, and
+		// an empty answer came back "correct"). Start afresh.
+		killSympyLocked()
 		return Result{Correct: false, Score: 0, Feedback: "Grading service timed out", Unavailable: true}
 	}
 
-	// Read response with timeout
-	scanDone := make(chan bool, 1)
-	var line string
-	var scanErr bool
-	go func() {
-		if sympyStdout.Scan() {
-			line = sympyStdout.Text()
-			scanDone <- true
-		} else {
-			scanErr = true
-			scanDone <- false
-		}
-	}()
-	select {
-	case ok := <-scanDone:
-		if !ok {
-			// Scanner failed — process died
-			if sympyCmd != nil && sympyCmd.Process != nil {
-				sympyCmd.Process.Kill()
-				sympyCmd.Wait()
-			}
-			sympyCmd = nil
-			if scanErr && ctx.Err() == nil {
-				return Result{Correct: false, Score: 0, Feedback: "Grading service response error", Unavailable: true}
-			}
-			if ctx.Err() != nil {
-				return Result{Correct: false, Score: 0, Feedback: "Grading service timed out", Unavailable: true}
-			}
-			return Result{Correct: false, Score: 0, Feedback: "Grading service error", Unavailable: true}
-		}
-	case <-ctx.Done():
-		return Result{Correct: false, Score: 0, Feedback: "Grading service timed out", Unavailable: true}
-	}
-
+	// Read the reply with timeout, skipping any reply to an earlier request.
 	var resp sympyResponse
-	if err := json.Unmarshal([]byte(line), &resp); err != nil {
-		return Result{Correct: false, Score: 0, Feedback: "Grading service response error", Unavailable: true}
+	for {
+		scanDone := make(chan bool, 1)
+		var line string
+		var scanErr bool
+		scanner := sympyStdout
+		go func() {
+			if scanner.Scan() {
+				line = scanner.Text()
+				scanDone <- true
+			} else {
+				scanErr = true
+				scanDone <- false
+			}
+		}()
+		select {
+		case ok := <-scanDone:
+			if !ok {
+				// Scanner failed — process died
+				killSympyLocked()
+				if scanErr && ctx.Err() == nil {
+					return Result{Correct: false, Score: 0, Feedback: "Grading service response error", Unavailable: true}
+				}
+				if ctx.Err() != nil {
+					return Result{Correct: false, Score: 0, Feedback: "Grading service timed out", Unavailable: true}
+				}
+				return Result{Correct: false, Score: 0, Feedback: "Grading service error", Unavailable: true}
+			}
+		case <-ctx.Done():
+			killSympyLocked()
+			return Result{Correct: false, Score: 0, Feedback: "Grading service timed out", Unavailable: true}
+		}
+		resp = sympyResponse{}
+		if err := json.Unmarshal([]byte(line), &resp); err != nil {
+			killSympyLocked()
+			return Result{Correct: false, Score: 0, Feedback: "Grading service response error", Unavailable: true}
+		}
+		if resp.ID == req.ID {
+			break
+		}
 	}
 	if resp.Correct {
 		return Result{Correct: true, Score: 1}

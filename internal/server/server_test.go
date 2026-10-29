@@ -2223,7 +2223,13 @@ func TestStudyAnswer_DontKnow(t *testing.T) {
 	}
 	var got []verdict
 	for i := 0; i < 3; i++ {
-		question, anchored := serve()
+		question, served := serve()
+		// The served question carries no answer (withheld until submission);
+		// the key the server anchored is the test generator's "4".
+		if served != "" {
+			t.Fatalf("the served question exposed its answer %q", served)
+		}
+		anchored := "4"
 		body, _ := json.Marshal(map[string]interface{}{
 			"concept_id": "a", "answer": "", "elapsed": 0.2, "question": question, "dont_know": true,
 		})

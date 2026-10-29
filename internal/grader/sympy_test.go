@@ -132,3 +132,41 @@ func TestSympyGrade_TinyValuedWrongAnswerIsRefused(t *testing.T) {
 		t.Error("a cancelling difference graded wrong")
 	}
 }
+
+// An empty answer is never sent to SymPy, and never correct, whatever the
+// grading type (fork fix: a late reply from a timed-out request used to be
+// read as the next request's verdict).
+func TestSympyGrade_EmptyAnswerIsNeverCorrect(t *testing.T) {
+	r := NewRouter()
+	for _, gt := range []GradingType{GradingSymbolic, GradingExpression, GradingPolynomial} {
+		res := r.Grade(gt, "x^2", "")
+		if res.Correct || res.Unavailable {
+			t.Errorf("%s: empty answer gave correct=%v unavailable=%v", gt, res.Correct, res.Unavailable)
+		}
+	}
+}
+
+// A reply to an earlier request is skipped: the service is asked twice and
+// the second verdict must be the second request's, even after a stale line.
+func TestSympyGrade_RepliesMatchTheirRequests(t *testing.T) {
+	if !sympyAvailable(t) {
+		t.Skip("SymPy not available")
+	}
+	r := NewRouter()
+	if !r.Grade(GradingSymbolic, "x^2+2x+1", "(x+1)^2").Correct {
+		t.Fatal("warm-up failed")
+	}
+	// Push a stale reply onto the service's stdout: a request the grader
+	// never waits for.
+	sympyMu.Lock()
+	if sympyStdin != nil {
+		sympyStdin.Write([]byte(`{"id":"stale","expected":"1","answer":"1"}` + "\n"))
+	}
+	sympyMu.Unlock()
+	if r.Grade(GradingSymbolic, "x^2", "x^3").Correct {
+		t.Error("x^3 graded correct for x^2: a stale reply was read as the verdict")
+	}
+	if !r.Grade(GradingSymbolic, "2x", "x+x").Correct {
+		t.Error("x+x refused for 2x after the stale reply")
+	}
+}
