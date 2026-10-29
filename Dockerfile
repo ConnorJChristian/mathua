@@ -61,13 +61,16 @@ RUN cd web/next-app && npm run build
 FROM debian:bookworm-slim AS pybankcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-venv && rm -rf /var/lib/apt/lists/*
-COPY grading/requirements-python.txt grading/requirements-python-nodeps.txt /check/grading/
+# requirements.txt (SymPy) too: a bank source may check its typed keys
+# against grading/sympy_service.py, the grader learners meet, while it builds.
+COPY grading/requirements.txt grading/requirements-python.txt grading/requirements-python-nodeps.txt /check/grading/
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check \
+        -r /check/grading/requirements.txt \
         -r /check/grading/requirements-python.txt \
     && /opt/venv/bin/pip install --no-cache-dir --disable-pip-version-check --no-deps \
         -r /check/grading/requirements-python-nodeps.txt
-COPY grading/pyrunner.py /check/grading/pyrunner.py
+COPY grading/pyrunner.py grading/sympy_service.py /check/grading/
 COPY scripts/python_bank.py /check/scripts/python_bank.py
 COPY modules/ /check/modules/
 COPY modules-local/ /check/modules-local/
