@@ -20,19 +20,21 @@ import (
 
 // setText rewrites the spellings of set and interval notation to one form.
 func setText(s string) string {
-	s = strings.TrimSpace(s)
+	// Spaces go first: the math box exports a typed "oo" (or "RR") as two
+	// variables, "o o", so the spellings below must match across them.
+	s = strings.Join(strings.Fields(s), "")
 	s = strings.NewReplacer(
 		"{:", "", ":}", "",
 		"\\left", "", "\\right", "",
 		"\\{", "{", "\\}", "}", "\\lbrace", "{", "\\rbrace", "}",
 		"\\lbrack", "[", "\\rbrack", "]",
 		"−", "-", "\\,", "", "\\;", "", "\\!", "",
-		"\\mathbb{R}", "ℝ", "\\mathbb R", "ℝ", "\\R", "ℝ", "RR", "ℝ",
+		"\\mathbb{R}", "ℝ", "\\mathbbR", "ℝ", "\\R", "ℝ", "RR", "ℝ",
 		"\\emptyset", "∅", "\\varnothing", "∅", "O/", "∅", "ø", "∅", "Ø", "∅",
 		"\\cup", "∪", "uu", "∪",
 		"\\infty", "∞", "infinity", "∞", "infty", "∞", "inf", "∞", "oo", "∞",
 	).Replace(s)
-	return strings.Join(strings.Fields(s), "")
+	return s
 }
 
 var emptyWords = map[string]bool{

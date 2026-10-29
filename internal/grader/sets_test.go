@@ -93,3 +93,30 @@ func TestPairsAndVectorsAreNotIntervals(t *testing.T) {
 		t.Error("(2, 3) read as an interval in strict mode")
 	}
 }
+
+// The math box reads a typed "oo" (AsciiMath for ∞) as two variables and
+// exports "o o", with a space. setText matched "oo" before it removed spaces,
+// so (-∞, 3) ∪ (3, ∞) typed the AsciiMath way was marked wrong, with the
+// "write an interval" feedback.
+func TestIntervalAcceptsMathBoxInfinity(t *testing.T) {
+	r := NewRouter()
+	cases := []struct {
+		expected, answer string
+		want             bool
+	}{
+		{"(-∞, 3) ∪ (3, ∞)", "(-o o,3)U(3,o o)", true},
+		{"(-∞, 3) ∪ (3, ∞)", "(-oo,3)U(3,oo)", true},
+		{"[0, ∞)", "[0,o o)", true},
+		{"[0, ∞)", "[0, i n f)", true},
+		{"ℝ", "R R", true},
+		{"(-∞, 3) ∪ (3, ∞)", "(-o o,3)U(4,o o)", false},
+		{"[0, ∞)", "[0,o o]", false},
+	}
+	for _, c := range cases {
+		for _, gt := range []GradingType{GradingInterval, GradingMultipleChoice} {
+			if got := r.Grade(gt, c.expected, c.answer).Correct; got != c.want {
+				t.Errorf("%s: key %q, answer %q: got %v, want %v", gt, c.expected, c.answer, got, c.want)
+			}
+		}
+	}
+}
