@@ -102,11 +102,10 @@ def test_multiple_requests():
         {"id": "2", "expected": "2x+3", "answer": "2x+4"},
         {"id": "3", "expected": "cos(x)", "answer": "cos(x)"},
     ]
-    for req in requests:
-        proc.stdin.write(json.dumps(req) + "\n")
-    proc.stdin.flush()
-    proc.stdin.close()
-    out, _ = proc.communicate(timeout=10)
+    # communicate() writes the input and closes stdin itself; closing it first
+    # makes Python 3.11's communicate() flush a closed pipe (ValueError).
+    payload = "".join(json.dumps(req) + "\n" for req in requests)
+    out, _ = proc.communicate(input=payload, timeout=10)
     results = [json.loads(line) for line in out.strip().splitlines()]
     assert len(results) == 3
     assert results[0]["correct"] is True
