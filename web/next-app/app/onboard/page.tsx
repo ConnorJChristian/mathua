@@ -51,6 +51,9 @@ const DIAG_AT_KEY = 'mathua_diag_session_at'
 // placement screen (the floor rule in FORK.md), and one course's placement is
 // not resumed on another course's page.
 const DIAG_SCOPE_KEY = 'mathua_diag_session_scope'
+// The server keeps the run for the same seven days (diagnosticRetention in
+// internal/server/server.go). Offering a resume the server has already swept
+// ends in "the server restarted and forgot this run", so the two must agree.
 const RESUME_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 type StoredRun = { sid: string; scope: string }

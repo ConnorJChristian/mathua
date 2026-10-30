@@ -247,36 +247,14 @@ func New(eng *engine.Engine, repo storage.Repository, auth *auth.AuthService, op
 	for _, opt := range opts {
 		opt(s)
 	}
-	// Clean up abandoned diagnostic/quiz sessions older than 1 hour, plus
-	// expired durable server_sessions rows (admin logins, study anchors), plus
-	// AI counters whose day has passed.
+	// Clean up abandoned diagnostic/quiz sessions, plus expired durable
+	// server_sessions rows (admin logins, study anchors), plus AI counters
+	// whose day has passed.
 	//nolint:goroutinelint // process-lifetime janitor: runs until the process exits
 	go func() {
 		for {
 			time.Sleep(10 * time.Minute)
-			s.mu.Lock()
-			cutoff := time.Now().Add(-1 * time.Hour)
-			for id, created := range s.diagCreated {
-				if created.Before(cutoff) {
-					delete(s.diagSessions, id)
-					delete(s.diagCreated, id)
-				}
-			}
-			for id, created := range s.quizCreated {
-				if created.Before(cutoff) {
-					delete(s.quizSessions, id)
-					delete(s.quizCreated, id)
-				}
-			}
-			s.mu.Unlock()
-			if n, err := s.repo.SweepDiagnosticSessions(cutoff); err != nil {
-				log.Printf("warning: sweep diagnostic sessions: %v", err)
-			} else if n > 0 {
-				log.Printf("pruned %d expired diagnostic session(s)", n)
-			}
-			if err := s.repo.SweepServerSessions(); err != nil {
-				log.Printf("warning: sweep server sessions: %v", err)
-			}
+			s.sweepExpiredSessions(time.Now())
 			// AI counters are day-scoped and a passed day can never be reserved
 			// again, so the rows are dead weight: without this, one row per
 			// identity per day accumulates forever. The cutoff is computed here
@@ -308,6 +286,55 @@ const aiUsageRetention = 42
 // day another replica is still spending.
 func aiUsageCutoff(now time.Time) string {
 	return now.UTC().AddDate(0, 0, -aiUsageRetention).Format("2006-01-02")
+}
+
+// liveSessionIdle is how long a diagnostic or quiz session stays in the
+// server's maps after it was last touched: every diagnostic answer refreshes
+// the stamp, a quiz is stamped once when it starts. The maps hold every open
+// run, so an abandoned tab must not keep one forever. A swept diagnostic is
+// restored from its row on the next answer; a swept quiz is a retake.
+const liveSessionIdle = time.Hour
+
+// diagnosticRetention is how long the durable diagnostic_sessions row outlives
+// the learner's last answer. It matches RESUME_TTL_MS in
+// web/next-app/app/onboard/page.tsx, where the onboarding page keeps the
+// session id for a later visit and tells the learner that leaving the site
+// does not throw the run away. The row used to go on the hourly clock above,
+// so a break of an hour ended with 404 "diagnostic session not found", which
+// the page reports as the server having restarted and forgotten the run. The
+// server had not restarted; it had deleted a run the browser was still
+// offering. Of the two lifetimes the server's is the one that deletes, so it
+// must be the longer one or equal.
+const diagnosticRetention = 7 * 24 * time.Hour
+
+// sweepExpiredSessions is one pass of the janitor, split out so a test can run
+// it on a clock instead of waiting ten minutes. Runs untouched for
+// liveSessionIdle leave the maps; diagnostic rows untouched for
+// diagnosticRetention leave storage, as do expired server_sessions rows.
+func (s *Server) sweepExpiredSessions(now time.Time) {
+	s.mu.Lock()
+	cutoff := now.Add(-liveSessionIdle)
+	for id, created := range s.diagCreated {
+		if created.Before(cutoff) {
+			delete(s.diagSessions, id)
+			delete(s.diagCreated, id)
+		}
+	}
+	for id, created := range s.quizCreated {
+		if created.Before(cutoff) {
+			delete(s.quizSessions, id)
+			delete(s.quizCreated, id)
+		}
+	}
+	s.mu.Unlock()
+	if n, err := s.repo.SweepDiagnosticSessions(now.Add(-diagnosticRetention)); err != nil {
+		log.Printf("warning: sweep diagnostic sessions: %v", err)
+	} else if n > 0 {
+		log.Printf("pruned %d expired diagnostic session(s)", n)
+	}
+	if err := s.repo.SweepServerSessions(); err != nil {
+		log.Printf("warning: sweep server sessions: %v", err)
+	}
 }
 
 // dropStudentLiveSessions evicts every in-memory diagnostic and quiz session
