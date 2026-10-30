@@ -12,6 +12,7 @@ import (
 //	x^{2}        -> x^(2)
 //	x_{2}        -> x_2
 //	\cdot, ×     -> *
+//	\div, ÷      -> /
 //	\, \; \!     -> spacing dropped
 //	{: and :}    -> dropped (the math box's AsciiMath for invisible brackets)
 //	\frac{a}{b}  -> (a)/(b)
@@ -39,9 +40,16 @@ func NormalizeTypedMath(s, expected string) string {
 	s = fracDigitsRe.ReplaceAllString(s, "\\frac{$1}{$2}")
 	s = fracDigitBraceRe.ReplaceAllString(s, "\\frac{$1}{")
 	s = fracBraceDigitRe.ReplaceAllString(s, "\\frac{$1}{$2}")
-	// Function names keep their names without the backslash: \ln x is ln x.
-	s = funcNameRe.ReplaceAllString(s, "$1")
-	s = strings.NewReplacer("\\cdot", "*", "\\times", "*", "×", "*", "·", "*", "∗", "*", "\\ast", "*", "{:", "", ":}", "", "\\left", "", "\\right", "", "\\,", " ", "\\;", " ", "\\:", " ", "\\!", "", "\\ ", " ", "−", "-",
+	// Function names keep their names without the backslash: \ln x is ln x,
+	// and x\ln 2 is x ln 2, not the name "xln".
+	s = funcNameRe.ReplaceAllStringFunc(s, func(m string) string {
+		sub := funcNameRe.FindStringSubmatch(m)
+		if sub[1] != "" {
+			return sub[1] + " " + sub[2]
+		}
+		return sub[2]
+	})
+	s = strings.NewReplacer("\\div", "/", "÷", "/", "\\cdot", "*", "\\times", "*", "×", "*", "·", "*", "∗", "*", "\\ast", "*", "{:", "", ":}", "", "\\left", "", "\\right", "", "\\,", " ", "\\;", " ", "\\:", " ", "\\!", "", "\\ ", " ", "−", "-",
 		// Superscript digits typed from a keyboard ("3x²"), and the inverse
 		// sign of f⁻¹ (fork fix).
 		"⁻¹", "^(-1)", "¹", "^(1)", "²", "^(2)", "³", "^(3)", "⁴", "^(4)").Replace(s)
@@ -87,7 +95,7 @@ var (
 	fracDigitsRe      = regexp.MustCompile(`\\d?frac(\d)(\d)`)
 	fracDigitBraceRe  = regexp.MustCompile(`\\d?frac(\d)\{`)
 	fracBraceDigitRe  = regexp.MustCompile(`\\d?frac\{([^{}]*)\}(\d)`)
-	funcNameRe        = regexp.MustCompile(`\\(ln|log|exp|sin|cos|tan|sec|csc|cot|arcsin|arccos|arctan|sinh|cosh|tanh|max|min|det)\b`)
+	funcNameRe        = regexp.MustCompile(`([A-Za-z0-9)])?\\(ln|log|exp|sin|cos|tan|sec|csc|cot|arcsin|arccos|arctan|sinh|cosh|tanh|max|min|det)\b`)
 	nthRootRe         = regexp.MustCompile(`\\sqrt\[(\d+)\]\{([^{}]*)\}`)
 	rootExportRe      = regexp.MustCompile(`root\((\d+)\)\(([^()]*)\)`)
 	braceParenRe      = regexp.MustCompile(`\{(\([^{}]*\))\}`)
@@ -95,7 +103,7 @@ var (
 	greekRunRe        = regexp.MustCompile(`([αβγδεθλμπρστφωηκνξψχζ])([A-Za-z\\\\])`)
 	bareNumberParenRe = regexp.MustCompile(`\((-?\d+(?:\.\d+)?)\)`)
 	sqrtRe            = regexp.MustCompile(`\\sqrt\{([^{}]*)\}`)
-	fracRe            = regexp.MustCompile(`\\d?frac\{([^{}]*)\}\{([^{}]*)\}`)
+	fracRe            = regexp.MustCompile(`\\d?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}`)
 	supBraceRe        = regexp.MustCompile(`\^\{([^{}]*)\}`)
 	subBraceRe        = regexp.MustCompile(`_\{([^{}]*)\}`)
 	subscriptRe       = regexp.MustCompile(`[A-Za-z]_\d`)

@@ -35,6 +35,10 @@ func TestNormalizeTypedMathRoundTrips(t *testing.T) {
 		{`\alpha + \eta`, "alpha+eta"},
 		{`(-1)^{n} n^{2}`, "(-1)^n n^2"},
 		{`\frac{\sqrt{2}}{2}`, "sqrt(2)/2"},
+		{`\frac{6} {x+3}`, "6/(x+3)"},
+		{`x^{2}2^{x}(x\ln 2+3)`, "x^2*2^x*(x*ln(2)+3)"},
+		{`(f \div g)(x)`, "(f/g)(x)"},
+		{`12 ÷ 4`, "3"},
 	}
 	for _, c := range cases {
 		got := NormalizeTypedMath(c.latex, c.plain)
@@ -127,6 +131,23 @@ func TestNormalizeTypedMathEditorForms(t *testing.T) {
 		got := NormalizeTypedMath(c.typed, c.plain)
 		if !r.Grade(GradingExpression, c.plain, got).Correct {
 			t.Errorf("%s -> %q does not grade as %q", c.typed, got, c.plain)
+		}
+	}
+}
+
+// A function name after a variable is a product, not one longer name, and a
+// space between \frac's arguments is only spacing (fork fix: both refused
+// their own keys in the local banks).
+func TestNormalizeTypedMathFunctionAfterVariable(t *testing.T) {
+	for in, want := range map[string]string{
+		`x\ln 2`:         "x ln 2",
+		`\ln x`:          "ln x",
+		`2\sin x`:        "2 sin x",
+		`\frac{6} {x+3}`: "6/(x+3)",
+		`a \div b`:       "a / b",
+	} {
+		if got := NormalizeTypedMath(in, ""); got != want {
+			t.Errorf("%s -> %q, want %q", in, got, want)
 		}
 	}
 }
