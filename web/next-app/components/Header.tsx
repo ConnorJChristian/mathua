@@ -314,7 +314,7 @@ export default function Header({ links }: HeaderProps) {
           ref={menuPanelRef}
           role="menu"
           aria-label="Profile"
-          className="pointer-events-auto absolute right-4 md:right-6 top-full min-w-[160px] bg-mathua-surface border border-mathua-border shadow-lg py-1 z-50"
+          className="pointer-events-auto absolute right-4 md:right-6 top-full min-w-[160px] [background:linear-gradient(var(--surface),var(--surface)),var(--bg)] border border-mathua-border shadow-lg py-1 z-50"
         >
           <div className="px-3 py-2 border-b border-mathua-border">
             <div className="font-mono text-xs text-mathua-primary truncate">{user?.name}</div>

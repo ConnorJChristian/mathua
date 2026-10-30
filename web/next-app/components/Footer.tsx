@@ -208,7 +208,7 @@ export default function Footer({ className = '' }: FooterProps) {
 
           <div className="grid grid-cols-2 gap-x-10 gap-y-8 sm:gap-x-16">
             <nav aria-labelledby="footer-learn">
-              <h2 id="footer-learn" className={headingClass}>Learn</h2>
+              <h2 id="footer-learn" className={headingClass}>Browse</h2>
               <ul className="mt-3 space-y-2 font-mono text-xs">
                 <li><Link href="/topics" className={linkClass}>Topics</Link></li>
                 <li><Link href="/library" className={linkClass}>Library</Link></li>
@@ -223,7 +223,7 @@ export default function Footer({ className = '' }: FooterProps) {
                 <li><Link href="/how-it-works" className={linkClass}>How it works</Link></li>
                 <li><Link href="/docs" className={linkClass}>Docs</Link></li>
                 <li><Link href="/docs/contributing" className={linkClass}>Contributing</Link></li>
-                <li><Link href="/note" className={linkClass}>Creator&apos;s Note</Link></li>
+                <li><Link href="/note" className={linkClass}>Upstream creator&apos;s note</Link></li>
                 <li>
                   <a
                     href="https://github.com/ConnorJChristian/mathua"
