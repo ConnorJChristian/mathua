@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -266,5 +268,62 @@ func TestCoursePlacementResults_MatchTheCoursePage(t *testing.T) {
 	pace, _ := plan["course_pace"].(map[string]interface{})
 	if pace == nil || pace["topics_left"] == nil {
 		t.Errorf("course_pace = %v", plan["course_pace"])
+	}
+}
+
+// Q58: a course review test stands in for the mastery check (it records the
+// completion that restarts the check's gate and gap), so it must pay the
+// check's XP: the same TaskQuiz award per correct answer, nothing for a miss.
+// The QA note "mastery check 0 XP, review test 5" compared the last answer's
+// xp of each (a miss and a hit), not two rules.
+func TestCourseReviewTestPaysMasteryCheckXP(t *testing.T) {
+	mux, store := courseTestServer(t)
+	token, sid := guestTokenAndID(t, mux)
+	studyAll(t, store, sid, "c1")
+	// Follow the course, so the mastery check draws on its studied topic
+	// (plan.down's grader is down).
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("PUT", "/api/courses/active", strings.NewReader(`{"ids":["plan.ok"]}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	mux.ServeHTTP(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("follow: %d %s", rec.Code, rec.Body.String())
+	}
+
+	answer := func(start map[string]interface{}, typed string) map[string]interface{} {
+		t.Helper()
+		code, body := postJSONRaw(t, mux, "/api/quiz/answer", fmt.Sprintf(`{"session_id":%q,"concept_id":%q,"answer":%q,"elapsed":5}`,
+			start["session_id"], start["concept_id"], typed), token)
+		if code != 200 {
+			t.Fatalf("answer: %d %s", code, body)
+		}
+		return decodeMap(t, body)
+	}
+	xpOf := func(m map[string]interface{}) float64 { v, _ := m["xp"].(float64); return v }
+
+	code, body := postJSONRaw(t, mux, "/api/quiz/session", `{"course_id":"plan.ok"}`, token)
+	review := decodeMap(t, body)
+	if code != 200 || review["test"] != "review" {
+		t.Fatalf("review start: %d %s", code, body)
+	}
+	got := answer(review, "4")
+	if got["correct"] != true || got["done"] != true || got["counted_as_mastery_check"] != true {
+		t.Fatalf("review answer = %v", got)
+	}
+	reviewXP := xpOf(got)
+
+	code, body = postJSONRaw(t, mux, "/api/quiz/session", `{}`, token)
+	check := decodeMap(t, body)
+	if code != 200 || check["session_id"] == nil || check["test"] != nil {
+		t.Fatalf("mastery check start: %d %s", code, body)
+	}
+	checkXP := xpOf(answer(check, "4"))
+	if reviewXP < 1 || reviewXP != checkXP {
+		t.Errorf("a correct answer pays %v XP in a course review test and %v in the mastery check; want the same award", reviewXP, checkXP)
+	}
+
+	code, body = postJSONRaw(t, mux, "/api/quiz/session", `{"course_id":"plan.ok"}`, token)
+	if miss := answer(decodeMap(t, body), "42"); miss["correct"] != false || xpOf(miss) != 0 {
+		t.Errorf("a miss in a course review test pays %v XP, want 0", miss["xp"])
 	}
 }
