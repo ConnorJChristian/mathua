@@ -746,7 +746,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       <div className="sticky top-0 z-10 bg-mathua-bg backdrop-blur py-2 mb-4 flex items-center gap-2 font-mono text-[11px] text-mathua-muted border-b border-mathua-border">
         <span>Section {Math.min(kpIndex + 1, Math.max(kps.length, 1))} of {Math.max(kps.length, 1)}</span>
         {totalAnswered > 0 && <span>· {totalCorrect}/{totalAnswered} correct</span>}
-        {totalXP > 0 && <span className="text-yellow-400">· +{totalXP} XP</span>}
+        {totalXP > 0 && <span className="text-mathua-amber">· +{totalXP} XP</span>}
         {band && (
           <span title="How you're doing on this concept, from your recent answers. Progress only — mastery is decided separately.">
             · {band}
@@ -764,7 +764,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
         />
       )}
 
-      {error && <p className="mb-4 font-mono text-xs text-red-400">{error}</p>}
+      {error && <p className="mb-4 font-mono text-xs text-mathua-red">{error}</p>}
 
       {/* The reference layer, in the flow.
           This replaces the "Reference" link the done card used to carry to `/study`: the same
@@ -829,7 +829,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           if (e.kind === 'halt') {
             return (
               <div key={e.key} className="border border-mathua-red-faint bg-mathua-surface p-5">
-                <p className="font-mono text-xs text-red-400">Stepping down a level — easier question below.</p>
+                <p className="font-mono text-xs text-mathua-red">Stepping down a level — easier question below.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {/* A prerequisite is reference here too: study the material rather than being
                       sent to a tutorial under the name of a check. Practising it is a separate,
@@ -852,7 +852,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             const upcoming: LockedSuccessor[] = upcomingLocked(catalogEntries(), shelfProgress, conceptId)
             return (
               <div key={e.key} className="border border-mathua-green-faint bg-mathua-surface p-6">
-                <p className={`font-mono text-xs ${toMaster === 0 || lastStatus.toUpperCase() === 'MASTERED' ? 'text-green-400' : 'text-mathua-primary'}`}>{sessionDoneLine({ correct: totalCorrect, answered: totalAnswered, xp: totalXP, band, toMaster, status: lastStatus })}</p>
+                <p className={`font-mono text-xs ${toMaster === 0 || lastStatus.toUpperCase() === 'MASTERED' ? 'text-mathua-green' : 'text-mathua-primary'}`}>{sessionDoneLine({ correct: totalCorrect, answered: totalAnswered, xp: totalXP, band, toMaster, status: lastStatus })}</p>
                 {e.note && <p role="status" className="mt-2 font-mono text-[11px] text-mathua-secondary">{e.note}</p>}
                 <p className="mt-2 font-mono text-[11px] text-mathua-secondary">Scroll up to review anything. Reviews are scheduled automatically.</p>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -983,7 +983,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
               )}
               {locked && qe.feedback && (
                 <div className="mt-3">
-                  <p className={`font-mono text-xs ${qe.feedback.correct ? 'text-green-400' : 'text-red-400'}`}>
+                  <p className={`font-mono text-xs ${qe.feedback.correct ? 'text-mathua-green' : 'text-mathua-red'}`}>
                     {qe.feedback.dontKnow ? 'No answer — here is how it goes.' : qe.feedback.correct ? `✓ ${qe.feedback.xp ? `+${qe.feedback.xp} XP` : 'Correct'}` : '✗ Not quite.'}{' '}
                     {!qe.feedback.dontKnow && (
                     <span className="text-mathua-muted">{pyKind === 'code'
@@ -1037,7 +1037,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   {/* A code task's miss lists every hidden check that failed, or the
                       error the code raised, which is what the learner needs to fix it. */}
                   {pyKind === 'code' && !qe.feedback.correct && qe.feedback.detail && (
-                    <pre data-diagnosis className="mt-2 max-h-64 overflow-auto border border-mathua-red-faint bg-mathua-bg px-3 py-2 font-mono text-[11px] text-red-400 whitespace-pre-wrap">{plainAnswer(qe.feedback.detail)}</pre>
+                    <pre data-diagnosis className="mt-2 max-h-64 overflow-auto border border-mathua-red-faint bg-mathua-bg px-3 py-2 font-mono text-[11px] text-mathua-red whitespace-pre-wrap">{plainAnswer(qe.feedback.detail)}</pre>
                   )}
                   {whyText && (
                     <div className="mt-1.5">

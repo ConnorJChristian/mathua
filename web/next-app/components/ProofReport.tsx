@@ -20,7 +20,7 @@ export default function ProofReport({ report, flashcard = false, writing = false
         <p className="font-mono text-lg text-mathua-primary">
           {report.score}/{report.max}
         </p>
-        <p className={`font-mono text-xs ${report.fully_correct ? 'text-green-400' : 'text-mathua-muted'}`}>
+        <p className={`font-mono text-xs ${report.fully_correct ? 'text-mathua-green' : 'text-mathua-muted'}`}>
           {report.fully_correct ? (writing ? 'Meets the standard' : 'Fully correct') : writing ? 'Not yet at the standard' : 'Not yet a complete proof'}
         </p>
         {runs.length > 1 && (
@@ -34,7 +34,7 @@ export default function ProofReport({ report, flashcard = false, writing = false
             <li key={m.id} className="flex gap-2 text-xs">
               <span
                 className={`shrink-0 w-16 font-mono text-[11px] ${
-                  m.met === 'yes' ? 'text-green-400' : m.met === 'partial' ? 'text-yellow-400' : 'text-red-400'
+                  m.met === 'yes' ? 'text-mathua-green' : m.met === 'partial' ? 'text-mathua-amber' : 'text-mathua-red'
                 }`}
               >
                 {MET_LABEL[m.met] ?? m.met}
@@ -51,7 +51,7 @@ export default function ProofReport({ report, flashcard = false, writing = false
       {report.first_error && (
         <div className="mt-3">
           <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">{writing ? 'First problem' : 'First error'}</p>
-          <KatexContent className="mt-0.5 text-xs text-red-400">{report.first_error}</KatexContent>
+          <KatexContent className="mt-0.5 text-xs text-mathua-red">{report.first_error}</KatexContent>
         </div>
       )}
       {report.feedback && (

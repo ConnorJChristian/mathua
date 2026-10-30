@@ -118,7 +118,7 @@ export default function TodayPage() {
             )}
             {reviewsDue > 0 && (
               <Link href="/review" className="border border-mathua-border bg-mathua-surface p-3 hover:border-mathua-blue">
-                <p className="font-mono text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400">Reviews due</p>
+                <p className="font-mono text-[10px] uppercase tracking-wider text-mathua-amber">Reviews due</p>
                 <p className="font-mono text-xs text-mathua-primary mt-1">{reviewsDue} topic{reviewsDue === 1 ? '' : 's'} across your courses. Review →</p>
               </Link>
             )}
@@ -144,7 +144,7 @@ export default function TodayPage() {
                     <li key={p.concept} className={`inline-flex items-center gap-1 border px-2 min-h-[28px] font-mono text-[11px] ${p.done ? 'border-mathua-green text-mathua-secondary' : stale ? 'border-mathua-border text-mathua-secondary' : 'border-mathua-blue text-mathua-primary'}`} title={p.done ? 'Mastered — unpin it when you are done with it' : stale ? `Pinned ${age} days ago — still this week's?` : `Pinned ${p.since}`}>
                       <Link href={`/learn?concept=${encodeURIComponent(p.concept)}`} className="hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{p.done ? '✓' : '●'} {p.label}</Link>
                       {pinCourses(p.concept).length ? <span className="text-mathua-muted">· {pinCourses(p.concept)[0]}</span> : null}
-                      {stale && <span className="text-amber-600 dark:text-amber-400">· {age}d</span>}
+                      {stale && <span className="text-mathua-amber">· {age}d</span>}
                       <button type="button" onClick={() => void unpin(p.concept)} aria-label={`Unpin ${p.label}`} className="ml-0.5 text-mathua-muted hover:text-mathua-red">×</button>
                     </li>
                   )
@@ -187,7 +187,7 @@ export default function TodayPage() {
                     {v.mastered}/{v.total} mastered{v.reviews_due ? ` · ${v.reviews_due} due` : ''}{v.needs_placement ? ' · place yourself first' : v.next_topic ? ` · next: ${v.next_topic.label}` : ''}
                   </p>
                   {v.due && (
-                    <p className={`font-mono text-[10px] mt-0.5 ${v.days_left !== undefined && v.days_left < 14 ? 'text-amber-600 dark:text-amber-400' : 'text-mathua-muted'}`}>
+                    <p className={`font-mono text-[10px] mt-0.5 ${v.days_left !== undefined && v.days_left < 14 ? 'text-mathua-amber' : 'text-mathua-muted'}`}>
                       Due {formatDue(v.due)}{v.days_left !== undefined ? ` · ${v.days_left < 0 ? 'past due' : `${v.days_left} days`}` : ''}{topicsPerWeek(v) !== null ? ` · ${topicsPerWeek(v)!.toFixed(1)} topics/week to finish` : ''}
                     </p>
                   )}

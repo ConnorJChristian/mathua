@@ -18,13 +18,28 @@
     --surface-elevated: oklch(0.92 0 0);
     --surface-highlight: oklch(0.89 0 0);
     --text-primary: oklch(0.16 0.004 264);
-    --text-secondary: oklch(0.54 0 0);
-    --text-muted: oklch(0.54 0 0);
-    --accent-teal: oklch(0.68 0.15 250);
-    --accent-blue: oklch(0.6 0.16 255);
-    --accent-blue-hover: oklch(0.53 0.17 255);
-    --accent-green: #059669;
-    --accent-red: #dc2626;
+    /* Light text and accents are tuned for WCAG AA (4.5:1) on every light
+       surface, not just the page: --surface-highlight is the darkest at
+       oklch(0.89), so a token that clears it clears the rest. The previous
+       values (text 0.54, blue 0.6, green #059669, red #dc2626) passed on white
+       and failed on the cards. */
+    --text-secondary: oklch(0.47 0 0);
+    --text-muted: oklch(0.47 0 0);
+    --accent-teal: oklch(0.48 0.15 250);
+    --accent-blue: oklch(0.47 0.16 255);
+    --accent-blue-hover: oklch(0.4 0.17 255);
+    --accent-green: #046c4e;
+    --accent-red: #b91c1c;
+    /* Attention colour: reviews due, deadlines, XP. */
+    --accent-amber: #92400e;
+    /* Concept-graph status colours (components/ConceptGraphFlow.tsx): node
+       fills, legend dots and the selected-node label. */
+    --status-mastered: #046c4e;
+    --status-decaying: #7c2d12;
+    --status-practicing: oklch(0.47 0.16 255);
+    --status-learning: #9a3412;
+    --status-unseen: #595959;
+    --status-locked: #3f3f46;
     --heat-0: #EBEFF4;
     --heat-1: #C0DAFC;
     --heat-2: #7DAEEC;
@@ -73,6 +88,13 @@
     --accent-blue-hover: oklch(0.79 0.14 230);
     --accent-green: #10b981;
     --accent-red: #ef4444;
+    --accent-amber: #fbbf24;
+    --status-mastered: #10b981;
+    --status-decaying: #b45309;
+    --status-practicing: #60a5fa;
+    --status-learning: #f59e0b;
+    --status-unseen: #71717a;
+    --status-locked: #52525b;
     --heat-0: #191B1D;
     --heat-1: #06384B;
     --heat-2: #005E82;

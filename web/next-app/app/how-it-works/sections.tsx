@@ -70,11 +70,11 @@ export function ConceptGraphSection() {
       </p>
       <div className="flex items-center gap-2 flex-wrap my-6">
         <span style={{ fontFamily: monoFont, fontSize: '13px', color: 'var(--accent-blue)' }}>arith.factor.gcf</span>
-        <span style={{ color: 'var(--border-strong)', fontFamily: monoFont }}>→</span>
+        <span style={{ color: 'var(--text-muted)', fontFamily: monoFont }}>→</span>
         <span style={{ fontFamily: monoFont, fontSize: '13px', color: 'var(--accent-blue)' }}>arith.factor.lcm</span>
-        <span style={{ color: 'var(--border-strong)', fontFamily: monoFont }}>→</span>
+        <span style={{ color: 'var(--text-muted)', fontFamily: monoFont }}>→</span>
         <span style={{ fontFamily: monoFont, fontSize: '13px', color: 'var(--accent-blue)' }}>frac.add.diff</span>
-        <span style={{ color: 'var(--border-strong)', fontFamily: monoFont }}>→</span>
+        <span style={{ color: 'var(--text-muted)', fontFamily: monoFont }}>→</span>
         <span style={{ fontFamily: monoFont, fontSize: '13px', color: 'var(--accent-blue)' }}>frac.mixed.add</span>
       </div>
     </section>

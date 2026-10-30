@@ -441,7 +441,7 @@ function CodeBox({ question, value, onChange, onSubmit, disabled, id }: Props) {
           Reset
         </button>
       </div>
-      {runError && <p role="alert" className="mt-2 font-mono text-[11px] text-red-400">{runError}</p>}
+      {runError && <p role="alert" className="mt-2 font-mono text-[11px] text-mathua-red">{runError}</p>}
       {result && <RunOutput result={result} />}
     </div>
   )
@@ -453,7 +453,7 @@ function RunOutput({ result }: { result: PythonRunRes }) {
     <div role="status" aria-live="polite" className="mt-2 border border-mathua-border bg-mathua-bg">
       <p className="border-b border-mathua-border px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-mathua-muted">Output</p>
       {result.timed_out && (
-        <p className="px-3 py-2 font-mono text-xs text-red-400">
+        <p className="px-3 py-2 font-mono text-xs text-mathua-red">
           Stopped after {result.time_limit} seconds. Look for a loop that never ends.
         </p>
       )}
@@ -464,7 +464,7 @@ function RunOutput({ result }: { result: PythonRunRes }) {
         </pre>
       )}
       {result.error && (
-        <pre className="max-h-64 overflow-auto px-3 py-2 font-mono text-xs text-red-400 whitespace-pre-wrap">{result.error}</pre>
+        <pre className="max-h-64 overflow-auto px-3 py-2 font-mono text-xs text-mathua-red whitespace-pre-wrap">{result.error}</pre>
       )}
       {result.figures.map((png, i) => (
         // eslint-disable-next-line @next/next/no-img-element -- an inline data URL from the runner, not a static asset

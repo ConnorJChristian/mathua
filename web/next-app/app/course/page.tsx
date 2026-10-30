@@ -45,7 +45,7 @@ function statusWord(t: CourseTopic): string {
 }
 
 function statusClass(t: CourseTopic): string {
-  if (t.due) return 'text-amber-600 dark:text-amber-400'
+  if (t.due) return 'text-mathua-amber'
   if (t.status === 'mastered') return 'text-mathua-green'
   if (t.attempts > 0) return 'text-mathua-blue'
   return 'text-mathua-muted'

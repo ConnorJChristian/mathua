@@ -38,9 +38,9 @@ function CourseCard({ course, view, accent, onUnfollow }: { course: CourseStatus
             <p className="font-mono text-[11px] text-mathua-secondary">
               {view.mastered} of {view.total} topics mastered{view.started > view.mastered ? ` · ${view.started - view.mastered} in progress` : ''}
             </p>
-            {view.reviews_due > 0 && <p className="font-mono text-[11px] text-amber-600 dark:text-amber-400">{view.reviews_due} review{view.reviews_due === 1 ? '' : 's'} due</p>}
+            {view.reviews_due > 0 && <p className="font-mono text-[11px] text-mathua-amber">{view.reviews_due} review{view.reviews_due === 1 ? '' : 's'} due</p>}
             {view.due && (
-              <p className={`font-mono text-[11px] ${view.days_left !== undefined && view.days_left < 14 ? 'text-amber-600 dark:text-amber-400' : 'text-mathua-muted'}`}>
+              <p className={`font-mono text-[11px] ${view.days_left !== undefined && view.days_left < 14 ? 'text-mathua-amber' : 'text-mathua-muted'}`}>
                 Due {formatDue(view.due)}{view.days_left !== undefined ? ` · ${view.days_left < 0 ? 'past due' : `${view.days_left} days left`}` : ''}
               </p>
             )}
