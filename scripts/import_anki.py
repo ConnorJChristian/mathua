@@ -60,6 +60,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import anki_typed  # noqa: E402
 import anki_choice  # noqa: E402
 import anki_levels  # noqa: E402
+import anki_grading  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RECALL_MARKER = "<!--recall-back-->"  # internal/pytrack/track.go RecallMarker
@@ -533,6 +534,16 @@ def build(args):
         # Cards Mathua can ask in its own way: a typed answer graded by the
         # math graders, or a true/false choice. Everything else stays a
         # flip card. See scripts/anki_typed.py.
+        # The author's prompt rewrites (grading_overrides.json "replace"),
+        # before the conversions read the prompt.
+        grading_ov = anki_grading.load_overrides(out)
+        for t in by_topic.values():
+            for c in t["cards"]:
+                pairs = grading_ov.get(c["id"], {}).get("replace")
+                if pairs:
+                    item = {"id": c["id"], "prompt": c["front"]}
+                    anki_grading.replace_prompt(item, pairs, anki_grading.OVERRIDES_FILE)
+                    c["front"] = item["prompt"]
         stats = defaultdict(int)
         if not args.no_typed:
             all_cards = [c for t in by_topic.values() for c in t["cards"]]
@@ -727,6 +738,11 @@ def build(args):
             n_choice = anki_choice.convert(all_bank, choice_stats)
             stats["kind mc"] += n_choice
             stats["kind recall"] -= n_choice
+        # Each card graded the way its prompt asks (scripts/anki_grading.py):
+        # the author's per-card kinds, and no argument graded as a value.
+        regraded, _ = anki_grading.apply(all_bank, out, grading_ov)
+        if regraded:
+            print("  %d cards regraded (grading_overrides.json and the written-task rule)" % len(regraded))
         # Each card's scaffold step (scripts/anki_levels.py), with the
         # module's level_overrides.json; recorded in levels.json.
         _, level_hist, _ = anki_levels.apply(all_bank, level_meta, out)
@@ -791,9 +807,17 @@ def convert_cards(cards, work, stats):
     for c in cards:
         v = anki_typed.verdict(c["answer"])
         if v:
+            # "Is it a function? Explain why.": the verdict is not the task
+            # (FORK.md, "Which grader a question gets").
+            if anki_grading.asks_written(c["front"], "mc", v):
+                stats["kept: asks for an argument"] += 1
+                continue
             c["kind"], c["verdict"] = "mc", v
             continue
         if not c["answer"]:
+            continue
+        if anki_grading.asks_written(c["front"], "math"):
+            stats["kept: asks for an argument"] += 1
             continue
         parts, why = anki_typed.typed_candidate(c["front"], c["answer"])
         if parts:

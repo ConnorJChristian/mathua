@@ -597,9 +597,21 @@ modules and a sample of every generator that way; `make gradecheck` does
 the same over `modules-local/` (`GRADECHECK_FLAGS=-code` runs every code
 task's solution and starter too, slowly), and
 `python3 scripts/audit_grading_style.py` lists the items whose prompt and
-kind disagree, by rule. The clear cases are fixed in the authoring sources;
-the rest (an imported card that asks to "derive" an equation whose typed
-form is the answer) are listed for the author.
+kind disagree, by rule. It skips what `internal/pytrack/written.go` also
+skips: a method question ("how does one prove"), a purpose clause ("to
+verify that A is idempotent, it is enough to..."), a subject that shows or
+describes, and "compute it, or show it is impossible". The clear cases are
+fixed in the authoring sources; the rest are listed for the author.
+
+For imported cards the source is the import. A card whose front asks for an
+argument keeps its flip card: `scripts/import_anki.py` does not turn it into
+a true/false choice or a typed value (the judge grades it, or you mark it),
+and `python3 scripts/anki_grading.py anki` applies the same rule to a bank
+imported before. The author's per-card decisions go in the module's
+`grading_overrides.json`, which both apply: `replace` rewrites a prompt
+("Derive the equation" to "Find the equation" where the equation is the
+whole task), and `kind` makes a card a flip card, a choice with its options
+or a typed value with its parts, each with a `why`.
 
 ## Proof grading
 

@@ -36,6 +36,24 @@ VALUE = re.compile(
     r"\b(what is|find|compute|calculate|evaluate|solve|give|enter|type|state the value|how many|how much|"
     r"determine|express|write the|simplify|differentiate|integrate|the value of|equals?)\b", re.I)
 CHOICE = re.compile(r"\b(which of (the following|these)|which one|select one|choose one)\b", re.I)
+# "the number of ways a student can choose one of the texts" is counting.
+COUNTING = re.compile(r"\b(number (M )?of ways|how many ways|in how many)\b[^.?]{0,80}\b(choose|select) one\b", re.I)
+# Phrases that mention a written keyword without asking for an argument, as
+# internal/pytrack/written.go removes them before it classifies a card: a
+# method question ("how does one prove"), a purpose clause ("to verify that
+# A is idempotent, it is enough to check..."), a subject that shows ("do the
+# rates not show that", "two arrays describe the same people"), and
+# "compute it, or show that it is impossible".
+NOT_ASKED = re.compile(
+    r"\bhow (do|would|can|could|should|might|does|did|to) (you |we |one |i )?(\w+ ){0,2}(prove|show|verify|derive|justify|demonstrate)\b"
+    r"|^to (prove|show|verify|derive) (that )?[^,]{0,120},"
+    r"|\b(not|never|n't) (show|prove|demonstrate)s?\b( that)?"
+    r"|\bor (to )?(show|prove|explain)\b[^.?!;]*"
+    r"|\b(\w+s|M|they|these|both) (describe|show) (the same|how|that)\b", re.I)
+# A term the prompt asks to name ("Name the process the authors describe...").
+NAME_ASK = re.compile(r"^\s*name\b|\bwhat is (it|this|the process|the term) called\b", re.I)
+# A numbered part label ("1.") at the top of a back is not an answer.
+PART_LABEL = re.compile(r"^\d+\.$")
 YESNO = re.compile(r"\b(true or false|yes or no|\(yes/no\)|\(true/false\)|is it (true|possible|the case))\b", re.I)
 # A prompt that is one closed question ("Is M invertible?"), nothing else.
 CLOSED = re.compile(r"^(is|are|does|do|can|will|has|have|should|must|could) [^?]{3,160}\?$", re.I)
@@ -73,14 +91,18 @@ def audit_item(module, bank, cid, it):
     kind = it["kind"]
     prompt = clean(it.get("prompt", ""))
     low = prompt.lower()
-    written = WRITTEN.search(prompt)
+    asked = NOT_ASKED.sub(" ", prompt)
+    written = WRITTEN.search(asked)
     value = VALUE.search(prompt)
+    if kind == "term" and NAME_ASK.search(prompt):
+        # "Name the process the authors describe as...": the task is the name.
+        written, value = None, NAME_ASK.search(prompt)
     if kind in ("math", "term", "output"):
         if written and not value:
             yield "written task graded as a typed value", "asks to %s" % written.group(0).lower()
         elif written and value:
             yield "ambiguous: written words and a value", "asks to %s and to %s" % (written.group(0).lower(), value.group(0).lower())
-        if CHOICE.search(prompt) and kind != "mc":
+        if CHOICE.search(prompt) and kind != "mc" and not COUNTING.search(prompt):
             yield "a choice graded as typed", "asks to %s" % CHOICE.search(prompt).group(0).lower()
         if YESNO.search(prompt) or CLOSED.match(prompt):
             yield "a yes/no question graded as typed", "asks %s" % (YESNO.search(prompt) or CLOSED.match(prompt)).group(0).lower()[:60]
@@ -100,7 +122,7 @@ def audit_item(module, bank, cid, it):
             yield "a value graded as a term", "asks %s" % NUMBERWORDS.search(prompt).group(0).lower()
     if kind == "mc":
         # "Why does X?" with reasons as options is a choice; a proof is not.
-        strong = re.search(r"\b(prove|show that|derive|justify|verify that|explain (why|how))\b", prompt, re.I)
+        strong = re.search(r"\b(prove|show that|derive|justify|verify that|explain (why|how))\b", asked, re.I)
         if strong and not CHOICE.search(prompt) and not re.search(r"\b(best|correct|true|false|which)\b", low):
             yield "written task graded as a choice", "asks to %s" % strong.group(0).lower()
         if (re.match(r"^(true or false|yes or no)\b", prompt, re.I) or re.search(r"\((yes/no|true/false)\)\s*$", prompt, re.I)) and len(it.get("wrong", [])) >= 2:
@@ -112,7 +134,8 @@ def audit_item(module, bank, cid, it):
             yield "could be a choice", "a recall card that asks to %s" % CHOICE.search(prompt).group(0).lower()
         elif YESNO.search(prompt) and re.match(r"^\s*(yes|no|true|false)\b", clean(it.get("back", "")), re.I):
             yield "could be yes/no", "a recall card whose back starts with the verdict"
-        elif NUMBERWORDS.search(prompt) and not written and re.match(r"^[-\d./]+$", clean(it.get("back", "")).split(" ")[0]):
+        elif NUMBERWORDS.search(prompt) and not written and re.match(r"^[-\d./]+$", clean(it.get("back", "")).split(" ")[0]) \
+                and not PART_LABEL.match(clean(it.get("back", "")).split(" ")[0]):
             yield "could be typed", "a recall card whose back starts with a number"
     if kind == "code":
         if not it.get("tests"):

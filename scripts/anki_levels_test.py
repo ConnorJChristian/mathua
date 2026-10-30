@@ -89,7 +89,8 @@ class LevelTest(unittest.TestCase):
         self.assertEqual([it["level"] for it in concepts[0]["items"]], [1, 3])
         self.assertEqual(changed, {"q1": (2, 1), "q2": (2, 3)})
         self.assertEqual(dict(hist["topic_one"]), {1: 1, 3: 1})
-        saved = json.load(open(os.path.join(d, al.LEVELS_FILE)))
+        with open(os.path.join(d, al.LEVELS_FILE)) as f:
+            saved = json.load(f)
         self.assertEqual(saved["q1"], {"level": 1, "rule": records["q1"]["rule"], "deck": "Book::Ch 1", "tags": "topic::x"})
         self.assertEqual(saved["q2"]["rule"], "override (card)")
         # The recorded metadata is enough to apply again without the export.
