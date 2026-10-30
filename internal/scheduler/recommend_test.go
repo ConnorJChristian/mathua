@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/mastery"
 )
 
@@ -349,5 +350,41 @@ func TestMasteryCheckReportsXPEarned(t *testing.T) {
 	}
 	if !strings.Contains(res.Primary.Detail, "153 XP") {
 		t.Errorf("detail = %q, want the 153 XP earned", res.Primary.Detail)
+	}
+}
+
+// Fork change: a course due within UrgentDays puts its next topic ahead of a
+// due review; otherwise the review leads.
+func TestRecommend_UrgentTopicLeadsDueReview(t *testing.T) {
+	th := concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 60}
+	d, err := concepts.Build([]concepts.Concept{
+		{ID: "rev", Label: "Rev", Domain: "x", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "n", Label: "N", Domain: "x", Prerequisites: []string{}, MasteryThreshold: th},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	due := now.Add(-48 * time.Hour)
+	in := RecommendInput{
+		Now:                 now,
+		DiagnosticCompleted: true,
+		DueReviews:          1,
+		Snapshots: map[string]*ConceptSnapshot{
+			"rev": {Status: mastery.StatusMastered, Streak: 3, RequiredStreak: 3, LastReviewed: now.Add(-72 * time.Hour), LastAttempted: now.Add(-72 * time.Hour), NextReviewDue: &due},
+		},
+		Weakness: map[string]float64{},
+	}
+	s := New(d)
+	if res := s.Recommend(in); res.Primary == nil || res.Primary.Kind != KindReview {
+		t.Fatalf("without a deadline the review leads, got %+v", res.Primary)
+	}
+	in.Urgent = map[string]string{"n": "C is due in 3 days"}
+	res := s.Recommend(in)
+	if res.Primary == nil || res.Primary.ConceptID != "n" {
+		t.Fatalf("the urgent topic leads, got %+v", res.Primary)
+	}
+	if len(res.Alternatives) == 0 || res.Alternatives[0].Kind != KindReview {
+		t.Errorf("the review follows it, got %+v", res.Alternatives)
 	}
 }

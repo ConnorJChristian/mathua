@@ -68,11 +68,23 @@ type activeSession struct {
 	halted             bool
 	remedialQueue      []string
 	remedialDifficulty float64
+	// remedialFor is the topic missed twice that the queue remedies.
+	remedialFor string
 	// Difficulty the currently-served question was generated at. Zero means the question
 	// was not generated at a known difficulty, and the attempt is written with a NULL
 	// rather than a fabricated one.
 	questionDifficulty float64
 	rushCount          int
+	// reviewed is every topic served as a review in this session (fork
+	// fix): none is served twice in one session.
+	reviewed map[string]bool
+}
+
+func (as *activeSession) markReviewed(conceptID string) {
+	if as.reviewed == nil {
+		as.reviewed = map[string]bool{}
+	}
+	as.reviewed[conceptID] = true
 }
 
 // ErrNoActiveQuestion is returned when a session has no unanswered question
@@ -607,15 +619,26 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
 	e.ensureActivePath(studentID)
+	// What the mixed session never serves: credit-only foundations off the
+	// courses and topics below the learner's floor (notReviewed, as for Up
+	// next and the review session), and anything off the active course
+	// paths. They are skipped, not dropped from the snapshots: a dropped
+	// topic read as never seen and locked the topics resting on it, while
+	// a topic off the path whose prerequisites were met was still a
+	// candidate (fork fix).
+	skip := e.notReviewed(studentID, progress)
+	if skip == nil {
+		skip = map[string]bool{}
+	}
+	rank := e.pacedOrder(studentID, progress)
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// Filter to active course path if set
 	if path := e.activePath[studentID]; len(path) > 0 {
 		for cid := range snapshots {
 			if !path[cid] {
-				delete(snapshots, cid)
+				skip[cid] = true
 			}
 		}
 	}
@@ -627,6 +650,14 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 
 	// PR 1.5 halt: after 2 consecutive misses, serve the remedial queue first
 	// (the prerequisites the miss sends the learner back to, then the concept at an easier variant) before resuming.
+	// A queued topic the learner may not be served (below their floor) is
+	// dropped, never served (fork fix).
+	for as.halted && len(as.remedialQueue) > 0 && skip[as.remedialQueue[0]] && as.remedialQueue[0] != as.conceptID {
+		as.remedialQueue = as.remedialQueue[1:]
+	}
+	if as.halted && len(as.remedialQueue) == 0 {
+		as.halted = false
+	}
 	if as.halted && len(as.remedialQueue) > 0 {
 		cid := as.remedialQueue[0]
 		as.remedialQueue = as.remedialQueue[1:]
@@ -687,7 +718,12 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 	// Single progress fetch threads through scheduler + difficulty: no
 	// extra DB scans on the hot path.
 	weakness := e.weaknessMapFromProgress(progress)
-	cands := e.sched.NextSmart(snapshots, recent, as.sessionReview, as.sessionNew, weakness)
+	// A review topic already served in this session is not served again
+	// (fork fix): a missed review waits for the next session.
+	for cid := range as.reviewed {
+		skip[cid] = true
+	}
+	cands := e.sched.NextSmartPlanned(snapshots, recent, as.sessionReview, as.sessionNew, weakness, skip, rank)
 	if len(cands) == 0 {
 		return nil, nil
 	}
@@ -715,6 +751,9 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 	as.requiredStreak = next.Concept.MasteryThreshold.Streak
 	as.timeThreshold = e.accommodatedThreshold(studentID, next.Concept.MasteryThreshold.AvgTimeSeconds)
 	as.isReview = next.IsReview
+	if next.IsReview {
+		as.markReviewed(next.Concept.ID)
+	}
 	as.answered = false
 	as.attemptID = attemptID
 	as.questionText = prob.Question
@@ -768,10 +807,23 @@ func (e *Engine) NextReviewQuestionTrack(sessionID, studentID, track string) (*Q
 	if as == nil {
 		as = &activeSession{studentID: studentID}
 	}
-	next := e.trackScheduler(track).NextReviewSkipping(snapshots, as.lastConceptID, e.notReviewed(studentID, progress))
+	skip := e.notReviewed(studentID, progress)
+	if len(as.reviewed) > 0 {
+		// One review session serves a topic once (fork fix): a review
+		// missed here comes back in the next session, not three questions
+		// later.
+		if skip == nil {
+			skip = map[string]bool{}
+		}
+		for cid := range as.reviewed {
+			skip[cid] = true
+		}
+	}
+	next := e.trackScheduler(track).NextReviewSkipping(snapshots, as.lastConceptID, skip)
 	if next == nil {
 		return nil, nil
 	}
+	as.markReviewed(next.Concept.ID)
 	difficulty := difficultyFromWeakness(e.weaknessMapFromProgress(progress), next.Concept.ID)
 	prevQuestion := as.questionText
 	attemptID := newAttemptID()
@@ -1307,6 +1359,7 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 			xp = 0
 			as.halted = true
 			as.remedialDifficulty = 0.3
+			as.remedialFor = sessionFields.conceptID
 			if c := e.dag.Concept(sessionFields.conceptID); c != nil && len(c.Variants) > 0 {
 				as.remedialDifficulty = c.Variants[0].Difficulty
 			}

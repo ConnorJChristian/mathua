@@ -531,3 +531,57 @@ func TestNextReview_InterleavesModulesByOverdue(t *testing.T) {
 		t.Errorf("reviews should come most overdue first across books, got %v", order)
 	}
 }
+
+// Fork change: reviews are ordered by how far past their due date they are,
+// not by how long ago the topic was last seen. a was seen long ago on a long
+// interval and fell due yesterday; b was seen recently on a short interval
+// and fell due four days ago, so b is more overdue and comes first.
+func TestNextReview_MostOverdueByDueDate(t *testing.T) {
+	th := concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 10}
+	d, err := concepts.Build([]concepts.Concept{
+		{ID: "a", Label: "A", Domain: "x", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "b", Label: "B", Domain: "y", Prerequisites: []string{}, MasteryThreshold: th},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	at := func(days int) *time.Time { v := now.Add(time.Duration(days) * 24 * time.Hour); return &v }
+	snaps := map[string]*ConceptSnapshot{
+		"a": {Status: mastery.StatusMastered, Streak: 3, RequiredStreak: 3, LastAttempted: *at(-12), LastReviewed: *at(-12), NextReviewDue: at(-1)},
+		"b": {Status: mastery.StatusMastered, Streak: 3, RequiredStreak: 3, LastAttempted: *at(-5), LastReviewed: *at(-5), NextReviewDue: at(-4)},
+	}
+	if next := New(d).NextReview(snaps, ""); next == nil || next.Concept.ID != "b" {
+		t.Errorf("want b (4 days overdue) before a (1 day overdue), got %+v", next)
+	}
+}
+
+// Fork change: with a plan rank the mixed session offers new topics in plan
+// order (ranked before unranked), and never a skipped topic.
+func TestNextSmartPlanned_RankAndSkip(t *testing.T) {
+	th := concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 10}
+	d, err := concepts.Build([]concepts.Concept{
+		{ID: "a", Label: "A", Domain: "x", Subdomain: "x.a", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "b", Label: "B", Domain: "x", Subdomain: "x.b", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "c", Label: "C", Domain: "x", Subdomain: "x.c", Prerequisites: []string{}, MasteryThreshold: th},
+		{ID: "z", Label: "Z", Domain: "x", Subdomain: "x.z", Prerequisites: []string{}, MasteryThreshold: th},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale := time.Now().Add(-40 * 24 * time.Hour)
+	snaps := map[string]*ConceptSnapshot{
+		// z has been waiting longest, which alone would put it first.
+		"z": {Status: mastery.StatusLearning, LastAttempted: stale, RequiredStreak: 3, WeaknessScore: 1},
+	}
+	s := New(d)
+	got := s.NextSmartPlanned(snaps, nil, 0, 0, nil, map[string]bool{"a": true}, map[string]int{"a": 0, "c": 1, "b": 2})
+	if len(got) == 0 || got[0].Concept.ID != "c" {
+		t.Fatalf("want c (first ranked, a skipped), got %+v", got)
+	}
+	for _, n := range got {
+		if n.Concept.ID == "a" {
+			t.Error("a skipped topic was offered")
+		}
+	}
+}

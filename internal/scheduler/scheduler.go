@@ -92,8 +92,41 @@ func (s *Scheduler) NextSmart(
 	reviewCount, newCount int,
 	weakness map[string]float64,
 ) []NextConcept {
+	return s.NextSmartPlanned(snapshots, prevConceptIDs, reviewCount, newCount, weakness, nil, nil)
+}
+
+// NextSmartPlanned is NextSmart for a learner on courses (fork change): skip
+// names topics never served (off the course paths, below the learner's
+// floor, credit-only foundations), and rank is the courses' paced plan order
+// (planning.PlansOrderPaced). New topics then come in plan order, ranked
+// ones before unranked ones, so the mixed session teaches what Up next
+// would and never a topic taught after a course's due date while one due
+// by it is ready. A skipped topic keeps its snapshot, so it still counts
+// for the prerequisites of the topics above it. Reviews keep their own
+// priority (most overdue first), and the 70/30 balance still holds.
+func (s *Scheduler) NextSmartPlanned(
+	snapshots map[string]*ConceptSnapshot,
+	prevConceptIDs []string,
+	reviewCount, newCount int,
+	weakness map[string]float64,
+	skip map[string]bool,
+	rank map[string]int,
+) []NextConcept {
 	now := time.Now().UTC()
-	candidates := buildCandidatesAdvanced(s.dag, snapshots, now, prevConceptIDs, weakness)
+	candidates := buildCandidatesAdvanced(s.dag, snapshots, now, prevConceptIDs, weakness, skip)
+	if len(rank) > 0 {
+		n := float64(len(rank) + 1)
+		for i := range candidates {
+			if candidates[i].IsReview {
+				continue
+			}
+			if r, ok := rank[candidates[i].Concept.ID]; ok {
+				candidates[i].Priority = 3 - float64(r)/n
+			} else if candidates[i].Priority > 2 {
+				candidates[i].Priority = 2
+			}
+		}
+	}
 	if len(candidates) == 0 {
 		return nil
 	}
@@ -124,7 +157,7 @@ func (s *Scheduler) NextSmart(
 
 // buildCandidatesAdvanced adds PR 1.4 edges to candidate construction:
 // interleaving exclusion (same Subdomain as last 2), layering +2, non-interference -3.
-func buildCandidatesAdvanced(dag *concepts.DAG, snapshots map[string]*ConceptSnapshot, now time.Time, prevIDs []string, weakness map[string]float64) []Candidate {
+func buildCandidatesAdvanced(dag *concepts.DAG, snapshots map[string]*ConceptSnapshot, now time.Time, prevIDs []string, weakness map[string]float64, skip map[string]bool) []Candidate {
 	prevSet := make(map[string]bool, len(prevIDs))
 	prevSubs := make(map[string]bool)
 	prevGroups := make(map[string]bool)
@@ -139,7 +172,13 @@ func buildCandidatesAdvanced(dag *concepts.DAG, snapshots map[string]*ConceptSna
 			}
 		}
 	}
-	base := buildCandidates(dag, snapshots, now, "")
+	all := buildCandidates(dag, snapshots, now, "")
+	base := all[:0:0]
+	for _, cand := range all {
+		if !skip[cand.Concept.ID] {
+			base = append(base, cand)
+		}
+	}
 	var out []Candidate
 	for _, cand := range base {
 		c := cand.Concept
@@ -194,6 +233,9 @@ func buildCandidates(dag *concepts.DAG, snapshots map[string]*ConceptSnapshot, n
 			continue
 		}
 		priority := computePriority(snap, now, isReview)
+		if isReview {
+			priority = reviewPriority(snap, now)
+		}
 		out = append(out, Candidate{Concept: c, IsReview: isReview, Priority: priority})
 	}
 	return out
@@ -251,6 +293,35 @@ func computePriority(snap *ConceptSnapshot, now time.Time, isDecaying bool) floa
 		priority += 5.0
 	}
 	return priority
+}
+
+// reviewPriority orders due reviews by how overdue they are (fork change),
+// whatever course, book or domain they come from: days past the review's
+// due date, or, for a topic decaying without a scheduled review, days past
+// the decay horizon. Time since the last review breaks ties. Every review
+// stays above 5, the old decaying bonus, so a due review still outranks a
+// new topic in the mixed session.
+func reviewPriority(snap *ConceptSnapshot, now time.Time) float64 {
+	if snap == nil {
+		return 5
+	}
+	since := daysSince(snap.LastReviewed)
+	if since >= 999 {
+		since = daysSince(snap.LastAttempted)
+	}
+	overdue := 0.0
+	if snap.NextReviewDue != nil && !snap.NextReviewDue.After(now) {
+		overdue = now.Sub(*snap.NextReviewDue).Hours() / 24
+	} else if since < 999 {
+		overdue = since - float64(mastery.DecayDays)
+	}
+	if overdue < 0 {
+		overdue = 0
+	}
+	if since >= 999 {
+		since = 0
+	}
+	return 5 + overdue + 0.001*since
 }
 
 // NextReview picks the next due-for-review concept.

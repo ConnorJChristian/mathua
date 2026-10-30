@@ -404,6 +404,26 @@ locks course material.
 
 `TestNoFloorTopicsForCourseLearner` holds this on the whole base graph.
 
+**How the queue is ordered.** Up next, the review session and the mixed
+session (`/session`) follow the same rules:
+
+1. **Reviews come most overdue first**, across every course and book: days
+   past the review's due date (a decaying topic with no date: days past the
+   decay horizon). They are not grouped by course, module or domain. A topic
+   two courses share is one review. A review session serves a topic once; a
+   review missed there is rescheduled, not asked again three questions on.
+2. **Due reviews come before new topics.** Up next puts one review card
+   ahead of new work. The one exception: a followed course due within seven
+   days (`scheduler.UrgentDays`) puts its next plan topic first, and the
+   review follows it.
+3. **New topics come in the courses' paced plan order** (each course's plan
+   spread over the days to its due date). A topic in an `after_due` module
+   comes after the ones due by the date. Nothing off every followed course's
+   path, no credit-only foundation and nothing below the floor is offered.
+   The mixed session used to ignore all three and drop off-path topics from
+   its view, which both offered off-path topics and locked topics above
+   them; it now skips them and keeps the plan order.
+
 ### Book exercises and practice that unlocks
 
 Two optional fields of a bank item (`bank/*.json`, written with

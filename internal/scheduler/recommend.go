@@ -153,7 +153,18 @@ type RecommendInput struct {
 	// outside the per-bucket caps; a pinned topic that is still locked is
 	// represented by its open prerequisites, labelled as being for it.
 	Pinned map[string]bool
+	// Urgent names the plan topics of a followed course whose due date is
+	// within UrgentDays and that are still to do (fork change). Due reviews
+	// come before new topics, except that one urgent topic comes first: a
+	// course about to be examined gets new material even on a day with
+	// reviews due. The value says why ("Workday integrations exam is due in
+	// 5 days").
+	Urgent map[string]string
 }
+
+// UrgentDays is how close a course's due date must be for its remaining
+// topics to come before due reviews.
+const UrgentDays = 7
 
 // MaxPinned caps the pinned topics shown at once; the rest wait their turn.
 const MaxPinned = 3
@@ -313,6 +324,17 @@ func (s *Scheduler) selectTasks(in RecommendInput, now time.Time) []Recommendati
 		}
 	}
 
+	// A course due within UrgentDays puts its next topic first (fork change):
+	// the one exception to reviews before new work.
+	if len(in.Urgent) > 0 {
+		for _, r := range all {
+			if r.bucket != bucketReview && in.Urgent[r.ConceptID] != "" && !seen[r.ConceptID] {
+				seen[r.ConceptID] = true
+				out = append(out, r)
+				break
+			}
+		}
+	}
 	// A due review outranks new work. One card, not one per concept: the review route runs
 	// its own queue, so listing five concepts that all link to /review is five copies of one
 	// choice.

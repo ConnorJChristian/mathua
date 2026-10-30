@@ -111,8 +111,8 @@ func gradLearner(t *testing.T) (*Engine, string, *concepts.DAG) {
 // the grade school math showing up on the reviews, diagnostic test, etc").
 // With no MATHUA_REVIEW_FLOOR_DOMAINS set, a learner on a graduate course is
 // never served an arithmetic, fractions, prealgebra or geometry topic as a
-// review, in Up next, as remediation, on the mastery check or in a
-// placement test (course or onboarding), unless the course
+// review, in Up next, in the mixed session, as remediation, on the mastery
+// check or in a placement test (course or onboarding), unless the course
 // lists it or the learner pinned it.
 func TestNoFloorTopicsForCourseLearner(t *testing.T) {
 	t.Setenv("MATHUA_REVIEW_FLOOR_DOMAINS", "")
@@ -165,6 +165,26 @@ func TestNoFloorTopicsForCourseLearner(t *testing.T) {
 	}
 	if !pinSeen {
 		t.Error("the pinned floor topic should be offered: a pin lifts the floor")
+	}
+
+	// The mixed session, missing often enough to halt and remediate.
+	ms, _ := e.repo.CreateSession(sid)
+	for i := 0; i < 40; i++ {
+		q, err := e.NextQuestion(ms.ID, sid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if q == nil {
+			break
+		}
+		check("mixed session", q.ConceptID)
+		ans := "-9999"
+		if key, ok := e.ExpectedAnswerForReplay(ms.ID); ok && i%3 == 0 {
+			ans = key
+		}
+		if _, err := e.SubmitAnswer(ms.ID, sid, q.AttemptID, ans, 15); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// Remediation for every plan topic, and the mastery check's queue after

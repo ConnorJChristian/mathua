@@ -198,21 +198,10 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	// AttemptedDays check alone is not enough, because placement deliberately
 	// seeds reachability without mastery.
 	diagnosticCompleted := noPlacement
-	var pathOrder map[string]int
-	if st, err := e.repo.GetStudent(studentID); err == nil && st != nil {
-		if st.DiagnosticCompleted {
-			diagnosticCompleted = true
-		}
-		// A course with a study plan orders the new topics it offers; several
-		// courses share the queue by the pace each needs for its due date.
-		if st.CourseID != "" && e.planner != nil {
-			done := func(id string) bool {
-				p := progress[id]
-				return p != nil && mastery.EffectiveStatus(mastery.Status(p.Status), daysSinceReview(p.LastReviewed), mastery.DecayDays) == mastery.StatusMastered
-			}
-			pathOrder = e.planner.PlansOrderPaced(ActiveCourses(st.CourseID), done, time.Now())
-		}
+	if st, err := e.repo.GetStudent(studentID); err == nil && st != nil && st.DiagnosticCompleted {
+		diagnosticCompleted = true
 	}
+	pathOrder := e.pacedOrder(studentID, progress)
 	pinned := map[string]bool{}
 	for _, pin := range e.Pins(studentID) {
 		pinned[pin.Concept] = true
@@ -222,7 +211,9 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	for _, id := range e.QuizRemedial(studentID) {
 		remedial[id] = true
 	}
+	urgent := e.urgentTopics(studentID, progress, time.Now())
 	res := sched.Recommend(scheduler.RecommendInput{
+		Urgent:              urgent,
 		Remedial:            remedial,
 		Snapshots:           snapshots,
 		Now:                 time.Now(),
@@ -248,6 +239,78 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		}
 	}
 	return res, nil
+}
+
+// pacedOrder is the followed courses' plans merged by pace
+// (planning.PlansOrderPaced): the order new topics are offered in, in Up
+// next and in the mixed session alike. Nil for a learner on no planned course.
+func (e *Engine) pacedOrder(studentID string, progress map[string]*storage.ConceptProgress) map[string]int {
+	if e.planner == nil || studentID == "" {
+		return nil
+	}
+	st, err := e.repo.GetStudent(studentID)
+	if err != nil || st == nil || st.CourseID == "" {
+		return nil
+	}
+	done := func(id string) bool {
+		p := progress[id]
+		return p != nil && mastery.EffectiveStatus(mastery.Status(p.Status), daysSinceReview(p.LastReviewed), mastery.DecayDays) == mastery.StatusMastered
+	}
+	return e.planner.PlansOrderPaced(ActiveCourses(st.CourseID), done, time.Now())
+}
+
+// courseShortName drops the ": study plan" a course name ends with.
+func courseShortName(name string) string {
+	name = strings.TrimSpace(name)
+	for _, suf := range []string{": study plan", ": directed reading"} {
+		name = strings.TrimSuffix(name, suf)
+	}
+	return name
+}
+
+// urgentTopics are the plan topics still to do of each followed course due
+// within scheduler.UrgentDays (or past its date), with why: they may come
+// before due reviews (scheduler.RecommendInput.Urgent).
+func (e *Engine) urgentTopics(studentID string, progress map[string]*storage.ConceptProgress, now time.Time) map[string]string {
+	if e.planner == nil || studentID == "" {
+		return nil
+	}
+	st, err := e.repo.GetStudent(studentID)
+	if err != nil || st == nil {
+		return nil
+	}
+	out := map[string]string{}
+	for _, id := range ActiveCourses(st.CourseID) {
+		c := e.planner.Course(id)
+		due, ok := c.DueDate()
+		if !ok {
+			continue
+		}
+		days := int(due.Sub(now).Hours()/24 + 0.999)
+		if days > scheduler.UrgentDays {
+			continue
+		}
+		why := courseShortName(c.Name) + " is due today"
+		switch {
+		case days < 0:
+			why = courseShortName(c.Name) + " was due " + c.Due
+		case days == 1:
+			why = courseShortName(c.Name) + " is due tomorrow"
+		case days > 1:
+			why = fmt.Sprintf("%s is due in %d days", courseShortName(c.Name), days)
+		}
+		late := c.AfterDueTopics()
+		for _, t := range c.Plan {
+			p := progress[t]
+			if late[t] || (p != nil && mastery.Status(p.Status) == mastery.StatusMastered) {
+				continue
+			}
+			if _, ok := out[t]; !ok {
+				out[t] = why
+			}
+		}
+	}
+	return out
 }
 
 // jumpIns lists a track's unfinished concepts whose prerequisites inside the
