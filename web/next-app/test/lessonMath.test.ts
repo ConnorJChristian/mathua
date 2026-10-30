@@ -36,6 +36,22 @@ describe('prepareLessonMath', () => {
     expect(out).toContain('\\$3.99')
   })
 
+  // A matrix row break with spacing ends in `\[`, which the display matcher
+  // took for an opener: the span ran to the next `\]` and an Anki card's
+  // whole worked inverse rendered as raw TeX.
+  it('keeps row spacing inside a formula out of the display delimiters', () => {
+    const out = prepareLessonMath('\\(A = \\begin{bmatrix} 1 & 2 \\\\[2pt] 3 & 4 \\end{bmatrix}\\) then \\[x=1\\] and \\(y\\)')
+    const { inline } = mathSpans(out)
+    expect(inline).toHaveLength(3)
+    expect(inline[0]).toBe('A = \\begin{bmatrix} 1 & 2 \\\\[2pt] 3 & 4 \\end{bmatrix}')
+    expect(inline[1]).toBe('\\displaystyle x=1')
+    // The same inside a $$ block, and the Algebrica form (doubled backslashes).
+    const block = prepareLessonMath('$$\nf = 1 \\\\[6pt] g = 2\n$$ then \\[q\\]')
+    expect(mathSpans(block).display).toEqual(['f = 1 \\\\[6pt] g = 2'])
+    const alg = prepareLessonMath('\\\\[ \\\\begin{aligned} f &= 1 \\\\\\\\[6pt] g &= 2 \\\\end{aligned} \\\\] tail \\\\[z\\\\]')
+    expect(mathSpans(alg).inline[0]).toContain('f &= 1 \\\\[6pt] g &= 2')
+  })
+
   it('keeps real inline math intact', () => {
     const out = prepareLessonMath('where $x^2 + 5x$ grows')
     expect(mathSpans(out).inline).toEqual(['x^2 + 5x'])
