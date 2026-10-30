@@ -1388,6 +1388,9 @@ export interface Recommendation {
   cta: string
   pinned?: boolean
   pinnedFor?: string
+  /** Why the engine put this task here, in the learner's words: "review due 3 days ago",
+   *  "next in ECON 5153 · 7 Systems of Linear Equations", "pinned", "missed in the mastery check". */
+  why?: string
 }
 
 /**

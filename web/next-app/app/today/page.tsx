@@ -163,6 +163,7 @@ export default function TodayPage() {
                 </p>
                 <p className="font-serif text-base text-mathua-primary break-words [overflow-wrap:anywhere]">{r.id === 'paused' && !r.conceptTitle ? 'Paused placement test' : recommendationTitle(r)}</p>
                 {r.detail && <p className="font-mono text-[11px] text-mathua-secondary mt-0.5 break-words [overflow-wrap:anywhere]">{r.detail}</p>}
+                {r.why && <p data-why className="font-mono text-[10px] text-mathua-muted mt-0.5 break-words [overflow-wrap:anywhere]">Why: {r.why}</p>}
               </div>
               <div className="flex items-center gap-2 ml-auto">
                 {r.xp ? <span className="font-mono text-[10px] text-mathua-muted">+{r.xp} XP</span> : null}

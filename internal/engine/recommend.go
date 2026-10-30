@@ -238,6 +238,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 			res.Alternatives = append(jump[1:], res.Alternatives...)
 		}
 	}
+	e.explainRecommendations(&res, studentID, progress, remedial, urgent)
 	return res, nil
 }
 

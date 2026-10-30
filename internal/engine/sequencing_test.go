@@ -97,6 +97,9 @@ func TestMixedSession_FollowsThePlanAndItsLimits(t *testing.T) {
 		}
 		served[q.ConceptID]++
 		order = append(order, q.ConceptID)
+		if q.Reason == "" {
+			t.Errorf("question %d (%s) carries no reason", i, q.ConceptID)
+		}
 		if _, err := e.SubmitAnswer(sess.ID, sid, q.AttemptID, "1", 10); err != nil {
 			t.Fatal(err)
 		}
@@ -138,6 +141,9 @@ func TestReviewSession_ServesATopicOnce(t *testing.T) {
 			break
 		}
 		order = append(order, q.ConceptID)
+		if q.Reason == "" {
+			t.Errorf("review %s carries no reason", q.ConceptID)
+		}
 		e.SubmitAnswer(sess.ID, sid, q.AttemptID, "wrong", 10) // missed: still due
 	}
 	if len(order) != 2 || order[0] == order[1] {
@@ -164,6 +170,9 @@ func TestReviews_TopicSharedByTwoCoursesCountsOnce(t *testing.T) {
 	for _, r := range recs(res) {
 		if r.Kind == "review" {
 			reviews++
+			if r.Why == "" {
+				t.Error("the review card carries no reason")
+			}
 		}
 	}
 	if reviews != 1 {
@@ -206,6 +215,9 @@ func TestUpNext_CourseDeadlineBeforeReviews(t *testing.T) {
 	}
 	if res.Primary.ConceptID == "late1" {
 		t.Error("an after-due topic is not urgent")
+	}
+	if res.Primary.Why == "" || res.Primary.Why[:len("Math for economists is due in")] != "Math for economists is due in" {
+		t.Errorf("urgent topic reason = %q", res.Primary.Why)
 	}
 	found := false
 	for _, r := range res.Alternatives {

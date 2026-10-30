@@ -97,6 +97,11 @@ type Recommendation struct {
 	// pinned topic when this one is a prerequisite standing in for it.
 	Pinned    bool   `json:"pinned,omitempty"`
 	PinnedFor string `json:"pinnedFor,omitempty"`
+	// Why is the reason this task is here, in the learner's words (fork
+	// change; engine/reasons.go): "review due 3 days ago", "next in ECON
+	// 5153 · 7 Systems of Linear Equations", "pinned", "missed in the
+	// mastery check".
+	Why string `json:"why,omitempty"`
 
 	bucket bucket
 }

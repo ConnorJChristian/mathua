@@ -424,6 +424,14 @@ session (`/session`) follow the same rules:
    its view, which both offered off-path topics and locked topics above
    them; it now skips them and keeps the plan order.
 
+Every recommendation carries a reason (`why` on `GET /api/next`, shown on
+the Study tab) and every question from `/session` and the review session a
+`reason`: "review due 3 days ago (8 due)", "next in ECON 5153 Math for
+Economists · 7 Systems of Linear Equations", "needed for The bordered
+Hessian in ...", "pinned", "missed in the mastery check", "Workday
+integrations exam is due in 5 days · ...", "prerequisite of Implicit
+differentiation after two misses".
+
 ### Book exercises and practice that unlocks
 
 Two optional fields of a bank item (`bank/*.json`, written with

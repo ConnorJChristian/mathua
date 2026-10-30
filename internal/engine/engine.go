@@ -144,6 +144,10 @@ type Question struct {
 	// GradingType lets every answer host (study, review, quiz, diagnostic)
 	// show the right input hint/keyboard. Empty means "unknown".
 	GradingType string `json:"grading_type,omitempty"`
+	// Reason says why this question was served (fork change; reasons.go):
+	// "review due 2 days ago", "next in ECON 5153 · 5 The Derivative",
+	// "prerequisite of Implicit differentiation after two misses".
+	Reason string `json:"reason,omitempty"`
 }
 
 type AnswerResult struct {
@@ -696,6 +700,10 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 		if e.ll != nil {
 			lesson = e.ll.Lesson(cid)
 		}
+		reason := "an easier one after two misses"
+		if missed := e.dag.Concept(as.remedialFor); missed != nil && missed.ID != cid {
+			reason = "prerequisite of " + missed.Label + " after two misses"
+		}
 		return &Question{
 			ConceptID:   cid,
 			ConceptName: c.Label,
@@ -704,6 +712,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 			IsReview:    false,
 			AttemptID:   as.attemptID,
 			Lesson:      lesson,
+			Reason:      reason,
 		}, nil
 	}
 
@@ -728,6 +737,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 		return nil, nil
 	}
 	next := cands[0]
+	reason := e.questionReason(studentID, next.Concept.ID, next.IsReview, progress)
 	difficulty := difficultyFromWeakness(weakness, next.Concept.ID)
 	prevQuestion := as.questionText
 	attemptID := newAttemptID()
@@ -783,6 +793,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 		AttemptID:   as.attemptID,
 		Lesson:      lesson,
 		Diagram:     diagram,
+		Reason:      reason,
 	}, nil
 }
 
@@ -870,6 +881,7 @@ func (e *Engine) NextReviewQuestionTrack(sessionID, studentID, track string) (*Q
 		AttemptID:   as.attemptID,
 		Lesson:      lesson,
 		Diagram:     diagram,
+		Reason:      e.questionReason(studentID, next.Concept.ID, true, progress),
 	}, nil
 }
 
