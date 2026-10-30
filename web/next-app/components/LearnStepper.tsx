@@ -166,6 +166,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   // practice endpoint enforces this; the UI renders the explanation so a locked
   // topic never looks like a broken page or an empty question set.
   const [ineligible, setIneligible] = useState<ReadinessRes | null>(null)
+  // The reading (kp shard) arrives on its own: 'loading' until it lands, 'failed'
+  // if the request did. Neither state holds back the questions.
+  const [material, setMaterial] = useState<'loading' | 'ok' | 'failed'>('loading')
+  const loadSeqRef = useRef(0)
   // Fork change: the topic the learner chose to practise despite unmet
   // prerequisites. Keyed by concept so it never carries over to another topic.
   const [overrideFor, setOverrideFor] = useState<string | null>(null)
@@ -270,19 +274,40 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     setLoading(true)
     setError('')
     setIneligible(null)
+    const seq = ++loadSeqRef.current
     try {
-      const [kpRes, readyRes] = await Promise.all([getLessonKPs(conceptId), getLessonReadiness(conceptId)])
-      setKps(kpRes.kps ?? [])
-      setDiagram(kpRes.diagram ?? null)
-      setReadiness(readyRes)
+      // Neither the reading (kp) nor the readiness check gates the questions
+      // (fork change): the reading is fetched alongside and fills in when it
+      // lands, so a slow or failed reading never holds the first question back,
+      // and a readiness check that is down counts as ready. The practice
+      // endpoint is the authority on a locked topic either way.
+      setMaterial('loading')
+      getLessonKPs(conceptId).then(
+        kpRes => {
+          if (seq !== loadSeqRef.current) return
+          setKps(kpRes.kps ?? [])
+          setDiagram(kpRes.diagram ?? null)
+          setMaterial('ok')
+        },
+        () => {
+          if (seq !== loadSeqRef.current) return
+          setKps([])
+          setDiagram(null)
+          setMaterial('failed')
+        },
+      )
+      const readyRes = await getLessonReadiness(conceptId).catch(() => null)
+      if (seq !== loadSeqRef.current) return
+      if (readyRes) setReadiness(readyRes)
       // The server is the authority: if it says the topic's prerequisites are
       // unmet, do not fetch questions it would refuse. Show the path instead.
-      if (readyRes.eligible === false && !override) {
+      if (readyRes && readyRes.eligible === false && !override) {
         track({ kind: 'locked_view', concept: conceptId, data: { missing: (readyRes.prerequisites ?? []).filter(p => !p.met).map(p => p.conceptId) } })
         setIneligible(readyRes)
         return
       }
       const pr = await getLessonPractice(conceptId, 3, { seed: Date.now() % 100000, difficulty: 0.4, override })
+      if (seq !== loadSeqRef.current) return
       seenRef.current = pr.questions.map(q => q.question)
       setBuffer(pr.questions)
       const first = pr.questions[0]
@@ -291,9 +316,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       }
       setEntries([{ key: nextKey(), kind: 'intro', kpIndex: 0 }])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load lesson')
+      if (seq === loadSeqRef.current) setError(e instanceof Error ? e.message : 'Failed to load lesson')
     } finally {
-      setLoading(false)
+      // A superseded load (another topic, Practice anyway) leaves the spinner to the newer one.
+      if (seq === loadSeqRef.current) setLoading(false)
     }
   }, [conceptId, override])
 
@@ -786,7 +812,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                     has a reading it comes first, and Mathua's own worked example sits below it,
                     collapsed but one click away. A topic with no reading keeps the worked
                     example as its lesson. */}
-                <LessonMaterial kp={ikp} isPy={isPy} empty="Worked example unavailable — start practicing instead." />
+                <LessonMaterial kp={ikp} isPy={isPy} empty={material === 'failed' ? 'The reading could not be loaded right now. The questions below still work; reload the page to try the reading again.' : material === 'loading' ? 'Loading the reading…' : 'Worked example unavailable — start practicing instead.'} />
                 {diagram && (
                   <figure className="mt-4">
                     <LessonDiagram src={diagram} alt={`Diagram for ${ikp?.label || 'this topic'}`} />
