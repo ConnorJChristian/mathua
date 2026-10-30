@@ -130,7 +130,14 @@ func gradeNum(expected, user string, tol float64) grader.Result {
 	if err1 != nil || err2 != nil {
 		return grader.Result{Correct: false, Score: 0, Feedback: "Answer must be a number"}
 	}
-	if math.Abs(e-u) <= tol*math.Max(1, math.Abs(e)) {
+	window := tol * math.Max(1, math.Abs(e))
+	if e == math.Trunc(e) && window > 0.5 {
+		// A whole-number key (an angle of 90°) is not a rounding: the
+		// window covers a learner's own rounding, never the next integer
+		// (fork fix: 91 passed for 90).
+		window = 0.5
+	}
+	if math.Abs(e-u) <= window {
 		return grader.Result{Correct: true, Score: 1}
 	}
 	return grader.Result{Correct: false, Score: 0, Feedback: "Incorrect value"}

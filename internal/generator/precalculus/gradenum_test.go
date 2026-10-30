@@ -13,8 +13,8 @@ func TestGradeNumReadsSharedSpellings(t *testing.T) {
 			t.Errorf("%q refused for %q", tc.answer, tc.key)
 		}
 	}
-	for _, tc := range []struct{ key, answer string }{{"4372", "4,382"}, {"-10", "10"}, {"1.88", "1.9"}, {"7", ""}} {
-		if gradeNum(tc.key, tc.answer, 0.001).Correct {
+	for _, tc := range []struct{ key, answer string }{{"4372", "4,382"}, {"-10", "10"}, {"1.88", "2.0"}, {"7", ""}, {"90", "91"}, {"270", "271"}} {
+		if gradeNum(tc.key, tc.answer, 0.02).Correct {
 			t.Errorf("%q accepted for %q", tc.answer, tc.key)
 		}
 	}
