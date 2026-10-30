@@ -16,6 +16,7 @@
   } else {
     root.classList.remove('dark');
   }
-  var meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', dark ? '#0c0d0f' : '#ffffff');
+  // Only the class. The <meta name="theme-color"> is React's: changing its
+  // content before hydration makes React insert a second one, so lib/theme.ts
+  // sets it from the hook once the page has mounted.
 })();

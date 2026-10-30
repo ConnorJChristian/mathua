@@ -107,24 +107,22 @@ describe('public/js/theme-init.js (pre-paint)', () => {
   it('uses the same storage keys as lib/theme', () => {
     expect(INIT_SCRIPT).toContain(`'${THEME_STORAGE_KEY}'`)
     expect(INIT_SCRIPT).toContain(`'${LEGACY_THEME_STORAGE_KEY}'`)
-    expect(INIT_SCRIPT).toContain(`'${THEME_COLOR.dark}'`)
-    expect(INIT_SCRIPT).toContain(`'${THEME_COLOR.light}'`)
     // The OS preference is deliberately not consulted: light is the default.
     expect(INIT_SCRIPT).not.toContain('prefers-color-scheme')
+    // The meta is React's; touching it before hydration duplicates it.
+    expect(INIT_SCRIPT).not.toContain('querySelector')
   })
 
   it('no preference: light, even when the document started dark', () => {
     document.documentElement.classList.add('dark')
     runInitScript()
     expect(document.documentElement.classList.contains('dark')).toBe(false)
-    expect(ensureThemeColorMeta().getAttribute('content')).toBe(THEME_COLOR.light)
   })
 
   it('stored dark: dark', () => {
     localStorage.setItem(THEME_STORAGE_KEY, 'dark')
     runInitScript()
     expect(document.documentElement.classList.contains('dark')).toBe(true)
-    expect(ensureThemeColorMeta().getAttribute('content')).toBe(THEME_COLOR.dark)
   })
 
   it('legacy stored dark: dark', () => {
@@ -174,7 +172,12 @@ describe('app/layout.tsx', () => {
     const layout = fs.readFileSync(path.join(__dirname, '..', 'app', 'layout.tsx'), 'utf8')
     expect(layout).not.toMatch(/<html[^>]*className="dark"/)
     expect(layout).toContain(`themeColor: '${THEME_COLOR.light}'`)
-    expect(layout).toContain('/js/theme-init.js')
+    // Inlined into <head>, not loaded through next/script: a `src` with
+    // `beforeInteractive` is only preloaded in the app router and runs after
+    // the first paint.
+    expect(layout).toMatch(/readFileSync\(.*'theme-init\.js'/)
+    expect(layout).toContain('dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}')
+    expect(layout).not.toContain("from 'next/script'")
   })
 
   it('globals.css declares the light palette on :root and dark under .dark only', () => {
