@@ -59,13 +59,14 @@ func TestBankMatchesConceptGraph(t *testing.T) {
 		if tr.Bank.Concept(c.ID) == nil {
 			t.Errorf("graph concept %s has no question bank", c.ID)
 		}
-		track := mods.TrackOf(c.Domain)
-		for _, p := range c.Prerequisites {
-			if pc := dag.Concept(p); pc != nil && mods.TrackOf(pc.Domain) != track {
-				t.Errorf("%s: prerequisite %s is on another track; a track must stand on its own", c.ID, p)
-			}
-		}
+		// A track does not wall off prerequisites (FORK.md, "One graph
+		// across tracks"): a handbook topic may rest on the corpus concept
+		// it applies, and the engine offers that concept as "Needed next".
+		// This used to require every prerequisite to be on the topic's own
+		// track, which contradicted the fork's design once the public
+		// module linked into the corpus.
 	}
+	_ = mods
 	for _, id := range tr.Bank.ConceptIDs() {
 		if !inGraph[id] {
 			t.Errorf("bank concept %s is not in the concept graph", id)
