@@ -88,6 +88,20 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 			strings.ReplaceAll(expected, " ", "") == strings.ReplaceAll(answer, " ", "") {
 			return Result{Correct: true, Score: 1}
 		}
+		// A number typed for a numeric key is compared as a number: "0.0"
+		// for 0 (run-5 note: linalg.inner_product).
+		if !res.Correct {
+			if ev, _, ok := parseNumeric(normalise(expected)); ok {
+				if av, _, ok2 := parseNumeric(normalise(answer)); ok2 && ev == av {
+					return Result{Correct: true, Score: 1}
+				}
+			}
+		}
+		// Typed LaTeX is read as the typed-math types read it: "\frac{38}{3}"
+		// for the option 38/3 (run-5 note: calc.multi.lagrange_two).
+		if !res.Correct && strings.Contains(answer, `\`) && looksLikeMath(expected) {
+			answer = NormalizeTypedMath(answer, expected)
+		}
 		if !res.Correct && looksLikeMath(expected) {
 			// A free-form expression declared as a choice (an ODE's general
 			// solution, a set, a log identity) is compared as mathematics,

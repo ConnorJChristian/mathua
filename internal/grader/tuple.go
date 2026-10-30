@@ -12,7 +12,7 @@ type tupleGrader struct{}
 
 func (g *tupleGrader) grade(expected, answer string) Result {
 	e := normaliseTuple(expected)
-	a := normaliseTuple(answer)
+	a := normaliseTuple(vectorBrackets(expected, answer))
 	if len(e) == 0 || len(a) == 0 {
 		return emptyResult()
 	}
@@ -66,4 +66,24 @@ func normaliseTuple(s string) []string {
 		}
 	}
 	return result
+}
+
+// vectorBrackets reads a vector typed in angle or square brackets ("<-2, 6>",
+// "[-2, 6]") as the round-bracket tuple its key is (run-5 note: the gradient
+// (-2, 6) refused both). Only a matched pair around the whole answer, and
+// only for a key in round brackets: "[1, 2)" stays a half-open interval.
+func vectorBrackets(expected, answer string) string {
+	e, a := strings.TrimSpace(expected), strings.TrimSpace(answer)
+	if !strings.HasPrefix(e, "(") || !strings.HasSuffix(e, ")") || len(a) < 2 {
+		return answer
+	}
+	for _, p := range [][2]string{{"<", ">"}, {"[", "]"}, {"⟨", "⟩"}, {`\langle`, `\rangle`}} {
+		if strings.HasPrefix(a, p[0]) && strings.HasSuffix(a, p[1]) {
+			inner := strings.TrimSuffix(strings.TrimPrefix(a, p[0]), p[1])
+			if !strings.ContainsAny(inner, "<>[]⟨⟩") {
+				return "(" + inner + ")"
+			}
+		}
+	}
+	return answer
 }

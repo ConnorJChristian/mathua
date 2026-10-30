@@ -111,7 +111,13 @@ func wordAnswerMatches(expected, answer string) bool {
 	}
 	kw := words(expected)
 	if len(kw) == 1 && (kw[0] == "yes" || kw[0] == "no") {
-		return aw[0] == kw[0]
+		// "not continuous" answers "Is f continuous?" with no (run-5 note).
+		return aw[0] == kw[0] || (kw[0] == "no" && aw[0] == "not" && len(aw) > 1)
+	}
+	// "strictly decreasing" for "decreasing": the generated monotonicity
+	// items are all strict (linear, cot, arccos; run-5 note).
+	if len(kw) == 1 && (kw[0] == "increasing" || kw[0] == "decreasing") && len(aw) == 2 && aw[0] == "strictly" && aw[1] == kw[0] {
+		return true
 	}
 	return false
 }
