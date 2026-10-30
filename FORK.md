@@ -432,6 +432,21 @@ Hessian in ...", "pinned", "missed in the mastery check", "Workday
 integrations exam is due in 5 days · ...", "prerequisite of Implicit
 differentiation after two misses".
 
+**Replay audit.** `scripts/replay_audit` replays study sessions for one
+learner against a copy of a database snapshot and logs every topic served
+(Up next, the review session, a lesson, the mixed session, the mastery check
+and its remediation, the course placements and the onboarding placement),
+with the engine's reason, then classifies each serve: below the floor,
+credit-only off the courses, off every course path, the same topic twice in
+a review session or a list, unmet prerequisites, an after-due topic while a
+due one is ready, remediation that is not a direct prerequisite, and a
+placement question deeper than `CoursePlacementDepth`. It ages the copy one
+day between sessions.
+
+```bash
+MATHUA_ROOT=$PWD go run ./scripts/replay_audit -db snapshot.db -student <id> -sessions 30 -json serves.jsonl
+```
+
 ### Book exercises and practice that unlocks
 
 Two optional fields of a bank item (`bank/*.json`, written with
