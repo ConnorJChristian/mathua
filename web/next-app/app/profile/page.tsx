@@ -90,6 +90,9 @@ export default function ProfilePage() {
   const [placementCompleted, setPlacementCompleted] = useState<boolean | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [sessionExpired, setSessionExpired] = useState(false)
+  // isNew reads the activity; until it lands, nobody is called new.
+  const [activityLoaded, setActivityLoaded] = useState(false)
   const [goalOverride, setGoalOverride] = useState<number | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined)
   const [avatarPreset, setAvatarPreset] = useState<number | null>(null)
@@ -114,7 +117,7 @@ export default function ProfilePage() {
   )
 
   // New = nothing mastered and no answered questions anywhere.
-  const isNew = scores != null && isNewUser({ conceptsMastered: scores.concepts_mastered, activity })
+  const isNew = scores != null && activityLoaded && isNewUser({ conceptsMastered: scores.concepts_mastered, activity })
 
   // The head, as the engine ranked it.
   //
@@ -170,21 +173,18 @@ export default function ProfilePage() {
      async function fetchData() {
       try {
         if (info) {
-          const [scoresRes, activityRes, progressRes, weaknessesRes] = await Promise.all([
-            getScores(info!.student_id).catch(() => null as Scores | null),
-            getActivity().catch(() => [] as DailyActivity[]),
-            getProgress(info!.student_id).catch(() => ({} as Record<string, ConceptProgress>)),
-            getWeaknesses().catch(() => ({ by_domain: {} } as WeaknessRes)),
-          ])
-          if (!scoresRes) {
-            // 401 or fetch failure — token likely expired (JWT_SECRET rotated) or network.
-            // Keep guest-like state so page doesn't hang on "Loading scores…"
-            setError('Session expired or scores unavailable — please sign in again')
-          }
-          setScores(scoresRes as Scores | null)
-          setActivity(activityRes)
-          setProgress(progressRes)
-          setWeaknesses(weaknessesRes)
+          // Each part of the report fills in as its own request lands; only the
+          // scores (the page's header) hold the page. A slow heatmap, progress or
+          // weakness request used to hold the whole profile on its skeleton, and
+          // the recommendation and reviews waited for all four before starting.
+          const sid = info.student_id
+          getActivity()
+            .catch(() => [] as DailyActivity[])
+            .then(a => { setActivity(a); setActivityLoaded(true) })
+          getProgress(sid).then(setProgress).catch(() => {})
+          getWeaknesses()
+            .catch(() => ({ by_domain: {} } as WeaknessRes))
+            .then(setWeaknesses)
           getDueReviews().then(r => setDueReviews(r.count)).catch(() => {})
           getEfficacy().then(setEfficacy).catch(() => {})
           // Placement from the server. The client must not infer diagnostic
@@ -204,6 +204,18 @@ export default function ProfilePage() {
               setShelf(null)
               setShelfFailed(true)
             })
+          let scoresErr: unknown = null
+          const scoresRes = await getScores(sid).catch((e: unknown) => { scoresErr = e; return null as Scores | null })
+          if (!scoresRes) {
+            // A 401 means the token is no longer good (JWT_SECRET rotated, expired);
+            // anything else is the server or the network, and Retry is the remedy.
+            const unauthorized = scoresErr instanceof Error && / 401$/.test(scoresErr.message)
+            setSessionExpired(unauthorized)
+            setError(unauthorized
+              ? 'Your session has expired. Sign in again to see your profile.'
+              : 'Could not load your profile: the server did not answer. Check that Mathua is running, then retry.')
+          }
+          setScores(scoresRes)
         } else {
           // Guest: fetch progress via ephemeral guest_id so Study answers are visible
           const guestId = getGuestId() || ''
@@ -253,7 +265,13 @@ export default function ProfilePage() {
               textAlign: 'center',
             }}
           >
-            {error}
+            <p role="alert">{error}</p>
+            <div className="mt-4 flex gap-3 justify-center">
+              {sessionExpired && (
+                <Link href="/login" className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-6 py-2 font-mono text-xs min-h-[36px] inline-flex items-center justify-center">Sign in</Link>
+              )}
+              <button type="button" onClick={() => window.location.reload()} className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue px-6 py-2 font-mono text-xs min-h-[36px] inline-flex items-center justify-center">Retry</button>
+            </div>
           </div>
         </div>
       </ProfileShell>
