@@ -578,6 +578,11 @@ func (t *Track) gradeMath(key, answer string) grader.Result {
 		if res.Unavailable {
 			return res
 		}
+		// The answer the prompt asked for: the key rounded to the places
+		// it names (fork fix).
+		if !res.Correct && p.Grading != "set" && p.Grading != "interval" && grader.RoundedAsAsked(key, typed, grader.AskedPlaces(it.Prompt)) {
+			res = grader.Result{Correct: true, Score: 1}
+		}
 		if res.Correct {
 			right++
 		} else {

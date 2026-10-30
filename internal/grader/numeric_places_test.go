@@ -96,3 +96,36 @@ func TestExpectedAnswerIsReadLikeTheTypedOne(t *testing.T) {
 		t.Error("x^2+1 refused for a LaTeX key x^{2}+1")
 	}
 }
+
+// The answer a prompt asks for, "to two decimal places", is the key rounded
+// to those places, whatever form the key is written in (fork fix: a
+// fraction key took only three or more places).
+func TestRoundedAsAsked(t *testing.T) {
+	if n := AskedPlaces("Find the critical values (to two decimal places)."); n != 2 {
+		t.Fatalf("AskedPlaces = %d", n)
+	}
+	if n := AskedPlaces("Find the weighted average, to 2 decimal places."); n != 2 {
+		t.Fatalf("AskedPlaces = %d", n)
+	}
+	if n := AskedPlaces("Find the weighted average."); n != 0 {
+		t.Fatalf("AskedPlaces = %d", n)
+	}
+	for _, c := range []struct {
+		key, answer string
+		places      int
+		want        bool
+	}{
+		{"400/448", "0.89", 2, true},
+		{"-8/448", "-0.02", 2, true},
+		{"400/15", "26.67", 2, true},
+		{"400/15", "26.66", 2, false},
+		{"400/15", "26.7", 2, false},
+		{"-8/448", "0.02", 2, false},
+		{"0.8929", "0.89", 2, true},
+		{"400/448", "0.89", 0, false},
+	} {
+		if got := RoundedAsAsked(c.key, c.answer, c.places); got != c.want {
+			t.Errorf("RoundedAsAsked(%q, %q, %d) = %v, want %v", c.key, c.answer, c.places, got, c.want)
+		}
+	}
+}

@@ -406,6 +406,45 @@ func TestMathItems(t *testing.T) {
 	}
 }
 
+// A prompt that asks for a number of decimal places is answered at those
+// places, whatever form the key takes (fork fix: 0.89 was refused for a key
+// of 400/448 "to two decimal places").
+func TestMathItemRoundedAsAsked(t *testing.T) {
+	dir := t.TempDir()
+	bank := `{"chapter":"x","title":"X","concepts":[{"id":"anki.x.r","book":{"name":"Deck","section":"","title":"Ch 5","url":""},"intro":"","items":[
+{"id":"n1c0","kind":"math","level":2,"prompt":"Use Cramer's rule (to two decimal places).","parts":[
+ {"label":"x_1","answer":"400/448","grading":"numeric","tex":"\\frac{400}{448}"},
+ {"label":"x_3","answer":"-8/448","grading":"numeric","tex":"\\frac{-8}{448}"}],"back":"","explain":""},
+{"id":"n2c0","kind":"math","level":2,"prompt":"Use Cramer's rule.","parts":[
+ {"label":"x_1","answer":"400/448","grading":"numeric","tex":"\\frac{400}{448}"}],"back":"","explain":""}]}]}`
+	if err := os.WriteFile(filepath.Join(dir, "x.json"), []byte(bank), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := LoadBank(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := &Track{Bank: b, Runner: NewRunner()}
+	c := b.Concept("anki.x.r")
+	asked := tr.Problem(c, &c.Items[0])
+	for answer, want := range map[string]bool{
+		"0.89\n-0.02":     true,
+		"400/448\n-8/448": true,
+		"0.90\n-0.02":     false,
+		"0.89\n0.02":      false,
+		"0.9\n-0.02":      false,
+	} {
+		if g := tr.Grade(asked.Answer, answer); g.Correct != want || g.Unavailable {
+			t.Errorf("%q: %+v, want correct=%v", answer, g, want)
+		}
+	}
+	// Without the instruction, two places are not the fraction.
+	plain := tr.Problem(c, &c.Items[1])
+	if g := tr.Grade(plain.Answer, "0.89"); g.Correct {
+		t.Error("0.89 accepted for 400/448 with no rounding asked")
+	}
+}
+
 func TestMathItemExpression(t *testing.T) {
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skip("python3 not available")

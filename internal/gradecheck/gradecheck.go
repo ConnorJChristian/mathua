@@ -48,7 +48,7 @@ type Failure struct {
 	Item    string
 	Kind    string
 	// Check names what was submitted: "key", "key letter", "variant",
-	// "wrong", "empty", "leak", "hint".
+	// "wrong", "empty", "leak", "asked" (the key rounded as the prompt asks).
 	Check    string
 	Answer   string
 	Feedback string
@@ -78,7 +78,7 @@ func (f Failure) Verdict() string {
 	switch f.Check {
 	case "wrong", "empty", "wrong letter":
 		return "ACCEPTED"
-	case "hint", "serve":
+	case "serve":
 		return "DEFECT"
 	case "leak":
 		// A prompt that holds its key may mean to ("which of these two
@@ -406,8 +406,19 @@ func (c *Checker) checkMath(it *pytrack.Item, p generator.Problem, opts Options,
 				sub[i] = v
 				right("variant", join(sub))
 			}
-			if h := hintMismatch(it.Prompt, pt); h != "" {
-				at("hint", pt.Answer, h)
+			// The answer the prompt asks for ("to two decimal places"): the
+			// key rounded to those places must grade right, and one unit
+			// off in the last place must not.
+			if n := grader.AskedPlaces(it.Prompt); n > 0 && pt.Grading != "set" && pt.Grading != "interval" {
+				if v, ok := constEval(strings.TrimSpace(pt.Answer)); ok {
+					r := roundHalfAway(v, n)
+					sub := append([]string(nil), keys...)
+					sub[i] = strconv.FormatFloat(r, 'f', n, 64)
+					right("asked", join(sub))
+					off := append([]string(nil), keys...)
+					off[i] = strconv.FormatFloat(r+math.Pow(10, -float64(n)), 'f', n, 64)
+					wrong("wrong", join(off))
+				}
 			}
 		}
 	}
@@ -440,52 +451,6 @@ func (c *Checker) checkMath(it *pytrack.Item, p generator.Problem, opts Options,
 		}
 	}
 }
-
-// hintMismatch reports a prompt that promises a form ("to three decimal
-// places", "as a fraction") the key does not carry.
-func hintMismatch(prompt string, pt pytrack.Part) string {
-	if pt.Grading != "numeric" {
-		return ""
-	}
-	l := strings.ToLower(prompt)
-	a := strings.TrimSpace(pt.Answer)
-	v, ok := constEval(a)
-	if !ok {
-		return ""
-	}
-	places := 0
-	if i := strings.IndexByte(a, '.'); i >= 0 {
-		places = len(a) - i - 1
-	}
-	isFrac := strings.Contains(a, "/")
-	if m := decimalsRe.FindStringSubmatch(l); m != nil {
-		want, okWant := map[string]int{"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8}[m[1]]
-		if !okWant {
-			want, _ = strconv.Atoi(m[1])
-		}
-		if want == 0 {
-			return ""
-		}
-		if isFrac {
-			// A fraction key, asked as a decimal to n places: the grader
-			// accepts a decimal within 0.0006 of a fraction key, so three
-			// places are fine; fewer are not.
-			if want < 3 {
-				return fmt.Sprintf("the prompt asks for %d decimal places but the key %q is a fraction, and a %d-place decimal is refused", want, a, want)
-			}
-			return ""
-		}
-		// The grader takes an answer with fewer places than the key only
-		// when the key is a long rounding (four or more places) and the
-		// answer has at least two (numeric.go decimalsAgree).
-		if places > want && v != math.Trunc(v) && (places < 4 || want < 2) {
-			return fmt.Sprintf("the prompt asks for %d decimal places but the key %q has %d: the rounded answer would be refused", want, a, places)
-		}
-	}
-	return ""
-}
-
-var decimalsRe = regexp.MustCompile(`(?:to|with) (one|two|three|four|\d) (?:decimal places?|decimals|places)`)
 
 // variants are spellings of a typed-math key a learner reasonably submits.
 func variants(pt pytrack.Part) []string {
@@ -584,13 +549,9 @@ func variants(pt pytrack.Part) []string {
 	return dedupe(out)
 }
 
-var wordKeyRe = regexp.MustCompile(`^[A-Za-z][A-Za-z '\-]*(\([A-Za-z][A-Za-z '\-]+\))?$`)
-
-// wordKey reports a key made of words ("increasing", "neither (inflection
-// point)"), which the graders compare as words (grader/words.go).
+// wordKey reports a key the grader compares as words (grader.IsWordKey).
 func wordKey(a string) bool {
-	a = strings.TrimSpace(a)
-	return wordKeyRe.MatchString(a) && (len(a) > 2 || strings.EqualFold(a, "no"))
+	return grader.IsWordKey(strings.TrimSpace(a))
 }
 
 func yesNo(a string) bool {
