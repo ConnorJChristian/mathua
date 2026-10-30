@@ -97,11 +97,17 @@ def mc(id, prompt, correct, wrong, explain, level=2):
             "correct": correct, "wrong": list(wrong), "explain": reflow(dedent(explain))}
 
 
-def out(id, prompt, code, explain, level=2, expected=None):
+def out(id, prompt, code, explain, level=2, expected=None, setup=""):
+    """An output question. `setup` is hidden code run before `code` when the
+    bank is built (fixtures the snippet reads, as a task's setup); it is not
+    stored, so the prompt or the concept's intro must describe what it
+    defines. The learner never runs the snippet: they predict its output."""
     item = {"id": id, "kind": "output", "level": level, "prompt": reflow(dedent(prompt)),
             "code": dedent(code), "explain": reflow(dedent(explain))}
     if expected is not None:
         item["expected"] = expected
+    if setup:
+        item["_setup"] = dedent(setup)
     return item
 
 
@@ -232,7 +238,10 @@ def run(mode, code, setup="", tests=None, cpu=20):
     if os.environ.get("MPLCONFIGDIR"):
         env["MPLCONFIGDIR"] = os.environ["MPLCONFIGDIR"]
     with tempfile.TemporaryDirectory() as work:
+        # As internal/pytrack/runner.go: temp files (openpyxl writes one per
+        # sheet it saves) land in the working folder the audit hook allows.
         env["HOME"] = work
+        env["TMPDIR"] = work
         p = subprocess.run([sys.executable, "-I", RUNNER], input=json.dumps(req).encode(),
                            capture_output=True, cwd=work, env=env, timeout=cpu + 30)
     text = p.stdout.decode("utf-8", "replace")
@@ -259,7 +268,7 @@ def check_item(cid, item):
         if len(set(labels)) != len(labels):
             errs.append("%s: two parts share a label" % where)
     if item["kind"] == "output":
-        res = run("run", item["code"])
+        res = run("run", item["code"], item.pop("_setup", ""))
         if res["error"]:
             errs.append("%s: snippet raised %s" % (where, res["error"].splitlines()[-1]))
             return item, errs
