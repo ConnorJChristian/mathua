@@ -44,6 +44,13 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 		if res, ok := gradeSetLike(gradingType, expected, answer); ok {
 			return res
 		}
+		// A one-sided inequality key ("x > 17/3") is a solution set (Q55).
+		switch gradingType {
+		case GradingNumeric, GradingSymbolic, GradingExpression:
+			if IsInequalityKey(expected) {
+				return GradeInequality(expected, answer)
+			}
+		}
 		answer = lenient(gradingType, expected, answer)
 		expected = readAlike(gradingType, expected)
 	}
