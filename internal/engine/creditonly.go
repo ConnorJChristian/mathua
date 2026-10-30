@@ -1,10 +1,6 @@
 package engine
 
 import (
-	"os"
-	"strings"
-
-	"github.com/chuma-beep/mathua/internal/mastery"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
 
@@ -68,68 +64,12 @@ func (e *Engine) creditOnlyOffCourse(studentID string, progress map[string]*stor
 	return out
 }
 
-// reviewFloorDomains reads MATHUA_REVIEW_FLOOR_DOMAINS: a comma-separated list
-// of domains below the learner's review floor (for a graduate learner,
-// "arithmetic,fractions,prealgebra,geometry"). Unset means no floor, the
-// upstream behaviour.
-func reviewFloorDomains() map[string]bool {
-	raw := strings.TrimSpace(os.Getenv("MATHUA_REVIEW_FLOOR_DOMAINS"))
-	if raw == "" {
-		return nil
-	}
-	out := map[string]bool{}
-	for _, d := range strings.Split(raw, ",") {
-		if d = strings.TrimSpace(d); d != "" {
-			out[d] = true
-		}
-	}
-	return out
-}
-
-// belowReviewFloor names the mastered topics in a floor domain: they are never
-// served as reviews, whatever the learner's own practice on them, unless a
-// followed course lists the topic itself or the learner pins it. Topics still
-// being learned are untouched, so a floor never hides something unfinished.
-func (e *Engine) belowReviewFloor(studentID string, progress map[string]*storage.ConceptProgress) map[string]bool {
-	floor := reviewFloorDomains()
-	if len(floor) == 0 {
-		return nil
-	}
-	keep := map[string]bool{}
-	for _, p := range e.Pins(studentID) {
-		keep[p.Concept] = true
-	}
-	if e.planner != nil && studentID != "" {
-		if st, err := e.repo.GetStudent(studentID); err == nil && st != nil {
-			for _, id := range ActiveCourses(st.CourseID) {
-				if c := e.planner.Course(id); c != nil {
-					for _, cid := range c.Plan {
-						keep[cid] = true
-					}
-					for _, cid := range c.Targets {
-						keep[cid] = true
-					}
-				}
-			}
-		}
-	}
-	out := map[string]bool{}
-	for cid, p := range progress {
-		if p == nil || keep[cid] || mastery.Status(p.Status) != mastery.StatusMastered {
-			continue
-		}
-		if c := e.dag.Concept(cid); c != nil && floor[c.Domain] {
-			out[cid] = true
-		}
-	}
-	return out
-}
-
-// notReviewed is every topic the engine does not serve as a review:
-// credit-only foundations off the course, and mastered topics below the floor.
+// notReviewed is every topic the engine does not serve as a review or offer
+// as new work: credit-only foundations off the course, and topics below the
+// learner's floor (floor.go).
 func (e *Engine) notReviewed(studentID string, progress map[string]*storage.ConceptProgress) map[string]bool {
 	a := e.creditOnlyOffCourse(studentID, progress)
-	b := e.belowReviewFloor(studentID, progress)
+	b := e.belowFloor(studentID, progress)
 	if len(b) == 0 {
 		return a
 	}

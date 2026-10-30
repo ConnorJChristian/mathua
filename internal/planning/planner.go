@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
@@ -41,6 +42,59 @@ type Course struct {
 	// chapters), each naming a slice of plan topics (fork change). A course
 	// without modules is shown as one unit.
 	Modules []Module `json:"modules,omitempty"`
+	// FloorDomains are the domains a learner on this course is past (fork
+	// change): their topics are never served to a learner following it, as
+	// review, new work, remediation, a mastery check or a placement question,
+	// unless a followed course lists the topic or the learner pins it.
+	// Unset, a course above school grades (grade "MA", "college", "Pro"...)
+	// takes GradeSchoolDomains and a school-grade course ("4th", "8th-9th")
+	// none. An explicit empty list switches the floor off for the course.
+	FloorDomains *[]string `json:"floor_domains,omitempty"`
+}
+
+// GradeSchoolDomains are the base corpus's grade-school domains: the default
+// floor of a course above school grades.
+var GradeSchoolDomains = []string{"arithmetic", "fractions", "prealgebra", "geometry"}
+
+// Floor is the course's floor domains (FloorDomains, or the default for its
+// grade).
+func (c *Course) Floor() []string {
+	if c == nil {
+		return nil
+	}
+	if c.FloorDomains != nil {
+		return *c.FloorDomains
+	}
+	if SchoolGrade(c.Grade) {
+		return nil
+	}
+	return GradeSchoolDomains
+}
+
+// SchoolGrade reports a K-12 grade label: "K", "4th", "8th-9th", "11th-12th".
+// A label that mentions college ("12th-college") is not one.
+func SchoolGrade(grade string) bool {
+	g := strings.ToLower(strings.TrimSpace(grade))
+	if g == "" || strings.Contains(g, "college") {
+		return false
+	}
+	if g == "k" || strings.HasPrefix(g, "k-") || strings.HasPrefix(g, "k ") {
+		return true
+	}
+	i := 0
+	for i < len(g) && g[i] >= '0' && g[i] <= '9' {
+		i++
+	}
+	if i == 0 || i > 2 {
+		return false
+	}
+	rest := g[i:]
+	for _, suf := range []string{"st", "nd", "rd", "th"} {
+		if strings.HasPrefix(rest, suf) {
+			return true
+		}
+	}
+	return false
 }
 
 // TextsFor is the course's texts in priority order for one topic: its

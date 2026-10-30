@@ -484,6 +484,7 @@ func (s *Server) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/account", logRequest(cors(s.writeLimiter.middleware(s.authMiddleware(s.handleAccountDelete)))))
 	mux.HandleFunc("/api/settings", logRequest(cors(s.authMiddleware(s.handleSettings))))
 	mux.HandleFunc("/api/pins", logRequest(cors(s.authMiddleware(s.handlePins))))
+	mux.HandleFunc("/api/floor", logRequest(cors(s.authMiddleware(s.handleFloor))))
 	mux.HandleFunc("/api/events", logRequest(cors(s.optionalAuthMiddleware(s.handleEvents))))
 	mux.HandleFunc("/api/avatar", logRequest(cors(s.writeLimiter.middleware(s.authMiddleware(s.handleAvatar)))))
 	mux.HandleFunc("/api/avatar/me", logRequest(cors(s.authMiddleware(s.handleAvatarMe))))

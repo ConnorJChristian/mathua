@@ -375,12 +375,34 @@ a review. The mastery test covers only topics studied on followed courses.
 It comes due after 50 XP, 4 topics worked and a gap since the last one: 20
 hours by default, or `MATHUA_QUIZ_GAP_HOURS` (168 for a weekly test).
 
-A review floor keeps foundations a learner is long past out of the review
-queue: `MATHUA_REVIEW_FLOOR_DOMAINS` lists domains (for example
-`arithmetic,fractions,prealgebra,geometry`) whose mastered topics are never
-served as reviews, even topics the learner practised. A topic a followed
-course lists as its own, or one the learner pins, is reviewed as usual, and
-topics still being learned are untouched. Unset, there is no floor.
+**The floor.** A learner who follows courses has a floor: the domains they
+are past. Topics below it are never served to them: not as a review, not as
+new work in Up next or the mixed session, not as remediation, not on the
+mastery check and not in a placement test. A topic a followed course lists
+as its own, or one the learner pins, is served as usual. A topic below the
+floor still counts as met where a topic above it needs it, so a floor never
+locks course material.
+
+- The floor comes from the courses. A course above school grades (`grade`
+  "MA", "college", "Pro"...) is past `arithmetic`, `fractions`, `prealgebra`
+  and `geometry`; a school-grade course ("4th", "8th-9th") is past nothing.
+  A course's `floor_domains` sets its floor (`[]` switches it off). With
+  several courses, a domain is below the floor only when every one of them
+  is past it.
+- `MATHUA_REVIEW_FLOOR_DOMAINS` overrides the course floor with its own list;
+  `none` switches the floor off. For a learner who follows no course it
+  keeps its older meaning: their mastered topics in those domains are not
+  reviewed, and nothing else changes.
+- The server logs the floor at startup, and `GET /api/floor` (also the
+  `floor` field of `GET /api/pins`) returns a learner's floor: its domains,
+  its source (`courses`, `env` or `none`) and its scope.
+- A course placement asks nothing more than two links below the course's
+  own topics (`engine.CoursePlacementDepth`); a correct answer still credits
+  everything below it. The onboarding placement of a learner who follows
+  courses is a course placement too: it no longer starts the grade-school
+  adaptive test over.
+
+`TestNoFloorTopicsForCourseLearner` holds this on the whole base graph.
 
 ### Book exercises and practice that unlocks
 

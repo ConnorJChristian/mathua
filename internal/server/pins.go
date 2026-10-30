@@ -19,7 +19,9 @@ func (s *Server) handlePins(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		pins := s.eng.Pins(studentID)
-		writeJSON(w, map[string]interface{}{"pins": s.describePins(studentID, pins)})
+		// The active floor travels with the pins: a pin is how a learner
+		// brings back a topic below it (engine/floor.go).
+		writeJSON(w, map[string]interface{}{"pins": s.describePins(studentID, pins), "floor": s.eng.Floor(studentID)})
 	case http.MethodPut:
 		var req struct {
 			Concepts []string `json:"concepts"`
@@ -37,6 +39,23 @@ func (s *Server) handlePins(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, `{"error":"method not allowed"}`, 405)
 	}
+}
+
+// GET /api/floor: the learner's active floor, the domains whose topics are
+// never served to them unless a followed course lists one or they pin it
+// (fork change; engine/floor.go). {"domains": [...], "source":
+// "courses"|"env"|"none", "scope": "all"|"reviews"|"none"}.
+func (s *Server) handleFloor(w http.ResponseWriter, r *http.Request) {
+	studentID, _ := r.Context().Value(authStudentKey{}).(string)
+	if studentID == "" {
+		writeError(w, "not authenticated", 401)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"method not allowed"}`, 405)
+		return
+	}
+	writeJSON(w, s.eng.Floor(studentID))
 }
 
 type pinView struct {

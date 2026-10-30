@@ -286,6 +286,7 @@ func main() {
 		}
 	}
 	eng := engine.New(repo, dag, reg, ll, planner)
+	log.Printf("floor: %s", engine.FloorStartupLine())
 	// The ledger began mid-week; replay the week so the first board does not
 	// erase effort earned before it existed. Idempotent by attempt key.
 	if replayed, err := eng.BackfillWeeklyXP(time.Now().UTC()); err != nil {

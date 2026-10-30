@@ -210,6 +210,15 @@ func (e *Engine) CourseTests(studentID, courseID string) (*CourseTestInfo, error
 			onPath[c.ID] = true
 		}
 	}
+	var ownAll []string
+	for _, sec := range secs {
+		if !sec.Prereq {
+			for _, c := range sec.Topics {
+				ownAll = append(ownAll, c.ID)
+			}
+		}
+	}
+	keep := e.placementKeep(studentID, ownAll, true)
 	edges := false
 	unknown := 0
 	for _, sec := range secs {
@@ -222,9 +231,11 @@ func (e *Engine) CourseTests(studentID, courseID string) (*CourseTestInfo, error
 			if !e.ObjectivelyGradable(c) {
 				continue
 			}
-			info.PlacementTopics++
-			if !hasProgress(progress[c.ID]) {
-				unknown++
+			if keep(c.ID) {
+				info.PlacementTopics++
+				if !hasProgress(progress[c.ID]) {
+					unknown++
+				}
 			}
 			if sec.Prereq {
 				continue
@@ -270,12 +281,24 @@ func (e *Engine) StartCourseDiagnostic(studentID, courseID string) (*diagnostic.
 			progress = p
 		}
 	}
+	// The test stays near the course (fork fix): never a topic below the
+	// learner's floor, and at most CoursePlacementDepth links below the
+	// course's own topics.
+	var ownAll []string
+	for _, sec := range secs {
+		if !sec.Prereq {
+			for _, c := range sec.Topics {
+				ownAll = append(ownAll, c.ID)
+			}
+		}
+	}
+	keep := e.placementKeep(studentID, ownAll, true)
 	var path []*concepts.Concept
 	var own []string
 	known := map[string]bool{}
 	for _, sec := range secs {
 		for _, c := range sec.Topics {
-			if !e.ObjectivelyGradable(c) {
+			if !e.ObjectivelyGradable(c) || !keep(c.ID) {
 				continue
 			}
 			path = append(path, c)

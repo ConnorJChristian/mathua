@@ -114,13 +114,15 @@ func (e *Engine) CourseQuizConceptsFor(studentID string, scope QuizScope) (picke
 			}
 		}
 	}
+	// Topics below the learner's floor are never on a test (floor.go).
+	below := e.belowFloor(studentID, progress)
 	var perBucket [][]cand
 	taken := map[string]bool{}
 	for _, bucket := range buckets {
 		var list []cand
 		for _, c := range bucket {
 			p := progress[c.ID]
-			if !studiedForReview(p) || taken[c.ID] {
+			if !studiedForReview(p) || taken[c.ID] || below[c.ID] {
 				continue
 			}
 			if scope.Gradable && !e.ObjectivelyGradable(c) {

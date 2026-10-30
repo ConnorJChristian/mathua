@@ -58,6 +58,14 @@ func (e *Engine) conceptSnapshotsFrom(studentID string, progress map[string]*sto
 			}
 		}
 	}
+	// A topic below the learner's floor counts as a met prerequisite, as a
+	// placement does (reachability, never mastery): the floor hides it, so
+	// it must not lock the course topics that rest on it (floor.go).
+	for cid := range e.floorMet(studentID) {
+		if s := snapshots[cid]; s != nil {
+			s.Placement = true
+		}
+	}
 	return snapshots
 }
 

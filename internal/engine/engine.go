@@ -1856,8 +1856,12 @@ func (e *Engine) remedialPrerequisites(studentID, conceptID string) []string {
 	if c == nil {
 		return nil
 	}
+	// A prerequisite below the learner's floor is never remediation for
+	// them (floor.go): a graduate learner who misses a Hoy topic is sent to
+	// the calculus it rests on, not to the prealgebra under that.
+	below := e.belowFloor(studentID, nil)
 	servable := func(id string) bool {
-		if e.dag.Concept(id) == nil || e.registry == nil {
+		if e.dag.Concept(id) == nil || e.registry == nil || below[id] {
 			return false
 		}
 		_, err := e.registry.Get(id)
@@ -2225,9 +2229,17 @@ func (e *Engine) StartGoalDiagnostic(studentID string, conceptIDs []string) (*di
 	// flashcards, code tasks) are practice, and a self-graded card or a
 	// five-minute code task is not a placement item. They still sit on the
 	// goal's path and unlock from what the test finds.
+	//
+	// For a learner who follows courses (fork fix), the test is a course
+	// placement: it never asks a topic below their floor, and reaches at
+	// most CoursePlacementDepth links below the goal topics. Re-running the
+	// onboarding placement used to start the grade-school adaptive test
+	// over for a learner already placed on a graduate course.
+	f, _ := e.learnerFloor(studentID)
+	keep := e.placementKeep(studentID, conceptIDs, f.Scope == FloorAll)
 	placeable := make([]*concepts.Concept, 0, len(path.Concepts))
 	for _, c := range path.Concepts {
-		if c.GradingType != "bank" && c.GradingType != "python" {
+		if c.GradingType != "bank" && c.GradingType != "python" && keep(c.ID) {
 			placeable = append(placeable, c)
 		}
 	}

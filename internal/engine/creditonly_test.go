@@ -186,10 +186,19 @@ func TestReviewFloorStopsPractisedFoundations(t *testing.T) {
 	}
 	upsert(storage.ConceptProgress{ConceptID: "f2", Status: "MASTERED", Attempts: 9, LastReviewed: &past, LastAttempted: &past, NextReviewDue: &past})
 
-	// Without a floor the practised foundation is due, as before.
-	t.Setenv("MATHUA_REVIEW_FLOOR_DOMAINS", "")
+	// With the floor switched off the practised foundation is due, as before.
+	t.Setenv("MATHUA_REVIEW_FLOOR_DOMAINS", "none")
 	if n, _ := e.ReviewsDue(sid); n != 1 {
 		t.Fatalf("no floor: ReviewsDue = %d, want 1 (f2)", n)
+	}
+	// Unset, a learner on a course above school grades has the course's
+	// floor (planning.GradeSchoolDomains): arithmetic is below it.
+	t.Setenv("MATHUA_REVIEW_FLOOR_DOMAINS", "")
+	if n, _ := e.ReviewsDue(sid); n != 0 {
+		t.Errorf("course floor: ReviewsDue = %d, want 0", n)
+	}
+	if f := e.Floor(sid); f.Source != "courses" || f.Scope != FloorAll {
+		t.Errorf("course floor: Floor = %+v", f)
 	}
 
 	t.Setenv("MATHUA_REVIEW_FLOOR_DOMAINS", "arithmetic, fractions")
