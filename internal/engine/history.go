@@ -33,6 +33,22 @@ type itemHistory struct {
 
 	stepOnce sync.Once
 	stepTop  int // highest scaffold step with a right generated answer
+
+	bookCap int // generator.BookStepCapper
+}
+
+// BookStepCap implements generator.BookStepCapper: the topic's book step
+// cap, from the courses that list it or MATHUA_BOOK_STEP_CAP.
+func (h *itemHistory) BookStepCap() int { return h.bookCap }
+
+// bookStepCap is a topic's book step cap: the smallest book_step_cap of the
+// courses that list it, else MATHUA_BOOK_STEP_CAP or its default.
+func (e *Engine) bookStepCap(conceptID string) int {
+	e.bookCapsOnce.Do(func() { e.bookCaps = e.planner.BookStepCaps() })
+	if v, ok := e.bookCaps[conceptID]; ok {
+		return v
+	}
+	return generator.EnvBookStepCap()
 }
 
 // stepWindow is how many recent attempts on a topic the scaffold reads.
@@ -62,14 +78,18 @@ func (h *itemHistory) GeneratedCorrectAt(step int) bool {
 // LearnerHistory is the generator.History of one learner on one topic, or
 // nil without a learner or a store.
 func (e *Engine) LearnerHistory(studentID, conceptID string) generator.History {
-	return newItemHistory(e.repo, studentID, conceptID)
+	h := newItemHistory(e.repo, studentID, conceptID)
+	if ih, ok := h.(*itemHistory); ok {
+		ih.bookCap = e.bookStepCap(conceptID)
+	}
+	return h
 }
 
 func newItemHistory(repo storage.Repository, studentID, conceptID string) generator.History {
 	if repo == nil || studentID == "" || conceptID == "" {
 		return nil
 	}
-	return &itemHistory{repo: repo, studentID: studentID, conceptID: conceptID}
+	return &itemHistory{repo: repo, studentID: studentID, conceptID: conceptID, bookCap: generator.EnvBookStepCap()}
 }
 
 func (h *itemHistory) load() {

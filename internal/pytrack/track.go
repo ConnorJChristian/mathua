@@ -286,7 +286,7 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 	// Practice climbs the scaffold steps, the book's exercises first at
 	// each (generator.Scaffold); a review or a test samples across them.
 	if !ctx.ObjectiveOnly && !ctx.Review {
-		sc := generator.Scaffold{Items: g.scaffoldItems(items, ctx)}
+		sc := generator.Scaffold{Items: g.scaffoldItems(items, ctx), BookCap: generator.BookStepCapOf(ctx.History)}
 		if p, ok := sc.Pick(ctx.Served); ok {
 			if ctx.NoProofs || ctx.NoCards {
 				p = PlainRecall(p)
@@ -295,10 +295,12 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 		}
 	}
 	// Book exercises come first in practice until each is answered correctly
-	// (generator.PickBook); tests mix them in with the rest.
+	// (generator.PickBook), or, under a book step cap, half the time once the
+	// steps are done (generator.PickBookLater); tests mix them in with the
+	// rest.
 	if !ctx.ObjectiveOnly && !ctx.NoBookRefs {
 		if idx, tried := g.pendingBooks(items, ctx); len(idx) > 0 {
-			if k := generator.PickBook(tried); k >= 0 {
+			if k := generator.PickPendingBook(tried, ctx); k >= 0 {
 				p := g.track.Problem(g.c, &items[idx[k]])
 				if ctx.NoProofs || ctx.NoCards {
 					p = PlainRecall(p)

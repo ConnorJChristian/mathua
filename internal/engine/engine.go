@@ -221,6 +221,10 @@ type Engine struct {
 	ll       *lessons.Loader
 	planner  *planning.Planner
 
+	// bookCaps are the topics' book step caps from the courses (history.go).
+	bookCapsOnce sync.Once
+	bookCaps     map[string]int
+
 	mu         sync.Mutex
 	sessions   map[string]*activeSession
 	activePath map[string]map[string]bool

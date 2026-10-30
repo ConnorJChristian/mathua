@@ -167,21 +167,32 @@ func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	// Practice climbs the scaffold steps across the topic's generated
 	// questions and the items filed under it, book exercises first at each
 	// step (generator.Scaffold); a review or a test does not.
-	if !ctx.ObjectiveOnly && !ctx.Review && len(m.picks) > 0 {
+	// later: the topic's items all have a step, so under a book step cap a
+	// book exercise left over once the steps are done (or in a review) is
+	// served in the sampling below, not ahead of it.
+	later := false
+	if !ctx.ObjectiveOnly && len(m.picks) > 0 {
 		if sc := m.scaffold(ctx); sc != nil {
-			if p, ok := sc.Pick(ctx.Served); ok {
-				return p
+			later = sc.BookCap > 0
+			if !ctx.Review {
+				if p, ok := sc.Pick(ctx.Served); ok {
+					return p
+				}
 			}
 		}
 	}
 	// Fork change: a book exercise filed under this topic comes first until
 	// the learner answers it correctly (generator.PickBook), then the
-	// topic's own book exercises, then the usual mix.
+	// topic's own book exercises, then the usual mix. Under a book step cap
+	// (generator.Scaffold.BookCap) this is reached once the steps are done,
+	// and a leftover exercise comes half the time (generator.PickBookLater).
 	if !ctx.NoBookRefs && !ctx.ObjectiveOnly {
-		if p, ok := m.pendingBook(ctx); ok {
+		if p, ok := m.pendingBook(ctx, later); ok {
 			return p
 		}
-		if generator.HasBookPending(m.base, ctx) {
+		// Under a book step cap the base's leftover exercises are served in
+		// its own sampling (generator.PickBookLater), not ahead of the cards.
+		if !later && generator.HasBookPending(m.base, ctx) {
 			return m.base.Generate(ctx)
 		}
 	}
@@ -217,7 +228,7 @@ func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 // items filed under it. Nil when a filed item cannot say its step (a deck
 // that is not a question bank): the topic then keeps the order below.
 func (m *mixGen) scaffold(ctx generator.GeneratorContext) *generator.Scaffold {
-	sc := &generator.Scaffold{Share: m.share}
+	sc := &generator.Scaffold{Share: m.share, BookCap: generator.BookStepCapOf(ctx.History)}
 	if src, ok := m.base.(generator.ScaffoldSource); ok {
 		sc.Items = append(sc.Items, src.ScaffoldItems(ctx)...)
 	} else {
@@ -306,8 +317,9 @@ func bookItem(gi generator.GatedItems, item string, ctx generator.GeneratorConte
 }
 
 // pendingBook serves the first filed book exercise the learner has not
-// answered correctly (generator.PickBook).
-func (m *mixGen) pendingBook(ctx generator.GeneratorContext) (generator.Problem, bool) {
+// answered correctly (generator.PickBook); later, only half the time
+// (generator.PickBookLater).
+func (m *mixGen) pendingBook(ctx generator.GeneratorContext, later bool) (generator.Problem, bool) {
 	var picks []cardPick
 	var tried []bool
 	for _, pk := range m.picks {
@@ -321,6 +333,9 @@ func (m *mixGen) pendingBook(ctx generator.GeneratorContext) (generator.Problem,
 		}
 	}
 	k := generator.PickBook(tried)
+	if later {
+		k = generator.PickBookLater(tried)
+	}
 	if k < 0 {
 		return generator.Problem{}, false
 	}

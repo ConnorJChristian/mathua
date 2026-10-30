@@ -50,6 +50,52 @@ type Course struct {
 	// takes GradeSchoolDomains and a school-grade course ("4th", "8th-9th")
 	// none. An explicit empty list switches the floor off for the course.
 	FloorDomains *[]string `json:"floor_domains,omitempty"`
+	// BookStepCap is how many of a topic's book exercises at one scaffold
+	// step a learner tries before the step can be done (fork change,
+	// generator.Scaffold): the rest are served later. Unset takes
+	// MATHUA_BOOK_STEP_CAP or its default, 3; 0 switches the cap off for the
+	// course's topics. A topic on several courses takes the smallest set cap.
+	BookStepCap *int `json:"book_step_cap,omitempty"`
+}
+
+// BookStepCaps maps each topic a course with a book_step_cap lists (in its
+// plan, targets or modules) to that cap, the smallest where courses
+// disagree, with 0 (no cap) only when every such course switches it off.
+func (p *Planner) BookStepCaps() map[string]int {
+	out := map[string]int{}
+	if p == nil {
+		return out
+	}
+	for _, c := range p.courses {
+		if c.BookStepCap == nil {
+			continue
+		}
+		v := *c.BookStepCap
+		if v < 0 {
+			v = 0
+		}
+		set := func(id string) {
+			old, ok := out[id]
+			switch {
+			case !ok, old == 0:
+				out[id] = v
+			case v > 0 && v < old:
+				out[id] = v
+			}
+		}
+		for _, id := range c.Plan {
+			set(id)
+		}
+		for _, id := range c.Targets {
+			set(id)
+		}
+		for _, m := range c.Modules {
+			for _, id := range m.Topics {
+				set(id)
+			}
+		}
+	}
+	return out
 }
 
 // GradeSchoolDomains are the base corpus's grade-school domains: the default

@@ -105,3 +105,92 @@ func TestScaffold_GeneratedFillsAStep(t *testing.T) {
 		t.Error("step and difficulty disagree with the Learn ladder (0.4, +0.15)")
 	}
 }
+
+// A topic with nine book exercises at one step moves on after three tried
+// and a right answer (BookCap 3); the six left are no longer served first.
+// Without a cap every one of them comes before the next step.
+func TestScaffold_BookStepCap(t *testing.T) {
+	build := func(tried int, cap int) *Scaffold {
+		var items []ScaffoldItem
+		for i := 1; i <= 9; i++ {
+			items = append(items, item(fmt.Sprintf("ex %d", i), 2, true, i <= tried, i == 1 && tried > 0))
+		}
+		items = append(items, item("a1", 1, false, true, true), item("w3", 3, false, false, false))
+		return &Scaffold{Items: items, BookCap: cap}
+	}
+	// Two tried: the third exercise, in book order.
+	if p, _ := build(2, 3).Pick(nil); p.Question != "ex 3" {
+		t.Fatalf("two of three tried: the next book exercise, got %q", p.Question)
+	}
+	// Three tried, one right: step 2 is done, the learner is at step 3.
+	sc := build(3, 3)
+	if !sc.Done(2) || sc.Frontier() != 3 {
+		t.Fatalf("three tried and one right: step 2 done, frontier %d", sc.Frontier())
+	}
+	for i := 0; i < 20; i++ {
+		if p, _ := sc.Pick(nil); p.Question != "w3" {
+			t.Fatalf("capped: the step-3 question, got %q", p.Question)
+		}
+	}
+	// No cap: all nine before step 3.
+	if p, _ := build(3, 0).Pick(nil); p.Question != "ex 4" {
+		t.Errorf("no cap: the fourth exercise, got %q", p.Question)
+	}
+	// Three tried, none right: the step stays open, and the untried
+	// exercises join the step's untried pool instead of coming first.
+	var items []ScaffoldItem
+	for i := 1; i <= 9; i++ {
+		items = append(items, item(fmt.Sprintf("ex %d", i), 2, true, i <= 3, false))
+	}
+	items = append(items, item("a1", 1, false, true, true), item("case", 2, false, false, false), item("w3", 3, false, false, false))
+	open := &Scaffold{Items: items, BookCap: 3}
+	if open.Done(2) || open.Frontier() != 2 {
+		t.Fatalf("no right answer at step 2: still open")
+	}
+	seen := map[string]bool{}
+	for i := 0; i < 200; i++ {
+		p, _ := open.Pick(nil)
+		seen[p.Question] = true
+		if p.Question == "w3" {
+			t.Fatal("step 3 before a right answer at step 2")
+		}
+	}
+	if !seen["case"] || !seen["ex 9"] {
+		t.Errorf("capped step: the bank's case and the untried exercises share the pool, saw %v", seen)
+	}
+	// A step with no more exercises than the cap still needs them all.
+	few := &Scaffold{Items: []ScaffoldItem{item("a1", 1, false, true, true), item("b1", 1, true, true, false), item("b2", 1, true, false, false), item("a2", 2, false, false, false)}, BookCap: 3}
+	if p, _ := few.Pick(nil); p.Question != "b2" {
+		t.Errorf("two exercises under a cap of three: both tried first, got %q", p.Question)
+	}
+}
+
+func TestEnvBookStepCap(t *testing.T) {
+	t.Setenv(BookStepCapEnv, "")
+	if EnvBookStepCap() != DefaultBookStepCap {
+		t.Errorf("unset: default %d, got %d", DefaultBookStepCap, EnvBookStepCap())
+	}
+	t.Setenv(BookStepCapEnv, "5")
+	if EnvBookStepCap() != 5 || BookStepCapOf(nil) != 5 {
+		t.Error("MATHUA_BOOK_STEP_CAP=5")
+	}
+	t.Setenv(BookStepCapEnv, "0")
+	if EnvBookStepCap() != 0 {
+		t.Error("0 switches the cap off")
+	}
+	// Under a cap, a leftover exercise comes back half the time, the
+	// untried one first.
+	hits := 0
+	for i := 0; i < 400; i++ {
+		switch PickBookLater([]bool{true, false}) {
+		case 1:
+			hits++
+		case -1:
+		default:
+			t.Fatal("the untried exercise, or nothing")
+		}
+	}
+	if hits < 120 || hits > 280 {
+		t.Errorf("about half the time, got %d of 400", hits)
+	}
+}

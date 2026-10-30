@@ -481,7 +481,7 @@ record: a bank item's answer key names the item (`math:<concept>#<item>`,
 Serving rules:
 
 - In practice, a topic serves its questions in scaffold order (below), the
-  book's exercises first within each step. An exercise you missed comes
+  book's exercises first within each step, up to the book step cap. An exercise you missed comes
   back about half the time, so the rest of the topic is not crowded out.
   The practice versions that unlock after an exercise join its step once
   it has a correct answer.
@@ -508,9 +508,12 @@ practice first, then worked cases, then word problems and applications.
 Rules (`internal/generator/scaffold.go`):
 
 1. The learner works the lowest step that is not done. A step is done when
-   one of its questions (or a harder one) has a correct answer and every
-   book exercise at the step has been tried. No step-3 question comes
-   before a correct answer at step 1, unless the topic has only step 3.
+   one of its questions (or a harder one) has a correct answer and the
+   learner has tried the step's book exercises, up to the **book step cap**
+   (default 3): a topic with nine book exercises at one step moves on after
+   three have been tried and something at the step is right. No step-3
+   question comes before a correct answer at step 1, unless the topic has
+   only step 3.
 2. Within a step the book comes first: its exercises (`book_ref`) in book
    order, then the bank's other items (untried ones first, at random, so
    variants interleave) and the topic's generated questions at that step's
@@ -530,6 +533,19 @@ Rules (`internal/generator/scaffold.go`):
 5. Once every step is done, practice samples across the steps by
    difficulty, and so does every review: a review is a check on the whole
    topic, not a climb.
+6. Book exercises past the cap are not dropped. Once the cap's worth at a
+   step have been tried they stop coming first and join the step's untried
+   items; after the steps are done, and in reviews, a leftover exercise is
+   served about half the time (the next untried one in book order, else a
+   missed one), so the rest of the topic is not crowded out.
+
+The cap is `MATHUA_BOOK_STEP_CAP` (default 3; `0` switches it off, so every
+book exercise at a step comes before the next step, as before). A course in
+a `courses.json` can set its own with `"book_step_cap": N` for the topics it
+lists (plan, targets and modules); a topic on several courses takes the
+smallest cap they set, and `0` turns the cap off for that course's topics.
+Book proofs (`proofs/*.json` with a `book_ref`) are not scaffold items and
+still come first until proved.
 
 Placement and tests are unchanged: they take objective questions from any
 step.

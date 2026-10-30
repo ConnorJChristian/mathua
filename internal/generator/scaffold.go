@@ -1,6 +1,10 @@
 package generator
 
-import "math/rand"
+import (
+	"math/rand"
+	"os"
+	"strconv"
+)
 
 // Fork change: the order a lesson serves its questions in (FORK.md, "The
 // order of practice inside a topic").
@@ -14,8 +18,10 @@ import "math/rand"
 //  3. applications: word problems, economic settings, proofs (level 3).
 //
 // The learner works the lowest step not yet done; a step is done once one
-// of its questions has a right answer and every book exercise at it has
-// been tried. Within a step the book's own exercises come first, in book
+// of its questions has a right answer and the learner has tried the step's
+// book exercises, up to the book step cap (BookStepCap, default 3): a
+// topic with nine book exercises at a step moves on after three, and the
+// rest are served later, in the sampling once every step is done. Within a step the book's own exercises come first, in book
 // order, then the bank's other items (untried ones first, at random, so
 // variants interleave) and the topic's generated questions. An item that
 // unlocks after another is never in the list until it is unlocked. The
@@ -72,6 +78,42 @@ type StepHistory interface {
 	GeneratedCorrectAt(step int) bool
 }
 
+// DefaultBookStepCap is how many book exercises a learner tries at a
+// scaffold step before the step can be done, when no course sets one.
+const DefaultBookStepCap = 3
+
+// BookStepCapEnv overrides DefaultBookStepCap for every topic; 0 or a
+// negative number switches the cap off (every book exercise at a step comes
+// before the next step).
+const BookStepCapEnv = "MATHUA_BOOK_STEP_CAP"
+
+// EnvBookStepCap is the cap MATHUA_BOOK_STEP_CAP sets, or the default. A
+// value of 0 or below means no cap and is returned as 0.
+func EnvBookStepCap() int {
+	if v, err := strconv.Atoi(os.Getenv(BookStepCapEnv)); err == nil {
+		if v < 0 {
+			return 0
+		}
+		return v
+	}
+	return DefaultBookStepCap
+}
+
+// BookStepCapper is implemented by a History that knows the cap for its
+// topic (a course's book_step_cap, engine/history.go).
+type BookStepCapper interface {
+	BookStepCap() int
+}
+
+// BookStepCapOf is the cap for the topic h is about: its own, when it
+// knows one, else MATHUA_BOOK_STEP_CAP or the default. 0 means no cap.
+func BookStepCapOf(h History) int {
+	if c, ok := h.(BookStepCapper); ok {
+		return c.BookStepCap()
+	}
+	return EnvBookStepCap()
+}
+
 // ScaffoldSource is a bank generator that lists its servable items for a
 // learner as scaffold steps (internal/pytrack).
 type ScaffoldSource interface {
@@ -105,6 +147,34 @@ type Scaffold struct {
 	// Share is the chance a bank item is served rather than a generated
 	// question when a step has both.
 	Share float64
+	// BookCap is how many book exercises at a step the learner tries before
+	// the step can be done and the rest stop coming first (BookStepCapOf);
+	// 0 is no cap: every one of them comes before the next step.
+	BookCap int
+}
+
+// bookTried is how many book exercises at a step have been tried, and how
+// many there are.
+func (s *Scaffold) bookTried(step int) (tried, total int) {
+	for _, it := range s.Items {
+		if it.Book && it.Step == step {
+			total++
+			if it.Attempted {
+				tried++
+			}
+		}
+	}
+	return tried, total
+}
+
+// booksMet reports whether the learner has tried enough of a step's book
+// exercises: all of them, or BookCap of them when a cap is set.
+func (s *Scaffold) booksMet(step int) bool {
+	tried, total := s.bookTried(step)
+	if s.BookCap > 0 && total > s.BookCap {
+		return tried >= s.BookCap
+	}
+	return tried >= total
 }
 
 // has reports which steps have something to serve.
@@ -120,18 +190,20 @@ func (s *Scaffold) has() [4]bool {
 }
 
 // Done reports whether a step is done: a right answer at it or above, and
-// every book exercise at it tried.
+// the step's book exercises tried, up to BookCap of them.
 func (s *Scaffold) Done(step int) bool {
-	right := s.GeneratedDone[step]
+	if !s.booksMet(step) {
+		return false
+	}
+	if s.GeneratedDone[step] {
+		return true
+	}
 	for _, it := range s.Items {
 		if it.Correct && it.Step >= step {
-			right = true
-		}
-		if it.Book && it.Step == step && !it.Attempted {
-			return false
+			return true
 		}
 	}
-	return right
+	return false
 }
 
 // Frontier is the lowest step with something to serve that is not done,
@@ -168,7 +240,9 @@ func (s *Scaffold) Pick(served map[string]bool) (Problem, bool) {
 // pickAt serves one question at a step that this request has not served:
 // the book's exercises first, in book order (an untried one, or a missed
 // one half the time, as generator.PickBook), then the bank's other items,
-// untried first and at random, and the generated questions.
+// untried first and at random, and the generated questions. Once BookCap
+// of the step's book exercises have been tried, the untried rest no longer
+// come first: they join the step's untried items.
 func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 	try := func(it ScaffoldItem) (Problem, bool) {
 		p, ok := it.Serve()
@@ -178,11 +252,18 @@ func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 		return p, true
 	}
 	var untriedBooks, missedBooks, fresh, others []ScaffoldItem
+	capped := s.BookCap > 0
+	if capped {
+		tried, _ := s.bookTried(step)
+		capped = tried >= s.BookCap
+	}
 	for _, it := range s.Items {
 		if it.Step != step {
 			continue
 		}
 		switch {
+		case it.Book && !it.Attempted && capped:
+			fresh = append(fresh, it)
 		case it.Book && !it.Correct && !it.Attempted:
 			untriedBooks = append(untriedBooks, it)
 		case it.Book && !it.Correct:

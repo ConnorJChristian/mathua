@@ -163,6 +163,32 @@ func PickBook(attempted []bool) int {
 	return -1
 }
 
+// PickBookLater is PickBook for a topic whose scaffold steps are done under
+// a book step cap (scaffold.go): the book exercises the cap let the learner
+// skip are served in the topic's sampling, not ahead of it. Half the time
+// one pending exercise is served (the first untried one in book order, else
+// a missed one at random); otherwise -1, serve something else.
+func PickBookLater(attempted []bool) int {
+	if len(attempted) == 0 || rand.Intn(2) != 0 {
+		return -1
+	}
+	for i, a := range attempted {
+		if !a {
+			return i
+		}
+	}
+	return rand.Intn(len(attempted))
+}
+
+// PickPendingBook chooses with PickBook, or with PickBookLater when ctx's
+// topic has a book step cap.
+func PickPendingBook(attempted []bool, ctx GeneratorContext) int {
+	if BookStepCapOf(ctx.History) > 0 {
+		return PickBookLater(attempted)
+	}
+	return PickBook(attempted)
+}
+
 // QuestionKey is the part of a served question that identifies it across
 // serves: without the card marker the engine puts before a card served on
 // another topic, and without a book header, whose availability note changes
