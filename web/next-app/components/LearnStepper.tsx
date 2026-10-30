@@ -14,7 +14,7 @@ import { track, questionHash, answerStyle } from '../lib/events'
 import { getLessonKPs, getLessonPractice, getLessonReadiness, submitStudyAnswer, getProgress, getErrorStatus, type EligibilityPrereq, type KpInfo, type PracticeQuestion, type ReadinessRes, type ConceptProgress, type ProofReport as ProofReportData } from '../lib/api'
 import { getUserInfo } from '../lib/auth'
 import { upcomingLocked, hrefConceptId, type Shelf, type LockedSuccessor } from '../lib/nextUp'
-import { backTarget, courseReturnLabel, learnConceptPath, pushReturn, studyConceptPath, withReturnStack, type ReturnEntry } from '../lib/learnReturn'
+import { backTarget, courseReturnLabel, homeTarget, learnConceptPath, pushReturn, studyConceptPath, withReturnStack, type ReturnEntry } from '../lib/learnReturn'
 import { fetchShelf } from '../lib/recommendations'
 import { REQUIRED_IN_A_ROW } from '../lib/progression'
 import { formatForGradingType, type AnswerFormat } from '../lib/answerFormat'
@@ -220,6 +220,8 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   // Where "back" goes, and the label a learner reads. The label is resolved from the concept the
   // return path names, never printed as the raw id a storage key would show.
   const back = backTarget(returnStack)
+  // The home exit: the course this topic was opened from, or the profile (Q64).
+  const home = homeTarget(returnStack)
   const returnTo = returnStack.length > 0 ? hrefConceptId(returnStack[0]) : null
   // A learner reading "← Back to frac.add.diff" is reading a storage key.
   const returnToLabel = (returnStack.length > 0 ? courseReturnLabel(returnStack[0]) : null) ?? (returnTo ? (concepts.find(c => c.id === returnTo)?.label ?? returnTo) : null)
@@ -729,8 +731,8 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           <Link href="/domains" className="border border-mathua-border px-4 py-2 font-mono text-[11px] text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue">
             ← Choose another topic
           </Link>
-          <Link href="/profile" className="border border-mathua-border px-4 py-2 font-mono text-[11px] text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue">
-            Back to Profile
+          <Link href={home.href} className="border border-mathua-border px-4 py-2 font-mono text-[11px] text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue">
+            {home.label}
           </Link>
         </div>
         {readable.length > 0 && (
@@ -888,7 +890,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   {prerequisites.slice(0, 2).map(p => (
                     <Link key={p.conceptId} href={withReturnStack(studyConceptPath(p.conceptId), prereqStack)} className="border border-mathua-border px-4 py-2 font-mono text-[11px] text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue inline-flex items-center">Study {p.title}</Link>
                   ))}
-                  <Link href="/profile" className="border border-mathua-border px-4 py-2 font-mono text-[11px] text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue inline-flex items-center">Other task →</Link>
+                  <Link href={home.href} className="border border-mathua-border px-4 py-2 font-mono text-[11px] text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue inline-flex items-center">Other task →</Link>
                 </div>
               </div>
             )
@@ -912,8 +914,9 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   {canContinue && nextShelf && (
                     <Link href={nextShelf.next.href} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint px-5 py-2 font-mono text-xs inline-flex items-center min-h-[40px]">{nextShelf.next.badge}: {nextShelf.next.title} →</Link>
                   )}
-                  {!nextLoading && !nextShelf && (
-                    <Link href="/profile" className="border border-mathua-border px-5 py-2 font-mono text-xs text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue inline-flex items-center min-h-[40px]">Back to Profile</Link>
+                  {/* The home exit, unless the back link above already goes there (Q64). */}
+                  {!nextLoading && !nextShelf && back?.href !== home.href && (
+                    <Link href={home.href} className="border border-mathua-border px-5 py-2 font-mono text-xs text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue inline-flex items-center min-h-[40px]">{home.label}</Link>
                   )}
                   <button type="button" onClick={practiceAgain} className="border border-mathua-border px-5 py-2 font-mono text-xs text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue inline-flex items-center min-h-[40px]">Practice again</button>
                 </div>

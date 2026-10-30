@@ -165,6 +165,24 @@ describe('LearnStepper done state (PR5)', () => {
     expect(links.some((h) => h.includes(`/learn?concept=${encodeURIComponent(CID)}`))).toBe(false)
   }, 15000)
 
+  // Q64: a topic opened from a course ended on "← Back to the course" beside
+  // "Back to Profile". The course is the home exit; it is offered once.
+  it('ends a topic opened from a course with the course, not the profile', async () => {
+    vi.mocked(getNext).mockRejectedValue(new Error('offline'))
+    render(<LearnStepper conceptId={CID} returnStack={['/course?id=plan.econ5153&tab=modules']} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Next →' }))
+    expect(await screen.findByText('2 + 3 = ?')).toBeTruthy()
+    await answerCurrent('5')
+    expect(await screen.findByText('4 + 1 = ?')).toBeTruthy()
+    await answerCurrent('5')
+
+    expect(await screen.findByText(/Session done/)).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Back to Profile' })).toBeNull()
+    const toCourse = screen.getAllByRole('link').filter((l) => (l.getAttribute('href') ?? '').startsWith('/course?id=plan.econ5153'))
+    expect(toCourse).toHaveLength(1)
+  }, 15000)
+
   it('guards same-concept heads by id even when query params differ', () => {
     expect(headConceptId(`/learn?concept=${CID}&seed=42&difficulty=0.7&exclude=a`)).toBe(CID)
     expect(headConceptId('/learn?concept=other.id')).toBe('other.id')

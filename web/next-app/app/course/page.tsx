@@ -275,7 +275,7 @@ function CourseContent() {
                 <section className="border border-mathua-border bg-mathua-surface p-4 font-mono text-xs text-mathua-secondary">Every open topic in this course is mastered. Reviews keep them that way.</section>
               )}
               {view.reviews_due > 0 && (
-                <Link href="/review" className="block border border-mathua-border bg-mathua-surface p-4 font-mono text-xs text-mathua-primary hover:border-mathua-blue">
+                <Link href={withReturnStack('/review', [courseReturnPath(view.id, tab)])} className="block border border-mathua-border bg-mathua-surface p-4 font-mono text-xs text-mathua-primary hover:border-mathua-blue">
                   {view.reviews_due} topic{view.reviews_due === 1 ? '' : 's'} in this course {view.reviews_due === 1 ? 'is' : 'are'} due a review →
                 </Link>
               )}

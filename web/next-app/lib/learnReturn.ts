@@ -98,3 +98,14 @@ export function courseReturnLabel(href: string): string | null {
   const tab = new URLSearchParams(href.slice('/course?'.length)).get('tab')
   return tab === 'modules' ? 'course modules' : tab ? `the course (${tab})` : 'the course'
 }
+
+/**
+ * Where the "home" exit of a practice or review screen goes (Q64): the course the learner came
+ * from when the return stack holds one, the profile otherwise. A topic opened from a course
+ * offered "Back to Profile" on its locked view and at the end of practice, beside "← Back to the
+ * course", and review end screens went to the profile only.
+ */
+export function homeTarget(stack: ReturnEntry[]): { href: string; label: string } {
+  const course = stack.find((e) => e.startsWith('/course?'))
+  return course ? { href: course, label: 'Back to the course' } : { href: '/profile', label: 'Back to Profile' }
+}

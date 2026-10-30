@@ -10,6 +10,7 @@ import BriefingCard, { REVIEW_BRIEFING } from '../../components/BriefingCard'
 import ReportButton from '../../components/ReportButton'
 import { getDueReviews, startReviewSession, submitReviewAnswer, type ProofReport as ProofReportData } from '../../lib/api'
 import ProofReport from '../../components/ProofReport'
+import { useReturnHome } from '../../hooks/useReturnHome'
 import { formatForGradingType, type AnswerFormat } from '../../lib/answerFormat'
 import BookRefPanel from '../../components/BookRefPanel'
 import ChoiceOptions from '../../components/ChoiceOptions'
@@ -25,6 +26,8 @@ type Phase = 'loading' | 'intro' | 'run' | 'done'
 // (POST /api/reviews/session → /api/reviews/answer). Self-contained so the
 // review page only mounts it.
 export default function ReviewHost() {
+  // Where the end screens send the learner: the course they came from, or the profile (Q64).
+  const home = useReturnHome()
   const [phase, setPhase] = useState<Phase>('intro')
   const [loading, setLoading] = useState(false)
 
@@ -231,7 +234,7 @@ export default function ReviewHost() {
                   exact confusion this app is trying to avoid, so both exits go
                   back to doing. */}
               <Link href="/learn" className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-8 text-sm inline-flex items-center">Answer more questions →</Link>
-              <Link href="/profile" className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">Back to Profile →</Link>
+              <Link href={home.href} className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">{home.label} →</Link>
             </div>
           </>
         ) : (
@@ -240,7 +243,7 @@ export default function ReviewHost() {
             <p className="font-mono text-sm text-mathua-secondary mt-4">Reviews record progress like practice{reviewXp > 0 ? ` · +${reviewXp} XP this run` : ''}.</p>
             <div className="mt-6 flex gap-3 justify-center">
               <button type="button" onClick={restartReview} className="border border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint rounded-none h-12 px-8 text-sm">Review again →</button>
-              <Link href="/profile" className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">Back to Profile →</Link>
+              <Link href={home.href} className="border border-mathua-border text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue rounded-none h-12 px-8 text-sm inline-flex items-center">{home.label} →</Link>
             </div>
             <div className="mt-3 text-center">
               <Link href="/history" className="font-mono text-xs text-mathua-muted hover:text-mathua-primary">Every question you&apos;ve answered →</Link>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { backTarget, courseReturnLabel, courseReturnPath, parseReturnStack, withReturnStack } from '../lib/learnReturn'
+import { backTarget, courseReturnLabel, courseReturnPath, homeTarget, parseReturnStack, withReturnStack } from '../lib/learnReturn'
 
 // A topic opened from a course page goes back to that page (and tab), not to the profile.
 describe('course return targets', () => {
@@ -18,5 +18,17 @@ describe('course return targets', () => {
 
   it('omits the tab for the home tab', () => {
     expect(courseReturnPath('plan.marx', 'home')).toBe('/course?id=plan.marx')
+  })
+})
+
+// Q64: the home exit of practice and review screens is the course a topic
+// was opened from, wherever it sits in the stack, and the profile otherwise.
+describe('homeTarget', () => {
+  it('goes to the course in the stack', () => {
+    expect(homeTarget(['/learn?concept=a', '/course?id=plan.econ5153&tab=modules'])).toEqual({ href: '/course?id=plan.econ5153&tab=modules', label: 'Back to the course' })
+  })
+  it('goes to the profile without one', () => {
+    expect(homeTarget([])).toEqual({ href: '/profile', label: 'Back to Profile' })
+    expect(homeTarget(['/learn?concept=a'])).toEqual({ href: '/profile', label: 'Back to Profile' })
   })
 })
