@@ -1481,8 +1481,13 @@ export interface ReadinessRes {
 	prerequisites?: EligibilityPrereq[]
 }
 
+export const READINESS_TIMEOUT_MS = 6000
+
 export async function getLessonReadiness(conceptId: string): Promise<ReadinessRes> {
-	const res = await authedFetch(`${API_BASE}/api/lessons/${encodeURIComponent(conceptId)}/readiness`, { cache: 'no-store' })
+	// A short leash, no retries: the questions wait on this answer, and the
+	// practice endpoint enforces the gate anyway, so a readiness check that
+	// hangs is treated as one that failed (the caller falls back to ready).
+	const res = await authedFetch(`${API_BASE}/api/lessons/${encodeURIComponent(conceptId)}/readiness`, { cache: 'no-store', timeoutMs: READINESS_TIMEOUT_MS, retryAttempts: 0 })
 	// Fail soft, in the direction that matters: a blip must not block a learner
 	// whose prerequisites are satisfied. The practice endpoint still refuses a
 	// genuinely locked topic, so the server remains the authority.
