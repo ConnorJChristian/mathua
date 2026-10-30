@@ -942,7 +942,7 @@ func (g *convexityGen) Generate(ctx generator.GeneratorContext) generator.Proble
 		{"Is f(x)=x² convex or concave?", "convex", "f''(x)=2 > 0, so f(x)=x² is convex everywhere."},
 		{"Is f(x)=-x² convex or concave?", "concave", "f''(x)=-2 < 0, so f(x)=-x² is concave everywhere."},
 		{"Is f(x)=x³ convex or concave at x=0?", "neither (inflection point)", "f''(x)=6x, so f''(0)=0 and the concavity changes sign at 0. x=0 is an inflection point."},
-		{"What is an inflection point?", "a point where concavity changes", "An inflection point is where the function changes from convex to concave or vice versa."},
+		{"What is an inflection point?", "a point where concavity changes (where concavity changes/where the concavity changes sign)", "An inflection point is where the function changes from convex to concave or vice versa."},
 	}
 	e := table[rand.Intn(len(table))]
 	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
@@ -1226,7 +1226,8 @@ func (g *lhopitalGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		{"Find \\(\\lim_{x \\to 0} \\frac{\\sin(x)}{x}\\) using L'Hôpital's rule.", "1", "Both numerator and denominator \\(\\to 0\\). L'Hôpital: \\(\\lim_{x \\to 0} \\frac{\\cos(x)}{1} = 1\\)."},
 		{"Find \\(\\lim_{x \\to 0} \\frac{e^{x}-1}{x}\\) using L'Hôpital's rule.", "1", "Both \\(\\to 0\\). L'Hôpital: \\(\\lim_{x \\to 0} \\frac{e^{x}}{1} = 1\\)."},
 		{"Find \\(\\lim_{x \\to \\infty} \\frac{x}{e^{x}}\\) using L'Hôpital's rule.", "0", "Both \\(\\to \\infty\\). L'Hôpital: \\(\\lim_{x \\to \\infty} \\frac{1}{e^{x}} = 0\\)."},
-		{"What condition is required for L'Hôpital's rule? (yes/no: a 0/0 or infinity/infinity form)", "yes", "L'Hôpital's rule applies to 0/0 or infinity/infinity indeterminate forms: both numerator and denominator tend to 0 or to plus/minus infinity."},
+		// Q56: the yes/no items below used to print their own answer ("(yes/no: <answer>)").
+		{"Can L'Hôpital's rule be applied directly to \\(\\lim_{x \\to 0} \\frac{x+1}{x}\\)? (yes/no)", "no", "L'Hôpital's rule needs a 0/0 or infinity/infinity form. Here the numerator tends to 1, not 0, so the rule does not apply (the one-sided limits are plus and minus infinity)."},
 		{"Is x^2*sin(1/x)/sin(x) as x→0 a 0/0 form? (yes/no)", "yes", "Both numerator and denominator tend to 0, so it is 0/0; L'Hôpital applies in principle but the derivatives oscillate, so the squeeze theorem is the practical tool."},
 	}
 	e := table[rand.Intn(len(table))]
@@ -1240,7 +1241,7 @@ func (g *bigOGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		q, a, e string
 	}
 	table := []entry{
-		{"What does f(x)=O(g(x)) as x→∞ mean? (yes/no: |f| bounded by M|g| for large x)", "yes", "f=O(g) means there exists M>0 and x₀ such that |f(x)|≤M·|g(x)| for all x>x₀."},
+		{"Is \\(e^{x}=O(x^{10})\\) as \\(x\\to\\infty\\)? (yes/no)", "no", "f=O(g) means there exist M>0 and x₀ with |f(x)|≤M·|g(x)| for all x>x₀. But \\(e^{x}/x^{10}\\to\\infty\\), so no constant M works."},
 		{"Is x²=O(x³) as x→∞?", "yes", "x² ≤ 1·x³ for x≥1, so x²=O(x³)."},
 		{"Is x³=O(x²) as x→∞?", "no", "x³/x² = x → ∞, so no constant M can bound x³ by x² for all large x."},
 		{"Is sin(x)=O(1) as x→∞?", "yes", "|sin(x)| ≤ 1, so sin(x)=O(1). In fact, any bounded function is O(1)."},
@@ -1257,10 +1258,10 @@ func (g *littleOGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 		q, a, e string
 	}
 	table := []entry{
-		{"What does f(x)=o(g(x)) as x→∞ mean? (yes/no: f(x)/g(x) tends to 0)", "yes", "f=o(g) means that f(x)/g(x) → 0 as x → ∞ (f grows strictly slower than g)."},
+		{"Is \\(\\ln x = o(x)\\) as \\(x\\to\\infty\\)? (yes/no)", "yes", "f=o(g) means f(x)/g(x) → 0 as x → ∞. Here \\(\\ln x / x \\to 0\\) (L'Hôpital: \\(1/x \\to 0\\)), so \\(\\ln x = o(x)\\)."},
 		{"Is x²=o(x³) as x→∞?", "yes", "x²/x³ = 1/x → 0, so x²=o(x³)."},
 		{"Is x³=o(x³) as x→∞?", "no", "x³/x³ = 1 → 1, not 0, so x³≠o(x³). However, x³=O(x³)."},
-		{"What is the difference between O and o? (yes/no: o needs ratio → 0, O allows any bounded ratio)", "yes", "f=O(g) means |f|≤M·|g| for large x. f=o(g) means f/g → 0, which is a stricter requirement: o requires ratio → 0; O allows any bounded ratio."},
+		{"\\(3x^{2}=O(x^{2})\\) as \\(x\\to\\infty\\). Is \\(3x^{2}=o(x^{2})\\) too? (yes/no)", "no", "f=O(g) allows any bounded ratio |f/g|≤M; f=o(g) needs f/g → 0. Here \\(3x^{2}/x^{2}=3\\), bounded but not tending to 0, so it is O but not o."},
 	}
 	e := table[rand.Intn(len(table))]
 	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
@@ -1273,10 +1274,10 @@ func (g *squeezeGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 		q, a, e string
 	}
 	table := []entry{
-		{"What does the squeeze theorem say? (yes/no: squeezed f takes the common limit L)", "yes", "The squeeze theorem: if g(x)≤f(x)≤h(x) and lim g=lim h=L, then lim f=L."},
+		{"Near \\(x=0\\), \\(1-x^{2}\\le f(x)\\le 1+x^{2}\\). What is \\(\\lim_{x \\to 0} f(x)\\)?", "1", "The squeeze theorem: if g(x)≤f(x)≤h(x) and lim g=lim h=L, then lim f=L. Both bounds tend to 1, so the limit is 1."},
 		{"Find \\(\\lim_{x \\to 0} x^{2} \\sin(1/x)\\) using the squeeze theorem.", "0", "\\(-1\\leq \\sin(1/x)\\leq 1 \\implies -x^{2} \\leq x^{2}\\sin(1/x) \\leq x^{2}\\). Since \\(-x^{2}\\to 0\\) and \\(x^{2}\\to 0\\), the squeeze theorem gives limit 0."},
 		{"Find \\(\\lim_{x \\to 0} x \\cos(1/x)\\) using the squeeze theorem.", "0", "\\(-1\\leq \\cos(1/x)\\leq 1 \\implies -x \\leq x\\cos(1/x) \\leq x\\). Since \\(-x\\to 0\\) and \\(x\\to 0\\), the limit is 0."},
-		{"What is a common way to apply the squeeze theorem? (yes/no: bound f between simpler functions with the same limit)", "yes", "Bound the function between two simpler functions with the same limit, then show the upper and lower bounds converge to that limit."},
+		{"Find \\(\\lim_{x \\to \\infty} \\frac{\\sin(x)}{x}\\) using the squeeze theorem.", "0", "Bound the function between two simpler functions with the same limit: \\(-1/x \\le \\sin(x)/x \\le 1/x\\) for x>0, and both bounds tend to 0, so the limit is 0."},
 	}
 	e := table[rand.Intn(len(table))]
 	return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
@@ -1314,7 +1315,7 @@ func (g *uniformContinuityGen) Generate(ctx generator.GeneratorContext) generato
 		q, a, e string
 	}
 	table := []entry{
-		{"What is uniform continuity? (yes/no: delta depends only on epsilon)", "yes", "A function is uniformly continuous if for any ε>0, there exists δ>0 (depending only on ε, not on the point) such that |x-y|<δ implies |f(x)-f(y)|<ε for ALL x,y."},
+		{"Is \\(f(x)=1/x\\) uniformly continuous on \\((0,1)\\)? (yes/no)", "no", "Uniform continuity needs one δ>0 for each ε>0, depending only on ε and not on the point, with |x-y|<δ implying |f(x)-f(y)|<ε for ALL x,y. Near 0 the slope of 1/x is unbounded: x=δ and y=δ/2 give |f(x)-f(y)|=1/δ, which is not small, so no δ works for ε=1."},
 		{"Is f(x)=x² uniformly continuous on ℝ?", "no", "x² is not uniformly continuous on ℝ because the slope grows unbounded. However, it IS uniformly continuous on bounded intervals."},
 		{"Is f(x)=x uniformly continuous on ℝ?", "yes", "|x-y|<δ implies |f(x)-f(y)|=|x-y|<δ. Just take δ=ε. f(x)=x is uniformly continuous on ℝ."},
 		{"Is f(x)=√x uniformly continuous on [0,∞)?", "yes", "√x is continuous on [0,∞) and continuous functions on closed bounded intervals are uniformly continuous. The extension to [0,∞) works due to decreasing slope."},
@@ -1331,7 +1332,7 @@ func (g *weierstrassLimitGen) Generate(ctx generator.GeneratorContext) generator
 		q, a, e string
 	}
 	table := []entry{
-		{"What does the extreme value theorem (Weierstrass) state? (yes/no: continuous f on [a,b] attains max and min)", "yes", "If f is continuous on [a,b], then there exist c,d∈[a,b] such that f(c)≤f(x)≤f(d) for all x∈[a,b]: a continuous function on [a,b] attains its max and min."},
+		{"The extreme value theorem guarantees that \\(f(x)=x^{2}\\) attains a maximum on \\([-1,3]\\). What is that maximum value?", "9", "If f is continuous on [a,b], there exist c,d∈[a,b] with f(c)≤f(x)≤f(d) for all x∈[a,b]. Here f is continuous on [-1,3]; on that interval x² is largest at x=3, so the maximum is 9."},
 		{"Does the extreme value theorem apply to f(x)=1/x on (0,1]?", "no", "The interval must be closed. (0,1] is not closed, and in fact 1/x → ∞ as x→0+."},
 		{"Does the extreme value theorem apply to f(x)=x on [0,1]?", "yes", "f(x)=x is continuous on the closed bounded interval [0,1], so it attains max=1 at x=1 and min=0 at x=0."},
 		{"Does the extreme value theorem apply to f(x)={x for x<1, 2 for x=1} on [0,1]?", "no", "f is not continuous on [0,1] (jump at x=1), so the EVT does not apply."},
@@ -2068,9 +2069,10 @@ func (g *derivClairautGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		q, a, e string
 	}
 	table := []entry{
-		{"State Clairaut's theorem.", "f_xy = f_yx when mixed partials are continuous", "If \\(f_{xy}\\) and \\(f_{yx}\\) are continuous near a point, they are equal there."},
+		// Q52: was "State Clairaut's theorem." keyed by one exact sentence.
+		{"Suppose \\(f_{xy}\\) and \\(f_{yx}\\) are continuous near \\((1,2)\\) and \\(f_{xy}(1,2)=5\\). By Clairaut's theorem, what is \\(f_{yx}(1,2)\\)?", "5", "Clairaut (Schwarz): if \\(f_{xy}\\) and \\(f_{yx}\\) are continuous near a point, they are equal there, so \\(f_{yx}(1,2)=f_{xy}(1,2)=5\\)."},
 		{"For \\(f(x,y)=x^{2}y^{3}\\), verify \\(f_{xy}\\) equals \\(f_{yx}\\).", "6xy^2", "\\(f_{xy} = 6xy^{2} = f_{yx}\\), as Clairaut guarantees for polynomials."},
-		{"What hypothesis does Schwarz's theorem need?", "continuity of the mixed partials", "Schwarz/Clairaut needs \\(f_{xy}\\) and \\(f_{yx}\\) continuous at the point."},
+		{"What hypothesis does Schwarz's theorem need?", "continuity of the mixed partials (continuous mixed partials/the mixed partials are continuous/mixed partials must be continuous)", "Schwarz/Clairaut needs \\(f_{xy}\\) and \\(f_{yx}\\) continuous at the point."},
 	}
 	if rand.Intn(3) == 0 {
 		e := table[rand.Intn(len(table))]

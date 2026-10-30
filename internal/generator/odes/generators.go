@@ -484,9 +484,9 @@ func (g *linearPhaseGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		e string
 	}
 	templates := []qa{
-		{q: "For \\(x' = Ax\\) with \\(A=[[2,0],[0,-3]]\\), the eigenvalues are 2 and -3. What type is the origin? (saddle/node/spiral)", a: "saddle", e: "One positive, one negative eigenvalue gives a saddle."},
-		{q: "For \\(x' = Ax\\) with eigenvalues \\(-1, -2\\), what type is the origin? (saddle/node/spiral)", a: "node", e: "Both eigenvalues negative and real gives a stable node."},
-		{q: "If eigenvalues are \\(0.5 \\pm 2i\\), what type is the origin? (saddle/node/spiral)", a: "spiral", e: "Complex pair with positive real part gives an unstable spiral."},
+		{q: "For \\(x' = Ax\\) with \\(A=[[2,0],[0,-3]]\\), the eigenvalues are 2 and -3. What type is the origin? (saddle/node/spiral)", a: "saddle (saddle point)", e: "One positive, one negative eigenvalue gives a saddle."},
+		{q: "For \\(x' = Ax\\) with eigenvalues \\(-1, -2\\), what type is the origin? (saddle/node/spiral)", a: "node (stable node/sink)", e: "Both eigenvalues negative and real gives a stable node."},
+		{q: "If eigenvalues are \\(0.5 \\pm 2i\\), what type is the origin? (saddle/node/spiral)", a: "spiral (unstable spiral/spiral source/unstable focus)", e: "Complex pair with positive real part gives an unstable spiral."},
 		{q: "Does the phase portrait of a linear system depend on eigenvalues of \\(A\\)? (yes/no)", a: "yes", e: "The eigenvalues classify the equilibrium: node, saddle, spiral, or centre."},
 	}
 	if rand.Intn(4) == 0 {
