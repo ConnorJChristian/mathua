@@ -90,17 +90,17 @@ function TopicsContent() {
     setSignedIn(!!sid)
     if (sid) getProgress(sid).then(setProgress).catch(() => {})
     void (async () => {
-      const cat = await getCourseCatalog()
+      // The catalog and the transcript are independent: asked for together, and
+      // a failed one (the server down) leaves the list of topics as it is.
+      const [cat, withProgress] = await Promise.all([
+        getCourseCatalog().catch(() => ({ courses: [] as CourseStatus[], active: '', activeIds: [] as string[] })),
+        sid ? getTranscript().catch(() => [] as CourseStatus[]) : Promise.resolve([] as CourseStatus[]),
+      ])
       setFollowing(cat.activeIds)
       // Opened plainly (no filters in the link): start on the first plan you follow.
       const first = cat.activeIds.find((id) => cat.courses.some((c) => c.id === id && (c.plan?.length ?? 0) > 0))
       if (first && !window.location.search) setPlanId(first)
-      let list = cat.courses
-      if (sid) {
-        const withProgress = await getTranscript()
-        if (withProgress.length) list = withProgress
-      }
-      setCourses(list)
+      setCourses(withProgress.length ? withProgress : cat.courses)
     })()
   }, [])
 
