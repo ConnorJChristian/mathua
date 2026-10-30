@@ -110,13 +110,23 @@ function CourseContent() {
   const [signedIn, setSignedIn] = useState(false)
   const [pins, setPinsState] = useState<Set<string>>(new Set())
 
+  // A course that could not be loaded (server down, 500), as opposed to one
+  // that does not exist; Retry asks again without reloading the page.
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+
   useEffect(() => {
     const sid = getUserInfo()?.student_id
     setSignedIn(!!sid)
+    setLoadFailed(false)
     if (!id) { setView(null); return }
-    getCourseView(id).then(setView).catch(() => setView(null))
-    if (sid) getPins().then((ps) => setPinsState(new Set(ps.map((p) => p.concept)))).catch(() => {})
-  }, [id])
+    let cancelled = false
+    getCourseView(id, { throwOnError: true })
+      .then((v) => { if (!cancelled) setView(v) })
+      .catch(() => { if (!cancelled) setLoadFailed(true) })
+    if (sid) getPins().then((ps) => { if (!cancelled) setPinsState(new Set(ps.map((p) => p.concept))) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [id, attempt])
 
   // Fork change: pin a topic for this week. The Study tab serves pinned
   // topics right after due reviews; the engine fills the rest of the queue.
@@ -174,6 +184,24 @@ function CourseContent() {
     }
   }
 
+  if (mounted && loadFailed && !view) {
+    return (
+      <>
+        <Header />
+        <main className="mx-auto w-full max-w-[1100px] px-4 sm:px-6 py-12">
+          <p role="alert" className="font-mono text-sm text-mathua-secondary">
+            This course could not be loaded: the server did not answer. Check that Mathua is running, then retry.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button type="button" onClick={() => { setView(undefined); setAttempt((a) => a + 1) }} className="border border-mathua-blue px-4 py-2 font-mono text-xs text-mathua-blue hover:bg-mathua-blue-faint min-h-[36px]">Retry</button>
+            <Link href="/courses" className="border border-mathua-border px-4 py-2 font-mono text-xs text-mathua-secondary hover:border-mathua-blue hover:text-mathua-blue min-h-[36px] inline-flex items-center">Back to your courses</Link>
+          </div>
+        </main>
+        <Footer />
+        <BottomTabs />
+      </>
+    )
+  }
   if (!mounted || view === undefined) return <Loading label="Loading course" full />
   if (!view) {
     return (

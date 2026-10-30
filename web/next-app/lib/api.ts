@@ -538,7 +538,8 @@ export interface LibraryBook {
 
 export async function getLibrary(): Promise<LibraryBook[]> {
   const res = await authedFetch(`${API_BASE}/api/library`, { cache: 'no-store' })
-  if (!res.ok) return []
+  // A failure throws: an empty list would read as "no books yet".
+  if (!res.ok) throw new Error(`Library fetch failed: ${res.status}`)
   const data = await res.json()
   return data.books ?? []
 }
@@ -2430,8 +2431,13 @@ export async function setPins(concepts: string[]): Promise<Pin[]> {
   return ((await res.json()).pins ?? []) as Pin[]
 }
 
-export async function getCourseView(id: string): Promise<CourseView | null> {
+// Null for a course that does not exist. With `throwOnError`, any other failure
+// (the server down, a 500) throws, so a page can say so instead of "not found".
+export async function getCourseView(id: string, opts?: { throwOnError?: boolean }): Promise<CourseView | null> {
   const res = await authedFetch(`${API_BASE}/api/courses/view?id=${encodeURIComponent(id)}`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })
-  if (!res.ok) return null
+  if (!res.ok) {
+    if (opts?.throwOnError && res.status !== 404) throw new Error(`Course fetch failed: ${res.status}`)
+    return null
+  }
   return res.json()
 }

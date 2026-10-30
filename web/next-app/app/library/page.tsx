@@ -124,12 +124,21 @@ function LibraryContent() {
   const [books, setBooks] = useState<LibraryBook[] | null>(null)
   const [progress, setProgress] = useState<Record<string, ConceptProgress>>({})
   const bookId = params.get('book') ?? ''
+  // The library could not be loaded (server down, 500): said so, with Retry,
+  // rather than "No books yet".
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
-    getLibrary().then(setBooks).catch(() => setBooks([]))
+    let cancelled = false
+    setLoadFailed(false)
+    getLibrary()
+      .then((b) => { if (!cancelled) setBooks(b) })
+      .catch(() => { if (!cancelled) setLoadFailed(true) })
     const sid = getUserInfo()?.student_id
-    if (sid) getProgress(sid).then(setProgress).catch(() => {})
-  }, [])
+    if (sid) getProgress(sid).then((p) => { if (!cancelled) setProgress(p) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [attempt])
 
   const shelves = useMemo(() => {
     const order = TRACKS.map((t) => t.id)
@@ -154,6 +163,22 @@ function LibraryContent() {
       }))
   }, [books])
 
+  if (mounted && loadFailed && books === null) {
+    return (
+      <>
+        <Header />
+        <main className="mx-auto w-full max-w-[1100px] min-w-0 px-4 sm:px-6 py-8 sm:py-12">
+          <SectionHeader label="Library" title="Books and sources" />
+          <p role="alert" className="font-mono text-sm text-mathua-secondary">
+            The library could not be loaded: the server did not answer. Check that Mathua is running, then retry.
+          </p>
+          <button type="button" onClick={() => setAttempt((a) => a + 1)} className="mt-4 border border-mathua-blue px-4 py-2 font-mono text-xs text-mathua-blue hover:bg-mathua-blue-faint min-h-[36px]">Retry</button>
+        </main>
+        <Footer />
+        <BottomTabs />
+      </>
+    )
+  }
   if (!mounted || books === null) return <Loading label="Loading library" full />
   const book = books.find((b) => b.id === bookId) ?? null
 
