@@ -44,6 +44,7 @@ describe('every API route has a caller', () => {
     const noClientCaller = new Map<string, string>([
       // Issued by the browser, not by JS: OAuth and passwordless redirects.
       ['/api/auth/google/login', 'browser redirect, not fetch()ed'],
+      ['/api/floor', "a learner's active floor for checking from a terminal; the app reads it from GET /api/pins (its floor field)"],
       ['/api/auth/google/callback', 'browser redirect, not fetch()ed'],
       ['/api/auth/guest', 'fetched via postGuest in tests and the guest flow'],
       ['/api/auth/signup', 'form post from the login page'],
