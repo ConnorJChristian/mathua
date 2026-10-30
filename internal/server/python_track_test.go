@@ -161,32 +161,39 @@ func TestPythonTrack_LearnLoopGradesEveryKind(t *testing.T) {
 	for _, raw := range qs {
 		q := raw.(map[string]interface{})
 		question, _ := q["question"].(string)
-		answer, _ := q["answer"].(string)
+		if _, leaked := q["answer"]; leaked {
+			t.Fatalf("served question carries its answer")
+		}
 		if strings.Contains(question, "check(") {
 			t.Fatalf("served question contains hidden test code")
 		}
+		// The served question carries no key: find the item by its text.
+		var item *pytrack.Item
+		for i := range bank.Items {
+			if tr.Problem(bank, &bank.Items[i]).Question == question {
+				item = &bank.Items[i]
+			}
+		}
+		if item == nil {
+			t.Fatalf("served question is not in the bank: %q", question)
+		}
 		var right, wrong string
-		kind := strings.SplitN(answer, ":", 2)[0]
+		kind := item.Kind
 		switch kind {
 		case "mc":
-			right = strings.TrimPrefix(answer, "mc:")
+			right = item.Correct
 			wrong = "definitely not an option"
-		case "out":
-			right = strings.TrimPrefix(answer, "out:")
+		case "output":
+			right = item.Expected
 			wrong = "[]"
 		case "code":
 			if !runner {
 				continue
 			}
-			key := strings.TrimPrefix(answer, "code:")
-			for _, it := range bank.Items {
-				if cid+"#"+it.ID == key {
-					right = it.Solution
-				}
-			}
+			right = item.Solution
 			wrong = "x = 1"
 		default:
-			t.Fatalf("unexpected served answer %q", answer)
+			t.Fatalf("unexpected served kind %q", kind)
 		}
 		if seen[kind] {
 			continue
@@ -222,7 +229,7 @@ func TestPythonTrack_LearnLoopGradesEveryKind(t *testing.T) {
 			}
 		}
 	}
-	for _, k := range []string{"mc", "out"} {
+	for _, k := range []string{"mc", "output"} {
 		if !seen[k] {
 			t.Errorf("practice for %s served no %q question in 20 draws", cid, k)
 		}
