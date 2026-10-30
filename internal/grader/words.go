@@ -18,6 +18,10 @@ var (
 	nonWordRe = regexp.MustCompile(`[^a-z \-]+`)
 )
 
+// IsWordKey is isWordKey for the key self-check (internal/gradecheck), so
+// the check spells a key as words exactly when the grader reads it as words.
+func IsWordKey(expected string) bool { return isWordKey(expected) }
+
 // isWordKey reports a key made of words (with at most one parenthetical) and
 // no mathematics.
 func isWordKey(expected string) bool {
@@ -27,6 +31,21 @@ func isWordKey(expected string) bool {
 	}
 	if l := strings.ToLower(e); l == "no" || l == "yes" {
 		return true
+	}
+	// A difference of variable names ("x-y", "wz-y x") is mathematics, not
+	// a hyphenated phrase: every piece is one or two letters (fork fix:
+	// "wz-yx" was refused for the determinant "wz-y x").
+	if strings.Contains(e, "-") {
+		short := true
+		for _, w := range strings.FieldsFunc(e, func(r rune) bool { return r == ' ' || r == '-' }) {
+			if len(w) > 2 {
+				short = false
+				break
+			}
+		}
+		if short {
+			return false
+		}
 	}
 	// Single letters and short variable-like keys stay mathematics ("x", "e").
 	return len(strings.Fields(strings.ReplaceAll(e, "(", " "))) > 1 || len(e) > 2
