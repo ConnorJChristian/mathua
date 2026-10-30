@@ -249,7 +249,7 @@ concept(
 
 # ---------------------------------------------------------------- 5.03
 concept(
-    "py.ml.holdout_cv", "Holdout sets and cross-validation", ["py.ml.estimator_api"],
+    "py.ml.holdout_cv", "Holdout sets and cross-validation", ["py.ml.estimator_api", "stat.reg.r2"],
     "5.03", "Hyperparameters and Model Validation", "05.03-hyperparameters-and-model-validation",
     """
     Scoring a model on the rows it was fitted on measures memory, not
@@ -1108,7 +1108,7 @@ concept(
     ]),
 
 concept(
-    "py.ml.regularization", "Ridge and lasso regularization", ["py.ml.linear_regression", "py.ml.model_selection"],
+    "py.ml.regularization", "Ridge and lasso regularization", ["py.ml.linear_regression", "py.ml.model_selection", "linalg.vec.norm_squared"],
     "5.06", "In Depth: Linear Regression", "05.06-linear-regression",
     """
     With many basis functions or many regressors, least squares can chase
@@ -1369,7 +1369,7 @@ concept(
 
 # ---------------------------------------------------------------- 5.08
 concept(
-    "py.ml.forests", "Decision trees and random forests", ["py.ml.model_selection"],
+    "py.ml.forests", "Decision trees and random forests", ["py.ml.model_selection", "stat.sampling.se"],
     "5.08", "In Depth: Decision Trees and Random Forests", "05.08-random-forests",
     """
     A **decision tree** asks a sequence of yes/no questions about single
@@ -1738,7 +1738,7 @@ concept(
 
 # ---------------------------------------------------------------- 5.11
 concept(
-    "py.ml.kmeans", "k-means clustering in scikit-learn", ["py.ml.estimator_api"],
+    "py.ml.kmeans", "k-means clustering in scikit-learn", ["py.ml.estimator_api", "stat.data.mean", "py.np.partition", "linalg.vec.norm_squared"],
     "5.11", "In Depth: k-Means Clustering", "05.11-k-means",
     """
     k-means splits rows into k clusters, each summarised by its centre. It

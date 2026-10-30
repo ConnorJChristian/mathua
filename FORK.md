@@ -114,6 +114,23 @@ One quirk: upstream's graph routes logistic regression and KNN through a few
 neural-net basics (perceptron, forward pass, sigmoid activation, cross-entropy
 loss), so `statlearn` includes those four as prerequisites.
 
+The same routing reaches further than a learner of classical statistical
+learning would expect, and the fork does not edit upstream's data to change
+it: `ml.validation` sits on `ml.overfitting`, which sits on
+`ml.regularization` (L2 weight decay, after cross-entropy and gradient
+descent); `ml.tree.gini` and `ml.tree.ensemble` sit on `ml.validation`;
+`ml.cluster.kmeans` sits on `ml.knn.nearest_distance`, which sits on
+`ml.forward_pass`; `ml.data.onehot` sits on `ml.perceptron`. None of
+cross-validation, trees, k-means or one-hot encoding needs a neural network.
+So the Python for Data Science track's machine-learning topics link to the
+non-neural concepts they use instead: `py.ml.holdout_cv` to R²
+(`stat.reg.r2`), `py.ml.regularization` to the norm of a vector,
+`py.ml.forests` to the standard error (averaging noisy estimators),
+`py.ml.kmeans` to the mean, the norm and NumPy's nearest neighbours
+(`py.np.partition`), and none to `ml.validation`, `ml.overfitting`,
+`ml.reg.ridge_penalty`, `ml.tree.*`, `ml.data.onehot` or
+`ml.cluster.kmeans`.
+
 ## Practising locked topics
 
 Upstream refuses to serve a topic until its prerequisites are mastered. In this
@@ -317,7 +334,10 @@ Where a link is declared depends on how the topic was authored:
   `python3 scripts/add_prereq.py <module> <topic> <prerequisite>...`, then
   rebuild the bank. The build refuses an id that is not in the graph, a
   topic that lists itself or an id twice, and a cycle, so a bad link never
-  reaches a `concepts/` file. The Docker check runs the same test.
+  reaches a `concepts/` file. The Docker check runs the same test. A topic
+  that practises the whole of another concept (a look-alike) can say so
+  with `t["_encompasses"] = ["<id>"]` on the dict `topic()` returns:
+  mastering it then credits that concept fully.
 - **Anki modules**: each subject's `after` list in the subjects file.
   `python3 scripts/anki_prereqs.py <module>` re-applies the file to the
   module's `concepts/` without a re-import (`--check` only reports drift).

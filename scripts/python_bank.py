@@ -79,6 +79,10 @@ def topic(id, label, prereqs, subdomain, source, intro, items):
     `source` names what the concept follows: a dict with "name" (the book or
     deck), "title" and optionally "section" and "url". It is shown with the
     note; quote nothing from a book here, link or name it.
+
+    A topic that practises the whole of another concept can say so with
+    `t["_encompasses"] = ["<concept id>"]` on the returned dict: mastering
+    it then credits that concept fully (the graph's "encompasses").
     """
     return {
         "id": id,
@@ -307,7 +311,7 @@ def graph_nodes():
             continue
         with open(path, encoding="utf-8") as f:
             for c in json.load(f):
-                nodes[c["id"]] = list(c.get("prerequisites", []))
+                nodes[c["id"]] = list(c.get("prerequisites", [])) + list(c.get("encompasses", []))
     return nodes
 
 
@@ -323,7 +327,9 @@ def check_prereqs(chapters, nodes):
         if chapter.get("graph", True) is False:
             continue
         for c in chapter["concepts"]:
-            graph[c["id"]] = list(c["_prereqs"])
+            # An encompassed concept is ordered before its encompasser,
+            # as a prerequisite is (internal/concepts).
+            graph[c["id"]] = list(c["_prereqs"]) + list(c.get("_encompasses", []))
     for chapter in chapters:
         if chapter.get("graph", True) is False:
             continue
@@ -337,6 +343,9 @@ def check_prereqs(chapters, nodes):
                 elif p not in graph:
                     errs.append("%s: prerequisite %s is not in the graph (data/concepts or any module's concepts/)" % (c["id"], p))
                 seen.add(p)
+            for e in c.get("_encompasses", []):
+                if e == c["id"] or e not in graph:
+                    errs.append("%s: encompasses %s, which is itself or not in the graph" % (c["id"], e))
     # Cycles: a depth-first search from every node, white/grey/black.
     state = {}
     for start in graph:
@@ -435,6 +444,7 @@ def render_graph(chapter):
             "subdomain": c.get("_subdomain") or chapter["domain"] + "." + c["book"]["url"].rsplit("/", 1)[-1][:-5].replace("-", "_").replace(".", "_"),
             "grading_type": "bank",
             "prerequisites": c["_prereqs"],
+            **({"encompasses": c["_encompasses"]} if c.get("_encompasses") else {}),
             "mastery_threshold": {"streak": chapter.get("streak", 4), "avg_time_seconds": chapter.get("avg_time_seconds", 120.0)},
         })
     return json.dumps(nodes, indent=2, ensure_ascii=False) + "\n"

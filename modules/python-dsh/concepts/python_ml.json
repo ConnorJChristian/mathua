@@ -36,7 +36,8 @@
     "subdomain": "python_ml.05_03_hyperparameters_and_model_validation",
     "grading_type": "bank",
     "prerequisites": [
-      "py.ml.estimator_api"
+      "py.ml.estimator_api",
+      "stat.reg.r2"
     ],
     "mastery_threshold": {
       "streak": 4,
@@ -127,7 +128,8 @@
     "grading_type": "bank",
     "prerequisites": [
       "py.ml.linear_regression",
-      "py.ml.model_selection"
+      "py.ml.model_selection",
+      "linalg.vec.norm_squared"
     ],
     "mastery_threshold": {
       "streak": 4,
@@ -155,7 +157,8 @@
     "subdomain": "python_ml.05_08_random_forests",
     "grading_type": "bank",
     "prerequisites": [
-      "py.ml.model_selection"
+      "py.ml.model_selection",
+      "stat.sampling.se"
     ],
     "mastery_threshold": {
       "streak": 4,
@@ -199,7 +202,10 @@
     "subdomain": "python_ml.05_11_k_means",
     "grading_type": "bank",
     "prerequisites": [
-      "py.ml.estimator_api"
+      "py.ml.estimator_api",
+      "stat.data.mean",
+      "py.np.partition",
+      "linalg.vec.norm_squared"
     ],
     "mastery_threshold": {
       "streak": 4,
