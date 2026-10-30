@@ -27,13 +27,18 @@ type PdfDoc = {
   destroy: () => Promise<void>
 }
 type PdfPage = {
-  getViewport: (o: { scale: number }) => { width: number; height: number }
+  getViewport: (o: { scale: number }) => { width: number; height: number; scale: number }
   render: (o: {
     canvasContext: CanvasRenderingContext2D
     viewport: { width: number; height: number }
     transform?: number[]
   }) => { promise: Promise<void>; cancel: () => void }
+  streamTextContent: () => unknown
 }
+// The text layer: invisible text laid over the canvas, so the page can be
+// selected, copied and found with the browser's search.
+type PdfTextLayer = new (o: { textContentSource: unknown; container: HTMLElement; viewport: { width: number; height: number; scale: number } }) => { render: () => Promise<void>; cancel: () => void }
+type PdfJs = { TextLayer: PdfTextLayer }
 
 function absolute(url: string): string {
   if (/^https?:\/\//.test(url)) return url
@@ -55,9 +60,12 @@ export default function PdfReader({ reading, onUnavailable }: { reading: Reading
   const [open, setOpen] = useState(true)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const docRef = useRef<PdfDoc | null>(null)
+  const libRef = useRef<PdfJs | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const textRef = useRef<HTMLDivElement>(null)
   const taskRef = useRef<{ cancel: () => void } | null>(null)
+  const textTaskRef = useRef<{ cancel: () => void } | null>(null)
 
   useEffect(() => setPage(start), [start, reading.url])
 
@@ -76,6 +84,7 @@ export default function PdfReader({ reading, onUnavailable }: { reading: Reading
       try {
         const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
         pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/pdf.worker.min.mjs'
+        libRef.current = pdfjs as unknown as PdfJs
         const doc = (await pdfjs.getDocument({
           url: absolute(reading.url),
           disableAutoFetch: true,
@@ -132,9 +141,21 @@ export default function PdfReader({ reading, onUnavailable }: { reading: Reading
         const ctx = canvas.getContext('2d')
         if (!ctx) return
         taskRef.current?.cancel()
+        textTaskRef.current?.cancel()
         const task = p.render({ canvasContext: ctx, viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined })
         taskRef.current = task
         await task.promise
+        const textDiv = textRef.current
+        const lib = libRef.current
+        if (textDiv && lib && !cancelled) {
+          textDiv.replaceChildren()
+          textDiv.style.width = `${Math.floor(vp.width)}px`
+          textDiv.style.height = `${Math.floor(vp.height)}px`
+          textDiv.style.setProperty('--scale-factor', String(vp.scale))
+          const tl = new lib.TextLayer({ textContentSource: p.streamTextContent(), container: textDiv, viewport: vp })
+          textTaskRef.current = tl
+          await tl.render()
+        }
       } catch {
         // A cancelled render (the learner turned the page mid-draw) is expected.
       }
@@ -195,7 +216,10 @@ export default function PdfReader({ reading, onUnavailable }: { reading: Reading
                 <a href={fileLink} target="_blank" rel="noreferrer" className="underline">open it in a new tab</a>.
               </p>
             )}
-            <canvas ref={canvasRef} className={status === 'ready' ? 'block mx-auto bg-white' : 'hidden'} />
+            <div className={status === 'ready' ? 'relative mx-auto w-fit' : 'hidden'}>
+              <canvas ref={canvasRef} className="block bg-white" />
+              <div ref={textRef} className="textLayer" aria-hidden={false} />
+            </div>
           </div>
         </>
       )}
