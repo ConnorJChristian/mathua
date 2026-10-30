@@ -1,0 +1,127 @@
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
+import OnboardPage from '../app/onboard/page'
+import { skipGoalQuestion, submitGoalAnswer } from '../lib/api'
+import { answerValue, findAnswerField, findMathField, typeAnswer } from './helpers/answerInput'
+
+// The onboard page routes to the results screen and back through the router.
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => '/onboard',
+  useSearchParams: () => new URLSearchParams(),
+}))
+
+// The math editor's chunk, held until the test lets it through.
+//
+// `MathInput` shows a working plain input while the MathLive chunk loads, and on a
+// phone that window is long enough to type an answer in (see `PlainAnswerInput`).
+// Under vitest the chunk resolves in a few milliseconds, so without this gate the
+// loading input is gone before a test can type into it, and the bug below, which
+// lives in that input, is unreachable.
+const editorChunk = vi.hoisted(() => {
+  let release = () => {}
+  const gate = new Promise<void>(resolve => {
+    release = resolve
+  })
+  return { gate, release: () => release() }
+})
+
+vi.mock('../components/math/MathLiveField', async (importOriginal) => {
+  await editorChunk.gate
+  return importOriginal()
+})
+
+const PROG0 = {
+  answered: 0,
+  estimated_total: 25,
+  min_total: 25,
+  max_total: 45,
+  probe_budget: 45,
+  done: false,
+}
+
+// Corpus concept ids, so the question is served with the math editor the live
+// site renders. An id the corpus does not know falls back to the plain input.
+vi.mock('../lib/api', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../lib/api')>()
+  return {
+    ...mod,
+    startGoalDiagnostic: vi.fn(async () => ({
+      session_id: 's1',
+      concept_id: 'arith.add.single',
+      concept_name: 'Single-digit addition',
+      question: 'Q1 text',
+      done: false,
+      grading_type: 'numeric',
+      progress: PROG0,
+    })),
+    // The fork stages the next question behind feedback after "I don't know",
+    // and the answer controls unmount while feedback shows, so that path cannot
+    // carry text over. Skip from the error block serves the next question with
+    // the field still mounted, which is where the bug lives in the fork.
+    submitGoalAnswer: vi.fn(async () => {
+      throw Object.assign(new Error('Server error'), { status: 500 })
+    }),
+    resumeGoalDiagnostic: vi.fn(),
+    getGoalPlan: vi.fn(),
+    skipGoalQuestion: vi.fn(async () => ({
+      done: false,
+      correct: false,
+      concept_id: 'arith.add.double',
+      concept_name: 'Two-digit addition',
+      question: 'Q2 text',
+      grading_type: 'numeric',
+      progress: { ...PROG0, answered: 1 },
+    })),
+    retryGoalQuestion: vi.fn(),
+  }
+})
+
+describe('onboard diagnostic answer reset', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    localStorage.clear()
+  })
+
+  afterAll(() => {
+    editorChunk.release()
+  })
+
+  async function beginDiagnostic() {
+    render(<OnboardPage />)
+    fireEvent.click(await screen.findByRole('button', { name: /Arithmetic/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Start diagnostic test/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Begin diagnostic/ }))
+    await screen.findByText('Q1 text')
+  }
+
+  it('starts the next question empty after Skip, even while the editor is still loading', async () => {
+    await beginDiagnostic()
+
+    // The editor chunk is held, so the answer control is the loading input.
+    const field = await findAnswerField()
+    expect(field).toHaveAttribute('data-mathua-loading', 'true')
+    typeAnswer(field, '7')
+    expect(answerValue(field)).toBe('7')
+
+    // The submit fails, and Skip in the error block serves the next question
+    // with the field still mounted.
+    fireEvent.click(screen.getByRole('button', { name: 'Check Answer' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Skip/ }))
+    await screen.findByText('Q2 text')
+    expect(vi.mocked(submitGoalAnswer)).toHaveBeenCalledWith('s1', 'arith.add.single', '7', expect.any(Number), false)
+    expect(vi.mocked(skipGoalQuestion)).toHaveBeenCalledWith('s1')
+
+    // The learner is looking at a new question: the box must not still say 7.
+    const next = await findAnswerField()
+    expect(answerValue(next)).toBe('')
+
+    // What they type for this question is the whole answer, and it is what the
+    // editor takes over when its chunk finally arrives.
+    typeAnswer(next, '8')
+    editorChunk.release()
+    const editor = await findMathField()
+    expect(answerValue(editor)).toBe('8')
+    expect(screen.getByRole('button', { name: 'Check Answer' })).toBeEnabled()
+  })
+})

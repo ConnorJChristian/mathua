@@ -212,6 +212,20 @@ export default function MathInput({
   // when `MathLiveField` mounts and pushes `value` in.
   const [loadingText, setLoadingText] = useState('')
 
+  // An empty value from the host is the host taking the answer back: the next question
+  // arrived, a retry wiped the box. Both local copies of what was typed go with it.
+  // `loadingText` used to stay, so a learner who typed into the loading input and
+  // pressed "I don't know" before the editor's chunk arrived found the same text in
+  // the next question's box, and anything typed after that was appended to it and
+  // handed to the editor on mount (upstream 23c900a4). The fork had no reset at all,
+  // so `typedLatex` also outlived the answer it belonged to.
+  useEffect(() => {
+    if (!value) {
+      setTypedLatex('')
+      setLoadingText('')
+    }
+  }, [value])
+
   // Typed-LaTeX mode (fork change): a learner who writes LaTeX can type source instead of
   // driving the visual editor. Remembered per browser; storage can be unavailable, so
   // every read and write is guarded and the visual editor is the default.
