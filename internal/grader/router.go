@@ -59,6 +59,14 @@ func (r *Router) Grade(gradingType GradingType, expected, answer string) Result 
 		if strings.EqualFold(strings.TrimSpace(expected), strings.TrimSpace(answer)) || samePhrase(expected, answer) {
 			return Result{Correct: true, Score: 1}
 		}
+		// A list of alternatives ("corner/cusp/vertical tangent/
+		// discontinuity") accepts any one of them (Q52).
+		if parts := wordListParts(expected); parts != nil {
+			if wordListAnswerMatches(parts, answer) {
+				return Result{Correct: true, Score: 1}
+			}
+			return Result{Correct: false, Score: 0, Feedback: "Incorrect"}
+		}
 		// A word key is graded as words, never by SymPy (Q52).
 		if isWordKey(expected) {
 			if wordAnswerMatches(expected, answer) {

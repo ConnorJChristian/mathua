@@ -21,6 +21,18 @@ func TestWordAnswers(t *testing.T) {
 		{GradingMultipleChoice, "base case", "the base case", true},
 		{GradingSymbolic, "infinity", "∞", true},
 		{GradingSymbolic, "infinity", "oo", true},
+		// Q52 recurred: the live item's key is a list, not "corner".
+		{GradingSymbolic, "corner/cusp/vertical tangent/discontinuity", "corner", true},
+		{GradingSymbolic, "corner/cusp/vertical tangent/discontinuity", "a corner", true},
+		{GradingSymbolic, "corner/cusp/vertical tangent/discontinuity", "Cusp", true},
+		{GradingSymbolic, "corner/cusp/vertical tangent/discontinuity", "a vertical tangent", true},
+		{GradingSymbolic, "corner/cusp/vertical tangent/discontinuity", "discontinuity", true},
+		{GradingSymbolic, "corner/cusp/vertical tangent/discontinuity", "smooth", false},
+		{GradingSymbolic, "corner/cusp/vertical tangent/discontinuity", "tangent", false},
+		{GradingSymbolic, "stable spiral (spiral sink/stable focus)", "stable focus", true},
+		{GradingSymbolic, "stable spiral (spiral sink/stable focus)", "unstable spiral", false},
+		{GradingSymbolic, "convex (concave up)", "it is convex", true},
+		{GradingSymbolic, "convex (concave up)", "it is concave", false},
 	}
 	for _, c := range cases {
 		res := r.Grade(c.gt, c.key, c.typed)
@@ -37,6 +49,11 @@ func TestWordKeyExcludesFunctionsOfAVariable(t *testing.T) {
 	for _, k := range []string{"cos(x)", "sinh(x)", "degrees of freedom (k)", "x", "e", "x-y", "wz-y x"} {
 		if isWordKey(k) {
 			t.Errorf("%q is mathematics, not a word key", k)
+		}
+	}
+	for _, k := range []string{"1/2", "x/y", "a/b/c", "dy/dx"} {
+		if wordListParts(k) != nil {
+			t.Errorf("%q is mathematics, not a list of word alternatives", k)
 		}
 	}
 	for _, k := range []string{"corner", "convex (concave up)", "no", "probability density function (PDF)", "well-defined", "x-intercept", "ad-hoc"} {

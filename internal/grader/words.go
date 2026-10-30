@@ -12,7 +12,12 @@ import (
 
 var (
 	// A parenthetical needs two letters: "cos(x)" and "(k)" are mathematics.
-	wordKeyRe   = regexp.MustCompile(`^[A-Za-z][A-Za-z '\-]*(\([A-Za-z][A-Za-z '\-]+\))?$`)
+	// The gloss may list alternatives with "/" ("stable spiral (spiral
+	// sink/stable focus)").
+	wordKeyRe   = regexp.MustCompile(`^[A-Za-z][A-Za-z '\-]*(\([A-Za-z][A-Za-z '\-/]+\))?$`)
+	// A list key names alternatives, any one of which is the answer:
+	// "corner/cusp/vertical tangent/discontinuity" (Q52).
+	wordListPartRe = regexp.MustCompile(`^[A-Za-z][A-Za-z '\-]*$`)
 	parenPartRe = regexp.MustCompile(`\s*\(([^()]*)\)\s*`)
 	// A minus sign is kept: "-sinh x" is not "sinh x".
 	nonWordRe = regexp.MustCompile(`[^a-z \-]+`)
@@ -91,9 +96,13 @@ func wordAnswerMatches(expected, answer string) bool {
 	if len(aw) == 0 {
 		return false
 	}
+	aw = dropFiller(aw)
 	candidates := [][]string{words(expected)}
 	if m := parenPartRe.FindStringSubmatch(expected); m != nil {
-		candidates = append(candidates, words(parenPartRe.ReplaceAllString(expected, " ")), words(m[1]))
+		candidates = append(candidates, words(parenPartRe.ReplaceAllString(expected, " ")))
+		for _, g := range strings.Split(m[1], "/") {
+			candidates = append(candidates, words(g))
+		}
 	}
 	for _, c := range candidates {
 		if sameWords(c, aw) {
@@ -103,6 +112,66 @@ func wordAnswerMatches(expected, answer string) bool {
 	kw := words(expected)
 	if len(kw) == 1 && (kw[0] == "yes" || kw[0] == "no") {
 		return aw[0] == kw[0]
+	}
+	return false
+}
+
+// dropFiller removes a leading "it is" / "the function is" from a word
+// answer: "it is convex" says "convex".
+func dropFiller(aw []string) []string {
+	for _, pre := range [][]string{{"it", "is"}, {"it", "s"}, {"function", "is"}, {"f", "is"}, {"this", "is"}} {
+		if len(aw) > len(pre) {
+			match := true
+			for i := range pre {
+				if aw[i] != pre[i] {
+					match = false
+					break
+				}
+			}
+			if match {
+				return aw[len(pre):]
+			}
+		}
+	}
+	return aw
+}
+
+// wordListParts returns the alternatives of a list key ("corner/cusp/
+// vertical tangent/discontinuity"), or nil when the key is not one. Every
+// part must be a word or phrase of at least three letters, so "x/y" and
+// "1/2" stay mathematics. A gloss in brackets after the list is kept as a
+// further alternative.
+func wordListParts(expected string) []string {
+	e := strings.TrimSpace(expected)
+	main, gloss := e, ""
+	if m := parenPartRe.FindStringSubmatch(e); m != nil {
+		main = strings.TrimSpace(parenPartRe.ReplaceAllString(e, " "))
+		gloss = m[1]
+	}
+	if !strings.Contains(main, "/") {
+		return nil
+	}
+	parts := strings.Split(main, "/")
+	for i, p := range parts {
+		p = strings.TrimSpace(p)
+		if !wordListPartRe.MatchString(p) || len(strings.ReplaceAll(p, " ", "")) < 3 {
+			return nil
+		}
+		parts[i] = p
+	}
+	if gloss != "" {
+		parts = append(parts, strings.Split(gloss, "/")...)
+	}
+	return parts
+}
+
+// wordListAnswerMatches accepts any one alternative of a list key, compared
+// as words (articles, case and punctuation ignored).
+func wordListAnswerMatches(parts []string, answer string) bool {
+	for _, p := range parts {
+		if wordAnswerMatches(p, answer) {
+			return true
+		}
 	}
 	return false
 }
