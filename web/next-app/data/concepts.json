@@ -18171,7 +18171,8 @@
     },
     "prerequisites": [
       "py.mpl.interfaces",
-      "py.np.aggregates"
+      "py.np.aggregates",
+      "stat.data.histogram"
     ],
     "subdomain": "python_matplotlib.04_05_histograms_and_binnings"
   },
@@ -18374,7 +18375,8 @@
     },
     "prerequisites": [
       "py.ml.categorical_text",
-      "py.ml.holdout_cv"
+      "py.ml.holdout_cv",
+      "ml.data.scaling"
     ],
     "subdomain": "python_ml.05_04_feature_engineering"
   },
@@ -18389,7 +18391,8 @@
     },
     "prerequisites": [
       "py.ml.categorical_text",
-      "py.ml.holdout_cv"
+      "py.ml.holdout_cv",
+      "stat.prob.bayes"
     ],
     "subdomain": "python_ml.05_05_naive_bayes"
   },
@@ -18403,7 +18406,8 @@
       "streak": 4
     },
     "prerequisites": [
-      "py.ml.pipelines"
+      "py.ml.pipelines",
+      "ml.linreg.least_squares"
     ],
     "subdomain": "python_ml.05_06_linear_regression"
   },
@@ -18461,7 +18465,8 @@
     },
     "prerequisites": [
       "py.ml.estimator_api",
-      "py.np.aggregates"
+      "py.np.aggregates",
+      "ml.pca.variance_percent"
     ],
     "subdomain": "python_ml.05_09_principal_component_analysis"
   },
