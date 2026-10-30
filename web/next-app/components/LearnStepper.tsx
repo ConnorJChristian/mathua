@@ -168,6 +168,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   // practice endpoint enforces this; the UI renders the explanation so a locked
   // topic never looks like a broken page or an empty question set.
   const [ineligible, setIneligible] = useState<ReadinessRes | null>(null)
+  // The reading (kp shard) arrives on its own: 'loading' until it lands, 'failed'
+  // if the request did. Neither state holds back the questions.
+  const [material, setMaterial] = useState<'loading' | 'ok' | 'failed'>('loading')
+  const loadSeqRef = useRef(0)
   // Fork change: the topic the learner chose to practise despite unmet
   // prerequisites. Keyed by concept so it never carries over to another topic.
   const [overrideFor, setOverrideFor] = useState<string | null>(null)
@@ -256,6 +260,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: reduceMotion.current ? 'auto' : 'smooth', block: 'nearest' })
   }, [])
+  useEffect(() => {
+    if (error && entries.length > 0) scrollToBottom()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error, scrollToBottom])
 
   const refill = useCallback(async (diff: number, exclude: string[]): Promise<PracticeQuestion[]> => {
     const pr = await getLessonPractice(conceptId, 3, { seed: Date.now() % 100000, exclude, difficulty: diff, override })
@@ -272,19 +280,40 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
     setLoading(true)
     setError('')
     setIneligible(null)
+    const seq = ++loadSeqRef.current
     try {
-      const [kpRes, readyRes] = await Promise.all([getLessonKPs(conceptId), getLessonReadiness(conceptId)])
-      setKps(kpRes.kps ?? [])
-      setDiagram(kpRes.diagram ?? null)
-      setReadiness(readyRes)
+      // Neither the reading (kp) nor the readiness check gates the questions
+      // (fork change): the reading is fetched alongside and fills in when it
+      // lands, so a slow or failed reading never holds the first question back,
+      // and a readiness check that is down counts as ready. The practice
+      // endpoint is the authority on a locked topic either way.
+      setMaterial('loading')
+      getLessonKPs(conceptId).then(
+        kpRes => {
+          if (seq !== loadSeqRef.current) return
+          setKps(kpRes.kps ?? [])
+          setDiagram(kpRes.diagram ?? null)
+          setMaterial('ok')
+        },
+        () => {
+          if (seq !== loadSeqRef.current) return
+          setKps([])
+          setDiagram(null)
+          setMaterial('failed')
+        },
+      )
+      const readyRes = await getLessonReadiness(conceptId).catch(() => null)
+      if (seq !== loadSeqRef.current) return
+      if (readyRes) setReadiness(readyRes)
       // The server is the authority: if it says the topic's prerequisites are
       // unmet, do not fetch questions it would refuse. Show the path instead.
-      if (readyRes.eligible === false && !override) {
+      if (readyRes && readyRes.eligible === false && !override) {
         track({ kind: 'locked_view', concept: conceptId, data: { missing: (readyRes.prerequisites ?? []).filter(p => !p.met).map(p => p.conceptId) } })
         setIneligible(readyRes)
         return
       }
       const pr = await getLessonPractice(conceptId, 3, { seed: Date.now() % 100000, difficulty: 0.4, override })
+      if (seq !== loadSeqRef.current) return
       seenRef.current = pr.questions.map(q => q.question)
       setBuffer(pr.questions)
       const first = pr.questions[0]
@@ -293,9 +322,15 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       }
       setEntries([{ key: nextKey(), kind: 'intro', kpIndex: 0 }])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load lesson')
+      // A topic that does not exist says so (the API's own sentence); anything else
+      // (the server down, a 500) is said in words, not as "Failed to fetch".
+      const msg = e instanceof Error && e.message.startsWith('This topic does not exist')
+        ? e.message
+        : 'Could not load the questions for this topic: the server did not answer. Check that Mathua is running, then retry.'
+      if (seq === loadSeqRef.current) setError(msg)
     } finally {
-      setLoading(false)
+      // A superseded load (another topic, Practice anyway) leaves the spinner to the newer one.
+      if (seq === loadSeqRef.current) setLoading(false)
     }
   }, [conceptId, override])
 
@@ -774,7 +809,13 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
         />
       )}
 
-      {error && <p className="mb-4 font-mono text-xs text-red-400">{error}</p>}
+      {/* With no questions on the page (the load failed) the error leads, with Retry. */}
+      {error && entries.length === 0 && (
+        <div role="alert" className="mb-4 border border-mathua-border bg-mathua-surface p-4">
+          <p className="font-mono text-xs text-red-400">{error}</p>
+          <button type="button" onClick={() => { load() }} className="mt-3 border border-mathua-blue px-4 py-2 font-mono text-xs text-mathua-blue hover:bg-mathua-blue-faint min-h-[36px]">Retry</button>
+        </div>
+      )}
 
       {/* The reference layer, in the flow.
           This replaces the "Reference" link the done card used to carry to `/study`: the same
@@ -796,7 +837,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                     has a reading it comes first, and Mathua's own worked example sits below it,
                     collapsed but one click away. A topic with no reading keeps the worked
                     example as its lesson. */}
-                <LessonMaterial kp={ikp} isPy={isPy} empty="Worked example unavailable — start practicing instead." />
+                <LessonMaterial kp={ikp} isPy={isPy} empty={material === 'failed' ? 'The reading could not be loaded right now. The questions below still work; reload the page to try the reading again.' : material === 'loading' ? 'Loading the reading…' : 'Worked example unavailable — start practicing instead.'} />
                 {diagram && (
                   <figure className="mt-4">
                     <LessonDiagram src={diagram} alt={`Diagram for ${ikp?.label || 'this topic'}`} />
@@ -1062,6 +1103,12 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             </div>
           )
         })}
+        {/* Mid-session errors (an answer that could not be graded) sit under the question the
+            learner is looking at. They used to render at the top of the feed, a screen or more
+            above the Check button, so a failed submit looked like nothing had happened. */}
+        {error && entries.length > 0 && (
+          <p role="alert" className="font-mono text-xs text-red-400">{error}</p>
+        )}
         <div ref={bottomRef} aria-hidden="true" />
       </div>
     </div>

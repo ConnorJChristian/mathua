@@ -1849,7 +1849,7 @@ func (s *Server) handleLessons(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/lessons/{conceptId}/practice
 
-// GET /api/lessons/body?title=... returns a single lesson's markdown body.
+// GET /api/lessons/body?title=... (or ?concept=...) returns a single lesson's markdown body.
 // The list endpoint intentionally omits bodies (multi-MB payload); clients
 // fetch the selected lesson's content here on demand.
 func (s *Server) handleLessonBody(w http.ResponseWriter, r *http.Request) {
@@ -1862,12 +1862,21 @@ func (s *Server) handleLessonBody(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"lessons unavailable"}`, 503)
 		return
 	}
+	// ?concept= names the lesson by the concept it teaches (fork change): the
+	// reference page used to download the whole catalog (half a megabyte, with
+	// the learner's progress computed for every concept) only to find this title.
 	title := strings.TrimSpace(r.URL.Query().Get("title"))
-	if title == "" {
-		http.Error(w, `{"error":"title required"}`, 400)
+	cid := strings.TrimSpace(r.URL.Query().Get("concept"))
+	if title == "" && cid == "" {
+		http.Error(w, `{"error":"title or concept required"}`, 400)
 		return
 	}
-	l := ll.LessonByTitle(title)
+	var l *lessons.Lesson
+	if title != "" {
+		l = ll.LessonByTitle(title)
+	} else {
+		l = ll.Lesson(cid)
+	}
 	if l == nil {
 		http.Error(w, `{"error":"lesson not found"}`, 404)
 		return
@@ -4743,10 +4752,43 @@ func newUUID() string {
 
 // gzipResponseWriter transparently gzips responses for clients that send
 // Accept-Encoding: gzip. JSON lesson/graph payloads compress ~8-10x.
+//
+// Whether to compress is decided when the status goes out, from the
+// response's own headers, not before the handler runs (fork change). A
+// module file (a PDF, an image) is already compressed: gzipping it burned
+// seconds of CPU per open (4 s for a 20 MB book, ~12 s for a 59 MB one),
+// dropped Content-Length, so pdf.js could neither show progress nor load
+// pages by range, and wrapped a 206 whose Content-Range described bytes
+// the body no longer held. Only text-like types are compressed, never a
+// ranged (206) or bodiless (204, 304, HEAD) response.
 type gzipResponseWriter struct {
 	http.ResponseWriter
 	gz          *gzip.Writer
+	method      string
 	wroteHeader bool
+	pass        bool // decided: write through uncompressed
+}
+
+// compressible reports a Content-Type worth gzipping: text, JSON, JS, XML,
+// SVG. Everything else (PDF, raster images, fonts, video, archives) carries
+// its own compression.
+func compressible(contentType string) bool {
+	ct := strings.ToLower(strings.TrimSpace(contentType))
+	if i := strings.IndexByte(ct, ';'); i >= 0 {
+		ct = strings.TrimSpace(ct[:i])
+	}
+	switch {
+	case strings.HasPrefix(ct, "text/"):
+		return true
+	case strings.HasSuffix(ct, "+json"), strings.HasSuffix(ct, "+xml"):
+		return true
+	}
+	switch ct {
+	case "application/json", "application/javascript", "application/x-javascript",
+		"application/xml", "application/wasm", "application/x-ndjson", "image/svg+xml":
+		return true
+	}
+	return false
 }
 
 // WriteHeader states the encoding as the status goes out, not only before the
@@ -4756,8 +4798,19 @@ type gzipResponseWriter struct {
 func (g *gzipResponseWriter) WriteHeader(code int) {
 	if !g.wroteHeader {
 		g.wroteHeader = true
-		g.Header().Set("Content-Encoding", "gzip")
-		g.Header().Del("Content-Length")
+		h := g.Header()
+		h.Add("Vary", "Accept-Encoding")
+		switch {
+		case g.method == http.MethodHead,
+			code == http.StatusNoContent, code == http.StatusNotModified, code == http.StatusPartialContent,
+			h.Get("Content-Range") != "", h.Get("Content-Encoding") != "",
+			!compressible(h.Get("Content-Type")):
+			g.pass = true
+		default:
+			h.Set("Content-Encoding", "gzip")
+			h.Del("Content-Length")
+			g.gz = gzip.NewWriter(g.ResponseWriter)
+		}
 	}
 	g.ResponseWriter.WriteHeader(code)
 }
@@ -4769,7 +4822,30 @@ func (g *gzipResponseWriter) Write(b []byte) (int, error) {
 	if !g.wroteHeader {
 		g.WriteHeader(http.StatusOK)
 	}
+	if g.pass {
+		return g.ResponseWriter.Write(b)
+	}
 	return g.gz.Write(b)
+}
+
+// Flush lets a streaming handler push what it has so far through the
+// compressor and the connection.
+func (g *gzipResponseWriter) Flush() {
+	if g.gz != nil {
+		_ = g.gz.Flush()
+	}
+	if f, ok := g.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// close finishes the gzip stream, if one was started.
+func (g *gzipResponseWriter) close() {
+	if g.gz != nil {
+		if err := g.gz.Close(); err != nil {
+			log.Printf("warning: gzip close: %v", err)
+		}
+	}
 }
 
 // GzipMiddleware compresses responses for gzip-capable clients.
@@ -4779,15 +4855,9 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		w.Header().Set("Content-Encoding", "gzip")
-		w.Header().Del("Content-Length")
-		gz := gzip.NewWriter(w)
-		defer func() {
-			if err := gz.Close(); err != nil {
-				log.Printf("warning: gzip close: %v", err)
-			}
-		}()
-		next.ServeHTTP(&gzipResponseWriter{ResponseWriter: w, gz: gz}, r)
+		g := &gzipResponseWriter{ResponseWriter: w, method: r.Method}
+		defer g.close()
+		next.ServeHTTP(g, r)
 	})
 }
 

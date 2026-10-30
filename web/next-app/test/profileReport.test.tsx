@@ -151,3 +151,38 @@ describe('/profile shows the report', () => {
     expect(screen.queryByRole('region', { name: 'How you are doing' })).toBeNull()
   })
 })
+
+// A slow or failed request must not hold the whole profile, and a failed
+// scores request must say what happened and offer a way back.
+describe('/profile when a request is slow or fails', () => {
+  beforeEach(() => {
+    vi.mocked(getUserInfo).mockReturnValue({
+      student_id: 's1', name: 'T', username: 't', concepts_mastered: 4,
+      current_streak: 2, level: 'Learner', diagnostic_completed: true,
+    } as never)
+    vi.mocked(api.getScores).mockResolvedValue(scores)
+  })
+
+  it('renders the report while the heatmap request is still on its way', async () => {
+    vi.mocked(api.getActivity).mockReturnValueOnce(new Promise(() => {}))
+    vi.mocked(api.getWeaknesses).mockReturnValueOnce(new Promise(() => {}))
+    render(<ProfilePage />)
+    expect(await screen.findByRole('region', { name: 'Where you are' })).toBeTruthy()
+  })
+
+  it('a server that does not answer reads as such, with Retry', async () => {
+    vi.mocked(api.getScores).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    render(<ProfilePage />)
+    expect((await screen.findByRole('alert')).textContent).toMatch(/server did not answer/)
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull()
+  })
+
+  it('an expired session offers Sign in as well as Retry', async () => {
+    vi.mocked(api.getScores).mockRejectedValueOnce(new Error('Scores fetch failed: 401'))
+    render(<ProfilePage />)
+    expect((await screen.findByRole('alert')).textContent).toMatch(/session has expired/)
+    expect(screen.getByRole('link', { name: 'Sign in' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
+  })
+})

@@ -55,9 +55,13 @@ export default function ReadingPanel({ reading, texts, onUnavailable }: { readin
         <PdfReader reading={{ title: chosen.source, url: chosen.url ?? '', page: chosen.page, end_page: chosen.end_page }} onUnavailable={onUnavailable} />
       ) : chosen.kind === 'file' && chosen.url && /\.html?($|[?#])/i.test(chosen.url) ? (
         // Lecture notes (a rendered notebook) read in place, like a PDF section.
+        // The page runs its own scripts (MathJax typesets the notebook's
+        // formulas; with scripts blocked every lecture showed raw TeX and
+        // logged a blocked-script error), but as an opaque origin: it cannot
+        // read the app's storage or token. Links in the notes open in a tab.
         <div className="mt-3 border border-mathua-border bg-mathua-bg">
           <p className="px-3 pt-2.5 font-mono text-[10px] uppercase tracking-wider text-mathua-muted">Read · {chosen.source}</p>
-          <iframe title={chosen.source} src={absolute(chosen.url)} sandbox="allow-same-origin" className="mt-2 w-full h-[70vh] bg-white" />
+          <iframe title={chosen.source} src={absolute(chosen.url)} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" className="mt-2 w-full h-[70vh] bg-white" />
           <a
             href={absolute(chosen.url)}
             target="_blank"

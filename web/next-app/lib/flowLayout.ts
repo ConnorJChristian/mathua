@@ -43,3 +43,67 @@ export function precomputedLayout(ids: Iterable<string>): Map<string, FlowPoint>
   }
   return out.size > 0 ? out : null
 }
+
+const NODE_W = 180
+const NODE_H = 40
+const COL_GAP = 70
+const ROW_GAP = 16
+
+/**
+ * Positions for a concept set that the artifact mostly covers (fork change).
+ * A concept the artifact lacks (added since the last build, or served by a
+ * module the build did not see) is placed just right of its furthest-right
+ * known prerequisite, in a fresh row below that prerequisite's neighbours;
+ * one with no known prerequisite goes in a column past the whole graph.
+ * Returns null when the artifact covers less than half of the set, so the
+ * caller lays everything out itself: one new concept used to send the whole
+ * graph (2,000+ nodes) through dagre on the main thread, which froze the page
+ * for over a minute.
+ */
+export function layoutFromPrecomputed(
+  concepts: ReadonlyArray<{ id: string; prerequisites: ReadonlyArray<string> }>,
+): Map<string, FlowPoint> | null {
+  const out = new Map<string, FlowPoint>()
+  const missing: { id: string; prerequisites: ReadonlyArray<string> }[] = []
+  for (const c of concepts) {
+    const p = positions[c.id]
+    if (p) out.set(c.id, { x: p[0], y: p[1] })
+    else missing.push(c)
+  }
+  if (out.size === 0 || out.size * 2 < concepts.length) return null
+  if (missing.length === 0) return out
+
+  let maxX = 0
+  for (const p of out.values()) if (p.x > maxX) maxX = p.x
+  // Rows already taken at each column, so two new nodes never overlap.
+  const taken = new Map<number, number>()
+  const place = (x: number, baseY: number): FlowPoint => {
+    const col = Math.round(x)
+    const y = Math.max(baseY, taken.get(col) ?? -Infinity)
+    taken.set(col, y + NODE_H + ROW_GAP)
+    return { x, y }
+  }
+  // Prerequisites placed first, so a chain of new concepts flows left to right.
+  const pending = [...missing]
+  let guard = pending.length + 1
+  while (pending.length > 0 && guard-- > 0) {
+    const c = pending.shift()!
+    const known = c.prerequisites.filter(p => out.has(p))
+    const unplaced = c.prerequisites.some(p => !out.has(p) && pending.some(q => q.id === p))
+    if (unplaced && guard > 0) {
+      pending.push(c)
+      continue
+    }
+    if (known.length === 0) {
+      out.set(c.id, place(maxX + NODE_W + COL_GAP, 0))
+      continue
+    }
+    let right = out.get(known[0])!
+    for (const p of known) {
+      const q = out.get(p)!
+      if (q.x > right.x) right = q
+    }
+    out.set(c.id, place(right.x + NODE_W + COL_GAP, right.y + NODE_H + ROW_GAP))
+  }
+  return out
+}

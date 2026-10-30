@@ -538,16 +538,21 @@ export interface LibraryBook {
 
 export async function getLibrary(): Promise<LibraryBook[]> {
   const res = await authedFetch(`${API_BASE}/api/library`, { cache: 'no-store' })
-  if (!res.ok) return []
+  // A failure throws: an empty list would read as "no books yet".
+  if (!res.ok) throw new Error(`Library fetch failed: ${res.status}`)
   const data = await res.json()
   return data.books ?? []
 }
 
 // Fork: the course catalog with the learner's active course (the study plan
 // the shelf follows). Progress comes from the transcript when signed in.
-export async function getCourseCatalog(): Promise<{ courses: CourseStatus[]; active: string; activeIds: string[] }> {
+// With `throwOnError`, a failed request throws instead of reading as an empty catalog.
+export async function getCourseCatalog(opts?: { throwOnError?: boolean }): Promise<{ courses: CourseStatus[]; active: string; activeIds: string[] }> {
   const res = await authedFetch(`${API_BASE}/api/courses`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })
-  if (!res.ok) return { courses: [], active: '', activeIds: [] }
+  if (!res.ok) {
+    if (opts?.throwOnError) throw new Error(`Course catalog fetch failed: ${res.status}`)
+    return { courses: [], active: '', activeIds: [] }
+  }
   const data = await res.json()
   const activeIds: string[] = data.active_ids ?? (data.active ? [data.active] : [])
   return { courses: data.courses ?? [], active: data.active ?? '', activeIds }
@@ -1254,6 +1259,19 @@ export async function getLessonDocument(title: string): Promise<LessonDocument> 
 	}
 }
 
+// The lesson that teaches a concept, by the concept (fork change); null when
+// it has none. The reference page used to fetch the whole catalog to find the
+// title first.
+export async function getLessonForConcept(conceptId: string): Promise<LessonDocument | null> {
+	const res = await authedFetch(`${API_BASE}/api/lessons/body?concept=${encodeURIComponent(conceptId)}`, {
+		cache: 'no-store',
+	})
+	if (res.status === 404) return null
+	if (!res.ok) throw new Error(`Lesson body fetch failed: ${res.status}`)
+	const data = (await res.json()) as Partial<LessonDocument>
+	return { title: data.title ?? '', body: data.body ?? '', source: data.source, assets: data.assets ?? [] }
+}
+
 export async function getLessonBody(title: string): Promise<string> {
 	return (await getLessonDocument(title)).body
 }
@@ -1474,8 +1492,13 @@ export interface ReadinessRes {
 	prerequisites?: EligibilityPrereq[]
 }
 
+export const READINESS_TIMEOUT_MS = 6000
+
 export async function getLessonReadiness(conceptId: string): Promise<ReadinessRes> {
-	const res = await authedFetch(`${API_BASE}/api/lessons/${encodeURIComponent(conceptId)}/readiness`, { cache: 'no-store' })
+	// A short leash, no retries: the questions wait on this answer, and the
+	// practice endpoint enforces the gate anyway, so a readiness check that
+	// hangs is treated as one that failed (the caller falls back to ready).
+	const res = await authedFetch(`${API_BASE}/api/lessons/${encodeURIComponent(conceptId)}/readiness`, { cache: 'no-store', timeoutMs: READINESS_TIMEOUT_MS, retryAttempts: 0 })
 	// Fail soft, in the direction that matters: a blip must not block a learner
 	// whose prerequisites are satisfied. The practice endpoint still refuses a
 	// genuinely locked topic, so the server remains the authority.
@@ -2437,8 +2460,13 @@ export async function setPins(concepts: string[]): Promise<Pin[]> {
   return ((await res.json()).pins ?? []) as Pin[]
 }
 
-export async function getCourseView(id: string): Promise<CourseView | null> {
+// Null for a course that does not exist. With `throwOnError`, any other failure
+// (the server down, a 500) throws, so a page can say so instead of "not found".
+export async function getCourseView(id: string, opts?: { throwOnError?: boolean }): Promise<CourseView | null> {
   const res = await authedFetch(`${API_BASE}/api/courses/view?id=${encodeURIComponent(id)}`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })
-  if (!res.ok) return null
+  if (!res.ok) {
+    if (opts?.throwOnError && res.status !== 404) throw new Error(`Course fetch failed: ${res.status}`)
+    return null
+  }
   return res.json()
 }

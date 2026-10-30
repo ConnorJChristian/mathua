@@ -14,6 +14,14 @@ export const lessonMacros: Record<string, string> = macrosJson as Record<string,
 // Placeholder standing in for an escaped literal \$ so the delimiter regexes
 // below never mistake it for a math boundary. Restored at the end.
 const ESC_DOLLAR = '\u0000MU-ESC-DOLLAR\u0000'
+// A row break with extra space (`\\[2pt]` in a matrix or an aligned block)
+// ends in `\[`, which the display-math matcher below read as an opener: the
+// span then ran to the next `\]`, far away, and the whole card rendered as
+// raw TeX. The spacing is held aside until the delimiters are resolved.
+const ROW_SPACE_RE = /(^|[^\\])\\\\\[(\d+(?:\.\d+)?(?:pt|em|ex|mm|cm|in))\]/g
+const rowSpaceToken = (len: string) => `\u0000MU-ROWSPACE-${len}\u0000`
+const ROW_SPACE_TOKEN_RE = /\u0000MU-ROWSPACE-([^\u0000]+)\u0000/g
+const holdRowSpace = (s: string) => s.replace(ROW_SPACE_RE, (_, before: string, len: string) => before + rowSpaceToken(len))
 
 function escapeHtmlMath(s: string): string {
   // Span HTML is inline raw HTML inside markdown: remark parses it line-wise
@@ -95,6 +103,9 @@ function prepareLessonMathInner(input: string): string {
   })
 
   // --- Display math ---
+  // Row spacing is hidden from the display matchers, once now and once
+  // after the Algebrica step has halved its backslashes.
+  content = holdRowSpace(content)
   // Single-line display blocks become inline $\displaystyle ...$ (e.g. inside
   // table cells). KaTeX forbids {align} and \tag in inline mode, so rewrite
   // align → aligned (inline-legal) and drop \tag — otherwise these blocks
@@ -113,6 +124,7 @@ function prepareLessonMathInner(input: string): string {
     }
     return '$\\displaystyle ' + inlineSafe(clean.trim()) + '$'
   })
+  content = holdRowSpace(content)
   // Wikipedia style: \[...\]
   content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_, inner) => {
     if (inner.includes('\n')) {
@@ -120,6 +132,7 @@ function prepareLessonMathInner(input: string): string {
     }
     return '$\\displaystyle ' + inlineSafe(inner.trim()) + '$'
   })
+  content = content.replace(ROW_SPACE_TOKEN_RE, (_, len: string) => `\\\\[${len}]`)
 
   // ORCCA content wraps multi-line display math (aligned, array) in single
   // $...$ where the $ sits ALONE on its opening and closing lines. The line

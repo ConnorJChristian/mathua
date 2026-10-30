@@ -6,8 +6,7 @@ import LessonCredits from './LessonCredits'
 import LessonDiagram from './LessonDiagram'
 import ReportMenu from './ReportMenu'
 import ReadingPanel from './ReadingPanel'
-import { getLessonBody, getLessonKPs, getLessons, type LessonKpsRes } from '../lib/api'
-import { getUserInfo } from '../lib/auth'
+import { getLessonForConcept, getLessonKPs, type LessonKpsRes } from '../lib/api'
 import { buildExampleBlocks, type ExampleBlock } from '../lib/lessonBlocks'
 import { stripMathDelimiters } from '../lib/lessonMath'
 import { concepts } from '../lib/conceptData'
@@ -50,20 +49,6 @@ interface Props {
 // showing both, so the copy is recognised here as well as produced there.
 const PLACEHOLDER_SLICE = /There isn't a written explanation/
 
-// Only reached for a concept whose shard carries no knowledge points at all. It costs one lesson
-// index fetch, so it stays off the common path — and every concept in the corpus has a shard, so
-// in practice this rarely runs. It is here so a concept authored without one still gets the
-// article rather than an empty panel.
-async function fetchLessonTitle(conceptId: string): Promise<string | null> {
-  const res = await getLessons(getUserInfo()?.student_id)
-  for (const lessons of Object.values(res.lessons)) {
-    for (const l of lessons) {
-      if (l.concepts.includes(conceptId)) return l.title
-    }
-  }
-  return null
-}
-
 export default function ConceptReference({ conceptId, variant = 'panel', emptyActions }: Props) {
   const [shard, setShard] = useState<LessonKpsRes | null>(null)
   const [lessonTitle, setLessonTitle] = useState<string | null>(null)
@@ -93,16 +78,17 @@ export default function ConceptReference({ conceptId, variant = 'panel', emptyAc
   // duplicates what `/learn` already put on screen. The reference page always wants the article.
   const wantsArticle = variant === 'page' || (shard !== null && allBlocks.length === 0)
 
+  // The panel reaches for the article only for a concept whose shard carries no knowledge
+  // points at all (rare: every concept in the corpus has a shard), so it stays off the common
+  // path; the reference page always wants it. One request, by concept.
   useEffect(() => {
     if (!wantsArticle) return
     let cancelled = false
-    fetchLessonTitle(conceptId)
-      .then(async (title) => {
-        if (cancelled || !title) return
-        const text = await getLessonBody(title)
-        if (cancelled) return
-        setLessonTitle(title)
-        setBody(text)
+    getLessonForConcept(conceptId)
+      .then((doc) => {
+        if (cancelled || !doc) return
+        setLessonTitle(doc.title)
+        setBody(doc.body)
       })
       .catch(() => { if (!cancelled) setFailed(true) })
     return () => { cancelled = true }

@@ -25,7 +25,7 @@ import '@xyflow/react/dist/base.css'
 import Fuse from 'fuse.js'
 import dagre from 'dagre'
 import type { GraphStatus } from '../lib/graphStatus'
-import { precomputedLayout, type FlowPoint } from '../lib/flowLayout'
+import { layoutFromPrecomputed, type FlowPoint } from '../lib/flowLayout'
 
 export type { GraphStatus }
 
@@ -829,7 +829,7 @@ function GraphInner({
   }, [effectiveSelected, conceptById, dependentsMap])
 
   const layout = useMemo(
-    () => precomputedLayout(concepts.map(c => c.id)) ?? layoutWithDagre(concepts),
+    () => layoutFromPrecomputed(concepts) ?? layoutWithDagre(concepts),
     [concepts]
   )
 
