@@ -48,7 +48,7 @@ func (g *ivpEvaluateGen) Generate(ctx generator.GeneratorContext) generator.Prob
 	// y = a x^2/2 + b x + c
 	v := a*t*t/2 + b*t + c
 	return generator.Problem{
-		Question: fmt.Sprintf("Solve \\\\(y' = %dx + %d\\\\) with \\\\(y(0) = %d\\\\), and find \\\\(y(%d)\\\\).", a, b, c, t),
+		Question: fmt.Sprintf("Solve \\(y' = %dx + %d\\) with \\(y(0) = %d\\), and find \\(y(%d)\\).", a, b, c, t),
 		Answer:   fmt.Sprintf("%d", v),
 		Explanation: fmt.Sprintf("Integrate the right side: y = %dx^2/2 + %dx + C, and the initial condition makes C = %d. Substituting x = %d gives %d. The constant is the only unknown, which is why one initial condition fixes one solution.",
 			a, b, c, t, v),
@@ -67,7 +67,7 @@ func (g *characteristicSumGen) Generate(ctx generator.GeneratorContext) generato
 	c := smallInt(1, 9)
 	sum := -b / a
 	return generator.Problem{
-		Question: fmt.Sprintf("For the equation \\\\(%dy'' %+dy' %+dy = 0\\\\), what is the sum of the roots of the characteristic equation?", a, b, c),
+		Question: fmt.Sprintf("For the equation \\(%dy'' %+dy' %+dy = 0\\), what is the sum of the roots of the characteristic equation?", a, b, c),
 		Answer:   fmt.Sprintf("%d", sum),
 		Explanation: fmt.Sprintf("The characteristic equation is %dr^2 + %dr + %d = 0. Its roots sum to the negation of the linear coefficient over the leading one: %d/%d = %d. That is the same coefficient reading that makes the characteristic equation the reason a constant-coefficient equation solves by exponentials.",
 			a, b, c, -b, a, sum),
@@ -82,7 +82,7 @@ func (g *equilibriumGen) Generate(ctx generator.GeneratorContext) generator.Prob
 	k := smallInt(1, 4+int(ctx.Difficulty*4))
 	a := smallInt(1, 8+int(ctx.Difficulty*8))
 	return generator.Problem{
-		Question: fmt.Sprintf("The population model \\\\(y' = %dy(%d - y)\\\\) has two equilibria. What is the non-zero one?", k, a),
+		Question: fmt.Sprintf("The population model \\(y' = %dy(%d - y)\\) has two equilibria. What is the non-zero one?", k, a),
 		Answer:   fmt.Sprintf("%d", a),
 		Explanation: fmt.Sprintf("An equilibrium is where the rate is zero, and the product %dy(%d - y) is zero at y = 0 and at y = %d. The first is extinction and the second is the carrying capacity, which is why the non-zero root is the interesting one.",
 			k, a, a),
@@ -100,7 +100,7 @@ func (g *wronskianGen) Generate(ctx generator.GeneratorContext) generator.Proble
 	// W(x^m, x^n) = (n - m) x^(m+n-1)
 	v := (n - m) * powInt(x, m+n-1)
 	return generator.Problem{
-		Question: fmt.Sprintf("Find the Wronskian \\\\(W(x^{%d}, x^{%d})\\\\) evaluated at \\\\(x = %d\\\\).", m, n, x),
+		Question: fmt.Sprintf("Find the Wronskian \\(W(x^{%d}, x^{%d})\\) evaluated at \\(x = %d\\).", m, n, x),
 		Answer:   fmt.Sprintf("%d", v),
 		Explanation: fmt.Sprintf("The Wronskian is f g' - f' g, which for two powers is (%d - %d) x^(%d+%d-1). At x = %d that is %d. A non-zero Wronskian is what makes the two functions independent, so this number answers a question about independence as well as being a determinant.",
 			m, n, m, n, x, v),
@@ -117,7 +117,7 @@ func (g *eulerStepsGen) Generate(ctx generator.GeneratorContext) generator.Probl
 	a := smallInt(0, 4)
 	b := a + h*steps
 	return generator.Problem{
-		Question: fmt.Sprintf("Euler's method runs from \\\\(x = %d\\\\) to \\\\(x = %d\\\\) with step size \\\\(h = %d\\\\). How many steps does it take?", a, b, h),
+		Question: fmt.Sprintf("Euler's method runs from \\(x = %d\\) to \\(x = %d\\) with step size \\(h = %d\\). How many steps does it take?", a, b, h),
 		Answer:   fmt.Sprintf("%d", steps),
 		Explanation: fmt.Sprintf("The number of steps is the width of the interval divided by the step size: (%d - %d)/%d = %d. The count is exact because the step size divides the interval, which is why an interval is normally chosen to suit the step rather than the other way round.",
 			b, a, h, steps),
@@ -135,7 +135,7 @@ func (g *laplaceValueGen) Generate(ctx generator.GeneratorContext) generator.Pro
 		f *= i
 	}
 	return generator.Problem{
-		Question: fmt.Sprintf("Evaluate the Laplace transform \\\\(L\\\\{t^{%d}\\\\}(s)\\\\) at \\\\(s = 1\\\\).", n),
+		Question: fmt.Sprintf("Evaluate the Laplace transform \\(L\\{t^{%d}\\}(s)\\) at \\(s = 1\\).", n),
 		Answer:   fmt.Sprintf("%d", f),
 		Explanation: fmt.Sprintf("The transform of t^n is n! over s^(n+1), so at s = 1 it is simply %d! = %d. The factorial is the shape of the transform for a power, and the extra power of s in the denominator is what makes the transform decay faster for larger n.",
 			n, f),
@@ -152,7 +152,7 @@ func (g *pdeDiscriminantGen) Generate(ctx generator.GeneratorContext) generator.
 	c := smallInt(1, 3+int(ctx.Difficulty*5))
 	d := b*b - 4*a*c
 	return generator.Problem{
-		Question: fmt.Sprintf("For the equation \\\\(%du_{xx} %+du_{xy} %+du_{yy} = 0\\\\), find the discriminant \\\\(B^2 - 4AC\\\\).", a, b, c),
+		Question: fmt.Sprintf("For the equation \\(%du_{xx} %+du_{xy} %+du_{yy} = 0\\), find the discriminant \\(B^2 - 4AC\\).", a, b, c),
 		Answer:   fmt.Sprintf("%d", d),
 		Explanation: fmt.Sprintf("The discriminant is B^2 - 4AC = %d^2 - 4(%d)(%d) = %d. Its sign says which of the three classical types the equation is, and that sign is what the analogues of the wave, heat and Laplace equations differ in.",
 			b, a, c, d),

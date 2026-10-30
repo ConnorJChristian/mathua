@@ -184,7 +184,11 @@ func TestUnlocksAfterHidesPracticeUntilBookItemCorrect(t *testing.T) {
 	if missed["pr1"] > 0 {
 		t.Fatalf("practice served after a wrong answer: %v", missed)
 	}
-	if missed["ex1"] < 100 || missed["plain"] == 0 {
+	// About half the time (FORK.md, generator/scaffold.go): here the other
+	// half goes to the untried plain item, so ex1 is Binomial(200, 1/2). The
+	// bound used to be ex1 >= 100, the mean itself, which failed about one
+	// run in two; 60..140 is more than five standard deviations either way.
+	if missed["ex1"] < 60 || missed["ex1"] > 140 || missed["plain"] == 0 {
 		t.Fatalf("a missed book exercise should come back often but not always: %v", missed)
 	}
 	solved := fakeHistory{correct: map[string]bool{"math:t.topic#ex1": true}}

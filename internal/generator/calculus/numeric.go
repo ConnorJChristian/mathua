@@ -39,7 +39,7 @@ func (g *sequenceLimitGen) Generate(ctx generator.GeneratorContext) generator.Pr
 	b, c := rand.Intn(9), rand.Intn(9)
 	e, f := rand.Intn(9), rand.Intn(9)
 	return generator.Problem{
-		Question: fmt.Sprintf("Find \\\\(\\\\lim_{n \\\\to \\\\infty} \\\\frac{%dn^2 + %dn + %d}{%dn^2 + %dn + %d}\\\\).", a, b, c, d, e, f),
+		Question: fmt.Sprintf("Find \\(\\lim_{n \\to \\infty} \\frac{%dn^2 + %dn + %d}{%dn^2 + %dn + %d}\\).", a, b, c, d, e, f),
 		Answer:   fmt.Sprintf("%d", ratio),
 		Explanation: fmt.Sprintf("For a ratio of polynomials at infinity only the highest powers matter, so the limit is the ratio of the leading coefficients: %d/%d = %d. The lower terms are negligible because the squared terms grow fastest.",
 			a, d, ratio),
@@ -60,7 +60,7 @@ func (g *recursiveValueGen) Generate(ctx generator.GeneratorContext) generator.P
 		v = r*v + c
 	}
 	return generator.Problem{
-		Question: fmt.Sprintf("A sequence is defined by \\\\(a_1 = %d\\\\) and \\\\(a_{n+1} = %da_n + %d\\\\). Find \\\\(a_{%d}\\\\).", start, r, c, steps+1),
+		Question: fmt.Sprintf("A sequence is defined by \\(a_1 = %d\\) and \\(a_{n+1} = %da_n + %d\\). Find \\(a_{%d}\\).", start, r, c, steps+1),
 		Answer:   fmt.Sprintf("%d", v),
 		Explanation: fmt.Sprintf("Apply the recurrence %d times: each term is %d times the one before plus %d, which gives %d. A recursive sequence is defined by what each term does to its predecessor, so the only way to reach a term is through the ones before it.",
 			steps, r, c, v),
@@ -92,7 +92,7 @@ func (g *substitutionValueGen) Generate(ctx generator.GeneratorContext) generato
 	// integral from 0 to a of 2x (x^2 + 1) dx = ((a^2+1)^2 - 1)/2
 	v := ((a*a+1)*(a*a+1) - 1) / 2
 	return generator.Problem{
-		Question: fmt.Sprintf("Evaluate \\\\(\\\\int_0^{%d} 2x(x^2 + 1)\\\\,dx\\\\).", a),
+		Question: fmt.Sprintf("Evaluate \\(\\int_0^{%d} 2x(x^2 + 1)\\,dx\\).", a),
 		Answer:   fmt.Sprintf("%d", v),
 		Explanation: fmt.Sprintf("Let u = x^2 + 1, so du = 2x dx, which is exactly what multiplies the bracket: the integral becomes the integral of u du from 1 to %d. That evaluates to (u^2)/2 between those limits, giving %d. Substitution is the chain rule read backwards, which is why the 2x has to be present for it to work.",
 			a*a+1, v),
@@ -108,7 +108,7 @@ func (g *massDensityGen) Generate(ctx generator.GeneratorContext) generator.Prob
 	l := 1 + rand.Intn(5+int(ctx.Difficulty*6))
 	v := k * l * l / 2
 	return generator.Problem{
-		Question: fmt.Sprintf("A rod of length %d has linear density \\\\(\\\\rho(x) = %dx\\\\) at a distance \\\\(x\\\\) from one end. Find its mass.", l, k),
+		Question: fmt.Sprintf("A rod of length %d has linear density \\(\\rho(x) = %dx\\) at a distance \\(x\\) from one end. Find its mass.", l, k),
 		Answer:   fmt.Sprintf("%d", v),
 		Explanation: fmt.Sprintf("Mass is the integral of density over the length: the integral of %dx from 0 to %d is %d*%d^2/2 = %d. A varying density is why the mass is an integral rather than a multiplication, even though the units are the same.",
 			k, l, k, l, v),
@@ -134,7 +134,7 @@ func (g *higherOrderValueGen) Generate(ctx generator.GeneratorContext) generator
 	}
 	v := coef * pw
 	return generator.Problem{
-		Question: fmt.Sprintf("For \\\\(f(x) = x^{%d}\\\\), find \\\\(f^{(%d)}(%d)\\\\).", n, k, a),
+		Question: fmt.Sprintf("For \\(f(x) = x^{%d}\\), find \\(f^{(%d)}(%d)\\).", n, k, a),
 		Answer:   fmt.Sprintf("%d", v),
 		Explanation: fmt.Sprintf("Each derivative brings down the current power and reduces it: the k-th derivative of x^n is n!/(n-k)! times x^(n-k), so here it is %d times %d^%d = %d. The power rule applied %d times is the whole computation.",
 			coef, a, n-k, v, k),
