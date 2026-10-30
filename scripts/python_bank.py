@@ -190,6 +190,7 @@ def check_gating(cid, items):
     """book_ref and unlocks_after, as internal/pytrack/bank.go validates them."""
     errs = []
     ids = {it["id"] for it in items}
+    levels = {it["id"]: it.get("level", 2) for it in items}
     for it in items:
         where = "%s#%s" % (cid, it["id"])
         ref = it.get("book_ref")
@@ -210,6 +211,10 @@ def check_gating(cid, items):
         after = it.get("unlocks_after")
         if after is not None and (after == it["id"] or after not in ids):
             errs.append("%s: unlocks_after %r must name another item of the concept" % (where, after))
+        elif after is not None and it.get("level", 2) < levels.get(after, 2):
+            # Never an easier scaffold step than the item it waits for.
+            errs.append("%s: level %d is below the level %d of %r it unlocks after"
+                        % (where, it.get("level", 2), levels.get(after, 2), after))
     return errs
 
 

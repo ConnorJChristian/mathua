@@ -242,8 +242,10 @@ func validateConcept(c *Concept) error {
 		return fmt.Errorf("concept %q has no questions", c.ID)
 	}
 	ids := make(map[string]bool, len(c.Items))
+	level := make(map[string]int, len(c.Items))
 	for _, it := range c.Items {
 		ids[it.ID] = true
+		level[it.ID] = it.Level
 	}
 	seen := map[string]bool{}
 	for _, it := range c.Items {
@@ -254,6 +256,12 @@ func validateConcept(c *Concept) error {
 		if it.UnlocksAfter != "" {
 			if it.UnlocksAfter == it.ID || !ids[it.UnlocksAfter] {
 				return fmt.Errorf("%s: unlocks_after %q must name another item of the concept", where, it.UnlocksAfter)
+			}
+			// An item served only after another is never an easier scaffold
+			// step than it: a practice version of a book exercise practises
+			// the same skill (generator/scaffold.go).
+			if it.Level < level[it.UnlocksAfter] {
+				return fmt.Errorf("%s: level %d is below the level %d of %q it unlocks after", where, it.Level, level[it.UnlocksAfter], it.UnlocksAfter)
 			}
 		}
 		if it.BookRef != nil && (it.Kind == KindOutput || it.Kind == KindCode) {
