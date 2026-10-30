@@ -12,7 +12,8 @@ import PdfReader from '../../components/PdfReader'
 import VideoPlayer, { formatDuration } from '../../components/VideoPlayer'
 import { useTheme } from '../../hooks/useTheme'
 import { getCourseView, setActiveCourses, getCourseCatalog, getPins, setPins, type CourseNote, type CourseTopic, type CourseView, type CourseVideo } from '../../lib/api'
-import { courseTabs, NO_LECTURE_VIDEOS, ungradedTasksLine, type CourseTab } from '../../lib/courseTabs'
+import { courseTabs, hasLectures, NO_LECTURE_VIDEOS, ungradedTasksLine, type CourseTab } from '../../lib/courseTabs'
+import CourseTextLink from '../../components/CourseTextLink'
 import { API_BASE } from '../../lib/apiBase'
 import { getUserInfo } from '../../lib/auth'
 import { formatDue } from '../../lib/dates'
@@ -299,7 +300,7 @@ function CourseContent() {
                 <ul className="mt-1 space-y-1">
                   {view.texts.map((t) => (
                     <li key={t.key} className="font-mono text-[11px] min-w-0">
-                      {t.library_id ? <Link href={`/library?book=${encodeURIComponent(t.library_id)}`} className="text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.title}</Link> : <span className="text-mathua-secondary">{t.title}{t.kind === 'web' ? ' (online)' : ''}</span>}
+                      <CourseTextLink text={t} onLectures={hasLectures(view) ? () => go('videos') : undefined} />
                     </li>
                   ))}
                   {view.texts.length === 0 && <li className="font-mono text-[11px] text-mathua-muted">No texts set.</li>}
@@ -375,7 +376,7 @@ function CourseContent() {
                 <ul className="border border-mathua-border divide-y divide-mathua-border bg-mathua-surface">
                   {view.texts.map((t) => (
                     <li key={t.key} className="px-3 py-2 font-mono text-xs min-w-0">
-                      {t.library_id ? <Link href={`/library?book=${encodeURIComponent(t.library_id)}`} className="text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.title} →</Link> : <span className="text-mathua-secondary">{t.title}{t.kind === 'web' ? ' (online)' : ''}</span>}
+                      <CourseTextLink text={t} arrow onLectures={hasLectures(view) ? () => go('videos') : undefined} />
                     </li>
                   ))}
                 </ul>

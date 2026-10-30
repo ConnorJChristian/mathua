@@ -191,6 +191,12 @@ func (s *Server) library() []libraryBook {
 				lb.Available = true
 			}
 		}
+		// A described PDF with no contents and no topics that is not on this
+		// computer has nothing to open and nothing to list (Q63: the Hoy
+		// Online Supplement was shelved as "0 sections · 0 topics").
+		if len(lb.Sections) == 0 && !lb.Available {
+			continue
+		}
 		out = append(out, lb)
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].Title < out[b].Title })

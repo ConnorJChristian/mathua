@@ -15,6 +15,7 @@ import { getUserInfo } from '../../lib/auth'
 import { masteryState } from '../../lib/progress'
 import { learnConceptPath, studyConceptPath } from '../../lib/learnReturn'
 import { TRACKS } from '../../lib/track'
+import { bookCounts, bookKindLabel } from '../../lib/libraryLabels'
 
 // Fork change: the library. Every book and source your topics are drawn from,
 // shelved by track. Open a book for its table of contents: each section lists
@@ -47,11 +48,11 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
     <>
       <button type="button" onClick={onBack} className="font-mono text-xs text-mathua-secondary hover:text-mathua-blue">← Library</button>
       <div className="mt-4 mb-5">
-        <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">{book.kind === 'pdf' ? 'Your PDF' : 'Online book'}</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-mathua-muted">{bookKindLabel(book)}</p>
         <h1 className="font-serif text-2xl text-mathua-primary mt-1 break-words">{book.title}</h1>
         {book.author && <p className="font-mono text-xs text-mathua-secondary mt-1">{book.author}</p>}
         <p className="font-mono text-[11px] text-mathua-muted mt-1">
-          {book.sections.length} section{book.sections.length === 1 ? '' : 's'} · {book.topic_count} topic{book.topic_count === 1 ? '' : 's'}
+          {bookCounts(book)}
         </p>
         {book.kind === 'pdf' && !book.available && (
           <p className="mt-3 border border-mathua-border bg-mathua-surface p-3 font-mono text-[11px] text-mathua-secondary">
@@ -212,12 +213,12 @@ function LibraryContent() {
                           className="h-full flex flex-col gap-1 border border-mathua-border bg-mathua-surface p-3 hover:border-mathua-blue min-w-0"
                         >
                           <span className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted">
-                            {b.kind === 'pdf' ? (b.available ? 'Your PDF' : 'PDF, not on this computer') : 'Online book'}
+                            {bookKindLabel(b)}
                           </span>
                           <span className="font-mono text-xs text-mathua-primary break-words [overflow-wrap:anywhere]">{b.title}</span>
                           {b.author && <span className="font-mono text-[10px] text-mathua-secondary">{b.author}</span>}
                           <span className="mt-auto pt-1 font-mono text-[10px] text-mathua-muted">
-                            {b.sections.length} section{b.sections.length === 1 ? '' : 's'} · {b.topic_count} topic{b.topic_count === 1 ? '' : 's'}
+                            {bookCounts(b)}
                           </span>
                         </Link>
                       </li>

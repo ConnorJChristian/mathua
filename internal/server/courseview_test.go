@@ -10,6 +10,7 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/auth"
 	"github.com/chuma-beep/mathua/internal/concepts"
+	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/engine"
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/planning"
@@ -162,6 +163,41 @@ func TestCourseTextNotesKey(t *testing.T) {
 	}
 	if got := resolveCourseText("web:Statistical Learning", titles, libIDs); got.Title != "Statistical Learning" || got.Kind != "web" {
 		t.Errorf("web key resolved to %+v", got)
+	}
+}
+
+// Q62/Q63: a course text links to a library page only when the library has
+// that book. The Hegemony main text, an HTML book the library does not shelve,
+// linked to /library?book=hegemony-hss-itr-html and landed on the index, and
+// was labelled "pdf". Online texts link to the matching online book.
+func TestCourseTextLinksOnlyToShelvedBooks(t *testing.T) {
+	lib := []libraryBook{
+		{ID: "m-book-pdf", Kind: "pdf", Title: "A Book"},
+		{ID: "an-introduction-to-statistical-learning-with-python", Kind: "web", Title: "An Introduction to Statistical Learning with Python"},
+	}
+	books := []modules.BookMeta{{Module: "m", File: "book.pdf", Title: "A Book"}, {Module: "h", File: "hss/itr.html", Title: "Hegemony (English)"}}
+	texts := []string{"m/book.pdf", "h/hss/itr.html", "web:Statistical Learning", "web:course manual"}
+	titles := map[string]string{"m/book.pdf": "A Book", "h/hss/itr.html": "Hegemony (English)"}
+	libIDs := courseTextLibraryIDs(lib, books, texts)
+
+	if got := resolveCourseText("m/book.pdf", titles, libIDs); got.Kind != "pdf" || got.LibraryID != "m-book-pdf" {
+		t.Errorf("shelved PDF = %+v", got)
+	}
+	got := resolveCourseText("h/hss/itr.html", titles, libIDs)
+	if got.Kind != "html" || got.LibraryID != "" || got.URL != "/api/modules/h/files/hss/itr.html" {
+		t.Errorf("HTML book = %+v, want kind html, no library page, its own file", got)
+	}
+	if got := resolveCourseText("web:Statistical Learning", titles, libIDs); got.LibraryID != "an-introduction-to-statistical-learning-with-python" {
+		t.Errorf("online text = %+v, want the matching online book", got)
+	}
+	// An online text with no online book on the shelves opens the PDF of it.
+	lib = append(lib, libraryBook{ID: "m-pdsh-pdf", Kind: "pdf", Title: "Python Data Science Handbook (2nd ed.)"})
+	libIDs = courseTextLibraryIDs(lib, books, append(texts, "web:Python Data Science Handbook"))
+	if got := resolveCourseText("web:Python Data Science Handbook", titles, libIDs); got.LibraryID != "m-pdsh-pdf" {
+		t.Errorf("online text with a shelved PDF = %+v", got)
+	}
+	if got := resolveCourseText("web:course manual", titles, libIDs); got.Title != "Course manual" || got.LibraryID != "" {
+		t.Errorf("unshelved online text = %+v", got)
 	}
 }
 

@@ -3,9 +3,12 @@ package server
 import (
 	"net/http"
 	"net/url"
+	"path"
 	"sort"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/engine"
@@ -78,15 +81,24 @@ type courseText struct {
 // course page lists. "notes:<module>" (a module's lecture notes, which a
 // course ranks among its texts so they open in the lesson) used to fall
 // through to the file case and was listed as "notes:ma-program (online)".
+//
+// libIDs holds a library id only for a text the library has (Q62: the
+// Hegemony main text, an HTML book, linked to a library page that did not
+// exist); a "web:" key has one when an online book on the shelves matches it.
+// An HTML file is kind "html", not "pdf", and opens as itself.
 func resolveCourseText(tx string, titles, libIDs map[string]string) courseText {
 	ct := courseText{Key: tx}
 	switch {
 	case strings.HasPrefix(tx, "web:"):
-		ct.Kind, ct.Title = "web", strings.TrimPrefix(tx, "web:")
+		ct.Kind, ct.Title = "web", upperFirst(strings.TrimPrefix(tx, "web:"))
+		ct.LibraryID = libIDs[tx]
 	case strings.HasPrefix(tx, "notes:"):
 		ct.Kind, ct.Title = "notes", "Lecture notes"
 	default:
 		ct.Kind = "pdf"
+		if ext := strings.ToLower(path.Ext(tx)); ext == ".html" || ext == ".htm" {
+			ct.Kind = "html"
+		}
 		ct.Title = titles[tx]
 		if ct.Title == "" {
 			ct.Title = tx
@@ -97,6 +109,51 @@ func resolveCourseText(tx string, titles, libIDs map[string]string) courseText {
 		ct.LibraryID = libIDs[tx]
 	}
 	return ct
+}
+
+// upperFirst capitalises a title typed in lower case ("course manual").
+func upperFirst(s string) string {
+	for i, r := range s {
+		return string(unicode.ToUpper(r)) + s[i+utf8.RuneLen(r):]
+	}
+	return s
+}
+
+// courseTextLibraryIDs maps the course's text keys to the library pages
+// that exist: a PDF the library shelves, and an online book whose name
+// contains a "web:" key (the match textMatches uses for readings).
+func courseTextLibraryIDs(lib []libraryBook, books []modules.BookMeta, texts []string) map[string]string {
+	have := map[string]bool{}
+	for _, b := range lib {
+		have[b.ID] = true
+	}
+	out := map[string]string{}
+	for _, b := range books {
+		key := b.Module + "/" + b.File
+		if id := slug(key); have[id] {
+			out[key] = id
+		}
+	}
+	for _, tx := range texts {
+		if !strings.HasPrefix(tx, "web:") {
+			continue
+		}
+		want := strings.ToLower(strings.TrimPrefix(tx, "web:"))
+		// An online book on the shelves first; else a PDF of the same book
+		// ("web:Statistical Learning" is ISLP, which the library has as a PDF).
+		for _, kind := range []string{"web", "pdf"} {
+			for _, b := range lib {
+				if b.Kind == kind && strings.Contains(strings.ToLower(b.Title), want) {
+					out[tx] = b.ID
+					break
+				}
+			}
+			if out[tx] != "" {
+				break
+			}
+		}
+	}
+	return out
 }
 
 type courseView struct {
@@ -363,12 +420,10 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 
 	// Texts, resolved to titles and library ids.
 	titles := map[string]string{}
-	libIDs := map[string]string{}
 	for _, b := range mods.Books() {
-		key := b.Module + "/" + b.File
-		titles[key] = b.Title
-		libIDs[key] = slug(key)
+		titles[b.Module+"/"+b.File] = b.Title
 	}
+	libIDs := courseTextLibraryIDs(s.library(), mods.Books(), c.Texts)
 	for _, tx := range c.Texts {
 		out.Texts = append(out.Texts, resolveCourseText(tx, titles, libIDs))
 	}
