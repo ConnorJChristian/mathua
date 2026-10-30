@@ -151,6 +151,30 @@ def preprocess(s: str) -> str:
     return s
 
 
+_NAME_RE = re.compile(r"[A-Za-z]+(?:_[A-Za-z0-9]+)?")
+_SUBSCRIPTED_RUN_RE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]{2,})_([A-Za-z0-9]+)(?![A-Za-z0-9_(])")
+
+
+def _split_joined_names(answer: str, expected: str) -> str:
+    """Letters typed together before a subscript are a product when the
+    expected answer names each of them: "abp_1" is a*b*p_1 when the key is
+    a*b*p_1. SymPy splits "ab" by itself but never a name with an
+    underscore, and the math box exports "a b p_{1}" as "abp_1" (fork fix).
+    A name the key uses whole ("MC_1", "beta_1") is left alone."""
+    names = set(_NAME_RE.findall(expected))
+
+    def split(m):
+        run, sub = m.group(1), m.group(2)
+        if m.group(0) in names:
+            return m.group(0)
+        pieces = list(run[:-1]) + [run[-1] + "_" + sub]
+        if all(p in names for p in pieces):
+            return "*".join(pieces)
+        return m.group(0)
+
+    return _SUBSCRIPTED_RUN_RE.sub(split, answer)
+
+
 def _try_parse(s: str):
     try:
         return parse_expr(s, transformations=TRANSFORMATIONS, local_dict=COMMON_SYMBOLS)
@@ -246,7 +270,7 @@ def grade(expected: str, answer: str) -> tuple[bool, str]:
         return False, "Input contains disallowed characters"
 
     e = preprocess(expected)
-    a = preprocess(answer)
+    a = _split_joined_names(preprocess(answer), e)
 
     ee = _try_parse(e)
     ea = _try_parse(a)

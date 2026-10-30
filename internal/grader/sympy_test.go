@@ -170,3 +170,27 @@ func TestSympyGrade_RepliesMatchTheirRequests(t *testing.T) {
 		t.Error("x+x refused for 2x after the stale reply")
 	}
 }
+
+// Letters typed together before a subscript are a product when the key names
+// each of them: the math box exports "a b p_{1}" as "abp_1" (fork fix). A
+// name the key does not use is not invented by splitting.
+func TestSympyGrade_JoinedNamesBeforeASubscript(t *testing.T) {
+	if !sympyAvailable(t) {
+		t.Skip("SymPy not available")
+	}
+	r := NewRouter()
+	for _, c := range []struct {
+		key, typed string
+		want       bool
+	}{
+		{"a*b*p_1", "abp_1", true},
+		{"(-a*b*p_1 + m)/(p_1*(b + 1))", "(-a b p_1+m)/(p_1(b+1))", true},
+		{"a*b*p_1", "abp_2", false},
+		{"x_1*y", "xy_1", false},
+		{"a*b*p_1", "a*b", false},
+	} {
+		if got := r.Grade(GradingExpression, c.key, c.typed); got.Correct != c.want || got.Unavailable {
+			t.Errorf("%q for %q: %+v, want correct=%v", c.typed, c.key, got, c.want)
+		}
+	}
+}
