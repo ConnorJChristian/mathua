@@ -292,7 +292,7 @@ func TestStudyAnswer_LearnSeamStillTeaches(t *testing.T) {
 		t.Fatalf("practice: %d %s", rec.Code, rec.Body.String())
 	}
 	var set struct {
-		Questions []struct{ Question, Answer, Explanation string } `json:"questions"`
+		Questions []struct{ Question string } `json:"questions"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &set); err != nil {
 		t.Fatalf("decode practice: %v", err)

@@ -40,7 +40,7 @@ beforeEach(() => {
   vi.mocked(getNext).mockResolvedValue({ primary: null, alternatives: [], generatedAt: '' } as unknown as Awaited<ReturnType<typeof getNext>>)
   vi.mocked(getLessonKPs).mockResolvedValue({ concept_id: CID, kps: [{ label: 'Add single digits', subgoals: [], worked_example: 'Worked: 2 + 3 = 5' }] })
   vi.mocked(getLessonReadiness).mockResolvedValue({ concept_id: CID, ready: true, weak: [], missing: [] })
-  serve([{ question: '2 + 3 = ?', answer: '5', explanation: 'Add them.' }, { question: '4 + 1 = ?', answer: '5', explanation: 'Add them.' }])
+  serve([{ question: '2 + 3 = ?' }, { question: '4 + 1 = ?' }])
   vi.mocked(submitStudyAnswer).mockReset()
   vi.mocked(getUserInfo).mockReturnValue({ student_id: 's1', diagnostic_completed: true } as ReturnType<typeof getUserInfo>)
   vi.mocked(getActivity).mockResolvedValue([])
@@ -105,7 +105,7 @@ describe('"I don\'t know" in a lesson', () => {
 
 describe('a flashcard', () => {
   it('submits on "I had it", has no Check button, and shows the back once', async () => {
-    serve([{ question: CARD_Q, answer: 'recall:sets.dual', explanation: `${BACK}\n\nSolved Problem 1.20(a)` }])
+    serve([{ question: CARD_Q, bank: true }])
     vi.mocked(submitStudyAnswer).mockResolvedValue({ correct: true, feedback: '', explanation: `${BACK}\n\nSolved Problem 1.20(a)`, xp: 0, to_master: -1 })
     render(<LearnStepper conceptId={CID} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Next →' }))
@@ -122,7 +122,7 @@ describe('a flashcard', () => {
 
 describe('a multiple-choice answer', () => {
   it('is echoed by its letter and rendered, not as LaTeX source', async () => {
-    serve([{ question: MC_Q, answer: '\\((x^*, y^*) = (1, 2)\\)', explanation: 'Set the gradient to zero.' }])
+    serve([{ question: MC_Q }])
     vi.mocked(submitStudyAnswer).mockResolvedValue({ correct: true, feedback: '', explanation: 'Set the gradient to zero.', xp: 1, to_master: 5 })
     render(<LearnStepper conceptId={CID} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Next →' }))

@@ -112,3 +112,85 @@ func TestSympyGrade_MultipleRequests(t *testing.T) {
 		}
 	}
 }
+
+// A wrong answer whose values are tiny everywhere the check samples (twice
+// a derivative with a fifth-power denominator) must not pass on an absolute
+// tolerance (fork fix: the relative scale had a floor of 1).
+func TestSympyGrade_TinyValuedWrongAnswerIsRefused(t *testing.T) {
+	if !sympyAvailable(t) {
+		t.Skip("SymPy not available")
+	}
+	r := NewRouter()
+	key := "-(1464x^2)/((122x^3-49)^5)"
+	if r.Grade(GradingExpression, key, "2*("+key+")").Correct {
+		t.Error("twice the key graded correct")
+	}
+	if !r.Grade(GradingExpression, key, "-1464*x^2*(122*x^3-49)^(-5)").Correct {
+		t.Error("an equivalent spelling of the key graded wrong")
+	}
+	if !r.Grade(GradingExpression, "(x+1)^2 - x^2 - 2x", "1").Correct {
+		t.Error("a cancelling difference graded wrong")
+	}
+}
+
+// An empty answer is never sent to SymPy, and never correct, whatever the
+// grading type (fork fix: a late reply from a timed-out request used to be
+// read as the next request's verdict).
+func TestSympyGrade_EmptyAnswerIsNeverCorrect(t *testing.T) {
+	r := NewRouter()
+	for _, gt := range []GradingType{GradingSymbolic, GradingExpression, GradingPolynomial} {
+		res := r.Grade(gt, "x^2", "")
+		if res.Correct || res.Unavailable {
+			t.Errorf("%s: empty answer gave correct=%v unavailable=%v", gt, res.Correct, res.Unavailable)
+		}
+	}
+}
+
+// A reply to an earlier request is skipped: the service is asked twice and
+// the second verdict must be the second request's, even after a stale line.
+func TestSympyGrade_RepliesMatchTheirRequests(t *testing.T) {
+	if !sympyAvailable(t) {
+		t.Skip("SymPy not available")
+	}
+	r := NewRouter()
+	if !r.Grade(GradingSymbolic, "x^2+2x+1", "(x+1)^2").Correct {
+		t.Fatal("warm-up failed")
+	}
+	// Push a stale reply onto the service's stdout: a request the grader
+	// never waits for.
+	sympyMu.Lock()
+	if sympyStdin != nil {
+		sympyStdin.Write([]byte(`{"id":"stale","expected":"1","answer":"1"}` + "\n"))
+	}
+	sympyMu.Unlock()
+	if r.Grade(GradingSymbolic, "x^2", "x^3").Correct {
+		t.Error("x^3 graded correct for x^2: a stale reply was read as the verdict")
+	}
+	if !r.Grade(GradingSymbolic, "2x", "x+x").Correct {
+		t.Error("x+x refused for 2x after the stale reply")
+	}
+}
+
+// Letters typed together before a subscript are a product when the key names
+// each of them: the math box exports "a b p_{1}" as "abp_1" (fork fix). A
+// name the key does not use is not invented by splitting.
+func TestSympyGrade_JoinedNamesBeforeASubscript(t *testing.T) {
+	if !sympyAvailable(t) {
+		t.Skip("SymPy not available")
+	}
+	r := NewRouter()
+	for _, c := range []struct {
+		key, typed string
+		want       bool
+	}{
+		{"a*b*p_1", "abp_1", true},
+		{"(-a*b*p_1 + m)/(p_1*(b + 1))", "(-a b p_1+m)/(p_1(b+1))", true},
+		{"a*b*p_1", "abp_2", false},
+		{"x_1*y", "xy_1", false},
+		{"a*b*p_1", "a*b", false},
+	} {
+		if got := r.Grade(GradingExpression, c.key, c.typed); got.Correct != c.want || got.Unavailable {
+			t.Errorf("%q for %q: %+v, want correct=%v", c.typed, c.key, got, c.want)
+		}
+	}
+}

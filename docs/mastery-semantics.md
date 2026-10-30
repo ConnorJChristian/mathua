@@ -63,7 +63,7 @@ the threshold is a cap:
 - **131 hours** of pure answer time for the corpus
 - per concept: median **12 min**, p90 **18 min**, max **30 min**
 
-`/learn` serves **3 questions per batch** (`LearnStepper.tsx:97`), so 30 consecutive is
+`/learn` serves **3 questions per batch** (`LearnStepper.tsx:261`), so 30 consecutive is
 ten rounds with no miss anywhere in them.
 
 ### The barrier is probabilistic, not just arithmetic

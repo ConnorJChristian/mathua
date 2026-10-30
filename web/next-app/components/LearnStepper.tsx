@@ -39,7 +39,9 @@ interface QEntry {
   checking: boolean
   servedAt: number
   firstInputAt?: number
-  feedback: { correct: boolean; text: string; diagnosis?: string; detail?: string; xp: number; proof?: ProofReportData; dontKnow?: boolean } | null
+  // expected is the answer key, returned by the submission: the served
+  // question no longer carries it (upstream fix, ported).
+  feedback: { correct: boolean; text: string; expected: string; diagnosis?: string; detail?: string; xp: number; proof?: ProofReportData; dontKnow?: boolean } | null
 }
 
 type Entry =
@@ -519,9 +521,15 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       })
       if (res.ungraded) {
         setEntry(key, { checking: false })
-        // A proof can go ungraded for a reason the learner should see (no
-        // API key, the month's budget spent); the proof stays in the box.
-        if (isProofQuestion(entry.q.question)) setError(res.feedback || 'Your proof could not be graded right now. Nothing was recorded; submit it again.')
+        // Ungraded is never a miss, and never silent: a proof carries its
+        // reason (no API key, the month's budget spent); a typed answer the
+        // SymPy service or the code runner could not take says so too, and
+        // the answer stays in the box (fork fix: the Check button used to
+        // do nothing at all).
+        const fallback = isProofQuestion(entry.q.question)
+          ? 'Your proof could not be graded right now. Nothing was recorded; submit it again.'
+          : 'That answer could not be graded right now. Nothing was recorded; submit it again.'
+        setError(res.feedback || fallback)
         return
       }
       // A written answer to a flashcard counts exactly as a self-marked card
@@ -532,7 +540,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
         // MATHUA_PROOF_COUNTS_FOR_MASTERY).
         setEntry(key, {
           checking: false,
-          feedback: { correct: !!res.correct, text: res.explanation ?? entry.q.explanation, diagnosis: res.diagnosis, detail: res.feedback, xp: res.xp ?? 0, proof: res.proof },
+          feedback: { correct: !!res.correct, text: res.explanation ?? '', expected: res.expected_answer ?? '', diagnosis: res.diagnosis, detail: res.feedback, xp: res.xp ?? 0, proof: res.proof },
         })
         appendAfter(350, async () => { await continueInSection(entry, difficulty) })
         return
@@ -552,7 +560,8 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           checking: false,
           feedback: {
             correct: true,
-            text: res.explanation ?? entry.q.explanation,
+            text: res.explanation ?? '',
+            expected: res.expected_answer ?? '',
             diagnosis: res.diagnosis,
             detail: res.feedback,
             xp: res.xp ?? 0,
@@ -584,7 +593,8 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           checking: false,
           feedback: {
             correct: false,
-            text: res.explanation || entry.q.explanation,
+            text: res.explanation || '',
+            expected: res.expected_answer ?? '',
             diagnosis: dontKnow ? undefined : res.diagnosis,
             detail: res.feedback,
             xp: 0,
@@ -909,11 +919,11 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           }
           const qe = e as QEntry
           const locked = qe.feedback !== null
-          const qPy = isBankServed(isPy ? 'bank' : null, qe.q.question, qe.q.answer)
+          const qPy = isBankServed(isPy ? 'bank' : null, qe.q.question) || !!qe.q.bank
           const pyKind = qPy ? answeredKind(qe.q.question, qe.answer) : null
           const written = qPy && isWrittenRecall(qe.q.question)
           const writing = qPy && isWritingQuestion(qe.q.question)
-          const shownAnswer = qPy ? displayAnswer(qe.q.answer) : qe.q.answer
+          const shownAnswer = qe.feedback ? (qPy ? displayAnswer(qe.feedback.expected) : qe.feedback.expected) : ''
           // A plain flashcard: "I had it" / "I missed it" is the answer and submits at once,
           // so there is no Check button and no "I don't know" (that is "I missed it").
           const flashcard = qPy && pythonKind(qe.q.question) === 'recall'

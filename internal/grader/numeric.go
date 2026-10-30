@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -211,4 +212,50 @@ func parseNumeric(s string) (float64, bool, bool) {
 	}
 
 	return 0, false, false
+}
+
+// AskedPlaces reads a prompt's "to two decimal places" / "to 3 decimals":
+// the number of places the question asks for, or 0.
+func AskedPlaces(prompt string) int {
+	m := askedPlacesRe.FindStringSubmatch(strings.ToLower(prompt))
+	if m == nil {
+		return 0
+	}
+	if n, ok := map[string]int{"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}[m[1]]; ok {
+		return n
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
+var askedPlacesRe = regexp.MustCompile(`(?:to|with|correct to) (one|two|three|four|five|six|\d) (?:decimal places?|decimals|d\.p\.|dp|places)`)
+
+// RoundedAsAsked reports an answer that is the expected value rounded to the
+// places the prompt asked for, written with exactly that many places: 0.89
+// for a key of 400/448 asked "to two decimal places" (fork fix: a fraction
+// key took only a decimal of three or more places, so the answer the
+// question asked for was refused).
+func RoundedAsAsked(expected, answer string, places int) bool {
+	if places <= 0 {
+		return false
+	}
+	ev, ok := constEvalNumeric(normalise(expected))
+	if !ok {
+		// A mixed number ("133 1/3") is a value too.
+		if v, ok2, _ := parseNumeric(normalise(expected)); ok2 {
+			ev, ok = v, true
+		}
+	}
+	if !ok {
+		return false
+	}
+	a := normalise(strings.ReplaceAll(strings.TrimSpace(answer), "−", "-"))
+	if p, ok := decimalPlaces(a); !ok || p != places {
+		return false
+	}
+	av, err := strconv.ParseFloat(a, 64)
+	if err != nil {
+		return false
+	}
+	return roundsTo(ev, places, av)
 }

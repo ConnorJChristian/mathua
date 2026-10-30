@@ -1137,9 +1137,21 @@ func diagramForConcept(id string) string {
 
 // gradeAnswer uses the generator's own grader when available, otherwise falls back to the type-based router.
 func (e *Engine) gradeAnswer(conceptID string, expectedAnswer, userAnswer string) grader.Result {
+	return GradeWith(e.dag, e.registry, e.gr, conceptID, expectedAnswer, userAnswer)
+}
+
+// GradeWith is the grading path itself, without an Engine: the concept's
+// generator grades its own answers when it can, a question-bank item (a
+// "mc:", "math:", "code:" ... key) grades as the bank item it is whatever
+// the concept's type, and everything else goes to the type router. The
+// engine's every grading call comes through here, and so does the key
+// self-check (internal/gradecheck), so what the check grades is what a
+// learner's answer meets. The answer must already have been through
+// grader.ResolveChoiceLetter, as the server's handlers do.
+func GradeWith(dag *concepts.DAG, registry *generator.Registry, router *grader.Router, conceptID, expectedAnswer, userAnswer string) grader.Result {
 	gradingType := grader.GradingNumeric
 	counting := false
-	if c := e.dag.Concept(conceptID); c != nil {
+	if c := dag.Concept(conceptID); c != nil {
 		gradingType = grader.GradingType(c.GradingType)
 		counting = grader.IsCountingContext(c.Domain, c.Subdomain)
 	}
@@ -1150,13 +1162,13 @@ func (e *Engine) gradeAnswer(conceptID string, expectedAnswer, userAnswer string
 	if bankItem {
 		gradingType = grader.GradingBank
 	}
-	if gen, err := e.registry.Get(conceptID); err == nil && !bankItem {
+	if gen, err := registry.Get(conceptID); err == nil && !bankItem {
 		if gg, ok := gen.(generator.GradedGenerator); ok {
 			res = gg.Grade(expectedAnswer, userAnswer)
 		}
 	}
 	if res == (grader.Result{}) {
-		res = e.gr.Grade(gradingType, expectedAnswer, userAnswer)
+		res = router.Grade(gradingType, expectedAnswer, userAnswer)
 	}
 	// Diagnosis is applied here rather than inside the graders so it covers a
 	// custom GradedGenerator as well as the type router. It never touches

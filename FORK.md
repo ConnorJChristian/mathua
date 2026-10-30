@@ -534,6 +534,35 @@ Rules (`internal/generator/scaffold.go`):
 Placement and tests are unchanged: they take objective questions from any
 step.
 
+## Which grader a question gets
+
+Every question is graded one way, chosen by what its prompt asks for. The
+rules, which `scripts/audit_grading_style.py` checks each bank against:
+
+| The prompt asks for | Kind | Grader |
+| --- | --- | --- |
+| A derivation, "show that", "prove", "verify that", "explain why", "justify", a critique, a summary | a proof or writing problem (`proofs/*.json`), or a recall card the judge grades (`written.go`) | the language-model judge against a marking scheme; self-graded flip card without a key |
+| One closed-form value: a number, an expression, a derivative, a solution | `math` with `numeric` or `expression` parts | the numeric grader (a fraction, a decimal to the key's places, a rounded decimal for a fraction key) or SymPy equivalence |
+| A set of values, a domain, an interval, a union of intervals | `math` with `set` or `interval` parts | the set and interval graders: order, repeats, spacing and the spellings of ∞, ∪ and ∅ do not matter |
+| A name, a definition's term, what something is called | `term` | the term grader: case, accents, a leading article and punctuation do not matter |
+| Yes or no, true or false | `mc` with the two options (served Yes/No, Sí/No, True/False) | exact choice |
+| "Which of these", one option among several | `mc` | exact choice, as clicked or as a typed letter |
+| Code that does something | `code` with hidden tests | the Python runner |
+| What a snippet prints | `output` | printed text, spacing aside |
+| Something to recall and mark yourself | `recall` | the learner's own verdict |
+
+A typed-math key must grade correct through the same path a learner's
+answer takes, and so must its plausible spellings (1/2 and 0.5, 3x^2 and
+3x², e^x and exp(x), (2, oo) and (2, ∞)), while a nearby wrong answer must
+not. `go test ./internal/gradecheck` grades every item of the committed
+modules and a sample of every generator that way; `make gradecheck` does
+the same over `modules-local/` (`GRADECHECK_FLAGS=-code` runs every code
+task's solution and starter too, slowly), and
+`python3 scripts/audit_grading_style.py` lists the items whose prompt and
+kind disagree, by rule. The clear cases are fixed in the authoring sources;
+the rest (an imported card that asks to "derive" an equation whose typed
+form is the answer) are listed for the author.
+
 ## Proof grading
 
 A module may hold written-proof problems in `proofs/*.json`. Each problem

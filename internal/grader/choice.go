@@ -73,6 +73,11 @@ var choiceOptionRe = regexp.MustCompile(`(?m)^([A-E])\) (.+)$`)
 func ResolveChoiceLetter(question, expected, answer string) string {
 	a := strings.TrimSpace(answer)
 	e := strings.TrimSpace(expected)
+	// A question-bank choice's key carries its kind ("mc:<option text>",
+	// internal/pytrack); the option text is what the served options show.
+	// Left on, no option ever matched the key, so a typed letter was never
+	// resolved for a bank question and graded wrong (fork fix).
+	e = strings.TrimPrefix(e, "mc:")
 	opts := choiceOptionRe.FindAllStringSubmatch(question, -1)
 	keyIsOption := false
 	for _, m := range opts {

@@ -82,3 +82,16 @@ func TestTypedNotationGradesRightOnGeneratedTypes(t *testing.T) {
 		}
 	}
 }
+
+// A question-bank choice's key is "mc:<option text>" (internal/pytrack). A
+// typed letter must resolve against the served options for it too (fork
+// fix: the prefix kept the key from matching any option).
+func TestResolveChoiceLetter_BankKeyPrefix(t *testing.T) {
+	q := "Which?\n\nA) a segment\n\nB) a line through two points\n\nC) a ray"
+	if got := ResolveChoiceLetter(q, "mc:a line through two points", "b"); got != "a line through two points" {
+		t.Errorf("b -> %q", got)
+	}
+	if got := ResolveChoiceLetter(q, "mc:a line through two points", "a ray"); got != "a ray" {
+		t.Errorf("clicked text changed: %q", got)
+	}
+}

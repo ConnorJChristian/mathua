@@ -34,12 +34,12 @@ func TestWordAnswers(t *testing.T) {
 }
 
 func TestWordKeyExcludesFunctionsOfAVariable(t *testing.T) {
-	for _, k := range []string{"cos(x)", "sinh(x)", "degrees of freedom (k)", "x", "e"} {
+	for _, k := range []string{"cos(x)", "sinh(x)", "degrees of freedom (k)", "x", "e", "x-y", "wz-y x"} {
 		if isWordKey(k) {
 			t.Errorf("%q is mathematics, not a word key", k)
 		}
 	}
-	for _, k := range []string{"corner", "convex (concave up)", "no", "probability density function (PDF)"} {
+	for _, k := range []string{"corner", "convex (concave up)", "no", "probability density function (PDF)", "well-defined", "x-intercept", "ad-hoc"} {
 		if !isWordKey(k) {
 			t.Errorf("%q should be a word key", k)
 		}
@@ -64,6 +64,29 @@ func TestTupleComponentsCompareByKind(t *testing.T) {
 		}
 		if res.Correct != c.want {
 			t.Errorf("%q for %q: correct=%v, want %v", c.typed, c.key, res.Correct, c.want)
+		}
+	}
+}
+
+// A difference of variables is graded as mathematics (fork fix: "wz-yx" was
+// compared as words with the determinant "wz-y x" and refused).
+func TestDifferenceOfVariablesIsMath(t *testing.T) {
+	if !sympyAvailable(t) {
+		t.Skip("SymPy not available")
+	}
+	r := NewRouter()
+	for _, c := range []struct {
+		key, typed string
+		want       bool
+	}{
+		{"wz-y x", "wz-yx", true},
+		{"wz-y x", "w*z-x*y", true},
+		{"wz-y x", "wz+yx", false},
+		{"x-y", "-y+x", true},
+		{"x-y", "y-x", false},
+	} {
+		if got := r.Grade(GradingExpression, c.key, c.typed); got.Correct != c.want || got.Unavailable {
+			t.Errorf("%q for %q: %+v, want correct=%v", c.typed, c.key, got, c.want)
 		}
 	}
 }

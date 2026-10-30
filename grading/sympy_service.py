@@ -108,7 +108,11 @@ def preprocess(s: str) -> str:
                         result.append(s[i])
                         i += 1
                 else:
-                    # No parens: e^x -> exp(x)
+                    # No parens: e^x -> exp(x); e^-2 -> exp(-2) (a leading
+                    # sign is part of the exponent, fork fix).
+                    if i < len(s) and s[i] == '-':
+                        result.append('-')
+                        i += 1
                     while i < len(s) and (s[i].isalnum() or s[i] in '._'):
                         result.append(s[i])
                         i += 1
@@ -145,6 +149,30 @@ def preprocess(s: str) -> str:
     s = s.replace("π", "pi")
 
     return s
+
+
+_NAME_RE = re.compile(r"[A-Za-z]+(?:_[A-Za-z0-9]+)?")
+_SUBSCRIPTED_RUN_RE = re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]{2,})_([A-Za-z0-9]+)(?![A-Za-z0-9_(])")
+
+
+def _split_joined_names(answer: str, expected: str) -> str:
+    """Letters typed together before a subscript are a product when the
+    expected answer names each of them: "abp_1" is a*b*p_1 when the key is
+    a*b*p_1. SymPy splits "ab" by itself but never a name with an
+    underscore, and the math box exports "a b p_{1}" as "abp_1" (fork fix).
+    A name the key uses whole ("MC_1", "beta_1") is left alone."""
+    names = set(_NAME_RE.findall(expected))
+
+    def split(m):
+        run, sub = m.group(1), m.group(2)
+        if m.group(0) in names:
+            return m.group(0)
+        pieces = list(run[:-1]) + [run[-1] + "_" + sub]
+        if all(p in names for p in pieces):
+            return "*".join(pieces)
+        return m.group(0)
+
+    return _SUBSCRIPTED_RUN_RE.sub(split, answer)
 
 
 def _try_parse(s: str):
@@ -197,6 +225,12 @@ def _numerical_check(ee, ea, num_points: int = 10) -> tuple[bool, str]:
     # skipped. Skipping them used to let a check where every sample was large,
     # as for 70x^4(2x^5+9)^6 on [-5, 5], test nothing and report "equivalent"
     # for any answer at all. A check that tests nothing now fails.
+    #
+    # The scale's floor is small too (fork fix): with a floor of 1 the
+    # tolerance was absolute for values below 1, so twice a derivative whose
+    # samples are all tiny, -1464x^2/(122x^3-49)^5 on [-5, 5], passed as the
+    # derivative. Cancellation noise sits far below 1e-12, so the floor
+    # refuses a different value without refusing an equal one.
     compared = 0
     for _ in range(num_points * 3):
         if compared >= num_points:
@@ -216,7 +250,7 @@ def _numerical_check(ee, ea, num_points: int = 10) -> tuple[bool, str]:
         if not all(map(_finite, (ee_val.real, ee_val.imag, ea_val.real, ea_val.imag))):
             continue
         compared += 1
-        scale = max(1.0, abs(ee_val), abs(ea_val))
+        scale = max(1e-6, abs(ee_val), abs(ea_val))
         if abs(ee_val - ea_val) > 1e-6 * scale:
             return False, "Not equivalent"
 
@@ -236,7 +270,7 @@ def grade(expected: str, answer: str) -> tuple[bool, str]:
         return False, "Input contains disallowed characters"
 
     e = preprocess(expected)
-    a = preprocess(answer)
+    a = _split_joined_names(preprocess(answer), e)
 
     ee = _try_parse(e)
     ea = _try_parse(a)
