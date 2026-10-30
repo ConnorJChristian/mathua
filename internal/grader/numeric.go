@@ -157,6 +157,34 @@ func splitList(s string) []string {
 			parts = append(parts, part)
 		}
 	}
+	if len(parts) < 2 {
+		parts = splitBeforeMinusAfterDot(s)
+	}
+	return parts
+}
+
+// splitBeforeMinusAfterDot reads the list a learner typed when the separator
+// arrived as a full stop, so the roots -1, -2 reach the server as "-1.-2".
+// A decimal never has a minus sign straight after its point, so a "." followed
+// by "-" is a separator and `3.5` is left alone.
+func splitBeforeMinusAfterDot(s string) []string {
+	runes := []rune(s)
+	var parts []string
+	start := 0
+	for i := 0; i+1 < len(runes); i++ {
+		if runes[i] == '.' && runes[i+1] == '-' {
+			if part := strings.TrimSpace(string(runes[start:i])); part != "" {
+				parts = append(parts, part)
+			}
+			start = i + 1
+		}
+	}
+	if len(parts) == 0 {
+		return nil
+	}
+	if tail := strings.TrimSpace(string(runes[start:])); tail != "" {
+		parts = append(parts, tail)
+	}
 	return parts
 }
 

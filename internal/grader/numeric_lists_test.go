@@ -91,3 +91,26 @@ func TestNumericUnreadableAnswerIsNotCalledWrong(t *testing.T) {
 		t.Errorf("feedback = %q, want the parse failure", res.Feedback)
 	}
 }
+
+// The roots -1 and -2 arrived from a phone as "-1.-2": MathLive delivered the
+// comma as a full stop, so the grader read a malformed number and marked a
+// correct answer wrong. A decimal never has a minus right after its point.
+func TestNumericListSplitOnADotBeforeAMinus(t *testing.T) {
+	r := NewRouter()
+	cases := []struct{ expected, answer string }{
+		{"-1,-2", "-1.-2"},
+		{"2,-3", "2.-3"},
+		{"-3,-4", "-3.-4"},
+	}
+	for _, c := range cases {
+		if got := r.Grade(GradingNumeric, c.expected, c.answer); !got.Correct {
+			t.Errorf("Grade(%q, %q) = incorrect: %s", c.expected, c.answer, got.Feedback)
+		}
+	}
+	if got := r.Grade(GradingNumeric, "-1,-2", "-1.-3"); got.Correct {
+		t.Error("a wrong list separated by a dot was accepted")
+	}
+	if got := r.Grade(GradingNumeric, "3.5", "3.5"); !got.Correct {
+		t.Error("a decimal was read as a list")
+	}
+}
