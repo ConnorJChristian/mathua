@@ -31,6 +31,9 @@ func TestNormalizeTypedMathRoundTrips(t *testing.T) {
 		{`e^{-2}`, "exp(-2)"},
 		{`1-e^{-20}`, "1-exp(-20)"},
 		{`e^-2`, "e^(-2)"},
+		{`2\frac{1}{4}`, "2 1/4"},
+		{`\alpha + \eta`, "alpha+eta"},
+		{`(-1)^{n} n^{2}`, "(-1)^n n^2"},
 		{`\frac{\sqrt{2}}{2}`, "sqrt(2)/2"},
 	}
 	for _, c := range cases {

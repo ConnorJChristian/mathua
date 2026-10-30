@@ -33,6 +33,8 @@ func NormalizeTypedMath(s, expected string) string {
 		s = strings.ReplaceAll(s, g[0], g[1])
 		s = strings.ReplaceAll(s, "\\"+g[1], g[1])
 	}
+	// A mixed number, "2\frac{1}{4}", is "2 1/4" to the numeric grader.
+	s = mixedFracRe.ReplaceAllString(s, "$1$2 $3/$4")
 	// \frac34 and \frac1{12}: the digit arguments TeX allows without braces.
 	s = fracDigitsRe.ReplaceAllString(s, "\\frac{$1}{$2}")
 	s = fracDigitBraceRe.ReplaceAllString(s, "\\frac{$1}{")
@@ -81,6 +83,7 @@ func NormalizeTypedMath(s, expected string) string {
 }
 
 var (
+	mixedFracRe       = regexp.MustCompile(`(^|[^\d.])(\d+)\\d?frac\{(\d+)\}\{(\d+)\}`)
 	fracDigitsRe      = regexp.MustCompile(`\\d?frac(\d)(\d)`)
 	fracDigitBraceRe  = regexp.MustCompile(`\\d?frac(\d)\{`)
 	fracBraceDigitRe  = regexp.MustCompile(`\\d?frac\{([^{}]*)\}(\d)`)
@@ -89,7 +92,7 @@ var (
 	rootExportRe      = regexp.MustCompile(`root\((\d+)\)\(([^()]*)\)`)
 	braceParenRe      = regexp.MustCompile(`\{(\([^{}]*\))\}`)
 	subGroupRe        = regexp.MustCompile(`_\(([A-Za-z0-9]+(?: [A-Za-z0-9]+)+)\)([A-Za-z]?)`)
-	greekRunRe        = regexp.MustCompile(`([αβγδεθλμπρστφω])([A-Za-z\\\\])`)
+	greekRunRe        = regexp.MustCompile(`([αβγδεθλμπρστφωηκνξψχζ])([A-Za-z\\\\])`)
 	bareNumberParenRe = regexp.MustCompile(`\((-?\d+(?:\.\d+)?)\)`)
 	sqrtRe            = regexp.MustCompile(`\\sqrt\{([^{}]*)\}`)
 	fracRe            = regexp.MustCompile(`\\d?frac\{([^{}]*)\}\{([^{}]*)\}`)
@@ -101,6 +104,7 @@ var (
 		{"α", "alpha"}, {"β", "beta"}, {"γ", "gamma"}, {"δ", "delta"}, {"ε", "epsilon"},
 		{"θ", "theta"}, {"λ", "lambda"}, {"μ", "mu"}, {"π", "pi"}, {"ρ", "rho"},
 		{"σ", "sigma"}, {"τ", "tau"}, {"φ", "phi"}, {"ω", "omega"},
+		{"η", "eta"}, {"κ", "kappa"}, {"ν", "nu"}, {"ξ", "xi"}, {"ψ", "psi"}, {"χ", "chi"}, {"ζ", "zeta"},
 	}
 )
 
@@ -127,6 +131,10 @@ func unwrapNumbers(s string) string {
 		// A negative exponent keeps its brackets: "e^(-2)" is not "e^-2",
 		// which the SymPy service cannot read (fork fix).
 		if before == '^' && s[m[2]] == '-' {
+			continue
+		}
+		// Nor a negative base: "(-1)^n" is not "-1^n".
+		if s[m[2]] == '-' && (after == '^' || after == '*') {
 			continue
 		}
 		if !okBefore || !okAfter {
