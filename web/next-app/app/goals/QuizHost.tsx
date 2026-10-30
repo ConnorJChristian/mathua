@@ -375,7 +375,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
       <div className="max-w-2xl mx-auto min-w-0 overflow-hidden px-2 sm:px-0">
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-mathua-muted justify-center">
           <span className={quizAccuracy.correct / Math.max(quizAccuracy.total, 1) >= 0.7 ? 'text-mathua-green' : ''}>{quizAccuracy.correct}/{quizAccuracy.total} correct</span>
-          {quizLastResult?.xp ? <span className="text-yellow-400">+{quizLastResult.xp} XP</span> : null}
+          {quizLastResult?.xp ? <span className="text-mathua-amber">+{quizLastResult.xp} XP</span> : null}
           {quizClosedBook ? <span className="text-mathua-muted">Closed book</span> : null}
           {quizCourses.length > 0 ? <span className="text-mathua-muted break-words [overflow-wrap:anywhere]">Covers: {quizCourses.map((c) => c.replace(/: study plan$/, '')).join(' · ')}</span> : null}
         </div>

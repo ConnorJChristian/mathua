@@ -171,7 +171,7 @@ export default function RecommendedTaskList({
                       {item.title}
                     </span>
                     {xpLabel(item.xp) && (
-                      <span className="shrink-0 font-mono text-[10px] text-yellow-400">{xpLabel(item.xp)}</span>
+                      <span className="shrink-0 font-mono text-[10px] text-mathua-amber">{xpLabel(item.xp)}</span>
                     )}
                   </span>
                   <span className="mt-1 flex items-center justify-between gap-2 min-w-0">

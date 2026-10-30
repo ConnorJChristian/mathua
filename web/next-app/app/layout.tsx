@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
-import Script from 'next/script'
+import fs from 'node:fs'
+import path from 'node:path'
 import localFont from 'next/font/local'
 import { Toaster } from '@/components/ui/sonner'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
@@ -13,6 +14,15 @@ import { Analytics } from '@vercel/analytics/react'
 import 'mathlive/static.css'
 import './globals.css'
 import PageTracker from '../components/PageTracker'
+
+// The theme script is inlined into <head>, read once at build time. It used to
+// be loaded with next/script's `beforeInteractive`, which in the app router
+// only preloads a `src` and runs it when the Next runtime arrives — after the
+// first paint, so a visitor who had chosen dark saw a light frame first
+// (e2e/theme.spec.ts polls the class from document commit and caught it). An
+// inline script in <head> runs before the body is parsed, which is the only
+// place "before first paint" is actually guaranteed.
+const THEME_INIT_SCRIPT = fs.readFileSync(path.join(process.cwd(), 'public', 'js', 'theme-init.js'), 'utf8')
 
 // Self-hosted variable fonts (vendored from Google Fonts 2026-09-28:
 // JetBrains Mono v24 + Space Grotesk v22, latin subsets). next/font/google
@@ -68,7 +78,9 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0c0d0f',
+  // Light is the default palette; lib/theme.ts rewrites this to the dark
+  // value once the page has mounted, when the visitor has chosen dark.
+  themeColor: '#ffffff',
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -80,9 +92,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    // No `dark` class on the server: light is the default, and the pre-paint
+    // script below adds the class only when the visitor has chosen dark.
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="color-scheme" content="dark light" />
+        <meta name="color-scheme" content="light dark" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* KaTeX builds some glyphs (≠, ≤, overlays) from private-use codepoints
             that render as tofu until KaTeX_Main arrives. katex.min.css uses
             font-display:block with no preload, so slow networks show broken
@@ -95,10 +110,6 @@ export default function RootLayout({
         <link rel="preload" href="/_next/static/media/KaTeX_Main-BoldItalic.6f2bb1df.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
       <body className={`${jetbrainsMono.variable} ${spaceGrotesk.variable}`}>
-        <Script
-          src="/js/theme-init.js"
-          strategy="beforeInteractive"
-        />
         <div
           id="main-content"
           tabIndex={-1}

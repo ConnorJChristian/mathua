@@ -25,7 +25,7 @@ export default function NextUpCard({ shelf }: { shelf: Shelf }) {
             {next.badge}
           </span>
           {next.xp > 0 && (
-            <span className="shrink-0 font-mono text-[10px] text-yellow-400">{next.xp} XP</span>
+            <span className="shrink-0 font-mono text-[10px] text-mathua-amber">{next.xp} XP</span>
           )}
         </div>
         <div className="mt-2 font-mono text-xs text-mathua-primary break-words [overflow-wrap:anywhere] leading-snug">
@@ -53,7 +53,7 @@ export default function NextUpCard({ shelf }: { shelf: Shelf }) {
                     {it.badge}
                   </span>
                   {it.xp > 0 && (
-                    <span className="shrink-0 font-mono text-[10px] text-yellow-400">{it.xp} XP</span>
+                    <span className="shrink-0 font-mono text-[10px] text-mathua-amber">{it.xp} XP</span>
                   )}
                 </div>
                 <div className="mt-2 font-mono text-xs text-mathua-primary break-words [overflow-wrap:anywhere] leading-snug">

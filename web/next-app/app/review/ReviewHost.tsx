@@ -261,7 +261,7 @@ export default function ReviewHost() {
       <div className="max-w-2xl mx-auto min-w-0 overflow-hidden px-2 sm:px-0">
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-mono text-mathua-muted justify-center">
           <span className={reviewAccuracy.correct / Math.max(reviewAccuracy.total, 1) >= 0.7 ? 'text-mathua-green' : ''}>{reviewAccuracy.correct}/{reviewAccuracy.total} correct</span>
-          {reviewXp > 0 ? <span className="text-yellow-400">+{reviewXp} XP</span> : null}
+          {reviewXp > 0 ? <span className="text-mathua-amber">+{reviewXp} XP</span> : null}
         </div>
         <div className={`bg-mathua-surface border rounded-none p-4 sm:p-6 mb-6 transition-colors w-full max-w-full min-w-0 overflow-hidden ${reviewLastResult ? (reviewLastResult.correct ? 'border-mathua-green-faint' : 'border-mathua-red-faint') : 'border-mathua-border'}`}>
           {isPy ? (
@@ -349,7 +349,7 @@ export default function ReviewHost() {
                 <p className="mt-2 text-center font-mono text-[11px] text-mathua-muted">{reviewLastResult.diagnosis}</p>
               )}
               {pyKind === 'code' && !reviewLastResult.correct && reviewLastResult.feedback && (
-                <pre className="mt-2 max-h-64 overflow-auto border border-mathua-red-faint px-3 py-2 text-left font-mono text-[11px] text-red-400 whitespace-pre-wrap">{plainAnswer(reviewLastResult.feedback)}</pre>
+                <pre className="mt-2 max-h-64 overflow-auto border border-mathua-red-faint px-3 py-2 text-left font-mono text-[11px] text-mathua-red whitespace-pre-wrap">{plainAnswer(reviewLastResult.feedback)}</pre>
               )}
             </div>
           )}

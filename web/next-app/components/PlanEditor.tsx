@@ -160,7 +160,7 @@ export default function PlanEditor({ compact = false, initialDestination, onSave
         <input id="plan-rest" type="range" min={0} max={3} value={restDays} onChange={ev => setRestDays(Number(ev.target.value))} className="mt-1 w-full" />
       </div>
 
-      {error && <p className="mt-3 font-mono text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-3 font-mono text-xs text-mathua-red">{error}</p>}
 
       {e && (
         <div className="mt-5 border border-mathua-border bg-mathua-surface p-5">
@@ -176,7 +176,7 @@ export default function PlanEditor({ compact = false, initialDestination, onSave
           ) : (
             <div className="mt-3">
               <p className="font-serif text-2xl text-mathua-primary">≈ {Math.ceil(e.required_per_day)} XP/day needed</p>
-              {!e.feasible && <p className="mt-1 font-mono text-xs text-red-400">Above 3× your recent pace — extend the deadline or raise daily effort gradually.</p>}
+              {!e.feasible && <p className="mt-1 font-mono text-xs text-mathua-red">Above 3× your recent pace — extend the deadline or raise daily effort gradually.</p>}
             </div>
           )}
           <p className="mt-1 font-mono text-[11px] text-mathua-muted">

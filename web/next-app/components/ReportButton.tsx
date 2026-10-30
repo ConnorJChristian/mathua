@@ -124,7 +124,7 @@ export default function ReportButton(props: ReportButtonProps) {
         className="mt-2 w-full bg-mathua-surface border border-mathua-border px-2 py-2 text-xs font-mono text-mathua-primary placeholder:text-mathua-muted outline-none resize-y"
       />
       {error && (
-        <p className="mt-1 font-mono text-[10px] text-red-400">{error}</p>
+        <p className="mt-1 font-mono text-[10px] text-mathua-red">{error}</p>
       )}
       <button
         type="button"

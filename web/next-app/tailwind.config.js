@@ -36,6 +36,7 @@ module.exports = {
           teal: 'var(--accent-teal)',
           green: 'var(--accent-green)',
           red: 'var(--accent-red)',
+          amber: 'var(--accent-amber)',
           border: 'var(--border)',
           'border-strong': 'var(--border-strong)',
           code: 'var(--code-bg)',

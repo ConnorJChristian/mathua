@@ -48,18 +48,20 @@ interface ConceptGraphFlowProps {
   focusDomain?: string | null
 }
 
+// Theme tokens (app/globals.css), not literals: the same colours serve as text in
+// the selected-node label, and the dark values fail AA on a light page.
 const STATUS_COLORS: Record<GraphStatus, string> = {
-  mastered: '#10b981',
+  mastered: 'var(--status-mastered)',
   // Darker amber than `learning`'s, and deliberately so. Both states are "attention"
   // and the brief is that decay is signalled by colour alone — no second bar, no
   // pattern, no badge, no shorter fill — so if the two ambers matched, `learning` and
   // `decaying` would be the same picture. A full bar in a deeper amber reads as
   // "learned, come back to this", which is what it is.
-  decaying: '#b45309',
-  practicing: '#60a5fa',
-  learning: '#f59e0b',
-  unseen: '#71717a',
-  locked: '#52525b',
+  decaying: 'var(--status-decaying)',
+  practicing: 'var(--status-practicing)',
+  learning: 'var(--status-learning)',
+  unseen: 'var(--status-unseen)',
+  locked: 'var(--status-locked)',
 }
 
 const STATUS_LABELS: Record<GraphStatus, string> = {
@@ -649,7 +651,7 @@ function GraphInner({
   concepts,
   conceptStatuses,
   conceptProgress,
-  theme = 'dark',
+  theme = 'light',
   onPathNodes,
   selectedId,
   onSelectionChange,
@@ -1148,7 +1150,7 @@ function GraphInner({
             )}
             <a
               href={selectedLearned ? '/review' : `/learn?concept=${encodeURIComponent(selected.id)}`}
-              className="text-[12px] font-mono text-[#60a5fa] bg-transparent border border-mathua-blue rounded-none px-3 py-1.5 min-h-[36px] sm:min-h-[36px] w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center hover:bg-mathua-blue-faint transition-colors no-underline"
+              className="text-[12px] font-mono text-mathua-blue bg-transparent border border-mathua-blue rounded-none px-3 py-1.5 min-h-[36px] sm:min-h-[36px] w-full sm:w-auto sm:ml-auto shrink-0 inline-flex items-center justify-center hover:bg-mathua-blue-faint transition-colors no-underline"
             >
               {selectedLearned ? 'Check this →' : 'Learn this →'}
             </a>
