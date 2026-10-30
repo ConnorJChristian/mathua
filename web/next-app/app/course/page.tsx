@@ -68,7 +68,10 @@ function TopicRow({ t, courseId, tab, onRead, onWatch, pinned, onPin }: { t: Cou
       ) : (
         <span className={`w-2 h-2 shrink-0 rounded-full ${t.status === 'mastered' ? 'bg-mathua-green' : t.attempts > 0 ? 'bg-mathua-blue' : t.locked ? 'bg-mathua-border' : 'bg-mathua-muted'}`} aria-hidden />
       )}
-      <Link href={study} className="min-w-0 flex-1 basis-40 font-mono text-xs text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.label}</Link>
+      {/* No prefetch: a course lists hundreds of topics, and prefetching two
+          route payloads for each (450-odd requests) on every open gains nothing
+          for links the learner follows one at a time. */}
+      <Link href={study} prefetch={false} className="min-w-0 flex-1 basis-40 font-mono text-xs text-mathua-primary hover:text-mathua-blue break-words [overflow-wrap:anywhere]">{t.label}</Link>
       <span className={`font-mono text-[10px] ${statusClass(t)}`}>{statusWord(t)}</span>
       {t.cards ? <span className="font-mono text-[10px] text-mathua-muted" title="Your flashcards cover this topic">{t.cards} deck{t.cards === 1 ? '' : 's'}</span> : null}
       <span className="flex items-center gap-1.5 ml-auto">
@@ -79,7 +82,7 @@ function TopicRow({ t, courseId, tab, onRead, onWatch, pinned, onPin }: { t: Cou
             Notes{t.notes.length > 1 ? ` (${t.notes.length})` : ''}
           </a>
         )}
-        <Link href={learn} className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>{t.due ? 'Review' : t.attempts > 0 ? 'Practice' : 'Start'}</Link>
+        <Link href={learn} prefetch={false} className={`${btn} border-mathua-blue text-mathua-blue hover:bg-mathua-blue-faint`}>{t.due ? 'Review' : t.attempts > 0 ? 'Practice' : 'Start'}</Link>
       </span>
     </li>
   )
