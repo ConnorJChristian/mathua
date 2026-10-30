@@ -261,6 +261,28 @@ The typed-answer check needs Node with the web app's packages, Go and SymPy.
 Use `--no-typed` to import flip cards only. Use `--report rejects.json` to
 see which typed answers failed the check, and why.
 
+**Scaffold steps.** Each card is put on one of the three steps of "The
+order of practice inside a topic" by `scripts/anki_levels.py`, which the
+import runs: step 1 for one fact, definition or step (a short front and
+back, a cloze or fill-in of one item, a true/false check, a single-rule
+computation), step 2 for worked cases (a `format::worked_example` card, a
+computation of several steps or parts, a cloze of several items), step 3
+for proofs, derivations, word problems and applications (`format::proof`,
+"prove", "show that", "explain why", an economic setting worded as a
+problem, a prompt in parts, a deck called Exercises, Problems or Proofs).
+The import prints the steps per subject. Each card's step and the rule that
+chose it are written to the module's `levels.json`; `level_overrides.json`
+overrides them per card or per deck:
+
+```json
+{"cards": {"n1786236482047c0": 1}, "decks": {"Wooldridge - Introductory Econometrics 7e::Ch02 The Simple Regression Model": 2}}
+```
+
+After editing the overrides, `python3 scripts/anki_levels.py anki`
+re-applies them to the bank without a re-import (`--check` reports only,
+`--sample N` prints N cards with their step and rule, `--export X.colpkg`
+re-reads the cards' decks and tags from the collection).
+
 The config chooses which decks to import and which domain and track each
 becomes; the script's docstring shows the format. Each deck becomes a topic,
 and large decks are split into sets of about 60 cards along your `topic::`

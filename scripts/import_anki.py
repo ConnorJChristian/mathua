@@ -59,6 +59,7 @@ from collections import OrderedDict, defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import anki_typed  # noqa: E402
 import anki_choice  # noqa: E402
+import anki_levels  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RECALL_MARKER = "<!--recall-back-->"  # internal/pytrack/track.go RecallMarker
@@ -491,6 +492,7 @@ def build(args):
         # (the answer leaking onto the front). Such a card is imported but
         # kept out of practice through bank/skip.json until it is fixed.
         flagged = {}
+        level_meta = {}
         by_topic = OrderedDict()
         skipped = defaultdict(int)
         media_used = set()
@@ -521,6 +523,11 @@ def build(args):
             card = {"id": "n%dc%d" % (nid, ord_), "front": clean(front, module_id), "back": clean(back, module_id),
                     "tags": tags, "answer": answer, "solution": clean(solution, module_id),
                     "book": g.get("book", g.get("label", ""))}
+            # What scripts/anki_levels.py reads to put the card on a step.
+            level_meta[card["id"]] = {"deck": deck, "tags": tags.strip(), "notetype": nt_name}
+            if "Cloze" in nt_name:
+                level_meta[card["id"]]["cloze"] = anki_levels.cloze_count(
+                    dict(zip(fields, flds.split(SEP))).get("Text", flds.split(SEP)[0]), ord_)
             by_topic.setdefault(key, {"group": g, "rel": rel, "cards": []})["cards"].append(card)
 
         # Cards Mathua can ask in its own way: a typed answer graded by the
@@ -720,6 +727,9 @@ def build(args):
             n_choice = anki_choice.convert(all_bank, choice_stats)
             stats["kind mc"] += n_choice
             stats["kind recall"] -= n_choice
+        # Each card's scaffold step (scripts/anki_levels.py), with the
+        # module's level_overrides.json; recorded in levels.json.
+        _, level_hist, _ = anki_levels.apply(all_bank, level_meta, out)
         for domain in concepts:
             fname = domain if domain.startswith("anki_") else "anki_" + domain
             json.dump(concepts[domain], open(os.path.join(out, "concepts", fname + ".json"), "w", encoding="utf-8"),
@@ -753,6 +763,8 @@ def build(args):
             print("  kept as a flip card, %d: %s" % (v, k))
     for k, v in sorted(skipped.items(), key=lambda kv: -kv[1]):
         print("  skipped %d cards: %s" % (v, k))
+    print("scaffold steps by subject (scripts/anki_levels.py):")
+    anki_levels.print_histogram(level_hist)
 
 
 # ---------------------------------------------------------------- Mathua-style questions
