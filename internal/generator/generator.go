@@ -30,6 +30,14 @@ type GeneratorContext struct {
 	// book exercises first. Nil means no learner is known: a gated item is
 	// then never served.
 	History History
+	// Review asks for a review of a topic already learned (fork change): it
+	// samples across the scaffold steps by difficulty instead of climbing
+	// them (scaffold.go).
+	Review bool
+	// Served is what this request has already served, by question text (a
+	// lesson batch): a scaffold serves none of it again (scaffold.go). The
+	// registry's batch sets it; nil is nothing.
+	Served map[string]bool
 }
 
 // ObjectiveItemCounter is implemented by question-bank generators: how many

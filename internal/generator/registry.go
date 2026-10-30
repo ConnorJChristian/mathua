@@ -155,7 +155,12 @@ func isPlainText(gen Generator) bool {
 
 // finish applies the registry's post-processing to one generated problem.
 func (r *Registry) finish(conceptID string, gen Generator, p *Problem, ctx GeneratorContext, where string) {
-	p.Difficulty = difficultyOf(ctx.Difficulty)
+	// A difficulty the generator set itself stands: a lesson serving a
+	// generated question at a lower scaffold step than the Learn ladder
+	// asked for records the step it served (scaffold.go).
+	if p.Difficulty == nil {
+		p.Difficulty = difficultyOf(ctx.Difficulty)
+	}
 	if isPlainText(gen) || p.Raw {
 		return
 	}
@@ -215,6 +220,7 @@ func (r *Registry) BatchGenerateContext(conceptID string, count int, ctx Generat
 	}
 	problems := make([]Problem, 0, count)
 	seen := make(map[string]bool)
+	ctx.Served = seen
 	// Use higher multiplier to avoid starvation for low-entropy generators (e.g. small table-driven ML gens)
 	maxAttempts := count * 10
 	if maxAttempts < 30 {

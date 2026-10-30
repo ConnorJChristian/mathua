@@ -92,7 +92,10 @@ func distinctQuestionLowerBound(reg *generator.Registry, conceptID string) int {
 			// Mirrors Registry.GenerateContext. Not required to be effective (see the file
 			// comment on Go 1.24+), but it keeps this sampler honest if that ever changes.
 			rand.Seed(seed)
-			p := gen.Generate(generator.GeneratorContext{Difficulty: difficulty, Seed: seed})
+			// Served mirrors Registry.BatchGenerateContext, which a practice request goes
+			// through: a lesson's scaffold serves nothing twice in one request and
+			// climbs to the next step when one runs out (generator/scaffold.go).
+			p := gen.Generate(generator.GeneratorContext{Difficulty: difficulty, Seed: seed, Served: seen})
 			seen[p.Question] = true
 		}
 		if n := len(seen); best < 0 || n < best {

@@ -283,6 +283,17 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 		}
 		items = kept
 	}
+	// Practice climbs the scaffold steps, the book's exercises first at
+	// each (generator.Scaffold); a review or a test samples across them.
+	if !ctx.ObjectiveOnly && !ctx.Review {
+		sc := generator.Scaffold{Items: g.scaffoldItems(items, ctx)}
+		if p, ok := sc.Pick(ctx.Served); ok {
+			if ctx.NoProofs || ctx.NoCards {
+				p = PlainRecall(p)
+			}
+			return p
+		}
+	}
 	// Book exercises come first in practice until each is answered correctly
 	// (generator.PickBook); tests mix them in with the rest.
 	if !ctx.ObjectiveOnly && !ctx.NoBookRefs {
@@ -316,6 +327,53 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 		p = PlainRecall(p)
 	}
 	return p
+}
+
+// scaffoldItems are items as scaffold steps, with this learner's outcomes.
+func (g *conceptGen) scaffoldItems(items []Item, ctx generator.GeneratorContext) []generator.ScaffoldItem {
+	out := make([]generator.ScaffoldItem, 0, len(items))
+	for i := range items {
+		it := &items[i]
+		attempted, correct := g.outcome(it, ctx)
+		out = append(out, generator.ScaffoldItem{
+			Step:      generator.StepOfLevel(it.Level),
+			Book:      it.BookRef != nil && !ctx.NoBookRefs,
+			Attempted: attempted,
+			Correct:   correct,
+			Serve:     func() (generator.Problem, bool) { return g.track.Problem(g.c, it), true },
+		})
+	}
+	return out
+}
+
+// ScaffoldItems implements generator.ScaffoldSource: this topic's servable
+// items for the learner in ctx, as scaffold steps.
+func (g *conceptGen) ScaffoldItems(ctx generator.GeneratorContext) []generator.ScaffoldItem {
+	var items []Item
+	for i := range g.c.Items {
+		if g.servable(&g.c.Items[i], ctx) {
+			items = append(items, g.c.Items[i])
+		}
+	}
+	return g.scaffoldItems(items, ctx)
+}
+
+// ItemScaffold implements generator.ScaffoldItemSource: one item, by id, as
+// a scaffold step, for a topic it is filed under (engine/cards.go). ok is
+// false for an unknown item.
+func (g *conceptGen) ItemScaffold(itemID string, ctx generator.GeneratorContext) (generator.ScaffoldItem, bool) {
+	it := g.item(itemID)
+	if it == nil {
+		return generator.ScaffoldItem{}, false
+	}
+	attempted, correct := g.outcome(it, ctx)
+	return generator.ScaffoldItem{
+		Step:      generator.StepOfLevel(it.Level),
+		Book:      it.BookRef != nil && !ctx.NoBookRefs,
+		Attempted: attempted,
+		Correct:   correct,
+		Serve:     func() (generator.Problem, bool) { return g.track.Problem(g.c, it), true },
+	}, true
 }
 
 // Problem renders one item as a served question. A book-reference item

@@ -742,7 +742,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 	prevQuestion := as.questionText
 	attemptID := newAttemptID()
 	seedBase := hashSeed(studentID + "|" + next.Concept.ID + "|" + attemptID)
-	ctx := generator.GeneratorContext{Difficulty: difficulty, Seed: seedBase, History: e.LearnerHistory(studentID, next.Concept.ID)}
+	ctx := generator.GeneratorContext{Difficulty: difficulty, Seed: seedBase, History: e.LearnerHistory(studentID, next.Concept.ID), Review: next.IsReview}
 	prob, err := e.registry.GenerateContext(next.Concept.ID, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("generate problem: %w", err)
@@ -753,6 +753,11 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 		if p2, err2 := e.registry.GenerateContext(next.Concept.ID, ctx); err2 == nil {
 			prob = p2
 		}
+	}
+	// A lesson's scaffold may serve below the asked difficulty (a first
+	// step); the attempt records what was served.
+	if prob.Difficulty != nil {
+		difficulty = *prob.Difficulty
 	}
 	as.conceptID = next.Concept.ID
 	as.conceptName = next.Concept.Label
@@ -839,7 +844,8 @@ func (e *Engine) NextReviewQuestionTrack(sessionID, studentID, track string) (*Q
 	prevQuestion := as.questionText
 	attemptID := newAttemptID()
 	seedBase := hashSeed(studentID + "|" + next.Concept.ID + "|" + attemptID)
-	ctx := generator.GeneratorContext{Difficulty: difficulty, Seed: seedBase, History: e.LearnerHistory(studentID, next.Concept.ID)}
+	// A review samples across a topic's scaffold steps (generator.Scaffold).
+	ctx := generator.GeneratorContext{Difficulty: difficulty, Seed: seedBase, History: e.LearnerHistory(studentID, next.Concept.ID), Review: true}
 	prob, err := e.registry.GenerateContext(next.Concept.ID, ctx)
 	if err != nil {
 		return nil, fmt.Errorf("generate problem: %w", err)

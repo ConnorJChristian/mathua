@@ -164,6 +164,16 @@ type mixGen struct {
 func (m *mixGen) mixesCards() {}
 
 func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	// Practice climbs the scaffold steps across the topic's generated
+	// questions and the items filed under it, book exercises first at each
+	// step (generator.Scaffold); a review or a test does not.
+	if !ctx.ObjectiveOnly && !ctx.Review && len(m.picks) > 0 {
+		if sc := m.scaffold(ctx); sc != nil {
+			if p, ok := sc.Pick(ctx.Served); ok {
+				return p
+			}
+		}
+	}
 	// Fork change: a book exercise filed under this topic comes first until
 	// the learner answers it correctly (generator.PickBook), then the
 	// topic's own book exercises, then the usual mix.
@@ -200,6 +210,59 @@ func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		}
 	}
 	return m.base.Generate(ctx)
+}
+
+// scaffold is what this topic can serve the learner in ctx, by step: the
+// base's own items (a bank topic) or its generated questions, and the
+// items filed under it. Nil when a filed item cannot say its step (a deck
+// that is not a question bank): the topic then keeps the order below.
+func (m *mixGen) scaffold(ctx generator.GeneratorContext) *generator.Scaffold {
+	sc := &generator.Scaffold{Share: m.share}
+	if src, ok := m.base.(generator.ScaffoldSource); ok {
+		sc.Items = append(sc.Items, src.ScaffoldItems(ctx)...)
+	} else {
+		sc.Generated = func(step int) generator.Problem {
+			c := ctx
+			if generator.StepOfDifficulty(ctx.Difficulty) != step || ctx.Difficulty <= 0 {
+				c.Difficulty = generator.DifficultyOfStep(step)
+			}
+			p := m.base.Generate(c)
+			d := c.Difficulty
+			p.Difficulty = &d
+			return p
+		}
+		if sh, ok := ctx.History.(generator.StepHistory); ok {
+			for s := 1; s <= 3; s++ {
+				sc.GeneratedDone[s] = sh.GeneratedCorrectAt(s)
+			}
+		}
+	}
+	if ctx.NoCards {
+		return sc
+	}
+	for _, pk := range m.picks {
+		if gi, ok := pk.gen.(generator.GatedItems); ok && !gi.ItemServable(pk.item, ctx) {
+			continue
+		}
+		src, ok := pk.gen.(generator.ScaffoldItemSource)
+		if !ok {
+			return nil
+		}
+		it, ok := src.ItemScaffold(pk.item, ctx)
+		if !ok {
+			continue
+		}
+		serve := it.Serve
+		it.Serve = func() (generator.Problem, bool) {
+			p, ok := serve()
+			if !ok || p.Question == "" || !grader.IsBankAnswer(p.Answer) {
+				return generator.Problem{}, false
+			}
+			return m.asCard(p, ctx), true
+		}
+		sc.Items = append(sc.Items, it)
+	}
+	return sc
 }
 
 // asCard marks a filed card for every answer host.
@@ -281,6 +344,22 @@ func (m *mixGen) BookPending(ctx generator.GeneratorContext) bool {
 		}
 	}
 	return generator.HasBookPending(m.base, ctx)
+}
+
+// ScaffoldItems and ItemScaffold forward a wrapped bank topic's items, so
+// it can still be filed under another topic.
+func (m *mixGen) ScaffoldItems(ctx generator.GeneratorContext) []generator.ScaffoldItem {
+	if src, ok := m.base.(generator.ScaffoldSource); ok {
+		return src.ScaffoldItems(ctx)
+	}
+	return nil
+}
+
+func (m *mixGen) ItemScaffold(item string, ctx generator.GeneratorContext) (generator.ScaffoldItem, bool) {
+	if src, ok := m.base.(generator.ScaffoldItemSource); ok {
+		return src.ItemScaffold(item, ctx)
+	}
+	return generator.ScaffoldItem{}, false
 }
 
 // ItemServable and ItemBookPending forward a wrapped bank topic's gating, so

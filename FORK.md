@@ -480,10 +480,11 @@ record: a bank item's answer key names the item (`math:<concept>#<item>`,
 
 Serving rules:
 
-- In practice, a topic serves its book exercises first, in bank order, until
-  each has a correct answer. An exercise you missed comes back about half
-  the time, so the rest of the topic is not crowded out. After that, the
-  practice versions that unlock after them mix in with everything else.
+- In practice, a topic serves its questions in scaffold order (below), the
+  book's exercises first within each step. An exercise you missed comes
+  back about half the time, so the rest of the topic is not crowded out.
+  The practice versions that unlock after an exercise join its step once
+  it has a correct answer.
 - Items filed under a topic through `cards.json` follow the same rules, so a
   book exercise can belong to a generated topic. The items can live in a
   deck that is not itself a topic: an authoring file whose `CHAPTER` sets
@@ -492,6 +493,46 @@ Serving rules:
   a book page needs the PDF and reading time. A course review test may ask
   one. Neither counts a book exercise or an item that unlocks after another
   when deciding whether a topic has enough questions for a test.
+
+### The order of practice inside a topic
+
+A topic's questions climb three scaffold steps, as in Math Academy: simple
+practice first, then worked cases, then word problems and applications.
+
+| Step | What it is | Bank `level` | Generated questions |
+|------|------------|--------------|---------------------|
+| 1 | Apply the rule: one step, one idea ("differentiate x^5") | 1 | difficulty up to 0.45 |
+| 2 | Worked cases: the book's examples and exercises, several steps | 2 (and unset) | 0.45 to 0.75 |
+| 3 | Applications: word problems, economic settings, proofs | 3 | 0.75 and up |
+
+Rules (`internal/generator/scaffold.go`):
+
+1. The learner works the lowest step that is not done. A step is done when
+   one of its questions (or a harder one) has a correct answer and every
+   book exercise at the step has been tried. No step-3 question comes
+   before a correct answer at step 1, unless the topic has only step 3.
+2. Within a step the book comes first: its exercises (`book_ref`) in book
+   order, then the bank's other items (untried ones first, at random, so
+   variants interleave) and the topic's generated questions at that step's
+   difficulty. Where the book has nothing for a step, generated questions
+   and bank items carry it. On a generated topic with cards filed under it,
+   about `MATHUA_CARD_SHARE` of a step's questions are cards.
+3. An item that unlocks after another (`unlocks_after`) is not served until
+   that one has a correct answer, and its level is never below that item's
+   (the bank build and the server refuse one that is: a practice version
+   practises the same skill as its exercise).
+4. A lesson that asks for several questions at once gets them in order:
+   when a step runs out, the lesson continues with the next step. The step
+   comes from the learner's record, not from the Learn page's difficulty,
+   which starts over at each visit: a learner who left off at step 3
+   resumes there, and one who misses stays at the step (two misses in a row
+   send them to the prerequisites, as before).
+5. Once every step is done, practice samples across the steps by
+   difficulty, and so does every review: a review is a check on the whole
+   topic, not a climb.
+
+Placement and tests are unchanged: they take objective questions from any
+step.
 
 ## Proof grading
 

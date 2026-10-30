@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/chuma-beep/mathua/internal/generator"
+	"github.com/chuma-beep/mathua/internal/grader"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
 
@@ -29,6 +30,33 @@ type itemHistory struct {
 	once    sync.Once
 	byKey   map[string]bool // answer key -> any correct
 	byQuest map[string]bool // mc answer key + "\x00" + question key -> any correct
+
+	stepOnce sync.Once
+	stepTop  int // highest scaffold step with a right generated answer
+}
+
+// stepWindow is how many recent attempts on a topic the scaffold reads.
+const stepWindow = 200
+
+// GeneratedCorrectAt implements generator.StepHistory: a right answer to
+// one of the topic's generated questions (not a bank item or a proof) at
+// this scaffold step or above, by the difficulty it was served at.
+func (h *itemHistory) GeneratedCorrectAt(step int) bool {
+	h.stepOnce.Do(func() {
+		rows, err := h.repo.GetRecentAttemptsForConcept(h.studentID, h.conceptID, stepWindow)
+		if err != nil {
+			return
+		}
+		for _, r := range rows {
+			if !r.Correct || r.Difficulty == nil || grader.IsBankAnswer(r.Expected) || grader.IsProofAnswer(r.Expected) {
+				continue
+			}
+			if s := generator.StepOfDifficulty(*r.Difficulty); s > h.stepTop {
+				h.stepTop = s
+			}
+		}
+	})
+	return h.stepTop >= step
 }
 
 // LearnerHistory is the generator.History of one learner on one topic, or
