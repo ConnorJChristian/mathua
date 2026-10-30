@@ -176,6 +176,9 @@ func (e *Engine) belowFloor(studentID string, progress map[string]*storage.Conce
 				out[c.ID] = true
 			}
 		}
+		for id := range e.deepFoundations(studentID, progress, keep) {
+			out[id] = true
+		}
 		return out
 	}
 	for cid, p := range progress {
@@ -188,6 +191,96 @@ func (e *Engine) belowFloor(studentID string, progress map[string]*storage.Conce
 	}
 	return out
 }
+
+// deepFoundations names the topics a course learner is past by the
+// evidence of their placement (Q57): prerequisites more than
+// CoursePlacementDepth links below every topic of every followed course,
+// which no followed course lists and the learner has never practised, once
+// the learner has placement credit or mastery on a topic of a followed
+// course.
+//
+// A course placement never asks these (placementKeep), and a correct answer
+// credits only what lies below it, so a prerequisite chain under a course
+// topic the test did not reach stayed open as new work: after an ECON 5153 +
+// Abbott placement, "Power sets and counting subsets" pulled in the mean of
+// a data set and school probability (stat.data.mean, stat.prob.basic,
+// complement, compound), six links down, and they took a quarter of the
+// first hundred answers. The domain floor does not reach them (statistics
+// and algebra are not grade-school domains). Like the floor, they still count
+// as met, so they lock nothing, and a pin or a course that lists one serves
+// it as usual.
+func (e *Engine) deepFoundations(studentID string, progress map[string]*storage.ConceptProgress, keep map[string]bool) map[string]bool {
+	if e.planner == nil || e.repo == nil || studentID == "" {
+		return nil
+	}
+	st, err := e.repo.GetStudent(studentID)
+	if err != nil || st == nil {
+		return nil
+	}
+	var own []string
+	for _, id := range ActiveCourses(st.CourseID) {
+		if c := e.planner.Course(id); c != nil {
+			own = append(own, c.Plan...)
+			own = append(own, c.Targets...)
+		}
+	}
+	if len(own) == 0 {
+		return nil
+	}
+	if progress == nil {
+		if progress, err = e.repo.GetAllProgress(studentID); err != nil {
+			return nil
+		}
+	}
+	evidence := false
+	for _, id := range own {
+		if p := progress[id]; p != nil && (mastery.Status(p.Status) == mastery.StatusMastered ||
+			(p.PlacementSeeded && mastery.Status(p.Status) != mastery.StatusUnseen)) {
+			evidence = true
+			break
+		}
+	}
+	if !evidence {
+		return nil
+	}
+	depth := map[string]int{}
+	queue := make([]string, 0, len(own))
+	for _, id := range own {
+		if _, ok := depth[id]; !ok && e.dag.Concept(id) != nil {
+			depth[id] = 0
+			queue = append(queue, id)
+		}
+	}
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		for _, p := range e.dag.PrereqsOf(id) {
+			if _, ok := depth[p.ID]; !ok {
+				depth[p.ID] = depth[id] + 1
+				queue = append(queue, p.ID)
+			}
+		}
+	}
+	out := map[string]bool{}
+	for id, d := range depth {
+		if d <= CoursePlacementDepth || keep[id] {
+			continue
+		}
+		// A foundation the learner has practised stays theirs: it is
+		// reviewed and offered as before (a deep prerequisite of one course
+		// can be a topic the learner studied for another: the central limit
+		// theorem under a data course). Only untouched ones are past.
+		if p := progress[id]; p != nil && p.Attempts > 0 {
+			continue
+		}
+		out[id] = true
+	}
+	return out
+}
+
+// FloorMet is floorMet for tools (scripts/replay_audit): the topics that
+// count as met prerequisites because the learner is past them.
+func (e *Engine) FloorMet(studentID string) map[string]bool { return e.floorMet(studentID) }
 
 // floorMet names the topics that count as met prerequisites because the
 // learner is past them (scope FloorAll only): a floor never locks what is

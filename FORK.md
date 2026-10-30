@@ -443,6 +443,14 @@ locks course material.
   everything below it. The onboarding placement of a learner who follows
   courses is a course placement too: it no longer starts the grade-school
   adaptive test over.
+- Deep foundations are past too. Once the learner has placement credit or
+  mastery on a followed course's topic, a prerequisite more than two links
+  below every followed course's topics, which no course lists and the
+  learner has never practised, is treated like a floor topic: not offered,
+  not remediation, and met for what rests on it. The placement cannot ask
+  these, so they were left open as new work: "Power sets" pulled in the mean
+  of a data set and school probability six links down (Q57). One the learner
+  has practised is reviewed and offered as before.
 
 `TestNoFloorTopicsForCourseLearner` holds this on the whole base graph.
 

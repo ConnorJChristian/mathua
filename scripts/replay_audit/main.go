@@ -562,6 +562,12 @@ func (r *replay) classify(s Serve, seen map[string]int) []string {
 	own := r.own[s.Concept]
 	if floorDomains[c.Domain] && !pinned && !own {
 		flags = append(flags, "floor")
+	} else if d, ok := r.depth[s.Concept]; ok && d > engine.CoursePlacementDepth && !pinned && !own &&
+		s.Surface != "placement" && s.Surface != "onboarding" {
+		// A foundation more links below every followed course's topics than
+		// a placement reaches (Q57: the mean of a data set, school
+		// probability, six links under "Power sets").
+		flags = append(flags, fmt.Sprintf("foundation deeper than %d", engine.CoursePlacementDepth))
 	}
 	if p != nil && p.Attempts == 0 && (p.PlacementSeeded || p.ImplicitCredit > 0) && !own && !pinned && s.Surface != "placement" && s.Surface != "onboarding" && !r.directPrereqOfMissed(s.Concept) {
 		flags = append(flags, "credit-only off course")
@@ -642,7 +648,11 @@ func (r *replay) prereqsMet(c *concepts.Concept, progress map[string]*storage.Co
 	if c == nil {
 		return true
 	}
+	met := r.eng.FloorMet(r.sid)
 	for _, pid := range c.Prerequisites {
+		if met[pid] {
+			continue // below the learner's floor: met, as the engine counts it
+		}
 		p := progress[pid]
 		if p == nil {
 			return false
