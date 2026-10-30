@@ -18,6 +18,7 @@ import { getUserInfo } from '../../lib/auth'
 import { formatDue } from '../../lib/dates'
 import { track } from '../../lib/events'
 import CourseTestsSection from '../../components/CourseTestsSection'
+import ScrollCueRow from '../../components/ScrollCueRow'
 
 // Fork change: a course's own page, laid out like a course site: Home (what
 // to do next, progress), Modules (its topics in teaching order, each with its
@@ -238,9 +239,9 @@ function CourseContent() {
             {view.followed ? 'Following ✓' : 'Follow this course'}
           </button>
         </div>
-        <nav aria-label="Course sections" className="flex gap-1 border-b border-mathua-border mb-6 overflow-x-auto">
-          {courseTabs(view).map((t) => <button key={t.id} type="button" onClick={() => go(t.id)} className={tabBtn(t.id)} aria-current={tab === t.id}>{t.label}</button>)}
-        </nav>
+        <ScrollCueRow label="Course sections" className="mb-6">
+          {courseTabs(view).map((t) => <button key={t.id} type="button" onClick={() => go(t.id)} className={`shrink-0 ${tabBtn(t.id)}`} aria-current={tab === t.id}>{t.label}</button>)}
+        </ScrollCueRow>
 
         {tab === 'home' && (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">

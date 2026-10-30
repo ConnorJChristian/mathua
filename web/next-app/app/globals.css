@@ -667,6 +667,33 @@ footer .link-underline:hover {
   background: var(--footer-scrim-top), var(--footer-scrim-bottom);
 }
 
+/* Below lg the tab bar, the chrome chevron above it and the chat button float
+   over the bottom ~124px of the screen. The page ends that far above them, so
+   its last words can always be scrolled clear (Q28: they sat on the footer's
+   licence line and on the last card of footer-less pages). */
+@media (max-width: 1023px) {
+  :root {
+    --floating-clearance: calc(128px + env(safe-area-inset-bottom));
+  }
+  .footer-content {
+    padding-bottom: calc(2rem + var(--floating-clearance));
+  }
+  #main-content:not(:has(.footer)) {
+    padding-bottom: var(--floating-clearance);
+  }
+  /* The footer's last lines moved up with it, so its bottom scrim band starts
+     above the clearance; under the floating controls it stays solid. */
+  .footer-scrim {
+    --footer-scrim-bottom: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--footer-scrim) 70%, transparent) 0,
+      color-mix(in srgb, var(--footer-scrim) 70%, transparent) var(--floating-clearance),
+      color-mix(in srgb, var(--footer-scrim) 30%, transparent) calc(var(--floating-clearance) + 14%),
+      transparent calc(var(--floating-clearance) + 28%)
+    );
+  }
+}
+
 /* The corner wash was removed with the picture that needed it.
 
    The two bands above are horizontal and assume a uniformly toned top edge. The
