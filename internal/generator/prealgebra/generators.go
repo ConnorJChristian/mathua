@@ -1101,7 +1101,9 @@ func (g *ineqTwoStepGen) Generate(ctx generator.GeneratorContext) generator.Prob
 	c := a*x + b + rand.Intn(a) + 1
 	q := formatIneq(a, b, c)
 	return generator.Problem{
-		Question:    q,
+		// Q55 class: the key is the largest whole number in the solution
+		// set, so the prompt asks for it (it was the bare inequality).
+		Question:    fmt.Sprintf("What is the largest whole number \\(x\\) with \\(%s\\)?", q),
 		Answer:      fmt.Sprintf("%d", x),
 		Explanation: fmt.Sprintf("Solve \\(%s \\to %dx < %d \\to x < %.1f \\to x = %d\\)", q, a, c-b, float64(c-b)/float64(a), x),
 		Facts:       map[string]string{"q": q, "a": strconv.Itoa(a), "b": strconv.Itoa(b), "c": strconv.Itoa(c), "rhs": strconv.Itoa(c - b), "bound": fmt.Sprintf("%.1f", float64(c-b)/float64(a)), "x": strconv.Itoa(x)},

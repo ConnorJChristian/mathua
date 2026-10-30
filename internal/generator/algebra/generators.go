@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/chuma-beep/mathua/internal/generator"
+	"github.com/chuma-beep/mathua/internal/grader"
 	"github.com/chuma-beep/mathua/internal/mathutil"
 )
 
@@ -400,12 +401,39 @@ func (g *multiStepIneqGen) Generate(ctx generator.GeneratorContext) generator.Pr
 	a := rand.Intn(6) + 2
 	b := rand.Intn(10) + 1
 	c := a*(x-1) + b + rand.Intn(a)
-	return generator.Problem{
-		Question:    fmt.Sprintf("Solve: \\(%dx + %d > %d\\)", a, b, c),
-		Answer:      fmt.Sprintf("%d", x),
-		Explanation: fmt.Sprintf("\\(%dx + %d > %d\\) → \\(%dx > %d\\) → \\(x > %d\\), so \\(x \\ge %d\\)", a, b, c, a, c-b, c-b, x),
-		Facts:       map[string]string{"a": strconv.Itoa(a), "b": strconv.Itoa(b), "c": strconv.Itoa(c), "rhs": strconv.Itoa(c - b), "x": strconv.Itoa(x)},
+	// Q55: the key was the smallest whole number in the solution set and the
+	// prompt never asked for one. The answer is the set, x > (c-b)/a.
+	rhs := c - b
+	n, d := rhs, a
+	if gd := mathutil.GCD(n, d); gd > 1 {
+		n, d = n/gd, d/gd
 	}
+	bound := strconv.Itoa(n)
+	if d != 1 {
+		bound = fmt.Sprintf("%d/%d", n, d)
+	}
+	step := fmt.Sprintf("\\(x > %s\\)", bound)
+	if d != 1 {
+		step = fmt.Sprintf("\\(x > %d/%d = %s \\approx %.2f\\)", rhs, a, bound, float64(rhs)/float64(a))
+		if mathutil.GCD(rhs, a) == 1 {
+			step = fmt.Sprintf("\\(x > %s \\approx %.2f\\)", bound, float64(rhs)/float64(a))
+		}
+	}
+	return generator.Problem{
+		Question:    fmt.Sprintf("Solve for \\(x\\): \\(%dx + %d > %d\\). Write the solution as an inequality, such as x > 7/2 (a fraction, or a decimal to 2 places).", a, b, c),
+		Answer:      "x > " + bound,
+		Explanation: fmt.Sprintf("\\(%dx + %d > %d\\) → \\(%dx > %d\\) → %s. The solution is every x greater than %s, not one number.", a, b, c, a, rhs, step, bound),
+		Facts:       map[string]string{"a": strconv.Itoa(a), "b": strconv.Itoa(b), "c": strconv.Itoa(c), "rhs": strconv.Itoa(rhs), "bound": bound, "solution": "x > " + bound},
+	}
+}
+
+// Grade reads the answer as a solution set (Q55).
+func (g *multiStepIneqGen) Grade(expected, answer string) grader.Result {
+	return grader.GradeInequality(expected, answer)
+}
+
+func (g *multiStepIneqGen) AnswerFormat() generator.AnswerFormat {
+	return generator.AnswerFormat{Hint: "Answer as an inequality, e.g. x > 7/2 or x >= 3.25", InputMode: "text"}
 }
 
 type compoundIneqGen struct{}
@@ -422,9 +450,11 @@ func (g *compoundIneqGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	a := b*(x-1) + c + 1
 	d := b*x + c + 1
 	return generator.Problem{
-		Question:    fmt.Sprintf("Solve: \\(%d < %dx + %d < %d\\)", a, b, c, d),
+		// Q55 class: the key is the one whole number in the solution set, so
+		// the prompt asks for it (it said only "Solve:").
+		Question:    fmt.Sprintf("Exactly one whole number \\(x\\) satisfies \\(%d < %dx + %d < %d\\). What is it?", a, b, c, d),
 		Answer:      fmt.Sprintf("%d", x),
-		Explanation: fmt.Sprintf("\\(%d < %dx + %d < %d\\) → \\(%.1f < x < %.1f\\) → \\(x = %d\\)", a, b, c, d, float64(a-c)/float64(b), float64(d-c)/float64(b), x),
+		Explanation: fmt.Sprintf("\\(%d < %dx + %d < %d\\) → \\(%.1f < x < %.1f\\); the only whole number in that range is \\(x = %d\\)", a, b, c, d, float64(a-c)/float64(b), float64(d-c)/float64(b), x),
 		Facts:       map[string]string{"a": strconv.Itoa(a), "b": strconv.Itoa(b), "c": strconv.Itoa(c), "d": strconv.Itoa(d), "lo": fmt.Sprintf("%.1f", float64(a-c)/float64(b)), "hi": fmt.Sprintf("%.1f", float64(d-c)/float64(b)), "x": strconv.Itoa(x)},
 	}
 }

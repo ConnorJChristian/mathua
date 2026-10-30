@@ -8,8 +8,8 @@
     },
     {
       "fact": "rhs",
-      "say": "Subtracting [[b]] leaves [[a]]x > [[rhs]]; dividing by [[a]] isolates x."
+      "say": "Subtracting [[b]] leaves [[a]]x > [[rhs]]; dividing by [[a]] (a positive number, so the sign stays) gives x > [[bound]]."
     }
   ],
-  "answer": "So the solution is x = [[x]]."
+  "answer": "So the solution is every x with [[solution]]: a set of numbers, not one number."
 }
