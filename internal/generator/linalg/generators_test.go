@@ -2,6 +2,8 @@ package linalg
 
 import (
 	"math/rand"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/chuma-beep/mathua/internal/generator"
@@ -18,7 +20,48 @@ func fuzzGen(t *testing.T, gen generator.Generator) {
 	}
 }
 
-func TestVectorConceptGen(t *testing.T)    { fuzzGen(t, &vectorConceptGen{}) }
+func TestVectorConceptGen(t *testing.T) { fuzzGen(t, &vectorConceptGen{}) }
+
+// The concept draws one of three questions (upstream eabb8e1a picks them by
+// knowledge point; the fork has none, so it draws). Each kind must come up and
+// each must answer itself.
+func TestVectorConceptGenDrawsAllThreeQuestions(t *testing.T) {
+	g := &vectorConceptGen{}
+	seen := map[string]int{}
+	for i := 0; i < 300; i++ {
+		p := g.Generate(generator.GeneratorContext{Difficulty: rand.Float64()})
+		switch {
+		case strings.Contains(p.Question, "magnitude of vector"):
+			seen["magnitude"]++
+		case strings.Contains(p.Question, "points in the direction of"):
+			seen["component"]++
+			x, _ := strconv.Atoi(p.Facts["x"])
+			scale, _ := strconv.Atoi(p.Facts["scale"])
+			mag, _ := strconv.Atoi(p.Facts["magnitude"])
+			y, _ := strconv.Atoi(p.Facts["y"])
+			if x*x+y*y != mag*mag {
+				t.Fatalf("direction (%d,%d) does not have magnitude %d", x, y, mag)
+			}
+			if want := strconv.Itoa(x * scale); p.Answer != want {
+				t.Fatalf("component answer %q, want x*scale %q: %q", p.Answer, want, p.Question)
+			}
+		case strings.Contains(p.Question, `\mathbf{u}`) && strings.Contains(p.Question, `\mathbf{v}`):
+			seen["operation"]++
+			u1, _ := strconv.Atoi(p.Facts["u1"])
+			v1, _ := strconv.Atoi(p.Facts["v1"])
+			if want := strconv.Itoa(u1 + v1); p.Answer != want {
+				t.Fatalf("sum answer %q, want u1+v1 %q: %q", p.Answer, want, p.Question)
+			}
+		default:
+			t.Fatalf("unexpected vector question: %q", p.Question)
+		}
+	}
+	for _, kind := range []string{"magnitude", "component", "operation"} {
+		if seen[kind] == 0 {
+			t.Errorf("no %s question in 300 draws: %v", kind, seen)
+		}
+	}
+}
 func TestVectorAddGen(t *testing.T)        { fuzzGen(t, &vectorAddGen{}) }
 func TestVectorDotGen(t *testing.T)        { fuzzGen(t, &vectorDotGen{}) }
 func TestMatrixConceptGen(t *testing.T)    { fuzzGen(t, &matrixConceptGen{}) }

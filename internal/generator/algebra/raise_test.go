@@ -10,8 +10,10 @@ package algebra
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
 )
 
@@ -262,5 +264,15 @@ func TestRaiseNumericRecompute(t *testing.T) {
 		if r*r*r+b*r*r+d*r+e != 0 {
 			t.Fatalf("rational_root: %d is not a root of x^3+%dx^2+%dx+%d", r, b, d, e)
 		}
+	}
+}
+
+func TestRationalRootQuestionTypesetsThePolynomial(t *testing.T) {
+	p := (&rationalRootGen{}).Generate(generator.GeneratorContext{})
+	if !strings.Contains(p.Question, `\(x^3`) || !strings.Contains(p.Question, `\)`) {
+		t.Fatalf("rational-root question is not typeset: %q", p.Question)
+	}
+	if !strings.Contains(p.Explanation, `\(`) || !strings.Contains(p.Explanation, `\)`) {
+		t.Fatalf("rational-root explanation is not typeset: %q", p.Explanation)
 	}
 }

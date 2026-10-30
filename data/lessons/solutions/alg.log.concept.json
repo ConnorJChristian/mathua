@@ -1,15 +1,22 @@
 {
   "concept": "alg.log.concept",
-  "setup": "[[base]]^[[exp]] = [[val]], and you are asked to write it as a logarithm.",
+  "setup": "",
   "steps": [
     {
       "fact": "val",
-      "say": "A logarithm asks the question a power statement answers: \"to what exponent does the base have to be raised?\" Here the base is [[base]] and the result is [[val]]."
+      "optional": true,
+      "say": "[[base]]^[[exp]] = [[val]], and you are asked to write it as a logarithm. A logarithm asks the question a power statement answers: \"to what exponent does the base have to be raised?\" Here the base is [[base]] and the result is [[val]]."
     },
     {
       "fact": "exp",
-      "say": "The exponent that does it is [[exp]]."
+      "optional": true,
+      "say": "The exponent that does it is [[exp]], so log base [[base]] of [[val]] is [[exp]]."
+    },
+    {
+      "fact": "reason",
+      "optional": true,
+      "say": "[[reason]]"
     }
   ],
-  "answer": "So log base [[base]] of [[val]] is [[exp]]."
+  "answer": "The answer is [[answer]]."
 }

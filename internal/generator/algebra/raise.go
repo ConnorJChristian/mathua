@@ -19,6 +19,7 @@ package algebra
 // author's arithmetic.
 
 import (
+	"fmt"
 	"math/rand"
 	"strconv"
 
@@ -613,12 +614,10 @@ func (g *rationalRootGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	d := c.r1*c.r2 + c.r1*c.r3 + c.r2*c.r3
 	e := -(c.r1 * c.r2 * c.r3)
 	return generator.Problem{
-		Question: "The monic polynomial x^3 + " + strconv.Itoa(b) + "x^2 + " + strconv.Itoa(d) + "x + " + strconv.Itoa(e) +
-			" has three integer roots. By the rational root theorem, what is its positive root?",
-		Answer: strconv.Itoa(c.r1),
-		Explanation: "The polynomial factors as (x - " + strconv.Itoa(c.r1) + ")(x + " + strconv.Itoa(-c.r2) +
-			")(x + " + strconv.Itoa(-c.r3) + "), so the roots are " + strconv.Itoa(c.r1) + ", " + strconv.Itoa(c.r2) +
-			" and " + strconv.Itoa(c.r3) + ", and the positive one is " + strconv.Itoa(c.r1) + ".",
+		Question: fmt.Sprintf("The monic polynomial \\(x^3 %+d x^2 %+d x %+d\\) has three integer roots. By the rational root theorem, what is its positive root?", b, d, e),
+		Answer:   strconv.Itoa(c.r1),
+		Explanation: fmt.Sprintf("The polynomial factors as \\((x %+d)(x %+d)(x %+d)\\), so the roots are %d, %d and %d, and the positive one is %d.",
+			-c.r1, -c.r2, -c.r3, c.r1, c.r2, c.r3, c.r1),
 		Facts: map[string]string{
 			"b": strconv.Itoa(b), "d": strconv.Itoa(d), "e": strconv.Itoa(e),
 			"r1": strconv.Itoa(c.r1), "r2": strconv.Itoa(c.r2), "r3": strconv.Itoa(c.r3),

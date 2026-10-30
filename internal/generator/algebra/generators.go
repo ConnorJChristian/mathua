@@ -836,7 +836,23 @@ func (g *algExpEvaluateGen) Generate(ctx generator.GeneratorContext) generator.P
 
 type logConceptGen struct{}
 
+// The concept covers the definition, the basic identities and the logarithmic
+// function. Upstream chooses among them by the knowledge-point ordinal its
+// practice passes (ctx.KPOrdinal); the fork has no knowledge points, so each
+// draw picks one of the three (fork adaptation of upstream eabb8e1a). Before,
+// every draw was the "write as a logarithm" prompt.
 func (g *logConceptGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	switch rand.Intn(3) {
+	case 1:
+		return logIdentityProblem()
+	case 2:
+		return logarithmicFunctionProblem()
+	default:
+		return logDefinitionProblem()
+	}
+}
+
+func logDefinitionProblem() generator.Problem {
 	base := rand.Intn(3) + 2
 	exp := rand.Intn(4) + 1
 	val := mathutil.IntPow(base, exp)
@@ -845,6 +861,88 @@ func (g *logConceptGen) Generate(ctx generator.GeneratorContext) generator.Probl
 		Answer:      fmt.Sprintf("log_%d(%d) = %d", base, val, exp),
 		Explanation: fmt.Sprintf("\\(\\log_{%d}(%d) = %d\\)", base, val, exp),
 		Facts:       map[string]string{"base": strconv.Itoa(base), "exp": strconv.Itoa(exp), "val": strconv.Itoa(val)},
+	}
+}
+
+// explainedChoice is a multiple-choice question with its reason. The reason is
+// both the explanation and the "reason" fact the concept's solution schema
+// renders for the question shapes that are not the definition (fork addition:
+// upstream's choices carried no explanation, which the fork's contract tests
+// refuse).
+func explainedChoice(question, reason, correct string, distractors ...string) generator.Problem {
+	p := generator.MultipleChoice(question, correct, distractors...)
+	p.Explanation = reason
+	p.Facts = map[string]string{"reason": reason}
+	return p
+}
+
+func logIdentityProblem() generator.Problem {
+	base := rand.Intn(8) + 2
+	switch rand.Intn(3) {
+	case 0:
+		return explainedChoice(
+			fmt.Sprintf("What is \\(\\log_{%d}(1)\\)?", base),
+			fmt.Sprintf("Any base raised to the power 0 is 1: \\(%d^0 = 1\\), so \\(\\log_{%d}(1) = 0\\).", base, base),
+			"0",
+			"1",
+			strconv.Itoa(base),
+			"undefined",
+		)
+	case 1:
+		return explainedChoice(
+			fmt.Sprintf("What is \\(\\log_{%d}(%d)\\)?", base, base),
+			fmt.Sprintf("A base raised to the power 1 is itself: \\(%d^1 = %d\\), so \\(\\log_{%d}(%d) = 1\\).", base, base, base, base),
+			"1",
+			"0",
+			strconv.Itoa(base),
+			"undefined",
+		)
+	default:
+		value := rand.Intn(8) + 2
+		for value == base {
+			value = rand.Intn(8) + 2
+		}
+		return explainedChoice(
+			fmt.Sprintf("Simplify \\(%d^{\\log_{%d}(%d)}\\).", base, base, value),
+			fmt.Sprintf("\\(\\log_{%d}(%d)\\) is the exponent that turns %d into %d, so raising %d to it gives %d: \\(b^{\\log_b(x)} = x\\).", base, value, base, value, base, value),
+			strconv.Itoa(value),
+			strconv.Itoa(base),
+			fmt.Sprintf("log_%d(%d)", base, value),
+			"1",
+		)
+	}
+}
+
+func logarithmicFunctionProblem() generator.Problem {
+	base := rand.Intn(8) + 2
+	switch rand.Intn(3) {
+	case 0:
+		return explainedChoice(
+			fmt.Sprintf("What is the domain of \\(f(x)=\\log_{%d}(x)\\)?", base),
+			fmt.Sprintf("\\(\\log_{%d}(x)\\) is the exponent that turns %d into \\(x\\), and every power of a positive base is positive, so only \\(x>0\\) has a logarithm.", base, base),
+			"\\(x>0\\)",
+			"\\(x\\ge0\\)",
+			"all real numbers",
+			"\\(x\\ne0\\)",
+		)
+	case 1:
+		return explainedChoice(
+			fmt.Sprintf("The graph of \\(y=\\log_{%d}(x)\\) has a vertical asymptote at ...", base),
+			fmt.Sprintf("As \\(x\\) shrinks towards 0 from the right, \\(\\log_{%d}(x)\\) falls without bound, so the graph runs down along the line \\(x=0\\) without touching it.", base),
+			"\\(x=0\\)",
+			"\\(y=0\\)",
+			"\\(x=1\\)",
+			"no vertical asymptote",
+		)
+	default:
+		return explainedChoice(
+			fmt.Sprintf("As \\(x\\to0^{+}\\), \\(\\log_{%d}(x)\\to\\) ...", base),
+			fmt.Sprintf("To make %d to a power small and positive, the exponent must be a large negative number, so \\(\\log_{%d}(x)\\to-\\infty\\) as \\(x\\to0^{+}\\).", base, base),
+			"\\(-\\infty\\)",
+			"0",
+			"1",
+			"\\(\\infty\\)",
+		)
 	}
 }
 

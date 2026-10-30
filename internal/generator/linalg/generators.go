@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
@@ -48,7 +49,144 @@ func Register(reg *generator.Registry) {
 
 type vectorConceptGen struct{}
 
+// The concept covers three things: the magnitude of a vector, its components
+// along a direction, and vector operations. Upstream chooses among them by
+// the knowledge-point ordinal its practice passes (ctx.KPOrdinal); the fork
+// has no knowledge points, so each draw picks one of the three (fork
+// adaptation of upstream eabb8e1a). Before, every draw was the magnitude
+// prompt.
 func (g *vectorConceptGen) Generate(ctx generator.GeneratorContext) generator.Problem {
+	switch rand.Intn(3) {
+	case 1:
+		return vectorComponentProblem(ctx)
+	case 2:
+		return vectorOperationProblem(ctx)
+	default:
+		return vectorMagnitudeProblem(ctx)
+	}
+}
+
+// vectorTier is 0, 1 or 2 by difficulty, the bands upstream's
+// mathutil.DifficultyTier uses.
+func vectorTier(d float64) int {
+	switch {
+	case d < 0.34:
+		return 0
+	case d < 0.67:
+		return 1
+	default:
+		return 2
+	}
+}
+
+// vectorDrawAttempts bounds the redraws that keep the answer out of the
+// question, so a guard that cannot be met costs a weaker problem, never a
+// request that does not return.
+const vectorDrawAttempts = 20
+
+// containsWord reports whether word appears in q as a whole number or word,
+// so an answer of 6 is found in "(6,8)" but not in "16".
+func containsWord(q, word string) bool {
+	fields := strings.FieldsFunc(q, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-'
+	})
+	for _, f := range fields {
+		if f == word {
+			return true
+		}
+	}
+	return false
+}
+
+// vectorComponentProblem asks for one component after the direction vector is
+// scaled to a given magnitude. The direction is a Pythagorean triple times k,
+// so the answer is an integer.
+func vectorComponentProblem(ctx generator.GeneratorContext) generator.Problem {
+	tier := vectorTier(ctx.Difficulty)
+	for attempt := 0; ; attempt++ {
+		m := smallInt(2, 4+tier*2)
+		n := smallInt(1, m-1)
+		k := smallInt(1, 2+tier)
+		x := k * (m*m - n*n)
+		y := k * (2 * m * n)
+		mag := k * (m*m + n*n)
+		if rand.Intn(2) == 0 {
+			x, y = y, x
+		}
+		if tier > 0 && rand.Intn(2) == 0 {
+			x = -x
+		}
+		if tier > 0 && rand.Intn(2) == 0 {
+			y = -y
+		}
+		scale := smallInt(2, 4+tier)
+		wanted := x * scale
+		question := fmt.Sprintf("A vector of magnitude %d points in the direction of \\((%d,%d)\\). What is its \\(x\\)-component?", mag*scale, x, y)
+		if containsWord(question, strconv.Itoa(wanted)) && attempt < vectorDrawAttempts {
+			continue
+		}
+		return generator.Problem{
+			Question: question,
+			Answer:   strconv.Itoa(wanted),
+			Explanation: fmt.Sprintf("The direction vector \\((%d,%d)\\) has magnitude %d. Scaling it to magnitude %d multiplies each component by \\(%d/%d = %d\\), so the \\(x\\)-component is \\(%d \\cdot %d = %d\\).",
+				x, y, mag, mag*scale, mag*scale, mag, scale, x, scale, wanted),
+			Facts: map[string]string{
+				"x":         strconv.Itoa(x),
+				"y":         strconv.Itoa(y),
+				"magnitude": strconv.Itoa(mag),
+				"scale":     strconv.Itoa(scale),
+				"answer":    strconv.Itoa(wanted),
+			},
+		}
+	}
+}
+
+// vectorOperationProblem asks for one coordinate of a sum. The concept is
+// graded as a number, so the question targets a single component rather than
+// the tuple that the separate vector-addition concept uses.
+func vectorOperationProblem(ctx generator.GeneratorContext) generator.Problem {
+	tier := vectorTier(ctx.Difficulty)
+	bound := 3 + tier*3
+	for attempt := 0; ; attempt++ {
+		a := smallInt(1, bound)
+		b := smallInt(1, bound)
+		c := smallInt(1, bound)
+		d := smallInt(1, bound)
+		if rand.Intn(2) == 0 {
+			a = -a
+		}
+		if rand.Intn(2) == 0 {
+			b = -b
+		}
+		if rand.Intn(2) == 0 {
+			c = -c
+		}
+		if rand.Intn(2) == 0 {
+			d = -d
+		}
+		answer := a + c
+		question := fmt.Sprintf("Given \\(\\mathbf{u}=(%d,%d)\\) and \\(\\mathbf{v}=(%d,%d)\\), what is the \\(x\\)-component of \\(\\mathbf{u}+\\mathbf{v}\\)?", a, b, c, d)
+		if containsWord(question, strconv.Itoa(answer)) && attempt < vectorDrawAttempts {
+			continue
+		}
+		return generator.Problem{
+			Question:    question,
+			Answer:      strconv.Itoa(answer),
+			Explanation: fmt.Sprintf("Add the \\(x\\)-components: \\(%d + (%d) = %d\\). The \\(y\\)-components add independently: \\(%d + (%d) = %d\\).", a, c, answer, b, d, b+d),
+			Facts: map[string]string{
+				"u1":     strconv.Itoa(a),
+				"u2":     strconv.Itoa(b),
+				"v1":     strconv.Itoa(c),
+				"v2":     strconv.Itoa(d),
+				"answer": strconv.Itoa(answer),
+			},
+		}
+	}
+}
+
+// vectorMagnitudeProblem is the magnitude of a vector drawn from a
+// Pythagorean triple, so the answer is an integer.
+func vectorMagnitudeProblem(ctx generator.GeneratorContext) generator.Problem {
 	triples := [][3]int{
 		{3, 4, 5}, {4, 3, 5},
 		{6, 8, 10}, {8, 6, 10},
