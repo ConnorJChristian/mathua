@@ -699,7 +699,8 @@ func discontinuityClassifyClaim() mcClaim {
 	default:
 		half := rand.Intn(2) == 0
 		if half {
-			desc = "f(x) = ⌊x⌋, the greatest integer at most x, at x = " + cs + " + 1/2"
+			// Q60: the point was printed as "−1 + 1/2"; it is one number.
+			desc = "f(x) = ⌊x⌋, the greatest integer at most x, at x = " + itoa(2*c+1) + "/2"
 			cls = 0
 			why = "⌊x⌋ is constant on (" + cs + ", " + itoa(c+1) + "), so it is continuous at every non-integer point."
 		} else {

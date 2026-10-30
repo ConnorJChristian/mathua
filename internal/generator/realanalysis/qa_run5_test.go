@@ -85,3 +85,22 @@ func TestRun5NoUnitOrZeroArtefacts(t *testing.T) {
 		}
 	}
 }
+
+// Q60: the floor-function item printed its point as "−1 + 1/2" instead of
+// one number, −1/2.
+func TestDiscontinuityHalfPointIsOneNumber(t *testing.T) {
+	seen := 0
+	for i := 0; i < 3000; i++ {
+		rand.Seed(int64(i + 1))
+		c := discontinuityClassifyClaim()
+		if strings.Contains(c.q, "+ 1/2") {
+			t.Fatalf("point printed as a sum: %q", c.q)
+		}
+		if strings.Contains(c.q, "/2?") {
+			seen++
+		}
+	}
+	if seen == 0 {
+		t.Fatal("no half-integer floor item drawn; the check would pass vacuously")
+	}
+}
