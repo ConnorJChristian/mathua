@@ -1107,7 +1107,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             learner is looking at. They used to render at the top of the feed, a screen or more
             above the Check button, so a failed submit looked like nothing had happened. */}
         {error && entries.length > 0 && (
-          <p role="alert" className="font-mono text-xs text-red-400">{error}</p>
+          <p role="alert" className="font-mono text-xs text-mathua-red">{error}</p>
         )}
         <div ref={bottomRef} aria-hidden="true" />
       </div>
