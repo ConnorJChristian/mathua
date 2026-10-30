@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/big"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -23,26 +24,192 @@ const floatTolerance = 1e-9
 type numericGrader struct{}
 
 func (g *numericGrader) grade(expected, answer string) Result {
-	e := normalise(expected)
-	a := normalise(answer)
+	// Commas are kept: `6,8` is a two-value answer, not sixty-eight (upstream
+	// c8f302e6). Grouping commas are stripped per value in parseNumber.
+	e := normaliseKeepCommas(expected)
+	a := normaliseKeepCommas(answer)
 	if e == "" || a == "" {
 		return emptyResult()
 	}
-	eVal, eIsFloat, eOK := parseNumeric(e)
-	aVal, aIsFloat, aOK := parseNumeric(a)
-	if !eOK || !aOK {
+	if res, ok := compareScalars(e, a); ok {
+		return res
+	}
+	if res, ok := compareLists(e, a); ok {
+		return res
+	}
+	// A comma used as a decimal separator is how most of Europe writes 3.5.
+	// It cannot be normalised up front, because `6,8` is a two-element answer
+	// and not sixty-eight. It is only tried after both other readings fail, so
+	// a list is never mistaken for a number.
+	if strings.Contains(a, ",") && !strings.Contains(e, ",") {
+		if res, ok := compareScalars(e, strings.ReplaceAll(a, ",", ".")); ok {
+			return res
+		}
+	}
+	// Nothing could be read as a number or a list, which is a different problem
+	// from a wrong value and worth saying so.
+	if _, _, eOK := parseNumber(e); !eOK {
 		return Result{Correct: false, Score: 0, Feedback: "Could not parse numeric values"}
 	}
-	if eIsFloat || aIsFloat {
-		if decimalsAgree(e, eVal, a, aVal) {
-			return Result{Correct: true, Score: 1}
-		}
-	} else {
-		if eVal == aVal {
-			return Result{Correct: true, Score: 1}
-		}
+	if _, _, aOK := parseNumber(a); !aOK {
+		return Result{Correct: false, Score: 0, Feedback: "Could not parse numeric values"}
 	}
 	return Result{Correct: false, Score: 0, Feedback: "Incorrect"}
+}
+
+// compareScalars grades one value against one value. The bool is false when
+// either side is not a single number, so the caller can try a list. A decimal
+// on either side is compared by the places each was written to
+// (decimalsAgree, the fork's Q50 rule), not by upstream's flat half-unit
+// window.
+func compareScalars(expected, answer string) (Result, bool) {
+	eVal, eIsFloat, eOK := parseNumber(expected)
+	aVal, aIsFloat, aOK := parseNumber(answer)
+	aText := numberText(answer)
+	if !eOK || !aOK {
+		return Result{}, false
+	}
+	if valuesAgree(numberText(expected), eVal, eIsFloat, aText, aVal, aIsFloat) {
+		return Result{Correct: true, Score: 1}, true
+	}
+	return Result{Correct: false, Score: 0, Feedback: "Incorrect"}, true
+}
+
+// valuesAgree is the scalar comparison both readings share: by places when
+// either side is a decimal or a fraction, exactly for two integers.
+func valuesAgree(e string, eVal float64, eIsFloat bool, a string, aVal float64, aIsFloat bool) bool {
+	if eIsFloat || aIsFloat {
+		return decimalsAgree(e, eVal, a, aVal)
+	}
+	return eVal == aVal
+}
+
+// numberText is the written form of one value as decimalsAgree reads its
+// places: no "x =" in front and no grouping commas.
+func numberText(s string) string {
+	s = stripVariablePrefix(strings.TrimSpace(s))
+	if _, _, ok := parseNumeric(s); ok {
+		return s
+	}
+	return stripThousands(s)
+}
+
+// compareLists grades an answer that names several values, such as the roots of
+// a quadratic or the eigenvalues of a matrix. Order does not matter: a learner
+// who writes the roots of x^2 + x - 12 = 0 as 4,-3 has the same answer as -3,4.
+// Each pair of values, matched in sorted order, is compared as one scalar is,
+// so a rounded root keeps the fork's rounding rules.
+//
+// The bool is false when either side is not a list, so the caller can try the
+// next reading. A single value is not a list, which keeps `12` from matching
+// `1,2`.
+func compareLists(expected, answer string) (Result, bool) {
+	e := splitList(expected)
+	a := splitList(answer)
+	if len(e) < 2 || len(a) < 2 {
+		return Result{}, false
+	}
+	if len(e) != len(a) {
+		return Result{Correct: false, Score: 0, Feedback: "Incorrect"}, true
+	}
+	type value struct {
+		text    string
+		v       float64
+		isFloat bool
+	}
+	read := func(parts []string) ([]value, bool) {
+		out := make([]value, 0, len(parts))
+		for _, part := range parts {
+			v, isFloat, ok := parseNumber(part)
+			if !ok {
+				return nil, false
+			}
+			out = append(out, value{numberText(part), v, isFloat})
+		}
+		sort.Slice(out, func(i, j int) bool { return out[i].v < out[j].v })
+		return out, true
+	}
+	eVals, ok := read(e)
+	if !ok {
+		return Result{}, false
+	}
+	aVals, ok := read(a)
+	if !ok {
+		return Result{}, false
+	}
+	for i := range eVals {
+		if !valuesAgree(eVals[i].text, eVals[i].v, eVals[i].isFloat, aVals[i].text, aVals[i].v, aVals[i].isFloat) {
+			return Result{Correct: false, Score: 0, Feedback: "Incorrect"}, true
+		}
+	}
+	return Result{Correct: true, Score: 1}, true
+}
+
+// splitList reads the parts of a multi-value answer, dropping the brackets a
+// learner may type around a set or a coordinate pair.
+func splitList(s string) []string {
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, "()[]{}")
+	var parts []string
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ';' }) {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
+}
+
+// stripVariablePrefix removes the "x=" (or "\lambda =") a learner often types
+// in front of a value the question asked them to find, including in front of
+// each value of a list ("x = -2, x = 2").
+func stripVariablePrefix(s string) string {
+	if i := strings.IndexByte(s, '='); i > 0 {
+		left := strings.TrimSpace(s[:i])
+		left = strings.TrimPrefix(left, `\`)
+		if len(left) >= 1 && ((left[0] >= 'a' && left[0] <= 'z') || (left[0] >= 'A' && left[0] <= 'Z')) {
+			return strings.TrimSpace(s[i+1:])
+		}
+	}
+	return s
+}
+
+// stripThousands removes the grouping commas from a number and leaves every
+// other comma where it is. normalise used to delete all of them, which turned
+// `6,8` into `68`, `7,10` into `710` and a decimal comma into a wrong integer.
+func stripThousands(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == ',' && i+4 <= len(s) &&
+			isASCIIDigit(s[i+1]) && isASCIIDigit(s[i+2]) && isASCIIDigit(s[i+3]) &&
+			(i+4 == len(s) || !isASCIIDigit(s[i+4])) {
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func isASCIIDigit(b byte) bool { return b >= '0' && b <= '9' }
+
+// parseNumber reads one value, trying the grouping commas of a large number as
+// a second reading. It is per value rather than per answer, because `1000,200`
+// is a list whose first part is four digits, and stripping commas from the whole
+// answer would join the two parts into one number.
+func parseNumber(s string) (float64, bool, bool) {
+	s = stripVariablePrefix(strings.TrimSpace(s))
+	if v, isFloat, ok := parseNumeric(s); ok {
+		return v, isFloat, true
+	}
+	return parseNumeric(stripThousands(s))
+}
+
+// normaliseKeepCommas is normalise without the comma deletion: the numeric
+// grader reads commas itself (a list separator, a grouping comma or a decimal
+// comma). The other callers of normalise keep the old reading.
+func normaliseKeepCommas(s string) string {
+	s = plusZeroRe.ReplaceAllString(s, "")
+	return strings.TrimSpace(s)
 }
 
 func normalise(s string) string {
