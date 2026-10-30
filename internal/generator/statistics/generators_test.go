@@ -1,7 +1,9 @@
 package statistics
 
 import (
+	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -97,6 +99,29 @@ func TestReadTableEmitsAPipeTable(t *testing.T) {
 			if got := strings.Count(row, "|") - 1; got != cells {
 				t.Fatalf("row has %d cells, header %d: %q", got, cells, q)
 			}
+		}
+	}
+}
+
+// Upstream 788f5eb8 added the z-score sign rule to its explanation. The fork's
+// generator already states it; this pins the rule and the sign of the answer.
+func TestZScoreExplanationNamesTheSignRule(t *testing.T) {
+	g := &zscoreGen{}
+	for i := 0; i < 200; i++ {
+		p := g.Generate(generator.GeneratorContext{Difficulty: rand.Float64()})
+		if !strings.Contains(p.Explanation, "positive value is above the mean and a negative one below") {
+			t.Fatalf("explanation does not state the sign rule: %s", p.Explanation)
+		}
+		var mean, sd, x int
+		if _, err := fmt.Sscanf(p.Question, "A distribution has mean %d and standard deviation %d. Find the z-score of the value %d.", &mean, &sd, &x); err != nil {
+			t.Fatalf("question does not print mean, deviation and value: %q (%v)", p.Question, err)
+		}
+		k, err := strconv.Atoi(p.Answer)
+		if err != nil {
+			t.Fatalf("answer %q is not an integer", p.Answer)
+		}
+		if (x > mean && k <= 0) || (x < mean && k >= 0) || x != mean+k*sd {
+			t.Fatalf("value %d, mean %d, sd %d: z-score %d has the wrong sign or size", x, mean, sd, k)
 		}
 	}
 }
