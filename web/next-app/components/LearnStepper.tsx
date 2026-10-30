@@ -258,6 +258,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: reduceMotion.current ? 'auto' : 'smooth', block: 'nearest' })
   }, [])
+  useEffect(() => {
+    if (error && entries.length > 0) scrollToBottom()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [error, scrollToBottom])
 
   const refill = useCallback(async (diff: number, exclude: string[]): Promise<PracticeQuestion[]> => {
     const pr = await getLessonPractice(conceptId, 3, { seed: Date.now() % 100000, exclude, difficulty: diff, override })
@@ -316,7 +320,12 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
       }
       setEntries([{ key: nextKey(), kind: 'intro', kpIndex: 0 }])
     } catch (e) {
-      if (seq === loadSeqRef.current) setError(e instanceof Error ? e.message : 'Failed to load lesson')
+      // A topic that does not exist says so (the API's own sentence); anything else
+      // (the server down, a 500) is said in words, not as "Failed to fetch".
+      const msg = e instanceof Error && e.message.startsWith('This topic does not exist')
+        ? e.message
+        : 'Could not load the questions for this topic: the server did not answer. Check that Mathua is running, then retry.'
+      if (seq === loadSeqRef.current) setError(msg)
     } finally {
       // A superseded load (another topic, Practice anyway) leaves the spinner to the newer one.
       if (seq === loadSeqRef.current) setLoading(false)
@@ -790,7 +799,13 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
         />
       )}
 
-      {error && <p className="mb-4 font-mono text-xs text-red-400">{error}</p>}
+      {/* With no questions on the page (the load failed) the error leads, with Retry. */}
+      {error && entries.length === 0 && (
+        <div role="alert" className="mb-4 border border-mathua-border bg-mathua-surface p-4">
+          <p className="font-mono text-xs text-red-400">{error}</p>
+          <button type="button" onClick={() => { load() }} className="mt-3 border border-mathua-blue px-4 py-2 font-mono text-xs text-mathua-blue hover:bg-mathua-blue-faint min-h-[36px]">Retry</button>
+        </div>
+      )}
 
       {/* The reference layer, in the flow.
           This replaces the "Reference" link the done card used to carry to `/study`: the same
@@ -1078,6 +1093,12 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             </div>
           )
         })}
+        {/* Mid-session errors (an answer that could not be graded) sit under the question the
+            learner is looking at. They used to render at the top of the feed, a screen or more
+            above the Check button, so a failed submit looked like nothing had happened. */}
+        {error && entries.length > 0 && (
+          <p role="alert" className="font-mono text-xs text-red-400">{error}</p>
+        )}
         <div ref={bottomRef} aria-hidden="true" />
       </div>
     </div>

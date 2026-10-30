@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import LearnStepper from '../components/LearnStepper'
-import { getLessonKPs, getLessonPractice, getLessonReadiness } from '../lib/api'
+import { getLessonKPs, getLessonPractice, getLessonReadiness, submitStudyAnswer } from '../lib/api'
+import { answerCard, answerField, typeAnswer } from './helpers/answerInput'
 
 vi.mock('../lib/api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../lib/api')>()
@@ -10,6 +11,7 @@ vi.mock('../lib/api', async (importOriginal) => {
     getLessonKPs: vi.fn(),
     getLessonPractice: vi.fn(),
     getLessonReadiness: vi.fn(),
+    submitStudyAnswer: vi.fn(),
   }
 })
 
@@ -54,5 +56,41 @@ describe('LearnStepper when the reading fails', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Next →' }))
     expect(await screen.findByText('2 + 3 = ?')).toBeTruthy()
     expect(screen.queryByText(/could not be loaded/)).toBeNull()
+  })
+})
+
+// The API going away mid-session, or before the questions load, is said in
+// words where the learner is looking, with a way to try again.
+describe('LearnStepper when the server does not answer', () => {
+  beforeEach(() => {
+    vi.mocked(getLessonKPs).mockResolvedValue({ concept_id: CID, kps: [{ label: 'Add', subgoals: [], worked_example: '2 + 3 = 5' }] })
+  })
+
+  it('a failed question load reads as such, and Retry loads the questions', async () => {
+    vi.mocked(getLessonPractice).mockReset()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValue({ questions: QS, concept_id: CID })
+    render(<LearnStepper conceptId={CID} />)
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/server did not answer/)
+    expect(alert.textContent).not.toMatch(/Failed to fetch/)
+    fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Next →' }))
+    expect(await screen.findByText('2 + 3 = ?')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('an answer that could not be graded says so under the question, not at the top of the feed', async () => {
+    vi.mocked(submitStudyAnswer).mockRejectedValue(new TypeError('Failed to fetch'))
+    render(<LearnStepper conceptId={CID} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Next →' }))
+    await waitFor(() => expect(answerField()).toBeTruthy())
+    const input = answerField()
+    typeAnswer(input, '5')
+    fireEvent.click(within(answerCard(input)).getByRole('button', { name: 'Check' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toMatch(/Could not reach the server to grade/)
+    // The message follows the question card in the page, where the learner is.
+    expect(answerCard(input).compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
