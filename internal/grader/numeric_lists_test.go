@@ -84,11 +84,19 @@ func TestNumericAcceptsAVariablePrefix(t *testing.T) {
 }
 
 // A value that cannot be read at all is a different problem from a wrong one,
-// and the message says so.
+// and the message says so. (Fork: upstream's example was 12\times4, which the
+// fork's router turns into 12*4 and the arithmetic reading grades as 48, a
+// readable wrong answer; a letter keeps the answer unreadable.)
 func TestNumericUnreadableAnswerIsNotCalledWrong(t *testing.T) {
 	r := NewRouter()
-	if res := r.Grade(GradingNumeric, "4", `12\times4`); res.Feedback != "Could not parse numeric values" {
+	if res := r.Grade(GradingNumeric, "4", `12y`); res.Feedback != "Could not parse numeric values" {
 		t.Errorf("feedback = %q, want the parse failure", res.Feedback)
+	}
+	if res := r.Grade(GradingNumeric, "4", `12\times4`); res.Correct || res.Feedback != "Incorrect" {
+		t.Errorf("12\\times4 against 4: correct=%v feedback=%q, want a plain wrong answer", res.Correct, res.Feedback)
+	}
+	if res := r.Grade(GradingNumeric, "48", `12\times4`); !res.Correct {
+		t.Errorf("12\\times4 against 48 = %q, want correct", res.Feedback)
 	}
 }
 

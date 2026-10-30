@@ -66,6 +66,14 @@ func compareScalars(expected, answer string) (Result, bool) {
 	eVal, eIsFloat, eOK := parseNumber(expected)
 	aVal, aIsFloat, aOK := parseNumber(answer)
 	aText := numberText(answer)
+	if !aOK {
+		// A learner who works the last step out in their head sometimes types the
+		// working: "3-4" where the answer is -1. Reading it as a number is the
+		// difference between grading the answer and grading its presentation.
+		if v, ok := evalExpression(answer); ok {
+			aVal, aIsFloat, aOK = v, true, true
+		}
+	}
 	if !eOK || !aOK {
 		return Result{}, false
 	}
