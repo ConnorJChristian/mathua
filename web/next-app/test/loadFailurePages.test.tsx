@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import * as api from '../lib/api'
 import CoursePage from '../app/course/page'
 import LibraryPage from '../app/library/page'
+import CoursesPage from '../app/courses/page'
 
 vi.mock('../lib/api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../lib/api')>()
@@ -11,6 +12,7 @@ vi.mock('../lib/api', async (importOriginal) => {
     getCourseView: vi.fn(),
     getPins: vi.fn(async () => []),
     getLibrary: vi.fn(),
+    getCourseCatalog: vi.fn(),
     getProgress: vi.fn(async () => ({})),
     getSettings: vi.fn(async () => ({})),
     getMe: vi.fn(async () => { throw new Error('offline') }),
@@ -69,5 +71,19 @@ describe('pages when their data request fails', () => {
     expect(screen.queryByText(/No books yet/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByText('A Book')).toBeTruthy()
+  })
+
+  it('courses: a failed load is not "You follow no courses yet", and Retry recovers', async () => {
+    search = new URLSearchParams()
+    vi.mocked(api.getCourseCatalog).mockReset()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce({ courses: [{ id: 'econ5153', name: 'ECON 5153', plan: ['a'] } as never], active: 'econ5153', activeIds: ['econ5153'] })
+    vi.mocked(api.getCourseView).mockResolvedValue(course)
+    render(<CoursesPage />)
+    expect((await screen.findByRole('alert')).textContent).toMatch(/could not be loaded/)
+    expect(screen.queryByText(/You follow no courses yet/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect((await screen.findAllByText(/ECON 5153/)).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 })

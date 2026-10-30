@@ -82,17 +82,26 @@ export default function CoursesPage() {
   const [busy, setBusy] = useState(false)
   const [signedIn, setSignedIn] = useState(false)
 
+  // The catalog could not be loaded (server down, 500): said so, with Retry,
+  // rather than "You follow no courses yet".
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+
   useEffect(() => {
     setSignedIn(!!getUserInfo()?.student_id)
-    getCourseCatalog().then(async ({ courses, activeIds }) => {
+    setLoadFailed(false)
+    let cancelled = false
+    getCourseCatalog({ throwOnError: true }).then(async ({ courses, activeIds }) => {
+      if (cancelled) return
       setCourses(courses)
       setFollowing(activeIds)
-      const vs = await Promise.all(activeIds.map((id) => getCourseView(id)))
+      const vs = await Promise.all(activeIds.map((id) => getCourseView(id).catch(() => null)))
       const map: Record<string, CourseView | null> = {}
       activeIds.forEach((id, i) => { map[id] = vs[i] })
-      setViews(map)
-    }).catch(() => setCourses([]))
-  }, [])
+      if (!cancelled) setViews(map)
+    }).catch(() => { if (!cancelled) setLoadFailed(true) })
+    return () => { cancelled = true }
+  }, [attempt])
 
   async function setFollow(ids: string[]) {
     setBusy(true)
@@ -109,6 +118,22 @@ export default function CoursesPage() {
     }
   }
 
+  if (mounted && loadFailed && courses === null) {
+    return (
+      <>
+        <Header />
+        <main className="mx-auto w-full max-w-[1100px] min-w-0 px-4 sm:px-6 py-8 sm:py-12">
+          <SectionHeader label="Courses" title="Your courses" />
+          <p role="alert" className="font-mono text-sm text-mathua-secondary">
+            Your courses could not be loaded: the server did not answer. Check that Mathua is running, then retry.
+          </p>
+          <button type="button" onClick={() => setAttempt((a) => a + 1)} className="mt-4 border border-mathua-blue px-4 py-2 font-mono text-xs text-mathua-blue hover:bg-mathua-blue-faint min-h-[36px]">Retry</button>
+        </main>
+        <Footer />
+        <BottomTabs />
+      </>
+    )
+  }
   if (!mounted || courses === null) return <Loading label="Loading your courses" full />
   const followed = following.map((id) => courses.find((c) => c.id === id)).filter((c): c is CourseStatus => !!c)
   const others = courses.filter((c) => !following.includes(c.id) && (c.plan?.length ?? 0) > 0)

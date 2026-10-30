@@ -546,9 +546,13 @@ export async function getLibrary(): Promise<LibraryBook[]> {
 
 // Fork: the course catalog with the learner's active course (the study plan
 // the shelf follows). Progress comes from the transcript when signed in.
-export async function getCourseCatalog(): Promise<{ courses: CourseStatus[]; active: string; activeIds: string[] }> {
+// With `throwOnError`, a failed request throws instead of reading as an empty catalog.
+export async function getCourseCatalog(opts?: { throwOnError?: boolean }): Promise<{ courses: CourseStatus[]; active: string; activeIds: string[] }> {
   const res = await authedFetch(`${API_BASE}/api/courses`, { headers: { ...getAuthHeaders() }, cache: 'no-store' })
-  if (!res.ok) return { courses: [], active: '', activeIds: [] }
+  if (!res.ok) {
+    if (opts?.throwOnError) throw new Error(`Course catalog fetch failed: ${res.status}`)
+    return { courses: [], active: '', activeIds: [] }
+  }
   const data = await res.json()
   const activeIds: string[] = data.active_ids ?? (data.active ? [data.active] : [])
   return { courses: data.courses ?? [], active: data.active ?? '', activeIds }
