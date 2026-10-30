@@ -14,11 +14,11 @@ var (
 	// A parenthetical needs two letters: "cos(x)" and "(k)" are mathematics.
 	// The gloss may list alternatives with "/" ("stable spiral (spiral
 	// sink/stable focus)").
-	wordKeyRe   = regexp.MustCompile(`^[A-Za-z][A-Za-z '\-]*(\([A-Za-z][A-Za-z '\-/]+\))?$`)
+	wordKeyRe = regexp.MustCompile(`^[A-Za-z][A-Za-z '\-]*(\([A-Za-z][A-Za-z '\-/]+\))?$`)
 	// A list key names alternatives, any one of which is the answer:
 	// "corner/cusp/vertical tangent/discontinuity" (Q52).
 	wordListPartRe = regexp.MustCompile(`^[A-Za-z][A-Za-z '\-]*$`)
-	parenPartRe = regexp.MustCompile(`\s*\(([^()]*)\)\s*`)
+	parenPartRe    = regexp.MustCompile(`\s*\(([^()]*)\)\s*`)
 	// A minus sign is kept: "-sinh x" is not "sinh x".
 	nonWordRe = regexp.MustCompile(`[^a-z \-]+`)
 )
