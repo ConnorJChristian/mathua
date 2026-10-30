@@ -415,9 +415,18 @@ func (c *Checker) checkMath(it *pytrack.Item, p generator.Problem, opts Options,
 					sub := append([]string(nil), keys...)
 					sub[i] = strconv.FormatFloat(r, 'f', n, 64)
 					right("asked", join(sub))
-					off := append([]string(nil), keys...)
-					off[i] = strconv.FormatFloat(r+math.Pow(10, -float64(n)), 'f', n, 64)
-					wrong("wrong", join(off))
+					// A key written with fewer places than the prompt names
+					// ("99.93" under "round the coefficients to three
+					// decimals") is graded at its own places, and often the
+					// instruction is about another quantity: only a key
+					// that carries the places asked, or an exact one, says
+					// what one unit off is.
+					a := strings.TrimSpace(pt.Answer)
+					if dot := strings.IndexByte(a, '.'); dot < 0 || len(a)-dot-1 >= n {
+						off := append([]string(nil), keys...)
+						off[i] = strconv.FormatFloat(r+math.Pow(10, -float64(n)), 'f', n, 64)
+						wrong("wrong", join(off))
+					}
 				}
 			}
 		}
