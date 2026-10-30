@@ -1848,7 +1848,7 @@ func (s *Server) handleLessons(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/lessons/{conceptId}/practice
 
-// GET /api/lessons/body?title=... returns a single lesson's markdown body.
+// GET /api/lessons/body?title=... (or ?concept=...) returns a single lesson's markdown body.
 // The list endpoint intentionally omits bodies (multi-MB payload); clients
 // fetch the selected lesson's content here on demand.
 func (s *Server) handleLessonBody(w http.ResponseWriter, r *http.Request) {
@@ -1861,12 +1861,21 @@ func (s *Server) handleLessonBody(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"lessons unavailable"}`, 503)
 		return
 	}
+	// ?concept= names the lesson by the concept it teaches (fork change): the
+	// reference page used to download the whole catalog (half a megabyte, with
+	// the learner's progress computed for every concept) only to find this title.
 	title := strings.TrimSpace(r.URL.Query().Get("title"))
-	if title == "" {
-		http.Error(w, `{"error":"title required"}`, 400)
+	cid := strings.TrimSpace(r.URL.Query().Get("concept"))
+	if title == "" && cid == "" {
+		http.Error(w, `{"error":"title or concept required"}`, 400)
 		return
 	}
-	l := ll.LessonByTitle(title)
+	var l *lessons.Lesson
+	if title != "" {
+		l = ll.LessonByTitle(title)
+	} else {
+		l = ll.Lesson(cid)
+	}
 	if l == nil {
 		http.Error(w, `{"error":"lesson not found"}`, 404)
 		return

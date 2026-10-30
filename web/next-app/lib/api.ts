@@ -1255,6 +1255,19 @@ export async function getLessonDocument(title: string): Promise<LessonDocument> 
 	}
 }
 
+// The lesson that teaches a concept, by the concept (fork change); null when
+// it has none. The reference page used to fetch the whole catalog to find the
+// title first.
+export async function getLessonForConcept(conceptId: string): Promise<LessonDocument | null> {
+	const res = await authedFetch(`${API_BASE}/api/lessons/body?concept=${encodeURIComponent(conceptId)}`, {
+		cache: 'no-store',
+	})
+	if (res.status === 404) return null
+	if (!res.ok) throw new Error(`Lesson body fetch failed: ${res.status}`)
+	const data = (await res.json()) as Partial<LessonDocument>
+	return { title: data.title ?? '', body: data.body ?? '', source: data.source, assets: data.assets ?? [] }
+}
+
 export async function getLessonBody(title: string): Promise<string> {
 	return (await getLessonDocument(title)).body
 }

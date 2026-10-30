@@ -2205,3 +2205,45 @@ func TestStudyAnswer_DontKnow(t *testing.T) {
 		t.Errorf("halts: %v, %v; an admitted unknown counts toward the halt like a miss", got[0].Halted, got[1].Halted)
 	}
 }
+
+// The reference page names its lesson by concept: no catalog download first.
+func TestLessonBody_ByConcept(t *testing.T) {
+	d, _ := concepts.Build([]concepts.Concept{
+		{ID: "a", Label: "A", Domain: "d", GradingType: "numeric", Prerequisites: []string{},
+			MasteryThreshold: concepts.MasteryThreshold{Streak: 3, AvgTimeSeconds: 60}},
+	})
+	store, _ := storage.NewSQLiteStore(":memory:")
+	t.Cleanup(func() { store.Close() })
+	reg := generator.NewRegistry()
+	reg.Register("a", &testGen{})
+	ll := miniLessons(t, map[string]string{"a": "Lesson A\n\nBody of a."})
+	s := New(engine.New(store, d, reg, ll, nil), store, auth.New(store))
+	mux := http.NewServeMux()
+	s.Register(mux)
+
+	get := func(q string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/lessons/body?"+q, nil))
+		return rec
+	}
+	rec := get("concept=a")
+	if rec.Code != 200 {
+		t.Fatalf("by concept: %d %s", rec.Code, rec.Body.String())
+	}
+	var doc struct{ Title, Body string }
+	if err := json.Unmarshal(rec.Body.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(doc.Body, "Body of a.") || doc.Title == "" {
+		t.Fatalf("by concept: got %+v", doc)
+	}
+	if byTitle := get("title=" + url.QueryEscape(doc.Title)); byTitle.Code != 200 || byTitle.Body.String() != rec.Body.String() {
+		t.Fatalf("by title differs: %d %s", byTitle.Code, byTitle.Body.String())
+	}
+	if rec := get("concept=nope"); rec.Code != 404 {
+		t.Fatalf("unknown concept: %d", rec.Code)
+	}
+	if rec := get(""); rec.Code != 400 {
+		t.Fatalf("no title or concept: %d", rec.Code)
+	}
+}

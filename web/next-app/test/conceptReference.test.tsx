@@ -7,11 +7,12 @@ interface KpOverrides {
   [conceptId: string]: { kps: KpInfo[]; diagram?: string }
 }
 
-const { submitReportMock, getDiagram, kpOverride, getLessonsMock } = vi.hoisted(() => ({
+const { submitReportMock, getDiagram, kpOverride, getLessonsMock, lessonForConceptMock } = vi.hoisted(() => ({
   submitReportMock: vi.fn(async () => {}),
   getDiagram: { value: '/diagrams/algebrica/example.svg' as string | null },
   kpOverride: { value: null as null | KpOverrides },
   getLessonsMock: vi.fn(async () => ({ lessons: {} as Record<string, { title: string; concepts: string[] }[]> })),
+  lessonForConceptMock: vi.fn(async (_cid: string) => null as null | { title: string; body: string; assets: never[] }),
 }))
 
 vi.mock('../lib/api', async importOriginal => ({
@@ -30,6 +31,7 @@ vi.mock('../lib/api', async importOriginal => ({
   },
   getLessons: getLessonsMock,
   getLessonBody: async () => 'the whole article',
+  getLessonForConcept: lessonForConceptMock,
   submitReport: submitReportMock,
 }))
 
@@ -48,6 +50,8 @@ beforeEach(() => {
   getDiagram.value = '/diagrams/algebrica/example.svg'
   getLessonsMock.mockClear()
   getLessonsMock.mockResolvedValue({ lessons: {} })
+  lessonForConceptMock.mockClear()
+  lessonForConceptMock.mockResolvedValue(null)
 })
 
 // KatexContent injects a stylesheet into the DOM, and it is full of percentages. Text
@@ -195,11 +199,14 @@ describe('reference page variant', () => {
     // The panel shows the article only when there are no blocks, so it never duplicates the
     // learning loop. The `/study` page wants the whole reference, so its variant fetches and
     // renders the article alongside the examples.
-    getLessonsMock.mockResolvedValue({ lessons: { arith: [{ title: 'Adding up', concepts: ['c1'] }] } })
+    lessonForConceptMock.mockResolvedValue({ title: 'Adding up', body: 'the whole article', assets: [] })
     render(<ConceptReference conceptId="c1" variant="page" />)
     await screen.findByText(/KP two/)
     expect(await screen.findByText(/the whole article/)).toBeTruthy()
     expect(screen.getByTestId('reference-blocks')).toBeTruthy()
+    // By concept, in one request: never the whole lesson catalog first.
+    expect(lessonForConceptMock).toHaveBeenCalledWith('c1')
+    expect(getLessonsMock).not.toHaveBeenCalled()
   })
 
   it('says so honestly when a concept has no material at all', async () => {
@@ -216,7 +223,7 @@ describe('reference page variant', () => {
     kpOverride.value = {
       c1: { kps: [{ label: 'Drill', section: '', subgoals: [], worked_example: "There isn't a written explanation for this step yet. Work the questions below." }] },
     }
-    getLessonsMock.mockResolvedValue({ lessons: { arith: [{ title: 'Adding up', concepts: ['c1'] }] } })
+    lessonForConceptMock.mockResolvedValue({ title: 'Adding up', body: 'the whole article', assets: [] })
     render(<ConceptReference conceptId="c1" variant="page" />)
     expect(await screen.findByText(/the whole article/)).toBeTruthy()
     expect(screen.queryByText(/There isn't a written explanation/)).toBeNull()
@@ -228,7 +235,7 @@ describe('lesson text fallback', () => {
     // Every concept in the corpus has a shard, so this is the rare path — and it is the last
     // place the full article is rendered anywhere in the product.
     kpOverride.value = { c1: { kps: [] } }
-    getLessonsMock.mockResolvedValue({ lessons: { arith: [{ title: 'Adding up', concepts: ['c1'] }] } })
+    lessonForConceptMock.mockResolvedValue({ title: 'Adding up', body: 'the whole article', assets: [] })
     render(<ConceptReference conceptId="c1" />)
     await waitFor(() => expect(screen.getByText(/the whole article/)).toBeTruthy())
   })
@@ -237,5 +244,6 @@ describe('lesson text fallback', () => {
     render(<ConceptReference conceptId="c1" />)
     await screen.findByText(/KP two/)
     expect(getLessonsMock).not.toHaveBeenCalled()
+    expect(lessonForConceptMock).not.toHaveBeenCalled()
   })
 })
