@@ -98,3 +98,13 @@ func TestFuzz(t *testing.T) {
 		})
 	}
 }
+
+func TestRandomMatrixCoefficientsAreNonsingular(t *testing.T) {
+	for i := 0; i < 500; i++ {
+		scale := 1 + rand.Intn(5)
+		a, b, c, d := randomMatrixCoefficients(scale)
+		if a*d-b*c == 0 {
+			t.Fatalf("singular matrix from scale %d: [[%d,%d],[%d,%d]]", scale, a, b, c, d)
+		}
+	}
+}

@@ -133,7 +133,7 @@ func (g *crossCompareGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	}
 	v := a*d - b*c
 	return generator.Problem{
-		Question: fmt.Sprintf("To compare \\(\\frac{%d}{%d}\\) with \\(\\frac{%d}{%d}\\) by cross-multiplication, evaluate \\(%d \\times %d - %d \\times %d\\). A positive value means the first fraction is larger.", a, b, c, d, a, d, b, c),
+		Question: fmt.Sprintf("To compare \\(\\frac{%d}{%d}\\) with \\(\\frac{%d}{%d}\\) by cross-multiplication, evaluate \\(%d \\times %d - %d \\times %d\\). Enter the resulting integer. A positive value means the first fraction is larger.", a, b, c, d, a, d, b, c),
 		Answer:   fmt.Sprintf("%d/%d", v, 1),
 		Explanation: fmt.Sprintf("Cross-multiplying puts both fractions over the same denominator without writing it out: %d*%d = %d against %d*%d = %d, and the difference %d has the same sign as the difference of the fractions themselves.",
 			a, d, a*d, b, c, b*c, v),

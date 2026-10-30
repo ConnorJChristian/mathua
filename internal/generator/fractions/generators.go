@@ -511,7 +511,7 @@ func (g *fracSubWordGen) Generate(ctx generator.GeneratorContext) generator.Prob
 	result := aS - bS
 	rn, rd := reduce(result, cm)
 	return generator.Problem{
-		Question:    fmt.Sprintf("You had \\(\\frac{%d}{%d}\\) of a cake and gave away \\(\\frac{%d}{%d}\\). How much is left?", aNum, aDen, bNum, bDen),
+		Question:    fmt.Sprintf("You had \\(\\frac{%d}{%d}\\) of a cake and gave away \\(\\frac{%d}{%d}\\) of the whole cake. How much of the whole cake is left?", aNum, aDen, bNum, bDen),
 		Answer:      fmt.Sprintf("%d/%d", rn, rd),
 		Explanation: fmt.Sprintf("%d/%d - %d/%d = %d/%d", aNum, aDen, bNum, bDen, rn, rd),
 		Facts:       map[string]string{"a_num": strconv.Itoa(aNum), "a_den": strconv.Itoa(aDen), "b_num": strconv.Itoa(bNum), "b_den": strconv.Itoa(bDen), "lcm": strconv.Itoa(cm), "a_scaled": strconv.Itoa(aS), "b_scaled": strconv.Itoa(bS), "raw_num": strconv.Itoa(result), "raw_den": strconv.Itoa(cm), "out_num": strconv.Itoa(rn), "out_den": strconv.Itoa(rd)},

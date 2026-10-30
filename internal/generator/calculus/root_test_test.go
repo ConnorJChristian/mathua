@@ -25,14 +25,14 @@ type rootTestPair struct {
 }
 
 var rootTestPairs = []rootTestPair{
-	{"Does the root test use the nth root of |a_n|? (yes/no)", "yes"},
-	{"Does sum (n/(n+1))^(n^2) converge? (yes/no)", "yes"},
-	{"Does sum 1/2^n converge? (yes/no)", "yes"},
-	{"Is the root test useful when a_n involves nth powers? (yes/no)", "yes"},
-	{"For a_n = (2n/(3n+1))^n, what is the root-test limit L = lim |a_n|^(1/n)? (enter an exact fraction)", "2/3"},
-	{"For a_n = ((3n+1)/n)^n, what is the root-test limit L = lim |a_n|^(1/n)? (enter a number)", "3"},
-	{"For a_n = ((n+1)/n)^n, what is the root-test limit L = lim |a_n|^(1/n)? (enter a number)", "1"},
-	{"A series has root-test limit L = 1. Does the root test decide convergence? (yes/no)", "no"},
+	{"Does the root test use the nth root of \\(|a_n|\\)? (yes/no)", "yes"},
+	{"Does \\(\\sum (n/(n+1))^{n^2}\\) converge? (yes/no)", "yes"},
+	{"Does \\(\\sum 1/2^n\\) converge? (yes/no)", "yes"},
+	{"Is the root test useful when \\(a_n\\) involves nth powers? (yes/no)", "yes"},
+	{"For \\(a_n = (2n/(3n+1))^n\\), what is the root-test limit \\(L = \\lim |a_n|^{1/n}\\)? (enter an exact fraction)", "2/3"},
+	{"For \\(a_n = ((3n+1)/n)^n\\), what is the root-test limit \\(L = \\lim |a_n|^{1/n}\\)? (enter a number)", "3"},
+	{"For \\(a_n = ((n+1)/n)^n\\), what is the root-test limit \\(L = \\lim |a_n|^{1/n}\\)? (enter a number)", "1"},
+	{"A series has root-test limit \\(L = 1\\). Does the root test decide convergence? (yes/no)", "no"},
 }
 
 func TestRootTestTableIsComplete(t *testing.T) {
@@ -46,6 +46,11 @@ func TestRootTestTableIsComplete(t *testing.T) {
 	for _, e := range rootTestTable {
 		if strings.TrimSpace(e.q) == "" || strings.TrimSpace(e.a) == "" || strings.TrimSpace(e.e) == "" {
 			t.Errorf("entry with an empty field: %+v", e)
+		}
+		if strings.Contains(e.q, "a_n") || strings.Contains(e.q, "^") || strings.Contains(e.q, "sum") {
+			if !strings.Contains(e.q, "\\(") {
+				t.Errorf("question contains math without delimiters: %q", e.q)
+			}
 		}
 		if tableQuestions[e.q] {
 			t.Errorf("duplicate question in the table: %q", e.q)

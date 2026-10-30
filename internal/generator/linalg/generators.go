@@ -481,20 +481,37 @@ func (g *det3x3Gen) Generate(ctx generator.GeneratorContext) generator.Problem {
 
 type systemsMatrixGen struct{}
 
+// randomMatrixCoefficients returns a 2x2 coefficient matrix with a non-zero
+// determinant. A singular matrix has either no solution or infinitely many
+// solutions, so it cannot be represented by the single tuple this generator
+// asks for. The two zero-row fallbacks keep the question non-degenerate, and
+// the final fixed matrix guarantees termination even if the sampled range were
+// to contain no invertible pair.
+func randomMatrixCoefficients(scale int) (a, b, c, d int) {
+	span := max(1, scale*2)
+	for i := 0; i < 100; i++ {
+		a, b = rand.Intn(span)-scale, rand.Intn(span)-scale
+		c, d = rand.Intn(span)-scale, rand.Intn(span)-scale
+		if a == 0 && c == 0 {
+			a = 1
+			c = 2
+		}
+		if b == 0 && d == 0 {
+			b = 1
+			d = 3
+		}
+		if a*d-b*c != 0 {
+			return a, b, c, d
+		}
+	}
+	return 1, 1, 1, 2
+}
+
 func (g *systemsMatrixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	scale := int(1 + ctx.Difficulty*5)
 	x := rand.Intn(max(1, scale*2)) - scale
 	y := rand.Intn(max(1, scale*2)) - scale
-	a, b := rand.Intn(max(1, scale*2))-scale, rand.Intn(max(1, scale*2))-scale
-	c, d := rand.Intn(max(1, scale*2))-scale, rand.Intn(max(1, scale*2))-scale
-	if a == 0 && c == 0 {
-		a = 1
-		c = 2
-	}
-	if b == 0 && d == 0 {
-		b = 1
-		d = 3
-	}
+	a, b, c, d := randomMatrixCoefficients(scale)
 	e1 := a*x + b*y
 	e2 := c*x + d*y
 	return generator.Problem{

@@ -1,6 +1,6 @@
 # Cross-Entropy Loss
 
-**Cross-entropy loss:** For true label $y$ in $\{0, 1\}$ and predicted probability $\hat{y}$, $\text{CE} = -y\log\hat{y} - (1-y)\log(1-\hat{y})$: the negative log-probability assigned to the truth. For one-hot $y$ over classes, $\text{CE} = -\sum_c y_c \log \hat{y}_c$.
+**Cross-entropy loss:** For true label $y$ in $\{0, 1\}$ and predicted probability $\hat{y}$, $\text{CE} = -y\log\hat{y} - (1-y)\log(1-\hat{y})$: the negative log-probability assigned to the truth. Here $\log$ means the natural logarithm, $\ln$. For one-hot $y$ over classes, $\text{CE} = -\sum_c y_c \log \hat{y}_c$.
 
 ## Worked: one confident prediction
 
