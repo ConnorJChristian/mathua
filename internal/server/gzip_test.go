@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // http.FileServer's error path deletes Content-Encoding (Go 1.23 and later),
@@ -142,5 +144,39 @@ func TestCompressible(t *testing.T) {
 		if got := compressible(ct); got != want {
 			t.Errorf("compressible(%q) = %v, want %v", ct, got, want)
 		}
+	}
+}
+
+// Q65: every 304 from the static file server logged "warning: gzip close:
+// http: request method or response status code does not allow body",
+// because the gzip footer was written to a reply that cannot have a body.
+func TestGzipNotModifiedHasNoBodyAndNoWarning(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "app.js"), []byte(strings.Repeat("let a = 1;\n", 200)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&logs)
+	defer log.SetOutput(prev)
+
+	srv := httptest.NewServer(GzipMiddleware(http.FileServer(http.Dir(dir))))
+	defer srv.Close()
+	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/app.js", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("If-Modified-Since", time.Now().Add(time.Hour).UTC().Format(http.TimeFormat))
+	res, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusNotModified {
+		t.Fatalf("status %d, want 304", res.StatusCode)
+	}
+	if ce := res.Header.Get("Content-Encoding"); ce != "" {
+		t.Errorf("304 carries Content-Encoding %q", ce)
+	}
+	if strings.Contains(logs.String(), "gzip close") {
+		t.Errorf("304 logged a gzip warning: %s", logs.String())
 	}
 }
