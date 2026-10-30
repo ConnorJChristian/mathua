@@ -122,3 +122,18 @@ func TestNumericListSplitOnADotBeforeAMinus(t *testing.T) {
 		t.Error("a decimal was read as a list")
 	}
 }
+
+// stripThousands used to copy the answer byte by byte, which split a
+// non-ASCII character next to a number (upstream 92659bf6).
+func TestStripThousandsKeepsNonASCIIWhole(t *testing.T) {
+	for in, want := range map[string]string{
+		"1,000°":   "1000°",
+		"λ=1,000":  "λ=1000",
+		"−2,500,3": "−2500,3",
+		"6,8":      "6,8",
+	} {
+		if got := stripThousands(in); got != want {
+			t.Errorf("stripThousands(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

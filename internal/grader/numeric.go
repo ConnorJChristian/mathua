@@ -211,22 +211,23 @@ func stripVariablePrefix(s string) string {
 }
 
 // stripThousands removes the grouping commas from a number and leaves every
-// other comma where it is. normalise used to delete all of them, which turned
-// `6,8` into `68`, `7,10` into `710` and a decimal comma into a wrong integer.
+// other comma where it is. It scans runes, not bytes, so a non-ASCII character
+// next to a number is copied whole (upstream 92659bf6).
 func stripThousands(s string) string {
+	runes := []rune(s)
 	var b strings.Builder
-	for i := 0; i < len(s); i++ {
-		if s[i] == ',' && i+4 <= len(s) &&
-			isASCIIDigit(s[i+1]) && isASCIIDigit(s[i+2]) && isASCIIDigit(s[i+3]) &&
-			(i+4 == len(s) || !isASCIIDigit(s[i+4])) {
+	for i := 0; i < len(runes); i++ {
+		if runes[i] == ',' && i+4 <= len(runes) &&
+			isASCIIDigit(runes[i+1]) && isASCIIDigit(runes[i+2]) && isASCIIDigit(runes[i+3]) &&
+			(i+4 == len(runes) || !isASCIIDigit(runes[i+4])) {
 			continue
 		}
-		b.WriteByte(s[i])
+		b.WriteRune(runes[i])
 	}
 	return b.String()
 }
 
-func isASCIIDigit(b byte) bool { return b >= '0' && b <= '9' }
+func isASCIIDigit(r rune) bool { return r >= '0' && r <= '9' }
 
 // parseNumber reads one value, trying the grouping commas of a large number as
 // a second reading. It is per value rather than per answer, because `1000,200`
