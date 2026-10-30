@@ -39,15 +39,106 @@ import { track } from '../../lib/events'
 
 type Step = 'welcome' | 'diagnostic' | 'results'
 
-// MA parity: the Diagnostic doesn't have to be completed at once — the
-// session id persists in sessionStorage so Back/refresh resumes it.
+// MA parity: the Diagnostic doesn't have to be completed at once. The session
+// id is kept in sessionStorage for Back/refresh and in localStorage for a later
+// visit, so leaving the site does not throw the run away (upstream 2579cfab).
 const DIAG_KEY = 'mathua_diag_session_onboard'
+const DIAG_AT_KEY = 'mathua_diag_session_at'
+// Which placement the stored run is (fork change): 'pick' for the subject
+// picker's adaptive test, 'course:<the ?course= value>' for a course placement.
+// A run is offered again only on the screen that started it, so a learner who
+// follows courses is never handed back a paused grade-school run on the course
+// placement screen (the floor rule in FORK.md), and one course's placement is
+// not resumed on another course's page.
+const DIAG_SCOPE_KEY = 'mathua_diag_session_scope'
+const RESUME_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
+type StoredRun = { sid: string; scope: string }
+
+// The session id used to live only in sessionStorage, which a phone discards
+// when the tab or PWA closes. The diagnostic is long enough that leaving for a
+// while is normal, so keep a dated copy in localStorage and fall back to the
+// per-tab value for older browsers or private mode.
+function readStoredSession(): StoredRun | null {
+  let sid = ''
+  let scope = ''
+  try {
+    const at = Number(localStorage.getItem(DIAG_AT_KEY) || '0')
+    if (at && Date.now() - at < RESUME_TTL_MS) {
+      sid = localStorage.getItem(DIAG_KEY) || ''
+      scope = localStorage.getItem(DIAG_SCOPE_KEY) || ''
+    } else if (at) {
+      localStorage.removeItem(DIAG_KEY)
+      localStorage.removeItem(DIAG_SCOPE_KEY)
+      localStorage.removeItem(DIAG_AT_KEY)
+    }
+  } catch { /* storage unavailable */ }
+  if (!sid) {
+    try {
+      sid = sessionStorage.getItem(DIAG_KEY) || ''
+      scope = sessionStorage.getItem(DIAG_SCOPE_KEY) || ''
+    } catch { /* storage unavailable */ }
+  }
+  // A run stored before the scope was recorded came from the subject picker.
+  return sid ? { sid, scope: scope || 'pick' } : null
+}
+
+function storeSession(run: StoredRun): void {
+  try {
+    sessionStorage.setItem(DIAG_KEY, run.sid)
+    sessionStorage.setItem(DIAG_SCOPE_KEY, run.scope)
+  } catch { /* storage unavailable */ }
+  try {
+    localStorage.setItem(DIAG_KEY, run.sid)
+    localStorage.setItem(DIAG_SCOPE_KEY, run.scope)
+    localStorage.setItem(DIAG_AT_KEY, String(Date.now()))
+  } catch { /* storage unavailable */ }
+}
+
+// The week runs from the last answer, as the server's diagnosticRetention does.
+function touchStoredSession(): void {
+  try {
+    if (localStorage.getItem(DIAG_KEY)) localStorage.setItem(DIAG_AT_KEY, String(Date.now()))
+  } catch { /* storage unavailable */ }
+}
+
+function clearStoredSession(): void {
+  try {
+    sessionStorage.removeItem(DIAG_KEY)
+    sessionStorage.removeItem(DIAG_SCOPE_KEY)
+  } catch { /* storage unavailable */ }
+  try {
+    localStorage.removeItem(DIAG_KEY)
+    localStorage.removeItem(DIAG_SCOPE_KEY)
+    localStorage.removeItem(DIAG_AT_KEY)
+  } catch { /* storage unavailable */ }
+}
 
 // A guest run is a demo: the server opens a session against a student row
 // created from a typed name, and nothing can sign back into that row. Session
 // storage keeps the fact, so a refresh mid-test still ends on a result that
 // says it will not be here tomorrow.
 const DEMO_KEY = 'mathua_onboard_demo'
+
+function setStoredDemo(on: boolean): void {
+  try {
+    if (on) {
+      sessionStorage.setItem(DEMO_KEY, '1')
+      localStorage.setItem(DEMO_KEY, '1')
+    } else {
+      sessionStorage.removeItem(DEMO_KEY)
+      localStorage.removeItem(DEMO_KEY)
+    }
+  } catch { /* storage unavailable */ }
+}
+
+function isStoredDemo(): boolean {
+  try {
+    return localStorage.getItem(DEMO_KEY) === '1' || sessionStorage.getItem(DEMO_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 export default function OnboardPage() {
   return (
@@ -95,7 +186,7 @@ function OnboardContent() {
   const [answerInput, setAnswerInput] = useState('')
   const [lastResult, setLastResult] = useState<{ correct: boolean; feedback: string } | null>(null)
   const [accuracy, setAccuracy] = useState<{ correct: number; total: number }>({ correct: 0, total: 0 })
-  const [hasPaused, setHasPaused] = useState(false)
+  const [paused, setPaused] = useState<StoredRun | null>(null)
   // A guest has no token until something mints one, and /onboard was one of the
   // entry points that never did: pressing Begin sent an unauthenticated start,
   // the server answered 401, and the catch showed "Something went wrong" for a
@@ -119,6 +210,10 @@ function OnboardContent() {
   // The course a course placement test runs for: /onboard?course=<one id>
   // places you in that course, bank items included (fork change).
   const placementCourse = courseParam && !courseParam.includes(',') ? courseParam : ''
+  // The screen showing: the course placement for the followed (or named)
+  // courses, or the subject picker. A stored run is offered only on its own.
+  const pageScope = coursePlace && !pickSubjects ? `course:${courseParam}` : 'pick'
+  const hasPaused = !!paused && paused.scope === pageScope
 
   const [plan, setPlan] = useState<GoalPlanRes | null>(null)
 
@@ -146,16 +241,8 @@ function OnboardContent() {
     // the pause is still offered separately, and only for a run that has not had
     // its scope changed underneath it.
     setDomains(result)
-    try {
-      setHasPaused(!!sessionStorage.getItem(DIAG_KEY))
-    } catch {
-      setHasPaused(false)
-    }
-    try {
-      setDemo(sessionStorage.getItem(DEMO_KEY) === '1')
-    } catch {
-      setDemo(false)
-    }
+    setPaused(readStoredSession())
+    setDemo(isStoredDemo())
   }, [mounted])
 
   // A paused run covers the domains it was started on. Changing the scope makes
@@ -165,8 +252,8 @@ function OnboardContent() {
   function dropPausedRun() {
     if (!hasPaused) return
     sessionId.current = ''
-    try { sessionStorage.removeItem(DIAG_KEY) } catch { /* ignore */ }
-    setHasPaused(false)
+    clearStoredSession()
+    setPaused(null)
   }
 
   function toggleDomain(name: string) {
@@ -205,12 +292,11 @@ function OnboardContent() {
   // has handed back a session. Kept in one place because the two paths differ
   // only in which call opened it, and a field added to one but not the other is
   // a bug that would only appear for guests.
-  function beginSession(res: GoalDiagStartRes) {
+  function beginSession(res: GoalDiagStartRes, scope: string) {
     sessionId.current = res.session_id
-    try {
-      sessionStorage.setItem(DIAG_KEY, res.session_id)
-      setHasPaused(true)
-    } catch { /* storage unavailable — session simply won't resume */ }
+    const run = { sid: res.session_id, scope }
+    storeSession(run)
+    setPaused(run)
     setQuestion(res.question || '')
     conceptId.current = res.concept_id || ''
     questionShownAt.current = Date.now()
@@ -244,8 +330,8 @@ function OnboardContent() {
       }
       setDemo(false)
       setNeedsName(false)
-      try { sessionStorage.removeItem(DEMO_KEY) } catch { /* ignore */ }
-      beginSession(res)
+      setStoredDemo(false)
+      beginSession(res, 'pick')
     } catch (err) {
       if (getErrorStatus(err) === 401) {
         setNeedsName(true)
@@ -270,8 +356,8 @@ function OnboardContent() {
       }
       setDemo(true)
       setNeedsName(false)
-      try { sessionStorage.setItem(DEMO_KEY, '1') } catch { /* ignore */ }
-      beginSession(res)
+      setStoredDemo(true)
+      beginSession(res, 'pick')
     } catch {
       toast.error("Something went wrong, but we're working on it.")
     } finally {
@@ -280,25 +366,21 @@ function OnboardContent() {
   }
 
   async function resumeDiagnostic() {
-    let sid = ''
-    try {
-      sid = sessionStorage.getItem(DIAG_KEY) || ''
-    } catch {
-      sid = ''
-    }
+    // Only the run this screen offers: a stored run of another scope stays
+    // stored for its own screen.
+    const sid = hasPaused && paused ? paused.sid : ''
     if (!sid) return
     setLoading(true)
     try {
       const data = await resumeGoalDiagnostic(sid)
       if (data.done) {
-        try {
-          sessionStorage.removeItem(DIAG_KEY)
-        } catch { /* ignore */ }
-        setHasPaused(false)
+        clearStoredSession()
+        setPaused(null)
         toast.error('That diagnostic already finished — start a fresh one below.')
         setLoading(false)
         return
       }
+      touchStoredSession()
       sessionId.current = sid
       setQuestion(data.question || '')
       conceptId.current = data.concept_id || ''
@@ -321,10 +403,8 @@ function OnboardContent() {
       setRetryConcept('')
       setStep('diagnostic')
     } catch {
-      try {
-        sessionStorage.removeItem(DIAG_KEY)
-      } catch { /* ignore */ }
-      setHasPaused(false)
+      clearStoredSession()
+      setPaused(null)
       toast.error('Could not resume — that session expired. Start a fresh diagnostic.')
     } finally {
       setLoading(false)
@@ -340,6 +420,7 @@ function OnboardContent() {
       const answer = dontKnow ? '' : answerInput.trim()
       const elapsed = Math.max(0.5, (Date.now() - (questionShownAt.current ?? Date.now())) / 1000)
       const data = await submitGoalAnswer(sessionId.current, conceptId.current, answer, elapsed, dontKnow)
+      touchStoredSession()
       const correct = data.correct || false
       // An admitted unknown is not a wrong answer, so it does not get the wrong answer's words.
       // This step renders the feedback and no separate verdict line, so the label goes here.
@@ -388,10 +469,8 @@ function OnboardContent() {
           setPlan(planRes)
           setFinished(true)
           setStep('results')
-          try {
-            sessionStorage.removeItem(DIAG_KEY)
-          } catch { /* ignore */ }
-          setHasPaused(false)
+          clearStoredSession()
+          setPaused(null)
           setLoading(false)
           return
         } catch {
@@ -413,10 +492,8 @@ function OnboardContent() {
       }
       setPlan(planRes)
       setStep('results')
-      try {
-        sessionStorage.removeItem(DIAG_KEY)
-      } catch { /* ignore */ }
-      setHasPaused(false)
+      clearStoredSession()
+      setPaused(null)
     } catch (e) {
       setPlanError(getErrorMessage(e) || 'Could not generate plan.')
     } finally {
@@ -548,7 +625,7 @@ function OnboardContent() {
       }
       setDemo(false)
       setNeedsName(false)
-      beginSession(res)
+      beginSession(res, `course:${courseParam}`)
     } catch (err) {
       if (getErrorStatus(err) === 401) {
         setNeedsName(true)

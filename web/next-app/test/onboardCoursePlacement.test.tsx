@@ -14,7 +14,7 @@ vi.mock('next/link', () => ({
 }))
 vi.mock('../lib/api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../lib/api')>()
-  return { ...mod, startGoalDiagnostic: vi.fn(), getGoalPlan: vi.fn(), getCourseCatalog: vi.fn(), submitGoalAnswer: vi.fn() }
+  return { ...mod, startGoalDiagnostic: vi.fn(), resumeGoalDiagnostic: vi.fn(), getGoalPlan: vi.fn(), getCourseCatalog: vi.fn(), submitGoalAnswer: vi.fn() }
 })
 vi.mock('../lib/events', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../lib/events')>()
@@ -28,6 +28,8 @@ vi.mock('../components/KatexContent', () => ({ default: ({ children }: { childre
 
 beforeEach(() => {
   sessionStorage.clear()
+  localStorage.clear()
+  vi.mocked(api.resumeGoalDiagnostic).mockReset()
   push.mockReset()
   vi.mocked(track).mockReset()
   vi.mocked(api.startGoalDiagnostic).mockReset()
@@ -88,5 +90,57 @@ describe('the placement question counter', () => {
     expect(screen.getAllByText('Question 1').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('button', { name: /Next/ }))
     expect((await screen.findAllByText('Question 2')).length).toBeGreaterThan(0)
+  })
+})
+
+describe('a paused placement run', () => {
+  // Fork adaptation of upstream 2579cfab. A run is kept for a week now, so a
+  // paused subject-picker run (the grade-school adaptive test) would otherwise
+  // be offered as "Resume paused test" on every course placement screen; a
+  // learner on a course does not re-run that test (FORK.md, the floor).
+  it('does not offer a paused subject-picker run on the course placement screen', async () => {
+    localStorage.setItem('mathua_diag_session_onboard', 's-pick')
+    localStorage.setItem('mathua_diag_session_scope', 'pick')
+    localStorage.setItem('mathua_diag_session_at', String(Date.now()))
+    render(<OnboardPage />)
+    await screen.findByRole('button', { name: /Start placement/ })
+    expect(screen.queryByRole('button', { name: /Resume paused test/ })).toBeNull()
+    expect(localStorage.getItem('mathua_diag_session_onboard')).toBe('s-pick')
+  })
+
+  it("offers this course's own paused placement after the tab is gone", async () => {
+    vi.mocked(api.resumeGoalDiagnostic).mockResolvedValue({
+      done: false, question: 'Placement question again', concept_id: 't1', concept_name: 'Topic one', grading_type: 'numeric',
+      progress: { answered: 2, estimated_total: 25, min_total: 25, max_total: 30, done: false },
+    } as never)
+    localStorage.setItem('mathua_diag_session_onboard', 's-course')
+    localStorage.setItem('mathua_diag_session_scope', 'course:plan.x')
+    localStorage.setItem('mathua_diag_session_at', String(Date.now()))
+    render(<OnboardPage />)
+    fireEvent.click(await screen.findByRole('button', { name: /Resume paused test/ }))
+    await waitFor(() => expect(api.resumeGoalDiagnostic).toHaveBeenCalledWith('s-course'))
+    expect(await screen.findByText(/Placement question again/)).toBeTruthy()
+  })
+
+  it("does not offer another course's paused placement", async () => {
+    localStorage.setItem('mathua_diag_session_onboard', 's-other')
+    localStorage.setItem('mathua_diag_session_scope', 'course:plan.y')
+    localStorage.setItem('mathua_diag_session_at', String(Date.now()))
+    render(<OnboardPage />)
+    await screen.findByRole('button', { name: /Start placement/ })
+    expect(screen.queryByRole('button', { name: /Resume paused test/ })).toBeNull()
+  })
+
+  it('stores the placement it starts under this course', async () => {
+    vi.mocked(api.startGoalDiagnostic).mockResolvedValue({
+      session_id: 's9', concept_id: 't1', concept_name: 'Topic one', grading_type: 'numeric', course_id: 'plan.x',
+      question: 'Placement question',
+      progress: { answered: 0, estimated_total: 25, min_total: 25, max_total: 30, done: false },
+    } as never)
+    render(<OnboardPage />)
+    fireEvent.click(await screen.findByRole('button', { name: /Start placement/ }))
+    await screen.findByText(/Placement question/)
+    expect(localStorage.getItem('mathua_diag_session_onboard')).toBe('s9')
+    expect(localStorage.getItem('mathua_diag_session_scope')).toBe('course:plan.x')
   })
 })

@@ -333,6 +333,7 @@ describe('DiagnosticStep Next button', () => {  it('shows no Next button before 
 describe('DiagnosticHost manual advance', () => {
   beforeEach(() => {
     sessionStorage.clear()
+    localStorage.clear()
   })
 
   it('holds feedback until Next reveals the staged question and focuses input', async () => {

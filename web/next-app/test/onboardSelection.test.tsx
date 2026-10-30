@@ -19,7 +19,7 @@ vi.mock('next/link', () => ({
 }))
 vi.mock('../lib/api', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../lib/api')>()
-  return { ...mod, startGoalDiagnostic: vi.fn(), getGoalPlan: vi.fn() }
+  return { ...mod, startGoalDiagnostic: vi.fn(), resumeGoalDiagnostic: vi.fn(), getGoalPlan: vi.fn() }
 })
 vi.mock('../hooks/useTheme', () => ({ useTheme: () => ({ mounted: true }) }))
 vi.mock('../components/Header', () => ({ default: () => null }))
@@ -45,7 +45,9 @@ beforeEach(() => {
   push.mockReset()
   replace.mockReset()
   sessionStorage.clear()
+  localStorage.clear()
   vi.mocked(api.startGoalDiagnostic).mockReset()
+  vi.mocked(api.resumeGoalDiagnostic).mockReset()
   vi.mocked(api.getGoalPlan).mockReset()
 })
 
@@ -151,6 +153,51 @@ describe('/onboard domain selection', () => {
     expect(startButton().disabled).toBe(false)
     expect(Number(scopeShown())).toBe(scopeSize(idsForDomain('geometry')))
     expect(sessionStorage.getItem('mathua_diag_session_onboard')).toBeNull()
+  })
+
+  // Upstream 2579cfab: the run is kept in localStorage for a week, because a
+  // phone drops sessionStorage when the tab or PWA closes.
+  it('offers a paused run again after the tab is gone, and resumes it', async () => {
+    vi.mocked(api.resumeGoalDiagnostic).mockResolvedValue({
+      done: false,
+      question: 'Resumed question',
+      concept_id: 'c1',
+      concept_name: 'C',
+      grading_type: 'numeric',
+      progress: { answered: 1, estimated_total: 25, min_total: 25, max_total: 45, probe_budget: 45, done: false },
+    } as never)
+    localStorage.setItem('mathua_diag_session_onboard', 's-saved')
+    localStorage.setItem('mathua_diag_session_scope', 'pick')
+    localStorage.setItem('mathua_diag_session_at', String(Date.now() - 3 * 24 * 60 * 60 * 1000))
+
+    render(<OnboardPage />)
+    fireEvent.click(await screen.findByRole('button', { name: /Continue diagnostic/ }))
+
+    await waitFor(() => expect(api.resumeGoalDiagnostic).toHaveBeenCalledWith('s-saved'))
+    expect(await screen.findByText('Resumed question')).toBeTruthy()
+  })
+
+  it('forgets a run stored more than a week ago', async () => {
+    localStorage.setItem('mathua_diag_session_onboard', 's-old')
+    localStorage.setItem('mathua_diag_session_scope', 'pick')
+    localStorage.setItem('mathua_diag_session_at', String(Date.now() - 8 * 24 * 60 * 60 * 1000))
+
+    render(<OnboardPage />)
+    await waitFor(() => expect(startButton()).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /Continue diagnostic/ })).toBeNull()
+    expect(localStorage.getItem('mathua_diag_session_onboard')).toBeNull()
+  })
+
+  it('does not offer a course placement run on the subject picker', async () => {
+    localStorage.setItem('mathua_diag_session_onboard', 's-course')
+    localStorage.setItem('mathua_diag_session_scope', 'course:')
+    localStorage.setItem('mathua_diag_session_at', String(Date.now()))
+
+    render(<OnboardPage />)
+    await waitFor(() => expect(startButton()).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /Continue diagnostic/ })).toBeNull()
+    // Kept for the screen that started it.
+    expect(localStorage.getItem('mathua_diag_session_onboard')).toBe('s-course')
   })
 
   it('offers a way into the topics without taking the test', async () => {

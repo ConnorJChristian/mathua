@@ -61,6 +61,7 @@ beforeEach(() => {
   push.mockReset()
   replace.mockReset()
   sessionStorage.clear()
+  localStorage.clear()
   vi.mocked(api.startGoalDiagnostic).mockReset()
   vi.mocked(api.startGoalDiagnosticName).mockReset()
   vi.mocked(api.getGoalPlan).mockReset()
