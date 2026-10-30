@@ -215,3 +215,19 @@ func TestRender_LeavesMatrixNotationAlone(t *testing.T) {
 		t.Errorf("a capitalised name should be left literal, got %q", got)
 	}
 }
+
+// Q66: a schema that wraps a numeric fact in math ("whose roots are
+// \(3\) and \(5\)") was served as literal dollars once canonicalised.
+func TestAssemble_WritesALoneNumberAsText(t *testing.T) {
+	l := &Loader{byConcept: map[string]*Schema{"c": {
+		Concept: "c",
+		Setup:   `Roots \([[r1]]\) and \([[r2]]\); the sum is \(x = [[s]]\), the term \([[t]]\).`,
+		Answer:  `So the value is \([[v]]\), the side $b = [[r1]]$ and $[[r1]]$, priced \$[[r1]] and $$[[r1]]$$.`,
+	}}}
+	got := l.Assemble("c", map[string]string{"r1": "3", "r2": "12.5", "s": "15", "t": "2x", "v": "-4"}, "fallback")
+	for _, want := range []string{"Roots 3 and 12.5", `\(x = 15\)`, `\(2x\)`, `\(-4\)`, "$b = 3$ and 3,", `\$3 and $$3$$`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("assembled %q, want it to contain %q", got, want)
+		}
+	}
+}

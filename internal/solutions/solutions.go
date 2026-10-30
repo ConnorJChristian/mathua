@@ -162,8 +162,25 @@ func (l *Loader) Assemble(conceptID string, facts map[string]string, fallback st
 		log.Printf("solutions: %q schema skipped, unresolved %v", conceptID, missing)
 		return fallback
 	}
-	return rendered
+	return plainNumbers(rendered)
 }
+
+// loneNumberMathRe matches an inline math span that holds only an unsigned
+// number once its facts are in: "\\(3\\)".
+var loneNumberMathRe = regexp.MustCompile(`\\\(\s*([0-9][0-9.,]*)\s*\\\)`)
+
+// plainNumbers writes a math span that holds only a number as the bare
+// number. A schema wraps a fact in math because the fact is sometimes an
+// expression ("\\([[r1]]\\)", "\\([[answer]]\\)"); when it is a number, the
+// canonicaliser escapes the span on rescan and the learner reads literal
+// dollars, "\\$3\\$" (Q66: 831 such strings across the worked solutions).
+func plainNumbers(s string) string {
+	s = loneNumberMathRe.ReplaceAllString(s, "$1")
+	return loneNumberDollarRe.ReplaceAllString(s, "${1}${2}${3}")
+}
+
+// loneNumberDollarRe is the same in "$...$" (not "\\$" and not "$$").
+var loneNumberDollarRe = regexp.MustCompile(`(^|[^\\$])\$\s*([0-9][0-9.,]*)\s*\$([^$]|$)`)
 
 // Render substitutes [[name]] placeholders in a schema and reports any
 // placeholder it could not resolve, in order of first appearance.

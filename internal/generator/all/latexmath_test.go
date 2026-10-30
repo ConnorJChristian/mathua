@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/chuma-beep/mathua/internal/latex"
+	"github.com/chuma-beep/mathua/internal/solutions"
 )
 
 // overescapedNumber matches a paired escaped number, which is the undefined
@@ -68,6 +69,14 @@ func TestOverescapedNumberClassifier(t *testing.T) {
 func TestGeneratedMathAvoidsOverescapedNumbers(t *testing.T) {
 	const perDifficulty = 5
 	reg := Registry()
+	// The server assembles explanations from the worked solutions
+	// (data/lessons/solutions); a schema that wraps a lone number in math
+	// (Q66: "roots \\([[r1]]\\)" -> "\\$3\\$") is caught only on that path.
+	l, err := solutions.Load("../../../data/lessons/solutions")
+	if err != nil || len(l.Concepts()) == 0 {
+		t.Fatalf("load worked solutions: %v", err)
+	}
+	reg.SetSolutions(l)
 	ids := reg.Concepts()
 	sort.Strings(ids)
 
