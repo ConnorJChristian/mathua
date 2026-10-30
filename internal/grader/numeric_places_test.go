@@ -123,6 +123,8 @@ func TestRoundedAsAsked(t *testing.T) {
 		{"-8/448", "0.02", 2, false},
 		{"0.8929", "0.89", 2, true},
 		{"400/448", "0.89", 0, false},
+		{"133 1/3", "133.33", 2, true},
+		{"133 1/3", "133.34", 2, false},
 	} {
 		if got := RoundedAsAsked(c.key, c.answer, c.places); got != c.want {
 			t.Errorf("RoundedAsAsked(%q, %q, %d) = %v, want %v", c.key, c.answer, c.places, got, c.want)

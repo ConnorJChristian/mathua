@@ -241,6 +241,12 @@ func RoundedAsAsked(expected, answer string, places int) bool {
 	}
 	ev, ok := constEvalNumeric(normalise(expected))
 	if !ok {
+		// A mixed number ("133 1/3") is a value too.
+		if v, ok2, _ := parseNumeric(normalise(expected)); ok2 {
+			ev, ok = v, true
+		}
+	}
+	if !ok {
 		return false
 	}
 	a := normalise(strings.ReplaceAll(strings.TrimSpace(answer), "−", "-"))
