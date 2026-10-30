@@ -13,6 +13,7 @@ import { getCourseCatalog, getCourseView, getDueReviews, getNext, getPins, getSc
 import { getUserInfo } from '../../lib/auth'
 import { formatDue, topicsPerWeek } from '../../lib/dates'
 import { hrefConceptId } from '../../lib/nextUp'
+import { quizXPLine } from '../../lib/quizGate'
 import { track } from '../../lib/events'
 
 // Fork change: the Study tab. One queue across every course you follow, the
@@ -33,7 +34,7 @@ export default function TodayPage() {
   const [views, setViews] = useState<CourseView[]>([])
   const [dueCount, setDueCount] = useState<number | null>(null)
   const [quizDue, setQuizDue] = useState(false)
-  const [xp, setXp] = useState<{ since: number; gate: number } | null>(null)
+  const [xp, setXp] = useState<{ since: number; gate: number; taken?: boolean } | null>(null)
   const [failed, setFailed] = useState(false)
   const [pins, setPinList] = useState<Pin[]>([])
   const [signedIn, setSignedIn] = useState(false)
@@ -77,7 +78,7 @@ export default function TodayPage() {
           const s = await getScores(sid).catch(() => null)
           if (s) {
             setQuizDue(!!s.quiz_due)
-            if (s.quiz_gate_xp) setXp({ since: s.xp_since_quiz ?? 0, gate: s.quiz_gate_xp })
+            if (s.quiz_gate_xp) setXp({ since: s.xp_since_quiz ?? 0, gate: s.quiz_gate_xp, taken: s.quiz_taken })
           }
         }
       } catch {
@@ -113,7 +114,7 @@ export default function TodayPage() {
             {quizDue && (
               <Link href="/goals?quiz=1" className="border border-mathua-blue bg-mathua-surface p-3 hover:bg-mathua-blue-faint">
                 <p className="font-mono text-[10px] uppercase tracking-wider text-mathua-blue">Mastery check due</p>
-                <p className="font-mono text-xs text-mathua-primary mt-1">Covers what your courses have taught you{xp ? ` · ${xp.since} XP since the last one` : ''}. Take it →</p>
+                <p className="font-mono text-xs text-mathua-primary mt-1">Covers what your courses have taught you{xp ? ` · ${quizXPLine(xp.since, xp.taken)}` : ''}. Take it →</p>
               </Link>
             )}
             {reviewsDue > 0 && (

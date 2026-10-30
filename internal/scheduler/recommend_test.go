@@ -351,6 +351,16 @@ func TestMasteryCheckReportsXPEarned(t *testing.T) {
 	if !strings.Contains(res.Primary.Detail, "153 XP") {
 		t.Errorf("detail = %q, want the 153 XP earned", res.Primary.Detail)
 	}
+	// Q59: before any check there is no "last one".
+	if strings.Contains(res.Primary.Detail, "since your last one") {
+		t.Errorf("detail = %q before any check was taken", res.Primary.Detail)
+	}
+	res = s.Recommend(RecommendInput{Now: now, AttemptedDays: 30, ConceptsMastered: 5,
+		QuizDue: true, QuizXPSince: 61, QuizTaken: true,
+		Snapshots: map[string]*ConceptSnapshot{"a": masteredAt(now)}})
+	if res.Primary == nil || !strings.Contains(res.Primary.Detail, "61 XP since your last one") {
+		t.Errorf("detail after a check = %+v", res.Primary)
+	}
 }
 
 // Fork change: a course due within UrgentDays puts its next topic ahead of a

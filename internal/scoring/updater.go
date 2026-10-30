@@ -28,6 +28,9 @@ type Scores struct {
 	// Quiz gate signal: XP earned since last completed quiz.
 	XPSinceQuiz int  `json:"xp_since_quiz"`
 	QuizDue     bool `json:"quiz_due"`
+	// QuizTaken: a check (or a course test) has been finished, so "since the
+	// last one" means something (Q59).
+	QuizTaken bool `json:"quiz_taken"`
 	// QuizGateXP is xp.QuizGateXP, carried so the profile's progress bar can render the gate
 	// instead of a copy of it. The bar divided by a literal 50 while ADR-020 moved the gate —
 	// the same drift the landing page had, one level worse, because a wrong bar is a claim
@@ -98,7 +101,9 @@ func (u *Updater) Compute(studentID string) (*Scores, error) {
 
 	// XP earned since last completed quiz drives the quiz gate.
 	xpSinceQuiz := xpTotal
+	quizTaken := false
 	if last, err := u.repo.LastQuizCompletion(studentID); err == nil && last != nil {
+		quizTaken = true
 		xpSinceQuiz = xpTotal - last.XPTotal
 		if xpSinceQuiz < 0 {
 			xpSinceQuiz = 0
@@ -120,6 +125,7 @@ func (u *Updater) Compute(studentID string) (*Scores, error) {
 		PausedUntil:      pausedUntil(u, studentID),
 		XPSinceQuiz:      xpSinceQuiz,
 		QuizDue:          xpSinceQuiz >= xp.QuizGateXP,
+		QuizTaken:        quizTaken,
 		QuizGateXP:       xp.QuizGateXP,
 	}, nil
 }

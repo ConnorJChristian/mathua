@@ -150,6 +150,10 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	}
 	quizDue, _ := e.QuizDue(studentID)
 	quizXP, _ := e.QuizXPSince(studentID)
+	quizTaken := false
+	if last, err := e.repo.LastQuizCompletion(studentID); err == nil && last != nil {
+		quizTaken = true
+	}
 
 	// How far along the learner is, in the two terms the recommender needs. Mastered is
 	// effective MASTERED — decay applied, so a stale concept has left the count rather than
@@ -221,6 +225,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 		DueReviews:          due,
 		QuizDue:             quizDue,
 		QuizXPSince:         quizXP,
+		QuizTaken:           quizTaken,
 		ConceptsMastered:    mastered,
 		AttemptedDays:       len(attemptedDays),
 		ExcludeConceptIds:   exclude,
