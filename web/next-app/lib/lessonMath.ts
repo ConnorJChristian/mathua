@@ -46,6 +46,10 @@ function escapeHtmlMath(s: string): string {
     .replace(/\*/g, '&#42;')
     .replace(/~/g, '&#126;')
     .replace(/`/g, '&#96;')
+    // Link brackets too (upstream 2d546d00): `[a, b](c)` inside a span is
+    // link syntax to remark, and the span would reach KaTeX without them.
+    .replace(/\[/g, '&#91;')
+    .replace(/\]/g, '&#93;')
     .replace(/\r\n/g, '&#10;')
     .replace(/[\n\r]/g, '&#10;')
 }
