@@ -198,6 +198,21 @@
   a:hover {
     color: var(--accent-blue);
   }
+  /* Code is shown as typed (Q72). JetBrains Mono's `calt` feature draws `>=`,
+     `<=`, `!=`, `->` and friends as single ligature glyphs, so a typed `>=`
+     looked like a math ≥. Off for code wherever it appears: the code, output
+     and SQL answer boxes and every code display (echoes, solutions, starters,
+     fenced code in prompts and explanations). The rest of the UI's monospace
+     labels and KaTeX's own fonts keep their look. Declared after Tailwind's
+     preflight, which sets `font-feature-settings: normal` on these elements. */
+  code,
+  pre,
+  kbd,
+  samp,
+  .mathua-code-text {
+    font-variant-ligatures: none;
+    font-feature-settings: 'liga' 0, 'calt' 0;
+  }
 }
 
 @layer components {

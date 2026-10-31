@@ -215,12 +215,12 @@ export default function KatexContent({ children, className = '', externalLinks =
           // Fenced code (Python-track questions and notes) reads as a block,
           // scrolls sideways rather than wrapping, and keeps its indentation.
           pre: ({ children }) => (
-            <pre className="my-3 max-w-full overflow-x-auto bg-mathua-code border border-mathua-border px-3 py-2 font-mono text-[12.5px] leading-5 whitespace-pre [&_code]:bg-transparent [&_code]:p-0">
+            <pre className="mathua-code-text my-3 max-w-full overflow-x-auto bg-mathua-code border border-mathua-border px-3 py-2 font-mono text-[12.5px] leading-5 whitespace-pre [&_code]:bg-transparent [&_code]:p-0">
               {children}
             </pre>
           ),
           code: ({ children }) => (
-            <code className="bg-mathua-code px-1 rounded-none text-mathua-secondary">
+            <code className="mathua-code-text bg-mathua-code px-1 rounded-none text-mathua-secondary">
               {children}
             </code>
           ),

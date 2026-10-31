@@ -201,7 +201,7 @@ export const WRITTEN_RECALL_HINT =
 export function pythonHint(kind: PythonKind, timeLimit = 8): string {
   switch (kind) {
     case 'code':
-      return `Run to try your code, then Check to grade it against hidden tests (${timeLimit}-second limit). Ctrl+Enter checks.`
+      return `Run to try your code, then Check to grade it against hidden tests (${timeLimit}-second limit).`
     case 'recall':
       return 'Answer in your head, reveal the back, then say honestly whether you had it.'
     case 'math':
@@ -213,7 +213,7 @@ export function pythonHint(kind: PythonKind, timeLimit = 8): string {
     case 'mc':
       return 'Pick one option, then Check.'
     default:
-      return 'Type exactly what it prints. Spacing inside arrays does not matter; everything else does.'
+      return 'Type exactly what it prints, one line per printed line. Spacing inside arrays does not matter; everything else does.'
   }
 }
 

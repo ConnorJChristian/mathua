@@ -19,7 +19,7 @@
 // a screen reader and with the browser's own undo, and a learner writing five
 // lines of NumPy gains little from an editor that costs a megabyte.
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { runPython, type PythonRunRes } from '../../lib/api'
 import { isWritingQuestion, isWrittenRecall, pythonKind, recallBack, starterCode, taskKey, typedFields, typedValues, wordCount } from '../../lib/pythonQuestion'
 import { MathAnswerInput, type MathFocusHandle } from '../math/MathInput'
@@ -43,6 +43,80 @@ interface Props {
 }
 
 const INDENT = '    '
+
+// Every box that can hold more than one line (code, printed output, proof,
+// writing, a written flashcard answer) behaves the same (Q71): Enter is a new
+// line, Ctrl+Enter (Cmd+Enter on a Mac) checks, and the hint under the box
+// says so. Single-line boxes (term, math, LaTeX, numbers) check on Enter.
+// Enter used to check an output answer, so the first line of a three-line
+// print was sent alone and graded wrong.
+export const isSubmitChord = (e: { key: string; ctrlKey: boolean; metaKey: boolean }) =>
+  e.key === 'Enter' && (e.ctrlKey || e.metaKey)
+
+/**
+ * Insert text at the caret through the browser's own editing command where it
+ * exists, so Ctrl+Z still undoes it; setting the value from script would wipe
+ * the textarea's undo history. Without it (jsdom, old browsers) the value is
+ * spliced and the caret put back after the insertion.
+ */
+function insertAtCaret(el: HTMLTextAreaElement, text: string, value: string, onChange: (v: string) => void) {
+  el.focus()
+  const ok = typeof document.execCommand === 'function' && document.execCommand('insertText', false, text)
+  if (ok) return
+  const { selectionStart: a, selectionEnd: b } = el
+  onChange(value.slice(0, a) + text + value.slice(b))
+  requestAnimationFrame(() => {
+    el.selectionStart = el.selectionEnd = a + text.length
+  })
+}
+
+/** The keys of a multi-line prose or output box: Enter is a new line, the chord checks. */
+function multilineKeyDown(value: string, onChange: (v: string) => void, onSubmit?: () => void) {
+  return (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isSubmitChord(e)) {
+      e.preventDefault()
+      onSubmit?.()
+      return
+    }
+    // A composing IME owns Enter (it commits the candidate).
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      insertAtCaret(e.currentTarget, '\n', value, onChange)
+    }
+  }
+}
+
+/** The line under a multi-line box saying how to check from the keyboard. */
+export function SubmitHint() {
+  const [mac, setMac] = useState(false)
+  useEffect(() => {
+    try {
+      setMac(/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent))
+    } catch {
+      /* no navigator: say Ctrl */
+    }
+  }, [])
+  return (
+    <p data-submit-hint className="mt-1 font-mono text-[11px] text-mathua-muted">
+      Enter adds a line · {mac ? 'Cmd+Enter' : 'Ctrl+Enter'} to check
+    </p>
+  )
+}
+
+// Code, printed output and SQL are shown and sent exactly as typed (Q72). The
+// app's monospace font, JetBrains Mono, draws `>=` `<=` `!=` `->` as single
+// ligature glyphs through its `calt` feature, so a typed `>=` looked like a
+// math ≥ although the value held the two characters. The class turns
+// ligatures off (app/globals.css); the attributes keep the browser and the
+// phone keyboard from correcting, capitalising or completing anything.
+export const CODE_TEXT_CLASS = 'mathua-code-text'
+const PLAIN_TEXT_PROPS = {
+  spellCheck: false,
+  autoCapitalize: 'off',
+  autoCorrect: 'off',
+  autoComplete: 'off',
+  'data-gramm': 'false',
+} as const
 
 export default function PythonAnswer({ question, value, onChange, onSubmit, disabled, id, onSelfGrade }: Props) {
   const kind = useMemo(() => pythonKind(question), [question])
@@ -234,12 +308,7 @@ function ProofBox({ value, onChange, onSubmit, disabled, id, label = 'Your proof
           id={id}
           value={value}
           onChange={e => onChange(e.target.value)}
-          onKeyDown={e => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-              e.preventDefault()
-              onSubmit?.()
-            }
-          }}
+          onKeyDown={multilineKeyDown(value, onChange, onSubmit)}
           rows={rows}
           disabled={disabled}
           spellCheck
@@ -254,32 +323,34 @@ function ProofBox({ value, onChange, onSubmit, disabled, id, label = 'Your proof
           className="w-full min-h-[12rem] resize-y border border-mathua-border-strong bg-mathua-bg px-3 py-2 font-mono text-sm leading-relaxed text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60"
         />
       )}
+      {!preview && <SubmitHint />}
     </div>
   )
 }
 
+// What a snippet prints. Printed output is often several lines, so this is a
+// multi-line box: Enter is a new line and Ctrl+Enter checks (Q71). The server
+// compares it with whitespace runs, line breaks included, as one space
+// (internal/pytrack NormalizeOutput), so trailing spaces never cost a mark.
 function OutputField({ value, onChange, onSubmit, disabled, id }: Omit<Props, 'question'>) {
+  const rows = Math.min(16, Math.max(3, value.split('\n').length + 1))
   return (
-    <textarea
-      id={id}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      onKeyDown={e => {
-        // Enter checks; Shift+Enter adds a line for multi-line output.
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault()
-          onSubmit?.()
-        }
-      }}
-      rows={2}
-      disabled={disabled}
-      spellCheck={false}
-      autoCapitalize="off"
-      autoCorrect="off"
-      placeholder="What it prints"
-      aria-label="What the code prints"
-      className="w-full min-h-[48px] resize-y border border-mathua-border-strong bg-mathua-bg px-3 py-2 font-mono text-sm text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60"
-    />
+    <div className="w-full min-w-0">
+      <textarea
+        id={id}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onKeyDown={multilineKeyDown(value, onChange, onSubmit)}
+        rows={rows}
+        disabled={disabled}
+        {...PLAIN_TEXT_PROPS}
+        wrap="off"
+        placeholder="What it prints"
+        aria-label="What the code prints"
+        className={`${CODE_TEXT_CLASS} w-full min-h-[48px] resize-y overflow-x-auto border border-mathua-border-strong bg-mathua-bg px-3 py-2 font-mono text-sm text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60`}
+      />
+      <SubmitHint />
+    </div>
   )
 }
 
@@ -329,29 +400,28 @@ function CodeBox({ question, value, onChange, onSubmit, disabled, id }: Props) {
   const lines = value.split('\n').length
   const rows = Math.min(24, Math.max(6, lines + 1))
 
+  // A scripted edit (Shift+Tab's dedent) puts the caret back once React has
+  // written the new value, in the same task. It used to wait for the next
+  // animation frame, and a keystroke landing before that frame was typed at
+  // the end of the box and then had the caret yanked back to where the edit
+  // was: "elif" typed straight after Shift+Tab came out as "if ... el".
+  const pendingCaret = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    const el = areaRef.current
+    if (el && pendingCaret.current !== null) el.selectionStart = el.selectionEnd = pendingCaret.current
+    pendingCaret.current = null
+  }, [value])
+
   function edit(next: string, caret: number) {
+    pendingCaret.current = caret
     onChange(next)
-    requestAnimationFrame(() => {
-      const el = areaRef.current
-      if (el) el.selectionStart = el.selectionEnd = caret
-    })
   }
 
-  // Insert at the caret through the browser's own editing command where it
-  // exists, so Ctrl+Z still undoes an indent or a newline. Setting the value
-  // from script would wipe the textarea's undo history.
-  function insert(el: HTMLTextAreaElement, text: string) {
-    el.focus()
-    const ok = typeof document.execCommand === 'function' && document.execCommand('insertText', false, text)
-    if (!ok) {
-      const { selectionStart: a, selectionEnd: b } = el
-      edit(value.slice(0, a) + text + value.slice(b), a + text.length)
-    }
-  }
+  const insert = (el: HTMLTextAreaElement, text: string) => insertAtCaret(el, text, value, onChange)
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     const el = e.currentTarget
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (isSubmitChord(e)) {
       e.preventDefault()
       onSubmit?.()
       return
@@ -372,14 +442,15 @@ function CodeBox({ question, value, onChange, onSubmit, disabled, id }: Props) {
       if (remove > 0) edit(value.slice(0, lineStart) + value.slice(lineStart + remove), Math.max(lineStart, a - remove))
       return
     }
-    if (e.key === 'Enter' && !e.shiftKey) {
-      // Keep the current line's indentation, and indent after a colon.
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      // Enter is a new line, never a check (Q71). Keep the current line's
+      // indentation, and indent after a colon. Shift+Enter is a bare new line.
       e.preventDefault()
       const a = el.selectionStart
       const lineStart = value.lastIndexOf('\n', a - 1) + 1
       const line = value.slice(lineStart, a)
-      let indent = line.match(/^\s*/)?.[0] ?? ''
-      if (line.trimEnd().endsWith(':')) indent += INDENT
+      let indent = e.shiftKey ? '' : line.match(/^\s*/)?.[0] ?? ''
+      if (!e.shiftKey && line.trimEnd().endsWith(':')) indent += INDENT
       insert(el, '\n' + indent)
       return
     }
@@ -411,14 +482,12 @@ function CodeBox({ question, value, onChange, onSubmit, disabled, id }: Props) {
         onKeyDown={onKeyDown}
         rows={rows}
         disabled={disabled}
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        autoComplete="off"
+        {...PLAIN_TEXT_PROPS}
         wrap="off"
         aria-label="Your Python code"
-        className="w-full resize-y overflow-x-auto border border-mathua-border-strong bg-mathua-code px-3 py-2 font-mono text-[13px] leading-5 text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60 [tab-size:4]"
+        className={`${CODE_TEXT_CLASS} w-full resize-y overflow-x-auto border border-mathua-border-strong bg-mathua-code px-3 py-2 font-mono text-[13px] leading-5 text-mathua-primary focus:border-mathua-blue focus:outline-none disabled:opacity-60 [tab-size:4]`}
       />
+      <SubmitHint />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -458,7 +527,7 @@ function RunOutput({ result }: { result: PythonRunRes }) {
         </p>
       )}
       {result.stdout && (
-        <pre className="max-h-64 overflow-auto px-3 py-2 font-mono text-xs text-mathua-primary whitespace-pre">
+        <pre className={`${CODE_TEXT_CLASS} max-h-64 overflow-auto px-3 py-2 font-mono text-xs text-mathua-primary whitespace-pre`}>
           {result.stdout}
           {result.stdout_truncated ? '\n… output truncated' : ''}
         </pre>

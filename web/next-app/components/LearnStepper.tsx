@@ -21,6 +21,7 @@ import { formatForGradingType, type AnswerFormat } from '../lib/answerFormat'
 import { countsAsMastered } from '../lib/progress'
 import { MathAnswerInput } from './math/MathInput'
 import { concepts } from '../lib/conceptData'
+import CodeEcho from './python/CodeEcho'
 import PythonAnswer from './python/PythonAnswer'
 import ProofReport from './ProofReport'
 import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayAnswer, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint, pythonKind, recallBack, recallWhy, typedEcho } from '../lib/pythonQuestion'
@@ -1049,7 +1050,11 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                           : picked
                             // A choice is echoed by its letter and rendered text, not its LaTeX source.
                             ? <>you answered {picked.letter}) <KatexContent className="inline-block align-baseline [&_p]:inline [&_p]:m-0">{picked.text}</KatexContent></>
-                            : `you answered “${pyKind === 'math' ? typedEcho(qe.q.question, qe.answer) : qPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
+                            : pyKind === 'output'
+                              // Printed output is code: echoed raw, line breaks kept,
+                              // never through Markdown or KaTeX (Q71/Q72).
+                              ? <>you answered <CodeEcho text={qe.answer} inline /></>
+                              : `you answered “${pyKind === 'math' ? typedEcho(qe.q.question, qe.answer) : qPy ? plainAnswer(qe.answer) : qe.answer}”`}</span>
                     )}
                   </p>
                   {/* A flashcard's back stays where the learner read it, once; the explanation
@@ -1069,12 +1074,12 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   {pyKind === 'code' && (
                     <details className="mt-1.5" open={!qe.feedback.correct}>
                       <summary className="font-mono text-[11px] text-mathua-muted cursor-pointer hover:text-mathua-blue">Your code</summary>
-                      <pre className="mt-1 max-h-72 overflow-auto bg-mathua-code px-3 py-2 font-mono text-[12px] text-mathua-primary whitespace-pre">{qe.answer}</pre>
+                      <CodeEcho text={qe.answer} className="mt-1 max-h-72 overflow-auto bg-mathua-code px-3 py-2 text-[12px] text-mathua-primary" />
                     </details>
                   )}
                   {shownAnswer && (
                     <p className="mt-1.5 font-mono text-xs text-mathua-primary">
-                      Answer: {pyKind === 'output' ? <code className="whitespace-pre-wrap">{shownAnswer}</code> : <KatexContent>{shownAnswer}</KatexContent>}
+                      Answer: {pyKind === 'output' ? <CodeEcho text={shownAnswer} inline /> : <KatexContent>{shownAnswer}</KatexContent>}
                     </p>
                   )}
                   {/* The explanation is the solution for *this* instance, shown
