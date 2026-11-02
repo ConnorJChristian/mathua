@@ -232,6 +232,11 @@ type mixGen struct {
 	share       float64
 }
 
+// ScaffoldFor implements generator.ScaffoldReporter.
+func (m *mixGen) ScaffoldFor(ctx generator.GeneratorContext) *generator.Scaffold {
+	return m.scaffold(ctx)
+}
+
 // baseSource is a wrapped bank topic's own items, for a topic tied to it.
 func (m *mixGen) baseSource() generator.ScaffoldSource {
 	if src, ok := m.base.(generator.ScaffoldSource); ok {
@@ -269,7 +274,10 @@ func moduleLinks(dirs []string) map[string][]string {
 			if err != nil {
 				continue
 			}
-			var cs []concepts.Concept
+			var cs []struct {
+				ID          string   `json:"id"`
+				Encompasses []string `json:"encompasses"`
+			}
 			if json.Unmarshal(raw, &cs) != nil {
 				continue
 			}

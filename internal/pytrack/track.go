@@ -386,6 +386,13 @@ func (g *conceptGen) ItemScaffold(itemID string, ctx generator.GeneratorContext)
 	}, true
 }
 
+// ScaffoldFor implements generator.ScaffoldReporter.
+func (g *conceptGen) ScaffoldFor(ctx generator.GeneratorContext) *generator.Scaffold {
+	sc := &generator.Scaffold{Items: g.ScaffoldItems(ctx), BookCap: generator.BookStepCapOf(ctx.History)}
+	sc.ArrangeBooks(generator.BookPolicyOf(ctx.History), g.Source())
+	return sc
+}
+
 // Source is the book this topic's bank comes from (its concept's), ""
 // when its module names each item's book instead.
 func (g *conceptGen) Source() string {

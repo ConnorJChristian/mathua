@@ -33,6 +33,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chuma-beep/mathua/internal/books"
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/diagnostic"
 	"github.com/chuma-beep/mathua/internal/engine"
@@ -80,6 +81,57 @@ type replay struct {
 	missed   map[string]bool            // topics missed on the last mastery check
 	serves   []Serve
 	logw     io.Writer
+
+	// The served-order check (FORK.md, "The order of practice inside a
+	// topic"): lessons checked and out of order.
+	orderChecked, orderBad int
+}
+
+// tierRank orders a step's parts: the course's own book, parallel books,
+// the practice set. A missed book exercise coming back (retry) and a
+// question served outside the scaffold rank nowhere.
+func tierRank(t string) int {
+	switch t {
+	case generator.TierMain:
+		return 0
+	case generator.TierParallel:
+		return 1
+	case generator.TierPractice:
+		return 2
+	}
+	return -1
+}
+
+// servedOrderError checks questions served in order (one lesson batch, or
+// a climb through a topic): within a run at one step, main book, then
+// parallel books, then the practice set, never back. "" when in order.
+func servedOrderError(probs []generator.Problem) string {
+	step, top := 0, -1
+	for i, p := range probs {
+		if p.Step != step {
+			step, top = p.Step, -1
+		}
+		r := tierRank(p.Tier)
+		if r < 0 {
+			continue
+		}
+		if r < top {
+			return fmt.Sprintf("question %d at step %d is %s after %s", i+1, p.Step, p.Tier, []string{"main", "parallel", "practice"}[top])
+		}
+		top = r
+	}
+	return ""
+}
+
+// checkOrder records the served-order check of one lesson; a batch out of
+// order is a bad serve.
+func (r *replay) checkOrder(session int, cid string, probs []generator.Problem) {
+	r.orderChecked++
+	if msg := servedOrderError(probs); msg != "" {
+		r.orderBad++
+		r.serves = append(r.serves, Serve{Session: session, Surface: "study", Concept: cid, Why: "served order",
+			Flags: []string{"served out of order: " + msg}})
+	}
 }
 
 func main() {
@@ -89,6 +141,10 @@ func main() {
 	seed := flag.Int64("seed", 1, "random seed")
 	placement := flag.Bool("placement", true, "also replay placement and the onboarding diagnostic")
 	jsonOut := flag.String("json", "", "write every serve as a JSON line here")
+	orderTopics := flag.String("order-topics", "", "comma-separated topics: climb each as a fresh learner on the followed courses and print the served sources per step")
+	orderCourse := flag.String("order-course", "", "with -order-topics: the course the lessons are opened from (default: the followed courses that list the topic)")
+	orderRounds := flag.Int("order-rounds", 8, "with -order-topics: lesson batches of 3 per topic")
+	coverage := flag.String("coverage", "", "write a Markdown report of each course's topics with parallel-book items, and from which books, here")
 	flag.Parse()
 	if *dbPath == "" || *sid == "" {
 		fmt.Fprintln(os.Stderr, "usage: replay_audit -db copy.db -student ID [-sessions N]")
@@ -113,6 +169,20 @@ func main() {
 		}
 		defer f.Close()
 		r.logw = f
+	}
+	if *coverage != "" {
+		if err := r.writeCoverage(*coverage); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+	if *orderTopics != "" {
+		bad := r.replayOrder(strings.Split(*orderTopics, ","), *orderCourse, *orderRounds)
+		if bad > 0 {
+			os.Exit(1)
+		}
+		return
 	}
 	if *placement {
 		r.replayPlacement()
@@ -305,6 +375,7 @@ func (r *replay) session(n int) {
 		ctx := generator.GeneratorContext{Difficulty: 0.4, Seed: r.rng.Int63(), History: r.eng.LearnerHistory(r.sid, cid)}
 		probs, err := r.reg.BatchGenerateContext(cid, 3, ctx)
 		if err == nil {
+			r.checkOrder(n, cid, probs)
 			anchors := map[string]engine.Anchor{}
 			for _, p := range probs {
 				anchors[p.Question] = engine.Anchor{Answer: p.Answer, Explanation: p.Explanation, Difficulty: p.Difficulty}
@@ -697,6 +768,7 @@ func (r *replay) ageOneDay() error {
 // ---- report ----
 
 func (r *replay) report() {
+	fmt.Printf("\nserved order (main book -> parallel books -> practice set): %d lessons checked, %d out of order\n", r.orderChecked, r.orderBad)
 	type key struct{ surface, flag string }
 	counts := map[key]int{}
 	total := map[string]int{}
@@ -764,4 +836,172 @@ func (r *replay) report() {
 	for _, w := range ws {
 		fmt.Printf("%-60s %d\n", w, byWhy[w])
 	}
+}
+
+// replayOrder climbs each topic as a fresh learner following the same
+// courses: lesson batches of three, answered right four times in five,
+// printing each question's step, tier and source, and checks the climb
+// serves main book -> parallel books -> practice set at every step. It
+// returns the topics out of order.
+func (r *replay) replayOrder(topics []string, course string, rounds int) int {
+	st, _ := r.repo.GetStudent(r.sid)
+	bad := 0
+	for i, cid := range topics {
+		cid = strings.TrimSpace(cid)
+		if cid == "" || r.dag.Concept(cid) == nil {
+			fmt.Printf("\n%s: unknown topic\n", cid)
+			continue
+		}
+		fresh, err := r.repo.CreateStudent(fmt.Sprintf("order-%d", i))
+		if err != nil {
+			fmt.Println("student:", err)
+			return 1
+		}
+		if st != nil {
+			r.repo.SetCourseID(fresh.ID, st.CourseID)
+		}
+		var courses []string
+		if course != "" {
+			courses = engine.ActiveCourses(course)
+		}
+		fmt.Printf("\n%s (%s)\n", cid, r.dag.Concept(cid).Label)
+		var all []generator.Problem
+		for round := 0; round < rounds; round++ {
+			ctx := generator.GeneratorContext{Difficulty: 0.4, Seed: r.rng.Int63(), History: r.eng.LearnerHistoryIn(fresh.ID, cid, courses)}
+			probs, err := r.reg.BatchGenerateContext(cid, 3, ctx)
+			if err != nil || len(probs) == 0 {
+				break
+			}
+			anchors := map[string]engine.Anchor{}
+			for _, p := range probs {
+				anchors[p.Question] = engine.Anchor{Answer: p.Answer, Explanation: p.Explanation, Difficulty: p.Difficulty}
+			}
+			r.eng.SetStudyAnchorBatch(fresh.ID, cid, anchors)
+			for _, p := range probs {
+				src := books.Label(p.SourceBook)
+				if src == "" {
+					src = "-"
+				}
+				tier := p.Tier
+				if tier == "" {
+					tier = "sampled (steps done)"
+				}
+				path := make([]string, len(p.StepPath))
+				for k, b := range p.StepPath {
+					path[k] = books.Label(b)
+					if b == "" {
+						path[k] = "practice set"
+					}
+				}
+				fmt.Printf("  r%d step %d %-9s %-32s [%s]\n", round+1, p.Step, tier, src, strings.Join(path, " -> "))
+				ok := r.rng.Float64() < 0.8
+				r.eng.SubmitStudyAnswer(fresh.ID, cid, r.answerFor(p.Answer, ok), 20, p.Question)
+			}
+			all = append(all, probs...)
+		}
+		if msg := servedOrderError(all); msg != "" {
+			bad++
+			fmt.Println("  OUT OF ORDER:", msg)
+		} else {
+			fmt.Println("  in order")
+		}
+	}
+	fmt.Printf("\n%d topics, %d out of order\n", len(topics), bad)
+	return bad
+}
+
+// writeCoverage reports, per course, the topics whose scaffold has
+// parallel-book items for a fresh learner opening them from the course, and
+// from which books.
+func (r *replay) writeCoverage(path string) error {
+	fresh, err := r.repo.CreateStudent("coverage")
+	if err != nil {
+		return err
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Parallel books by course (%s)\n\n", time.Now().Format("2006-01-02"))
+	b.WriteString("For a fresh learner opening each topic from the course: the course's own book on the topic (main), and the other books whose items the topic serves after it and before the practice set (parallel), with their item counts. Generated by `go run ./scripts/replay_audit -coverage`.\n\n")
+	b.WriteString("| Course | Topics | With a main book | With parallel books | Parallel books (topics) |\n|---|---|---|---|---|\n")
+	var detail strings.Builder
+	for _, c := range r.planner.Courses() {
+		seen := map[string]bool{}
+		var topics []string
+		add := func(ids []string) {
+			for _, id := range ids {
+				if !seen[id] && r.dag.Concept(id) != nil {
+					seen[id] = true
+					topics = append(topics, id)
+				}
+			}
+		}
+		add(c.Plan)
+		add(c.Targets)
+		for _, m := range c.Modules {
+			add(m.Topics)
+		}
+		if len(topics) == 0 {
+			continue
+		}
+		withMain, withPar := 0, 0
+		bookTopics := map[string]int{}
+		var rows []string
+		for _, cid := range topics {
+			g, err := r.reg.Get(cid)
+			if err != nil {
+				continue
+			}
+			rep, ok := g.(generator.ScaffoldReporter)
+			if !ok {
+				continue
+			}
+			sc := rep.ScaffoldFor(generator.GeneratorContext{Difficulty: 0.4, History: r.eng.LearnerHistoryIn(fresh.ID, cid, []string{c.ID})})
+			if sc == nil {
+				continue
+			}
+			n := map[string]int{}
+			for _, it := range sc.Items {
+				n[it.Source]++
+			}
+			if sc.Main != "" {
+				withMain++
+			}
+			if len(sc.Books) == 0 {
+				continue
+			}
+			withPar++
+			var parts []string
+			for _, bk := range sc.Books {
+				bookTopics[bk]++
+				parts = append(parts, fmt.Sprintf("%s %d", books.Label(bk), n[bk]))
+			}
+			main := "-"
+			if sc.Main != "" {
+				main = fmt.Sprintf("%s %d", books.Label(sc.Main), n[sc.Main])
+			}
+			rows = append(rows, fmt.Sprintf("| `%s` | %s | %s | %s |", cid, r.dag.Concept(cid).Label, main, strings.Join(parts, ", ")))
+		}
+		bks := make([]string, 0, len(bookTopics))
+		for bk := range bookTopics {
+			bks = append(bks, bk)
+		}
+		sort.Slice(bks, func(i, j int) bool {
+			if bookTopics[bks[i]] != bookTopics[bks[j]] {
+				return bookTopics[bks[i]] > bookTopics[bks[j]]
+			}
+			return bks[i] < bks[j]
+		})
+		var list []string
+		for _, bk := range bks {
+			list = append(list, fmt.Sprintf("%s (%d)", books.Label(bk), bookTopics[bk]))
+		}
+		if len(list) == 0 {
+			list = []string{"none"}
+		}
+		fmt.Fprintf(&b, "| %s (`%s`) | %d | %d | %d | %s |\n", c.Name, c.ID, len(topics), withMain, withPar, strings.Join(list, ", "))
+		if len(rows) > 0 {
+			fmt.Fprintf(&detail, "\n## %s (`%s`)\n\nTexts: %s\n\n| Topic | Label | Main book (items) | Parallel books (items), in serving order |\n|---|---|---|---|\n%s\n", c.Name, c.ID, strings.Join(c.Texts, ", "), strings.Join(rows, "\n"))
+		}
+	}
+	b.WriteString(detail.String())
+	return os.WriteFile(path, []byte(b.String()), 0o644)
 }

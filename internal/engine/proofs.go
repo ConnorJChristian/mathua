@@ -73,6 +73,15 @@ func (m *proofMixGen) mixesProofs() {}
 // already in the base underneath.
 func (m *proofMixGen) mixesCards() {}
 
+// ScaffoldFor forwards the base's scaffold (generator.ScaffoldReporter):
+// book proofs are not scaffold items.
+func (m *proofMixGen) ScaffoldFor(ctx generator.GeneratorContext) *generator.Scaffold {
+	if r, ok := m.base.(generator.ScaffoldReporter); ok {
+		return r.ScaffoldFor(ctx)
+	}
+	return nil
+}
+
 func (m *proofMixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	if !ctx.NoCards && !ctx.NoProofs && !ctx.ObjectiveOnly {
 		// Fork change: a book exercise to prove comes first until the

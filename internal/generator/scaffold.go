@@ -128,6 +128,12 @@ type ScaffoldItemSource interface {
 	ItemScaffold(itemID string, ctx GeneratorContext) (ScaffoldItem, bool)
 }
 
+// ScaffoldReporter is a generator that can show the scaffold it would serve
+// a learner from (reports and audits: which books a topic has).
+type ScaffoldReporter interface {
+	ScaffoldFor(ctx GeneratorContext) *Scaffold
+}
+
 // ScaffoldItem is one question a topic can serve.
 type ScaffoldItem struct {
 	Step      int
