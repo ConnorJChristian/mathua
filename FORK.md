@@ -385,6 +385,13 @@ first, before serving the topic again at an easier variant.
   name.
 - A module's `books.json` names its PDFs: `{"file.pdf": {"title": ...,
   "author": ..., "source_prefix": ...}}`.
+- **Companion books:** an entry with `"companion_of": "main.pdf"` (a file of
+  the same module) is listed inside that book's page too, as well as on its
+  own. Each row of its `toc` carries `"after_page"`, the main book's PDF page
+  after which it belongs, so an online supplement's chapter follows the
+  chapter it supplements, with the supplement's sections and topics under it.
+  Those rows open the companion's own PDF; when it is not on this computer
+  they say so and do not open the main book instead.
 
 ## Courses, the Study tab and your cards
 

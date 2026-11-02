@@ -15,7 +15,7 @@ import { getUserInfo } from '../../lib/auth'
 import { masteryState } from '../../lib/progress'
 import { learnConceptPath, studyConceptPath } from '../../lib/learnReturn'
 import { TRACKS } from '../../lib/track'
-import { bookCounts, bookKindLabel } from '../../lib/libraryLabels'
+import { bookCounts, bookHasReader, bookKindLabel, sectionPdf } from '../../lib/libraryLabels'
 
 // Fork change: the library. Every book and source your topics are drawn from,
 // shelved by track. Open a book for its table of contents: each section lists
@@ -28,7 +28,10 @@ function pages(s: LibrarySection): string {
 }
 
 function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Record<string, ConceptProgress>; onBack: () => void }) {
-  const [current, setCurrent] = useState<number>(book.kind === 'pdf' && book.sections.length ? 0 : -1)
+  // A row opens the book's PDF, or its own for a companion book's row (the
+  // supplement inside Hoy's page); start on the first row that can open.
+  const reader = bookHasReader(book)
+  const [current, setCurrent] = useState<number>(() => (reader ? book.sections.findIndex((s) => sectionPdf(book, s) !== null) : -1))
   const [filter, setFilter] = useState('')
   const readerRef = useRef<HTMLDivElement>(null)
   const sec = current >= 0 ? book.sections[current] : null
@@ -60,7 +63,7 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
           </p>
         )}
       </div>
-      <div className={`grid gap-4 ${book.kind === 'pdf' && book.available ? 'lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]' : ''}`}>
+      <div className={`grid gap-4 ${reader ? 'lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]' : ''}`}>
         <nav aria-label="Contents" className="min-w-0">
           <input
             id="lib-filter"
@@ -74,7 +77,7 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
             {sections.map(({ s, i }) => (
               <li key={i} className={`py-2.5 min-w-0 ${s.level ? 'pl-7 pr-3' : 'px-3'} ${i === current ? 'bg-mathua-blue-faint' : ''}`}>
                 <div className="flex items-start gap-2 justify-between min-w-0">
-                  {book.kind === 'pdf' && book.available ? (
+                  {sectionPdf(book, s) !== null ? (
                     <button type="button" onClick={() => open(i)} className={`text-left min-w-0 font-mono hover:text-mathua-blue break-words [overflow-wrap:anywhere] ${s.level ? 'text-[11px] text-mathua-secondary' : 'text-xs text-mathua-primary'}`} aria-current={i === current}>
                       {s.title}
                     </button>
@@ -86,7 +89,8 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
                     <span className="min-w-0 font-mono text-xs text-mathua-primary break-words [overflow-wrap:anywhere]">{s.title}</span>
                   )}
                 </div>
-                {pages(s) && <div className="font-mono text-[10px] text-mathua-muted">{pages(s)}</div>}
+                {s.book && !s.level && <div className="font-mono text-[10px] uppercase tracking-wider text-mathua-muted">{s.book}</div>}
+                {pages(s) && <div className="font-mono text-[10px] text-mathua-muted">{pages(s)}{s.pdf_missing ? ' · not on this computer' : ''}</div>}
                 {s.topics.length > 0 && <ul className="mt-1.5 space-y-1">
                   {s.topics.map((t) => {
                     const st = masteryState(progress[t.id])
@@ -104,11 +108,11 @@ function BookView({ book, progress, onBack }: { book: LibraryBook; progress: Rec
             ))}
           </ol>
         </nav>
-        {book.kind === 'pdf' && book.available && (
+        {reader && (
           <div ref={readerRef} className="min-w-0">
-            {sec ? (
-              <PdfReader reading={{ title: sec.title, url: book.url ?? '', page: sec.page, end_page: sec.end_page }} />
-            ) : book.url ? (
+            {sec && sectionPdf(book, sec) ? (
+              <PdfReader reading={{ title: sec.title, url: sectionPdf(book, sec) ?? '', page: sec.page, end_page: sec.end_page }} />
+            ) : book.available && book.url ? (
               <PdfReader reading={{ title: book.title, url: book.url, page: 1 }} />
             ) : null}
           </div>

@@ -101,8 +101,13 @@ type BookMeta struct {
 	// BookID names the book for the order of practice inside a topic
 	// (internal/books), for a file the registry's aliases do not name.
 	BookID string `json:"book_id,omitempty"`
-	Module string `json:"-"`
-	File   string `json:"-"`
+	// CompanionOf names the book this one supplements, a file of the same
+	// module ("hoy-3e.pdf" for its online supplement). The library then
+	// lists this book's contents inside that book's too, each row of TOC
+	// after the main book's page AfterPage.
+	CompanionOf string `json:"companion_of,omitempty"`
+	Module      string `json:"-"`
+	File        string `json:"-"`
 }
 
 // TOCEntry is one line of a book's table of contents.
@@ -110,6 +115,9 @@ type TOCEntry struct {
 	Title   string `json:"title"`
 	Page    int    `json:"page"`
 	EndPage int    `json:"end_page,omitempty"`
+	// AfterPage, in a companion book's contents, is the main book's PDF page
+	// after which this row belongs (BookMeta.CompanionOf).
+	AfterPage int `json:"after_page,omitempty"`
 }
 
 // Video is a lecture or clip for a topic or a course (fork change):

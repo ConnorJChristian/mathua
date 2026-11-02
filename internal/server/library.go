@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/chuma-beep/mathua/internal/engine"
+	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/pytrack"
 )
 
@@ -30,12 +31,19 @@ type libraryTopic struct {
 }
 
 type librarySection struct {
-	Title   string         `json:"title"`
-	Level   int            `json:"level"` // 0: a chapter from the book's contents; 1: a section inside one
-	Page    int            `json:"page,omitempty"`
-	EndPage int            `json:"end_page,omitempty"`
-	URL     string         `json:"url,omitempty"`
-	Topics  []libraryTopic `json:"topics"`
+	Title   string `json:"title"`
+	Level   int    `json:"level"` // 0: a chapter from the book's contents; 1: a section inside one
+	Page    int    `json:"page,omitempty"`
+	EndPage int    `json:"end_page,omitempty"`
+	URL     string `json:"url,omitempty"`
+	// PDF is the file this row opens in when it is not the book's own: a
+	// row of a companion book listed inside its main book (fork change).
+	// Book names that companion, and PDFMissing says its file is not on
+	// this computer.
+	PDF        string         `json:"pdf,omitempty"`
+	Book       string         `json:"book,omitempty"`
+	PDFMissing bool           `json:"pdf_missing,omitempty"`
+	Topics     []libraryTopic `json:"topics"`
 }
 
 type libraryBook struct {
@@ -199,6 +207,7 @@ func (s *Server) library() []libraryBook {
 		}
 		out = append(out, lb)
 	}
+	out = interleaveCompanions(out, books)
 	sort.SliceStable(out, func(a, b int) bool { return out[a].Title < out[b].Title })
 
 	// Online books, from the question banks, in bank order. Only books: a
@@ -293,6 +302,88 @@ func (s *Server) library() []libraryBook {
 		if out[i].Sections == nil {
 			out[i].Sections = []librarySection{}
 		}
+	}
+	return out
+}
+
+// interleaveCompanions lists each companion book's contents inside its main
+// book as well (fork change). A books.json entry with companion_of names the
+// book it supplements; each row of its contents carries after_page, the main
+// book's PDF page after which it belongs. So the Hoy book's page shows every
+// chapter followed by its supplement chapter: the main book's rows up to
+// after_page, then the companion's chapter row and the sections inside it,
+// each opening the companion's PDF at its own page. A section of the
+// companion goes with the contents row whose pages hold it (else the last
+// row before it). The companion keeps its own shelf entry. Rows of the
+// companion with no after_page, and companions whose main book is not on the
+// shelf, are left where they are.
+func interleaveCompanions(out []libraryBook, books []modules.BookMeta) []libraryBook {
+	byID := map[string]int{}
+	for i, b := range out {
+		byID[b.ID] = i
+	}
+	for _, cb := range books {
+		if cb.CompanionOf == "" || len(cb.TOC) == 0 {
+			continue
+		}
+		ci, ok := byID[slug(cb.Module+"/"+cb.File)]
+		mi, ok2 := byID[slug(cb.Module+"/"+cb.CompanionOf)]
+		if !ok || !ok2 || ci == mi {
+			continue
+		}
+		comp := out[ci]
+		type group struct {
+			after int
+			rows  []librarySection
+		}
+		var groups []group
+		cur := -1
+		for _, sct := range comp.Sections {
+			anchor := -1
+			for ti, t := range cb.TOC {
+				end := t.EndPage
+				if end == 0 {
+					end = t.Page
+				}
+				if t.AfterPage > 0 && sct.Page >= t.Page && sct.Page <= end {
+					anchor = ti
+					if sct.Level == 0 && sct.Title == t.Title {
+						break
+					}
+				}
+			}
+			if anchor < 0 && sct.Level > 0 {
+				anchor = cur
+			}
+			if anchor < 0 {
+				continue
+			}
+			if anchor != cur || len(groups) == 0 {
+				groups = append(groups, group{after: cb.TOC[anchor].AfterPage})
+				cur = anchor
+			}
+			row := sct
+			row.PDF, row.Book, row.PDFMissing = comp.URL, comp.Title, !comp.Available
+			row.Topics = append([]libraryTopic(nil), sct.Topics...)
+			groups[len(groups)-1].rows = append(groups[len(groups)-1].rows, row)
+		}
+		if len(groups) == 0 {
+			continue
+		}
+		sort.SliceStable(groups, func(a, b int) bool { return groups[a].after < groups[b].after })
+		var merged []librarySection
+		g := 0
+		for _, sct := range out[mi].Sections {
+			for g < len(groups) && sct.Page > groups[g].after {
+				merged = append(merged, groups[g].rows...)
+				g++
+			}
+			merged = append(merged, sct)
+		}
+		for ; g < len(groups); g++ {
+			merged = append(merged, groups[g].rows...)
+		}
+		out[mi].Sections = merged
 	}
 	return out
 }
