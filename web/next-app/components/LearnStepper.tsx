@@ -26,6 +26,7 @@ import PythonAnswer from './python/PythonAnswer'
 import ProofReport from './ProofReport'
 import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayAnswer, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint, pythonKind, recallBack, recallWhy, typedEcho } from '../lib/pythonQuestion'
 import { choiceEcho } from '../lib/choices'
+import { StepSourceLine } from './StepSourceLine'
 
 // Append-only learning feed: intro once, then each submit locks its card and
 // the next question opens below. Scrollback IS the performance history —
@@ -788,6 +789,14 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
   const totalAnswered = answeredCount
   const totalCorrect = correctCount
   const totalXP = entries.reduce((s, e) => s + (e.kind === 'q' && e.feedback?.correct ? e.feedback.xp : 0), 0)
+  // The question in front of the learner (the last one served), for the step's source line.
+  const currentQ = (() => {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      const e = entries[i]
+      if (e.kind === 'q') return e.q
+    }
+    return undefined
+  })()
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -800,6 +809,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             · {band}
           </span>
         )}
+        <StepSourceLine path={currentQ?.step_path} current={currentQ?.tier === 'practice' ? '' : currentQ?.source_book} step={currentQ?.step} />
       </div>
 
       {prerequisites.length > 0 && !bannerDismissed && (

@@ -22,6 +22,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/admin"
 	"github.com/chuma-beep/mathua/internal/ai"
 	"github.com/chuma-beep/mathua/internal/auth"
+	"github.com/chuma-beep/mathua/internal/books"
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/diagnostic"
 	"github.com/chuma-beep/mathua/internal/engine"
@@ -2137,6 +2138,13 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 		Bank            bool   `json:"bank,omitempty"`
 		AnswerHint      string `json:"answer_hint,omitempty"`
 		AnswerInputMode string `json:"answer_input_mode,omitempty"`
+		// Where in its scaffold step the question is (fork change, FORK.md
+		// "The order of practice inside a topic"): the book it comes from
+		// and the step's sources in order, for the lesson's progress line.
+		SourceBook string      `json:"source_book,omitempty"`
+		Step       int         `json:"step,omitempty"`
+		Tier       string      `json:"tier,omitempty"`
+		StepPath   []stepPlace `json:"step_path,omitempty"`
 	}
 	// Every question in this response carries the format its answer needs, not
 	// only the concept's grading type. LearnStepper used the concept record,
@@ -2192,7 +2200,13 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 	// Fork change: the learner's record on this topic, so items that unlock
 	// after a book exercise stay hidden until it is answered correctly and
 	// book exercises come first.
-	problems, err := reg.BatchGenerateContext(conceptID, count+len(excluded)+5, generator.GeneratorContext{Difficulty: diff, Seed: seed, History: s.eng.LearnerHistory(s.lessonStudentID(r), conceptID)})
+	// A lesson opened from a course (?course=) takes that course's books
+	// first; otherwise the followed courses that list the topic.
+	var courses []string
+	if q := r.URL.Query().Get("course"); q != "" {
+		courses = engine.ActiveCourses(q)
+	}
+	problems, err := reg.BatchGenerateContext(conceptID, count+len(excluded)+5, generator.GeneratorContext{Difficulty: diff, Seed: seed, History: s.eng.LearnerHistoryIn(s.lessonStudentID(r), conceptID, courses)})
 	if err != nil {
 		writeError(w, err.Error(), 404)
 		return
@@ -2248,7 +2262,8 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 	}
 	questions := make([]qInfo, len(problems))
 	for i, p := range problems {
-		questions[i] = qInfo{Question: p.Question, Source: "generator", Bank: grader.IsBankAnswer(p.Answer), AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode}
+		questions[i] = qInfo{Question: p.Question, Source: "generator", Bank: grader.IsBankAnswer(p.Answer), AnswerHint: qFormat.Hint, AnswerInputMode: qFormat.InputMode,
+			SourceBook: p.SourceBook, Step: p.Step, Tier: p.Tier, StepPath: stepPathOf(p.StepPath)}
 	}
 	writeJSON(w, map[string]interface{}{"questions": questions, "concept_id": conceptID})
 }
@@ -4942,4 +4957,27 @@ func displayAnswer(a string) string {
 		return a
 	}
 	return generator.TidyAnswer(a)
+}
+
+// stepPlace is one source of a scaffold step on the lesson's progress line:
+// a book (its id and label) or the practice set (book "").
+type stepPlace struct {
+	Book  string `json:"book"`
+	Label string `json:"label"`
+}
+
+// stepPathOf labels a step's sources (generator.Problem.StepPath). A step
+// with one source has no line to show.
+func stepPathOf(path []string) []stepPlace {
+	if len(path) < 2 {
+		return nil
+	}
+	out := make([]stepPlace, len(path))
+	for i, b := range path {
+		out[i] = stepPlace{Book: b, Label: books.Label(b)}
+		if b == "" {
+			out[i].Label = "practice set"
+		}
+	}
+	return out
 }

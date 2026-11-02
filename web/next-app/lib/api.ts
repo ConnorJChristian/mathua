@@ -1304,6 +1304,19 @@ export interface PracticeQuestion {
 	answer_input_mode?: 'numeric' | 'text'
 	/** Where the question came from: "generator", "curated", a bank (sent by the server). */
 	source?: string
+	/** Fork: the book the question comes from ("" or absent: generated or unsourced). */
+	source_book?: string
+	/** Fork: the scaffold step (1-3) and its part: main book, parallel book, practice set. */
+	step?: number
+	tier?: 'main' | 'parallel' | 'practice' | 'retry'
+	/** Fork: the step's sources in order, for the progress line; absent with one source. */
+	step_path?: StepPlace[]
+}
+
+/** One source of a scaffold step: a book, or the practice set (book ""). */
+export interface StepPlace {
+	book: string
+	label: string
 }
 
 export interface LessonPracticeRes {
@@ -1350,6 +1363,9 @@ export async function getLessonPractice(conceptId: string, count = 5, opts?: { s
 	if (opts?.seed) params.set('seed', String(opts.seed))
 	if (opts?.difficulty !== undefined) params.set('difficulty', String(opts.difficulty))
 	for (const ex of opts?.exclude ?? []) params.append('exclude', ex)
+	// Fork: a topic opened from a course (`?course=` on the page) serves that course's book first.
+	const course = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('course') : null
+	if (course) params.set('course', course)
 	const res = await authedFetch(`${API_BASE}/api/lessons/${encodeURIComponent(conceptId)}/practice?${params.toString()}`)
 	// A stale link to a topic that no longer exists reads as such, not as a status code (Q25).
 	if (res.status === 404) throw new Error('This topic does not exist. It may have been renamed or removed; find it under Topics.')
