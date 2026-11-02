@@ -79,6 +79,19 @@ type Problem struct {
 	// canonicaliser and the solution schemas: a question-bank item (one of
 	// your flashcards) served on a generated concept. See engine/cards.go.
 	Raw bool
+
+	// Fork change (FORK.md, "The order of practice inside a topic"): where
+	// a scaffold served this question from. SourceBook is the book's id
+	// (internal/books), "" for a generated question or an unsourced item.
+	// Step is the scaffold step, Tier the part of it: "main" (the course's
+	// own book), "parallel" (another book on the topic), "practice"
+	// (generated problem sets and unsourced items) or "retry" (a missed
+	// book exercise coming back). StepPath is the step's sources in order:
+	// book ids, then "" for the practice set. All empty outside a scaffold.
+	SourceBook string
+	Step       int
+	Tier       string
+	StepPath   []string
 }
 
 type Generator interface {

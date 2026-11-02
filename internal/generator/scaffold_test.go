@@ -2,6 +2,8 @@ package generator
 
 import (
 	"fmt"
+	"math/rand"
+	"strings"
 	"testing"
 )
 
@@ -192,5 +194,192 @@ func TestEnvBookStepCap(t *testing.T) {
 	}
 	if hits < 120 || hits > 280 {
 		t.Errorf("about half the time, got %d of 400", hits)
+	}
+}
+
+func srcItem(id string, step int, src string, book, attempted, correct bool) ScaffoldItem {
+	it := item(id, step, book, attempted, correct)
+	it.Source = src
+	return it
+}
+
+// sources serves a lesson batch and names each question's source: its book
+// id, or "gen" for a generated question.
+func batchSources(t *testing.T, sc *Scaffold, n int) (order []string, probs []Problem) {
+	t.Helper()
+	served := map[string]bool{}
+	for i := 0; i < n; i++ {
+		p, ok := sc.Pick(served)
+		if !ok {
+			break
+		}
+		served[p.Question] = true
+		src := p.SourceBook
+		if src == "" {
+			src = "gen"
+		}
+		order = append(order, src)
+		probs = append(probs, p)
+	}
+	return order, probs
+}
+
+func genAt(step int) Problem {
+	return Problem{Question: fmt.Sprintf("gen step %d #%d", step, rand.Int()), Answer: "x"}
+}
+
+// The course's own book, then the parallel books taking turns, then the
+// practice set, at every step; the main book's cap and each parallel
+// book's cap are honoured; excluded books and linked items of the main
+// book are never served.
+func TestScaffold_ParallelBooksBetweenMainBookAndPracticeSet(t *testing.T) {
+	build := func() *Scaffold {
+		var items []ScaffoldItem
+		for step := 1; step <= 2; step++ {
+			for i := 0; i < 4; i++ {
+				items = append(items, srcItem(fmt.Sprintf("hoy ex %d.%d", step, i), step, "hoy", true, false, false))
+			}
+			for i := 0; i < 5; i++ {
+				items = append(items, srcItem(fmt.Sprintf("schaum %d.%d", step, i), step, "schaums-calc-econ", false, false, false))
+				items = append(items, srcItem(fmt.Sprintf("leithold %d.%d", step, i), step, "leithold", false, false, false))
+			}
+			items = append(items, srcItem(fmt.Sprintf("clash %d", step), step, "axler", false, false, false))
+			linked := srcItem(fmt.Sprintf("linked hoy %d", step), step, "hoy", false, false, false)
+			linked.Linked = true
+			items = append(items, linked, item(fmt.Sprintf("unsourced %d", step), step, false, false, false))
+		}
+		sc := &Scaffold{Items: items, BookCap: 2, Share: 0.5, Generated: genAt}
+		sc.ArrangeBooks(BookPolicy{Texts: []string{"hoy"}, ParallelCap: 3, Exclude: map[string]bool{"axler": true}}, "")
+		return sc
+	}
+	sc := build()
+	if sc.Main != "hoy" || fmt.Sprint(sc.Books) != "[schaums-calc-econ leithold]" {
+		t.Fatalf("main %q books %v", sc.Main, sc.Books)
+	}
+	// A fresh learner: every Hoy exercise at the step first (the book step
+	// cap counts what has been tried, as before), then Schaum's and
+	// Leithold taking turns, three of each, then the practice set.
+	order, probs := batchSources(t, sc, 11)
+	want := "[hoy hoy hoy hoy schaums-calc-econ leithold schaums-calc-econ leithold schaums-calc-econ leithold]"
+	if fmt.Sprint(order[:10]) != want {
+		t.Fatalf("step 1 order %v, want %s", order, want)
+	}
+	if probs[10].Tier != TierPractice || probs[10].Step != 1 {
+		t.Errorf("after the caps, the practice set at step 1: %v (%s)", order[10], probs[10].Tier)
+	}
+	if fmt.Sprint(probs[0].StepPath) != "[hoy schaums-calc-econ leithold ]" || probs[0].Step != 1 || probs[0].Tier != TierMain || probs[4].Tier != TierParallel {
+		t.Errorf("path %q step %d tiers %s %s", probs[0].StepPath, probs[0].Step, probs[0].Tier, probs[4].Tier)
+	}
+	// Past the main book's cap (two tried), its untried exercises wait in
+	// the practice set and the parallel books come first.
+	sc = build()
+	for i := 0; i < 2; i++ {
+		sc.Items[i].Attempted, sc.Items[i].Correct = true, true
+	}
+	order, _ = batchSources(t, sc, 6)
+	if fmt.Sprint(order) != "[schaums-calc-econ leithold schaums-calc-econ leithold schaums-calc-econ leithold]" {
+		t.Errorf("past the book step cap: %v", order)
+	}
+	// Over many lessons nothing excluded or linked to the main book is
+	// ever served.
+	for i := 0; i < 50; i++ {
+		_, probs := batchSources(t, build(), 20)
+		for _, p := range probs {
+			if p.Question == "clash 1" || p.Question == "clash 2" || p.Question == "linked hoy 1" || p.Question == "linked hoy 2" {
+				t.Fatalf("served %q", p.Question)
+			}
+		}
+	}
+	// The step is not done until the main book's cap and each parallel
+	// book's cap have been tried, whatever is right.
+	mark := func(sc *Scaffold, prefix string, n int, correct bool) {
+		for i := range sc.Items {
+			if n > 0 && sc.Items[i].Step == 1 && strings.HasPrefix(fmt.Sprint(sc.Items[i].Serve()), "{"+prefix) {
+				sc.Items[i].Attempted, sc.Items[i].Correct = true, correct
+				n--
+			}
+		}
+	}
+	sc = build()
+	mark(sc, "hoy ex", 2, true)
+	mark(sc, "schaum", 3, false)
+	if sc.Done(1) {
+		t.Fatal("Leithold's three not tried: step 1 is not done")
+	}
+	mark(sc, "leithold", 3, false)
+	if !sc.Done(1) || sc.Frontier() != 2 {
+		t.Fatalf("caps met and Hoy right: step 2, got frontier %d", sc.Frontier())
+	}
+	// A parallel book's right answer counts like the main book's.
+	sc = build()
+	mark(sc, "hoy ex", 2, false)
+	mark(sc, "schaum", 3, false)
+	mark(sc, "leithold", 3, true)
+	if !sc.Done(1) {
+		t.Fatal("a right Leithold answer finishes the step")
+	}
+	order, _ = batchSources(t, sc, 5)
+	if fmt.Sprint(order) != "[hoy hoy hoy hoy schaums-calc-econ]" {
+		t.Errorf("step 2 starts with Hoy again: %v", order)
+	}
+}
+
+// Without a course text on the topic, the book of its exercises is the
+// main book; a book's exercises come in book order; the per-book cap 0
+// serves every item of each book before the practice set.
+func TestScaffold_ParallelBooksMainFromExercisesAndNoCap(t *testing.T) {
+	items := []ScaffoldItem{
+		srcItem("s1", 1, "schaums-linear-algebra", false, false, false),
+		srcItem("s2", 1, "schaums-linear-algebra", false, false, false),
+		srcItem("ax1", 1, "axler", true, false, false),
+		srcItem("ax2", 1, "axler", true, false, false),
+		srcItem("ab1", 1, "abbott", true, false, false),
+		srcItem("ab2", 1, "abbott", true, false, false),
+		srcItem("ab3", 1, "abbott", true, false, false),
+		srcItem("ab4", 1, "abbott", true, false, false),
+	}
+	sc := &Scaffold{Items: items, Generated: genAt}
+	sc.ArrangeBooks(BookPolicy{}, "")
+	if sc.Main != "axler" || fmt.Sprint(sc.Books) != "[schaums-linear-algebra abbott]" {
+		t.Fatalf("main %q books %v", sc.Main, sc.Books)
+	}
+	served := map[string]bool{}
+	var qs []string
+	for i := 0; i < 9; i++ {
+		p, _ := sc.Pick(served)
+		served[p.Question] = true
+		qs = append(qs, p.Question)
+	}
+	if fmt.Sprint(qs[:2]) != "[ax1 ax2]" || qs[3] != "ab1" || qs[5] != "ab2" || qs[6] != "ab3" || qs[7] != "ab4" || !strings.HasPrefix(qs[8], "gen") {
+		t.Errorf("order %v", qs)
+	}
+}
+
+// A topic with one book only serves exactly as before: its exercises, then
+// its other items mixed with the generated questions.
+func TestScaffold_OneBookIsUnchanged(t *testing.T) {
+	sc := &Scaffold{Items: []ScaffoldItem{
+		srcItem("hoy ex", 1, "hoy", true, false, false),
+		srcItem("hoy card", 1, "hoy", false, false, false),
+		item("plain", 1, false, false, false),
+	}, Share: 0.5, Generated: genAt}
+	sc.ArrangeBooks(BookPolicy{Texts: []string{"hoy"}, ParallelCap: 3}, "")
+	if len(sc.Books) != 0 {
+		t.Fatalf("books %v", sc.Books)
+	}
+	gens := 0
+	for i := 0; i < 200; i++ {
+		served := map[string]bool{}
+		p, _ := sc.Pick(served)
+		if p.Question != "hoy ex" {
+			t.Fatalf("book exercise first, got %q", p.Question)
+		}
+		served[p.Question] = true
+		if p, _ = sc.Pick(served); strings.HasPrefix(p.Question, "gen") {
+			gens++
+		}
+	}
+	if gens < 60 || gens > 140 {
+		t.Errorf("the rest shares with generated questions as before: %d of 200 generated", gens)
 	}
 }

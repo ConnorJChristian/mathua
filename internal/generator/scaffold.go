@@ -4,6 +4,8 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+
+	"github.com/chuma-beep/mathua/internal/books"
 )
 
 // Fork change: the order a lesson serves its questions in (FORK.md, "The
@@ -132,7 +134,14 @@ type ScaffoldItem struct {
 	Book      bool
 	Attempted bool
 	Correct   bool
-	Serve     func() (Problem, bool)
+	// Source is the item's book (internal/books id), "" for an unsourced
+	// item.
+	Source string
+	// Linked marks an item of a topic tied to this one by `encompasses`:
+	// it is served only as a parallel book's item (ArrangeBooks drops it
+	// otherwise), never in the sampling once the steps are done.
+	Linked bool
+	Serve  func() (Problem, bool)
 }
 
 // Scaffold is everything a topic can serve to one learner now.
@@ -151,13 +160,164 @@ type Scaffold struct {
 	// the step can be done and the rest stop coming first (BookStepCapOf);
 	// 0 is no cap: every one of them comes before the next step.
 	BookCap int
+	// Main is the course's own book (ArrangeBooks); "" takes every book
+	// exercise without a source as the main book's, as before books had
+	// names.
+	Main string
+	// Books are the parallel books, in the order they take turns: items of
+	// other books on the topic, served after the main book's and before the
+	// practice set. Empty: the topic has none and the step is served as it
+	// always was.
+	Books []string
+	// ParallelCap is how many items of each parallel book (and of the main
+	// book's items that are not book exercises) a step serves before the
+	// practice set; 0 is no cap.
+	ParallelCap int
 }
+
+// Tiers of a step (Problem.Tier).
+const (
+	TierMain     = "main"
+	TierParallel = "parallel"
+	TierPractice = "practice"
+	TierRetry    = "retry"
+)
+
+// DefaultParallelBookCap is how many items of each parallel book a step
+// serves before the practice set, when no course sets one.
+const DefaultParallelBookCap = 3
+
+// ParallelBookCapEnv overrides DefaultParallelBookCap; 0 or below is no cap.
+const ParallelBookCapEnv = "MATHUA_PARALLEL_BOOK_CAP"
+
+// EnvParallelBookCap is the cap MATHUA_PARALLEL_BOOK_CAP sets, or the
+// default; 0 means no cap.
+func EnvParallelBookCap() int {
+	if v, err := strconv.Atoi(os.Getenv(ParallelBookCapEnv)); err == nil {
+		if v < 0 {
+			return 0
+		}
+		return v
+	}
+	return DefaultParallelBookCap
+}
+
+// BookPolicy is what the courses that brought the learner to a topic say
+// about its books: their texts in priority order (book ids), the parallel
+// book cap and the books whose notation clashes with the course's.
+type BookPolicy struct {
+	Texts       []string
+	ParallelCap int
+	Exclude     map[string]bool
+}
+
+// BookPolicyHistory is implemented by a History that knows the course
+// context of its topic (engine/history.go).
+type BookPolicyHistory interface {
+	BookPolicy() BookPolicy
+}
+
+// BookPolicyOf is h's policy, or no texts, MATHUA_PARALLEL_BOOK_CAP and
+// nothing excluded.
+func BookPolicyOf(h History) BookPolicy {
+	if b, ok := h.(BookPolicyHistory); ok {
+		return b.BookPolicy()
+	}
+	return BookPolicy{ParallelCap: EnvParallelBookCap()}
+}
+
+// ArrangeBooks sorts the items into the course's own book, parallel books
+// and the rest, by policy p. own is the topic's own book (a bank topic's
+// source), the main book when no course text has items here and no book
+// exercise names one. It drops excluded books' items (unless the book is
+// the main one) and linked items that are not another book's.
+func (s *Scaffold) ArrangeBooks(p BookPolicy, own string) {
+	have := map[string]bool{}
+	firstBook := ""
+	for _, it := range s.Items {
+		if it.Linked || it.Source == "" {
+			continue
+		}
+		have[it.Source] = true
+		if it.Book && firstBook == "" {
+			firstBook = it.Source
+		}
+	}
+	s.Main = ""
+	for _, t := range p.Texts {
+		if have[t] {
+			s.Main = t
+			break
+		}
+	}
+	if s.Main == "" {
+		s.Main = firstBook
+	}
+	if s.Main == "" && have[own] {
+		s.Main = own
+	}
+	kept := s.Items[:0]
+	seen := map[string]bool{}
+	var parallel []string
+	for _, it := range s.Items {
+		other := it.Source != "" && it.Source != s.Main
+		if it.Linked && !other {
+			continue
+		}
+		if other && p.Exclude[it.Source] {
+			continue
+		}
+		if other && !seen[it.Source] {
+			seen[it.Source] = true
+			parallel = append(parallel, it.Source)
+		}
+		kept = append(kept, it)
+	}
+	s.Items = kept
+	s.Books = books.Order(parallel, p.Texts)
+	s.ParallelCap = p.ParallelCap
+}
+
+// isMain reports an item of the course's own book: its source, or a book
+// exercise with no source (or with no main book known: before ArrangeBooks,
+// every book exercise is the main book's, as it always was).
+func (s *Scaffold) isMain(it ScaffoldItem) bool {
+	if it.Linked {
+		return false
+	}
+	if it.Source == "" || s.Main == "" {
+		return it.Book
+	}
+	return it.Source == s.Main
+}
+
+// group is the quota group an item belongs to before the practice set: a
+// parallel book's id, "\x00main" for the main book's items that are not
+// book exercises (only when the topic has parallel books), or "".
+func (s *Scaffold) group(it ScaffoldItem) string {
+	if len(s.Books) == 0 {
+		return ""
+	}
+	if s.isMain(it) {
+		if it.Book {
+			return ""
+		}
+		return mainGroup
+	}
+	return it.Source
+}
+
+const mainGroup = "\x00main"
+
+// mainBook is a book exercise of the course's own book: the items the
+// book step cap counts.
+func (s *Scaffold) mainBook(it ScaffoldItem) bool { return it.Book && s.isMain(it) }
 
 // bookTried is how many book exercises at a step have been tried, and how
 // many there are.
 func (s *Scaffold) bookTried(step int) (tried, total int) {
 	for _, it := range s.Items {
-		if it.Book && it.Step == step {
+		if s.mainBook(it) && it.Step == step {
 			total++
 			if it.Attempted {
 				tried++
@@ -168,13 +328,42 @@ func (s *Scaffold) bookTried(step int) (tried, total int) {
 }
 
 // booksMet reports whether the learner has tried enough of a step's book
-// exercises: all of them, or BookCap of them when a cap is set.
+// exercises: all of them, or BookCap of them when a cap is set; and of each
+// parallel book's items, up to ParallelCap of them.
 func (s *Scaffold) booksMet(step int) bool {
 	tried, total := s.bookTried(step)
 	if s.BookCap > 0 && total > s.BookCap {
-		return tried >= s.BookCap
+		if tried < s.BookCap {
+			return false
+		}
+	} else if tried < total {
+		return false
 	}
-	return tried >= total
+	if len(s.Books) == 0 {
+		return true
+	}
+	gt, gn := map[string]int{}, map[string]int{}
+	for _, it := range s.Items {
+		if it.Step != step {
+			continue
+		}
+		if g := s.group(it); g != "" {
+			gn[g]++
+			if it.Attempted {
+				gt[g]++
+			}
+		}
+	}
+	for g, n := range gn {
+		need := n
+		if s.ParallelCap > 0 && need > s.ParallelCap {
+			need = s.ParallelCap
+		}
+		if gt[g] < need {
+			return false
+		}
+	}
+	return true
 }
 
 // has reports which steps have something to serve.
@@ -189,8 +378,10 @@ func (s *Scaffold) has() [4]bool {
 	return h
 }
 
-// Done reports whether a step is done: a right answer at it or above, and
-// the step's book exercises tried, up to BookCap of them.
+// Done reports whether a step is done: a right answer at it or above, the
+// step's book exercises tried, up to BookCap of them, and each parallel
+// book's items tried, up to ParallelCap of them. A parallel book's right
+// answer counts like the main book's.
 func (s *Scaffold) Done(step int) bool {
 	if !s.booksMet(step) {
 		return false
@@ -218,6 +409,40 @@ func (s *Scaffold) Frontier() int {
 	return 0
 }
 
+// Path is a step's sources in the order it serves them: the main book (when
+// it has items at the step), the parallel books with items at it, then ""
+// for the practice set (generated questions and unsourced items).
+func (s *Scaffold) Path(step int) []string {
+	var out []string
+	hasMain, practice := false, s.Generated != nil
+	at := map[string]bool{}
+	for _, it := range s.Items {
+		if it.Step != step {
+			continue
+		}
+		switch {
+		case s.isMain(it):
+			hasMain = true
+		case it.Source != "":
+			at[it.Source] = true
+		default:
+			practice = true
+		}
+	}
+	if hasMain && s.Main != "" {
+		out = append(out, s.Main)
+	}
+	for _, b := range s.Books {
+		if at[b] {
+			out = append(out, b)
+		}
+	}
+	if practice {
+		out = append(out, "")
+	}
+	return out
+}
+
 // Pick serves the next question of a lesson at the frontier step. served
 // is what this request has already served (a
 // lesson asks for several questions at once): nothing is served twice, and
@@ -231,6 +456,8 @@ func (s *Scaffold) Pick(served map[string]bool) (Problem, bool) {
 	}
 	for ; step <= 3; step++ {
 		if p, ok := s.pickAt(step, served); ok {
+			p.Step = step
+			p.StepPath = s.Path(step)
 			return p, true
 		}
 	}
@@ -238,17 +465,21 @@ func (s *Scaffold) Pick(served map[string]bool) (Problem, bool) {
 }
 
 // pickAt serves one question at a step that this request has not served:
-// the book's exercises first, in book order (an untried one, or a missed
-// one half the time, as generator.PickBook), then the bank's other items,
-// untried first and at random, and the generated questions. Once BookCap
-// of the step's book exercises have been tried, the untried rest no longer
-// come first: they join the step's untried items.
+// the main book's exercises first, in book order (an untried one, or a
+// missed one half the time, as generator.PickBook); then, when the topic has
+// parallel books, the main book's other items and each parallel book's
+// items, taking turns, up to ParallelCap of each; then the practice set:
+// the bank's other items, untried first and at random, and the generated
+// questions. Once BookCap of the step's book exercises (or ParallelCap of a
+// book's items) have been tried, the untried rest no longer come first:
+// they join the step's untried items.
 func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
-	try := func(it ScaffoldItem) (Problem, bool) {
+	try := func(it ScaffoldItem, tier string) (Problem, bool) {
 		p, ok := it.Serve()
 		if !ok || p.Question == "" || served[p.Question] {
 			return Problem{}, false
 		}
+		p.SourceBook, p.Tier = it.Source, tier
 		return p, true
 	}
 	var untriedBooks, missedBooks, fresh, others []ScaffoldItem
@@ -257,8 +488,35 @@ func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 		tried, _ := s.bookTried(step)
 		capped = tried >= s.BookCap
 	}
+	// Quota groups: the main book's other items and each parallel book.
+	type quota struct {
+		count   int // tried, or served in this request
+		untried []ScaffoldItem
+	}
+	groups := map[string]*quota{}
+	var grouped []ScaffoldItem
 	for _, it := range s.Items {
 		if it.Step != step {
+			continue
+		}
+		if g := s.group(it); g != "" {
+			q := groups[g]
+			if q == nil {
+				q = &quota{}
+				groups[g] = q
+			}
+			switch {
+			case it.Attempted:
+				q.count++
+				others = append(others, it)
+			default:
+				if p, ok := it.Serve(); ok && served[p.Question] {
+					q.count++
+					continue
+				}
+				q.untried = append(q.untried, it)
+				grouped = append(grouped, it)
+			}
 			continue
 		}
 		switch {
@@ -280,16 +538,73 @@ func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 		}
 	}
 	for _, it := range untriedBooks {
-		if p, ok := try(it); ok {
+		if p, ok := try(it, TierMain); ok {
 			return p, true
 		}
 	}
 	if len(missedBooks) > 0 && rand.Intn(2) == 0 {
 		for _, i := range rand.Perm(len(missedBooks)) {
-			if p, ok := try(missedBooks[i]); ok {
+			if p, ok := try(missedBooks[i], TierRetry); ok {
 				return p, true
 			}
 		}
+	}
+	if len(groups) > 0 {
+		open := func(g string) bool {
+			q := groups[g]
+			return q != nil && len(q.untried) > 0 && (s.ParallelCap <= 0 || q.count < s.ParallelCap)
+		}
+		serveGroup := func(g, tier string) (Problem, bool) {
+			q := groups[g]
+			// A book's exercises in book order, its other items at random.
+			var books, rest []ScaffoldItem
+			for _, it := range q.untried {
+				if it.Book {
+					books = append(books, it)
+				} else {
+					rest = append(rest, it)
+				}
+			}
+			for _, it := range books {
+				if p, ok := try(it, tier); ok {
+					return p, true
+				}
+			}
+			for _, i := range rand.Perm(len(rest)) {
+				if p, ok := try(rest[i], tier); ok {
+					return p, true
+				}
+			}
+			return Problem{}, false
+		}
+		if open(mainGroup) {
+			if p, ok := serveGroup(mainGroup, TierMain); ok {
+				return p, true
+			}
+		}
+		// The parallel books take turns: the open book with the fewest
+		// served at this step, the earlier in Books on a tie.
+		tried := map[string]bool{}
+		for {
+			best := ""
+			for _, b := range s.Books {
+				if tried[b] || !open(b) {
+					continue
+				}
+				if best == "" || groups[b].count < groups[best].count {
+					best = b
+				}
+			}
+			if best == "" {
+				break
+			}
+			tried[best] = true
+			if p, ok := serveGroup(best, TierParallel); ok {
+				return p, true
+			}
+		}
+		// Past their quotas, a book's untried items join the step's.
+		fresh = append(fresh, grouped...)
 	}
 	gen := func() (Problem, bool) {
 		if s.Generated == nil {
@@ -297,6 +612,7 @@ func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 		}
 		for i := 0; i < 4; i++ {
 			if p := s.Generated(step); p.Question != "" && !served[p.Question] {
+				p.Tier = TierPractice
 				return p, true
 			}
 		}
@@ -310,7 +626,7 @@ func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 	}
 	for _, pool := range [][]ScaffoldItem{fresh, others} {
 		for _, i := range rand.Perm(len(pool)) {
-			if p, ok := try(pool[i]); ok {
+			if p, ok := try(pool[i], TierPractice); ok {
 				return p, true
 			}
 		}
@@ -319,7 +635,7 @@ func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 		return p, true
 	}
 	for _, it := range missedBooks {
-		if p, ok := try(it); ok {
+		if p, ok := try(it, TierRetry); ok {
 			return p, true
 		}
 	}
