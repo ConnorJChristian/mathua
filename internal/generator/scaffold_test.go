@@ -367,6 +367,12 @@ func TestScaffold_OneBookIsUnchanged(t *testing.T) {
 	if len(sc.Books) != 0 {
 		t.Fatalf("books %v", sc.Books)
 	}
+	// So does a deck of one book that no course names.
+	deck := &Scaffold{Items: []ScaffoldItem{srcItem("w1", 1, "wooldridge", false, false, false), srcItem("w2", 1, "wooldridge", false, false, false)}}
+	deck.ArrangeBooks(BookPolicy{Texts: []string{"islp"}, ParallelCap: 1}, "")
+	if deck.Main != "wooldridge" || len(deck.Books) != 0 {
+		t.Fatalf("one-book deck: main %q books %v", deck.Main, deck.Books)
+	}
 	gens := 0
 	for i := 0; i < 200; i++ {
 		served := map[string]bool{}

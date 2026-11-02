@@ -233,9 +233,9 @@ func BookPolicyOf(h History) BookPolicy {
 }
 
 // ArrangeBooks sorts the items into the course's own book, parallel books
-// and the rest, by policy p. own is the topic's own book (a bank topic's
-// source), the main book when no course text has items here and no book
-// exercise names one. It drops excluded books' items (unless the book is
+// and the rest, by policy p. The main book is the first course text with
+// items here, else the book of the topic's book exercises, else own (a bank
+// topic's source), else the topic's only book. It drops excluded books' items (unless the book is
 // the main one) and linked items that are not another book's.
 func (s *Scaffold) ArrangeBooks(p BookPolicy, own string) {
 	have := map[string]bool{}
@@ -261,6 +261,13 @@ func (s *Scaffold) ArrangeBooks(p BookPolicy, own string) {
 	}
 	if s.Main == "" && have[own] {
 		s.Main = own
+	}
+	if s.Main == "" && len(have) == 1 {
+		// A topic with one book (an imported deck of one textbook) is that
+		// book's: it has no parallel books and is served as before.
+		for b := range have {
+			s.Main = b
+		}
 	}
 	kept := s.Items[:0]
 	seen := map[string]bool{}
