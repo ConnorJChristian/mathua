@@ -560,16 +560,22 @@ Rules (`internal/generator/scaffold.go`):
 1. The learner works the lowest step that is not done. A step is done when
    one of its questions (or a harder one) has a correct answer and the
    learner has tried the step's book exercises, up to the **book step cap**
-   (default 3): a topic with nine book exercises at one step moves on after
-   three have been tried and something at the step is right. No step-3
+   (default 3), and each parallel book's items, up to the **parallel book
+   cap** (default 3): a topic with nine book exercises at one step moves on
+   after three have been tried and something at the step is right. A right
+   answer from a parallel book counts like one from the main book. No step-3
    question comes before a correct answer at step 1, unless the topic has
    only step 3.
-2. Within a step the book comes first: its exercises (`book_ref`) in book
-   order, then the bank's other items (untried ones first, at random, so
-   variants interleave) and the topic's generated questions at that step's
-   difficulty. Where the book has nothing for a step, generated questions
+2. Within a step the course's own book comes first, then the same topic in
+   other books, then the practice set (see "Parallel books" below): the
+   book's exercises (`book_ref`) in book order; then, when other books
+   cover the topic, the main book's other items and each parallel book's
+   items, taking turns, up to the parallel book cap of each; then the
+   bank's other items (untried ones first, at random, so variants
+   interleave) and the topic's generated questions at that step's
+   difficulty. Where the books have nothing for a step, generated questions
    and bank items carry it. On a generated topic with cards filed under it,
-   about `MATHUA_CARD_SHARE` of a step's questions are cards.
+   about `MATHUA_CARD_SHARE` of the practice set's questions are cards.
 3. An item that unlocks after another (`unlocks_after`) is not served until
    that one has a correct answer, and its level is never below that item's
    (the bank build and the server refuse one that is: a practice version
@@ -596,6 +602,59 @@ lists (plan, targets and modules); a topic on several courses takes the
 smallest cap they set, and `0` turns the cap off for that course's topics.
 Book proofs (`proofs/*.json` with a `book_ref`) are not scaffold items and
 still come first until proved.
+
+#### Parallel books
+
+Studying derivative rules in a Hoy course, a step serves Hoy's exercises,
+then Schaum's problems and the other books' cards on the topic, then the
+generated problem sets. The lesson's progress line says where the step is:
+"Hoy → Schaum's Math Methods → Schaum's Calculus for Business → practice
+set", with the current source highlighted.
+
+- **Each item's book** (`source_book`, `internal/books`): a `book_ref`
+  item's is its file's; an authored bank item's is its own `source_book`,
+  else its concept's `book.name`; an imported Anki card's comes from the
+  module's `sources.json`, which `scripts/anki_sources.py` writes on every
+  import from the card's `source::<Book>::…` tag, the `books` rules in the
+  module's `subjects.json` (`{"tags": {"mmbef": "schaums-math-methods"},
+  "decks": {"Python Data Science Handbook": "pdsh"}}`) or a deck segment
+  that names a book. Generated questions and unsourced items have none.
+  Names resolve to stable ids by the aliases in
+  `internal/books/registry.json`; a module's `books.json` may give a file
+  its own `"book_id"`.
+- **The main book** is the first of the course's texts (`TextsFor`, so
+  `topic_texts` apply) that has items on the topic. The course is the one
+  the lesson was opened from (`?course=`), else the followed courses that
+  list the topic, in the order they are followed. With no course text on
+  the topic, the main book is the book of its exercises, else a bank
+  topic's own book, else the topic's only book. A topic with one book has
+  no parallel books and is served exactly as before.
+- **Parallel books** are the other books with items on the topic: filed
+  under it (`cards.json`), in its own bank, or on a topic a module ties to
+  it with `encompasses` (both ways: the items of the tied topic and the
+  cards filed under it, other books only, in the scaffold only; the base
+  corpus's own `encompasses` are not ties). They take turns in the order
+  of the course's texts, then `MATHUA_BOOK_PREFERENCE` (comma-separated
+  books; default: the registry's `prefer`, the Schaum's outlines), then
+  any Schaum's outline, then by name. A book's exercises come in book
+  order, its other items untried first at random.
+- **The parallel book cap** is `MATHUA_PARALLEL_BOOK_CAP` (default 3; `0`
+  serves every item of each book before the practice set); a course sets
+  its own with `"parallel_book_cap": N`, the smallest where several
+  courses list the topic. Past the cap, a book's untried items join the
+  practice set, as book exercises past the book step cap do.
+- **Notation clashes**: a course's `"parallel_exclude_books": [...]`
+  (book names or ids) are never served on its topics, by the scaffold or
+  the sampling (the course's own texts are never excluded). Items in a
+  bank's `skip.json` are never served either.
+- Once every step is done, and in reviews, practice samples across all
+  sources as before; tied topics' items are not sampled.
+
+`go run ./scripts/replay_audit -db snap.db -student ID` checks every
+lesson it replays serves main book → parallel books → practice set within
+a step; `-order-topics a,b,c` climbs topics as a fresh learner and prints
+each question's step, part and book; `-coverage report.md` lists, per
+course, the topics with parallel books and from which books.
 
 Placement and tests are unchanged: they take objective questions from any
 step.
