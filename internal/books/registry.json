@@ -1,0 +1,34 @@
+{
+ "_comment": "Book identities for the order of practice inside a topic (FORK.md, 'Parallel books'). Each book has a stable id, a short label for the lesson's progress line and aliases: a name, file, tag or deck segment is the book when its normalised form (lower case, apostrophes dropped, other punctuation as '-') equals an alias or starts with alias + '-'. Longer aliases win. 'prefer' is the default order of parallel books after a course's own texts (MATHUA_BOOK_PREFERENCE overrides it); books it does not name follow, Schaum's first, then by label. scripts/anki_sources.py reads this file too.",
+ "books": [
+  {"id": "hoy", "label": "Hoy", "aliases": ["hoy", "mathematics-for-economics"]},
+  {"id": "schaums-calc-econ", "label": "Schaum's Calculus for Business", "aliases": ["schaums-calc-econ", "schaums-calculus-for-business", "schaums-outline-of-calculus-for-business"]},
+  {"id": "schaums-math-methods", "label": "Schaum's Math Methods", "aliases": ["schaums-math-methods", "schaums-mathematical-methods", "schaums-outline-of-mathematical-methods"]},
+  {"id": "schaums-calculus", "label": "Schaum's Calculus", "aliases": ["schaums-calculus", "schaums-outline-of-calculus"]},
+  {"id": "schaums-linear-algebra", "label": "Schaum's Linear Algebra", "aliases": ["schaums-linear-algebra", "schaums-outline-of-linear-algebra"]},
+  {"id": "schaums-probability", "label": "Schaum's Probability", "aliases": ["schaums-probability", "schaums-outline-of-probability"]},
+  {"id": "schaums-intro-math-econ", "label": "Schaum's Mathematical Economics", "aliases": ["schaums-introduction-to-mathematical-economics", "schaums-math-econ", "dowling"]},
+  {"id": "leithold", "label": "Leithold", "aliases": ["leithold"]},
+  {"id": "axler", "label": "Axler", "aliases": ["axler", "linear-algebra-done-right"]},
+  {"id": "abbott", "label": "Abbott", "aliases": ["abbott", "understanding-analysis"]},
+  {"id": "casella-berger", "label": "Casella–Berger", "aliases": ["casella", "statistical-inference"]},
+  {"id": "hansen-prob-stats", "label": "Hansen", "aliases": ["hansen-prob", "probability-and-statistics-for-economists"]},
+  {"id": "hansen-econometrics", "label": "Hansen Econometrics", "aliases": ["hansen-econometrics"]},
+  {"id": "wooldridge", "label": "Wooldridge", "aliases": ["wooldridge", "introductory-econometrics"]},
+  {"id": "heiss", "label": "Heiss", "aliases": ["heiss", "using-python-for-introductory-econometrics"]},
+  {"id": "islp", "label": "ISLP", "aliases": ["islp", "an-introduction-to-statistical-learning", "statistical-learning"]},
+  {"id": "esl", "label": "ESL", "aliases": ["esl", "the-elements-of-statistical-learning", "elements-of-statistical-learning"]},
+  {"id": "pdsh", "label": "Python Data Science Handbook", "aliases": ["pdsh", "python-data-science-handbook", "vanderplas"]},
+  {"id": "mckinney", "label": "McKinney", "aliases": ["mckinney", "python-for-data-analysis"]},
+  {"id": "varian", "label": "Varian", "aliases": ["varian", "intermediate-microeconomics"]},
+  {"id": "romer", "label": "Romer", "aliases": ["romer", "advanced-macroeconomics"]}
+ ],
+ "prefer": [
+  "schaums-calc-econ",
+  "schaums-math-methods",
+  "schaums-calculus",
+  "schaums-linear-algebra",
+  "schaums-probability",
+  "schaums-intro-math-econ"
+ ]
+}

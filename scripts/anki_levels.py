@@ -54,6 +54,9 @@ import re
 import sys
 from collections import Counter, OrderedDict, defaultdict
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import anki_sources  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCAL_ROOT = os.path.abspath(os.environ.get("MATHUA_ROOT") or ROOT)
 
@@ -280,6 +283,8 @@ def apply(concepts, meta, module_dir, write=True):
         with open(os.path.join(module_dir, LEVELS_FILE), "w", encoding="utf-8") as f:
             json.dump(records, f, indent=1, ensure_ascii=False, sort_keys=True)
             f.write("\n")
+        # Each card's book, from the same deck and tags (scripts/anki_sources.py).
+        anki_sources.apply(records, module_dir)
     return changed, hist, records
 
 
