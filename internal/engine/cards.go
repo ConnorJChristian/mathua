@@ -1,11 +1,14 @@
 package engine
 
 import (
+	"encoding/json"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/chuma-beep/mathua/internal/books"
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
@@ -58,10 +61,31 @@ type cardPick struct {
 // under it in a module's cards.json, or, when no module files any cards,
 // every card of each deck that lists it as a prerequisite.
 func attachCards(dag *concepts.DAG, reg *generator.Registry) {
-	attachCardsFrom(dag, reg, nil)
+	if mods, err := modules.Default(); err == nil && mods != nil {
+		// A module's books.json may name a file's book (book_id).
+		for _, b := range mods.Books() {
+			if b.BookID != "" {
+				books.Register(b.BookID, b.Title, b.File, b.Title)
+			}
+		}
+	}
+	attachCardsLinked(dag, reg, nil, nil)
 }
 
+// attachCardsFrom files the given cards, with no links between topics (or
+// the modules' cards and links when filed is nil).
 func attachCardsFrom(dag *concepts.DAG, reg *generator.Registry, filed map[string][]modules.CardRef) {
+	var links map[string][]string
+	if filed != nil {
+		links = map[string][]string{}
+	}
+	attachCardsLinked(dag, reg, filed, links)
+}
+
+// attachCardsLinked is attachCardsFrom with the `encompasses` links the
+// modules declare (moduleLinks; nil reads them): a topic also serves, as
+// parallel books, the other books' items of the topics it is tied to.
+func attachCardsLinked(dag *concepts.DAG, reg *generator.Registry, filed map[string][]modules.CardRef, links map[string][]string) {
 	if dag == nil || reg == nil {
 		return
 	}
@@ -69,17 +93,17 @@ func attachCardsFrom(dag *concepts.DAG, reg *generator.Registry, filed map[strin
 	if share == 0 {
 		return
 	}
-	if filed == nil {
+	if filed == nil || links == nil {
 		if mods, err := modules.Default(); err == nil && mods != nil {
-			filed = mods.Cards()
+			if filed == nil {
+				filed = mods.Cards()
+			}
+			if links == nil {
+				links = moduleLinks(mods.ConceptDirs())
+			}
 		}
 	}
-	wrapped := map[string]bool{}
-	for topic, refs := range filed {
-		tc := dag.Concept(topic)
-		if tc == nil || strings.HasPrefix(topic, cardDeckPrefix) {
-			continue
-		}
+	picksOf := func(refs []modules.CardRef) []cardPick {
 		var picks []cardPick
 		for _, ref := range refs {
 			g, err := reg.Get(ref.Deck)
@@ -92,15 +116,52 @@ func attachCardsFrom(dag *concepts.DAG, reg *generator.Registry, filed map[strin
 				}
 			}
 		}
-		if len(picks) == 0 {
+		return picks
+	}
+	topics := map[string]bool{}
+	for topic := range filed {
+		topics[topic] = true
+	}
+	for topic := range links {
+		topics[topic] = true
+	}
+	wrapped := map[string]bool{}
+	for topic := range topics {
+		tc := dag.Concept(topic)
+		if tc == nil || strings.HasPrefix(topic, cardDeckPrefix) {
 			continue
 		}
-		wrapped[topic] = true
+		picks := picksOf(filed[topic])
+		// A tied topic's items: the cards filed under it and, for a bank
+		// topic, its own items (scaffold only: generator.ScaffoldItem.Linked).
+		var linked []cardPick
+		var linkedBanks []generator.ScaffoldSource
+		for _, l := range links[topic] {
+			if l == topic || dag.Concept(l) == nil || strings.HasPrefix(l, cardDeckPrefix) {
+				continue
+			}
+			linked = append(linked, picksOf(filed[l])...)
+			if g, err := reg.Get(l); err == nil {
+				if src, ok := g.(generator.ScaffoldSource); ok {
+					if _, mixed := g.(cardMixer); !mixed {
+						linkedBanks = append(linkedBanks, src)
+					} else if mg, ok := g.(interface {
+						baseSource() generator.ScaffoldSource
+					}); ok && mg.baseSource() != nil {
+						linkedBanks = append(linkedBanks, mg.baseSource())
+					}
+				}
+			}
+		}
+		if len(picks) == 0 && len(linked) == 0 && len(linkedBanks) == 0 {
+			continue
+		}
+		wrapped[topic] = len(picks) > 0
 		reg.Wrap(topic, func(base generator.Generator) generator.Generator {
 			if _, done := base.(cardMixer); done {
 				return base
 			}
-			m := &mixGen{base: base, picks: picks, share: share}
+			m := &mixGen{base: base, picks: picks, linked: linked, linkedBanks: linkedBanks, share: share}
 			if _, ok := base.(generator.GradedGenerator); ok {
 				return &mixGradedGen{m}
 			}
@@ -114,6 +175,11 @@ func attachCardsFrom(dag *concepts.DAG, reg *generator.Registry, filed map[strin
 	// under systems by substitution; 57 topics in all; Q6).
 	if len(filed) > 0 {
 		return
+	}
+	for t, w := range wrapped {
+		if !w {
+			delete(wrapped, t)
+		}
 	}
 	decks := map[string][]string{} // topic -> decks covering it
 	for _, c := range dag.Order() {
@@ -158,7 +224,64 @@ type mixGen struct {
 	base  generator.Generator
 	cards []generator.Generator // whole decks (no cards.json for this topic)
 	picks []cardPick            // single cards filed under this topic
-	share float64
+	// Items of the topics tied to this one by a module's `encompasses`:
+	// the cards filed under them and their own bank items. Served only in
+	// the scaffold, as parallel books (other books than this topic's main).
+	linked      []cardPick
+	linkedBanks []generator.ScaffoldSource
+	share       float64
+}
+
+// baseSource is a wrapped bank topic's own items, for a topic tied to it.
+func (m *mixGen) baseSource() generator.ScaffoldSource {
+	if src, ok := m.base.(generator.ScaffoldSource); ok {
+		return src
+	}
+	return nil
+}
+
+// Source is the book a wrapped bank topic comes from (pytrack).
+func (m *mixGen) Source() string {
+	if s, ok := m.base.(interface{ Source() string }); ok {
+		return s.Source()
+	}
+	return ""
+}
+
+// moduleLinks reads the `encompasses` lists of the modules' concepts (the
+// ties a module declares between its topic and the same skill elsewhere,
+// FORK.md "Parallel books"), both ways: topic -> tied topics. The base
+// corpus's own encompasses (a skill that includes another) are not ties.
+func moduleLinks(dirs []string) map[string][]string {
+	out := map[string][]string{}
+	add := func(a, b string) {
+		for _, x := range out[a] {
+			if x == b {
+				return
+			}
+		}
+		out[a] = append(out[a], b)
+	}
+	for _, dir := range dirs {
+		files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+		for _, f := range files {
+			raw, err := os.ReadFile(f)
+			if err != nil {
+				continue
+			}
+			var cs []concepts.Concept
+			if json.Unmarshal(raw, &cs) != nil {
+				continue
+			}
+			for _, c := range cs {
+				for _, e := range c.Encompasses {
+					add(c.ID, e)
+					add(e, c.ID)
+				}
+			}
+		}
+	}
+	return out
 }
 
 func (m *mixGen) mixesCards() {}
@@ -171,7 +294,7 @@ func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	// book exercise left over once the steps are done (or in a review) is
 	// served in the sampling below, not ahead of it.
 	later := false
-	if !ctx.ObjectiveOnly && len(m.picks) > 0 {
+	if !ctx.ObjectiveOnly && (len(m.picks) > 0 || len(m.linked) > 0 || len(m.linkedBanks) > 0) {
 		if sc := m.scaffold(ctx); sc != nil {
 			later = sc.BookCap > 0
 			if !ctx.Review {
@@ -196,7 +319,7 @@ func (m *mixGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			return m.base.Generate(ctx)
 		}
 	}
-	if !ctx.NoCards && !ctx.ObjectiveOnly && rand.Float64() < m.share {
+	if !ctx.NoCards && !ctx.ObjectiveOnly && (len(m.picks) > 0 || len(m.cards) > 0) && rand.Float64() < m.share {
 		var p generator.Problem
 		if len(m.picks) > 0 {
 			if ok := m.servable(ctx, false); len(ok) > 0 {
@@ -249,20 +372,10 @@ func (m *mixGen) scaffold(ctx generator.GeneratorContext) *generator.Scaffold {
 		}
 	}
 	if ctx.NoCards {
+		sc.ArrangeBooks(generator.BookPolicyOf(ctx.History), m.Source())
 		return sc
 	}
-	for _, pk := range m.picks {
-		if gi, ok := pk.gen.(generator.GatedItems); ok && !gi.ItemServable(pk.item, ctx) {
-			continue
-		}
-		src, ok := pk.gen.(generator.ScaffoldItemSource)
-		if !ok {
-			return nil
-		}
-		it, ok := src.ItemScaffold(pk.item, ctx)
-		if !ok {
-			continue
-		}
+	asCard := func(it generator.ScaffoldItem) generator.ScaffoldItem {
 		serve := it.Serve
 		it.Serve = func() (generator.Problem, bool) {
 			p, ok := serve()
@@ -271,8 +384,36 @@ func (m *mixGen) scaffold(ctx generator.GeneratorContext) *generator.Scaffold {
 			}
 			return m.asCard(p, ctx), true
 		}
-		sc.Items = append(sc.Items, it)
+		return it
 	}
+	for li, list := range [][]cardPick{m.picks, m.linked} {
+		linked := li == 1
+		for _, pk := range list {
+			if gi, ok := pk.gen.(generator.GatedItems); ok && !gi.ItemServable(pk.item, ctx) {
+				continue
+			}
+			src, ok := pk.gen.(generator.ScaffoldItemSource)
+			if !ok {
+				if linked {
+					continue
+				}
+				return nil
+			}
+			it, ok := src.ItemScaffold(pk.item, ctx)
+			if !ok {
+				continue
+			}
+			it.Linked = linked
+			sc.Items = append(sc.Items, asCard(it))
+		}
+	}
+	for _, src := range m.linkedBanks {
+		for _, it := range src.ScaffoldItems(ctx) {
+			it.Linked = true
+			sc.Items = append(sc.Items, asCard(it))
+		}
+	}
+	sc.ArrangeBooks(generator.BookPolicyOf(ctx.History), m.Source())
 	return sc
 }
 

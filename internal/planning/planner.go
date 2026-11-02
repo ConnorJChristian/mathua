@@ -56,6 +56,38 @@ type Course struct {
 	// MATHUA_BOOK_STEP_CAP or its default, 3; 0 switches the cap off for the
 	// course's topics. A topic on several courses takes the smallest set cap.
 	BookStepCap *int `json:"book_step_cap,omitempty"`
+	// ParallelBookCap is how many items of each parallel book (another
+	// book's items on the topic) a scaffold step serves before the practice
+	// set (fork change, generator.Scaffold). Unset takes
+	// MATHUA_PARALLEL_BOOK_CAP or its default, 3; 0 is no cap.
+	ParallelBookCap *int `json:"parallel_book_cap,omitempty"`
+	// ParallelExcludeBooks are books (names, files or ids, internal/books)
+	// never served on the course's topics: their notation clashes with
+	// the course's. The course's own texts are never excluded.
+	ParallelExcludeBooks []string `json:"parallel_exclude_books,omitempty"`
+}
+
+// Lists reports whether the course lists a topic in its plan, targets or
+// modules.
+func (c *Course) Lists(conceptID string) bool {
+	if c == nil {
+		return false
+	}
+	for _, list := range [][]string{c.Plan, c.Targets} {
+		for _, id := range list {
+			if id == conceptID {
+				return true
+			}
+		}
+	}
+	for _, m := range c.Modules {
+		for _, id := range m.Topics {
+			if id == conceptID {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // BookStepCaps maps each topic a course with a book_step_cap lists (in its
@@ -246,6 +278,17 @@ func Load(coursesPath string, dag *concepts.DAG, extra ...string) (*Planner, err
 // PrerequisitesOf works catalog-free; course lookups stay empty.
 func New(dag *concepts.DAG) *Planner {
 	return &Planner{dag: dag, byID: map[string]*Course{}}
+}
+
+// NewWithCourses is a Planner over the DAG with these courses, unchecked
+// (tests and tools that build a catalog in code).
+func NewWithCourses(dag *concepts.DAG, courses []*Course) *Planner {
+	p := New(dag)
+	for _, c := range courses {
+		p.courses = append(p.courses, c)
+		p.byID[c.ID] = c
+	}
+	return p
 }
 
 func (p *Planner) Courses() []*Course {

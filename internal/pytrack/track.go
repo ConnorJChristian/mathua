@@ -203,6 +203,11 @@ func (g *conceptGen) servable(it *Item, ctx generator.GeneratorContext) bool {
 	if it.BookRef != nil && ctx.NoBookRefs {
 		return false
 	}
+	// A book whose notation clashes with the course's is never served on
+	// its topics (a course's parallel_exclude_books).
+	if ex := generator.BookPolicyOf(ctx.History).Exclude; len(ex) > 0 && ex[g.track.Bank.SourceOf(g.c.ID, it)] {
+		return false
+	}
 	if it.UnlocksAfter != "" {
 		prev := g.item(it.UnlocksAfter)
 		if prev == nil {
@@ -264,7 +269,7 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 	// unlocks after another not yet answered correctly, a book page in
 	// placement, anything slow or self-graded in a test).
 	items := g.c.Items
-	gated := false
+	gated := len(generator.BookPolicyOf(ctx.History).Exclude) > 0
 	for i := range items {
 		if items[i].UnlocksAfter != "" || items[i].BookRef != nil || ctx.ObjectiveOnly {
 			gated = true
@@ -287,6 +292,7 @@ func (g *conceptGen) Generate(ctx generator.GeneratorContext) generator.Problem 
 	// each (generator.Scaffold); a review or a test samples across them.
 	if !ctx.ObjectiveOnly && !ctx.Review {
 		sc := generator.Scaffold{Items: g.scaffoldItems(items, ctx), BookCap: generator.BookStepCapOf(ctx.History)}
+		sc.ArrangeBooks(generator.BookPolicyOf(ctx.History), g.Source())
 		if p, ok := sc.Pick(ctx.Served); ok {
 			if ctx.NoProofs || ctx.NoCards {
 				p = PlainRecall(p)
@@ -342,6 +348,7 @@ func (g *conceptGen) scaffoldItems(items []Item, ctx generator.GeneratorContext)
 			Book:      it.BookRef != nil && !ctx.NoBookRefs,
 			Attempted: attempted,
 			Correct:   correct,
+			Source:    g.track.Bank.SourceOf(g.c.ID, it),
 			Serve:     func() (generator.Problem, bool) { return g.track.Problem(g.c, it), true },
 		})
 	}
@@ -374,8 +381,18 @@ func (g *conceptGen) ItemScaffold(itemID string, ctx generator.GeneratorContext)
 		Book:      it.BookRef != nil && !ctx.NoBookRefs,
 		Attempted: attempted,
 		Correct:   correct,
+		Source:    g.track.Bank.SourceOf(g.c.ID, it),
 		Serve:     func() (generator.Problem, bool) { return g.track.Problem(g.c, it), true },
 	}, true
+}
+
+// Source is the book this topic's bank comes from (its concept's), ""
+// when its module names each item's book instead.
+func (g *conceptGen) Source() string {
+	if g.track.Bank.listed[g.c.ID] {
+		return ""
+	}
+	return ConceptSource(g.c)
 }
 
 // Problem renders one item as a served question. A book-reference item

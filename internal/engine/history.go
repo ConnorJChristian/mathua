@@ -3,6 +3,7 @@ package engine
 import (
 	"sync"
 
+	"github.com/chuma-beep/mathua/internal/books"
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -35,6 +36,92 @@ type itemHistory struct {
 	stepTop  int // highest scaffold step with a right generated answer
 
 	bookCap int // generator.BookStepCapper
+
+	// The topic's book policy (generator.BookPolicyHistory): from courses
+	// when set (a lesson opened from a course), else from the learner's
+	// followed courses that list the topic, read on first use.
+	eng        *Engine
+	courses    []string
+	policyOnce sync.Once
+	policy     generator.BookPolicy
+}
+
+// BookPolicy implements generator.BookPolicyHistory.
+func (h *itemHistory) BookPolicy() generator.BookPolicy {
+	h.policyOnce.Do(func() {
+		ids := h.courses
+		if ids == nil && h.eng != nil {
+			ids = h.eng.followedCoursesListing(h.studentID, h.conceptID)
+		}
+		h.policy = h.eng.bookPolicy(h.conceptID, ids)
+	})
+	return h.policy
+}
+
+// followedCoursesListing is the learner's followed courses that list a
+// topic, in the order they follow them.
+func (e *Engine) followedCoursesListing(studentID, conceptID string) []string {
+	if e == nil || e.planner == nil || e.repo == nil {
+		return nil
+	}
+	st, err := e.repo.GetStudent(studentID)
+	if err != nil || st == nil {
+		return nil
+	}
+	var out []string
+	for _, id := range ActiveCourses(st.CourseID) {
+		if c := e.planner.Course(id); c.Lists(conceptID) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// bookPolicy is what courses (the first is the one that brought the
+// learner here) say about a topic's books: their texts for it in order,
+// as book ids; the smallest parallel_book_cap they set, else
+// MATHUA_PARALLEL_BOOK_CAP; and the books they exclude, less their texts.
+func (e *Engine) bookPolicy(conceptID string, courseIDs []string) generator.BookPolicy {
+	p := generator.BookPolicy{ParallelCap: generator.EnvParallelBookCap()}
+	if e == nil || e.planner == nil {
+		return p
+	}
+	seen := map[string]bool{}
+	capSet := false
+	for _, id := range courseIDs {
+		c := e.planner.Course(id)
+		if c == nil {
+			continue
+		}
+		for _, tx := range c.TextsFor(conceptID) {
+			if b := books.ID(tx); b != "" && !seen[b] {
+				seen[b] = true
+				p.Texts = append(p.Texts, b)
+			}
+		}
+		if c.ParallelBookCap != nil {
+			v := *c.ParallelBookCap
+			if v < 0 {
+				v = 0
+			}
+			if !capSet || (v > 0 && (p.ParallelCap == 0 || v < p.ParallelCap)) {
+				p.ParallelCap = v
+			}
+			capSet = true
+		}
+		for _, x := range c.ParallelExcludeBooks {
+			if b := books.ID(x); b != "" {
+				if p.Exclude == nil {
+					p.Exclude = map[string]bool{}
+				}
+				p.Exclude[b] = true
+			}
+		}
+	}
+	for b := range seen {
+		delete(p.Exclude, b)
+	}
+	return p
 }
 
 // BookStepCap implements generator.BookStepCapper: the topic's book step
@@ -78,9 +165,17 @@ func (h *itemHistory) GeneratedCorrectAt(step int) bool {
 // LearnerHistory is the generator.History of one learner on one topic, or
 // nil without a learner or a store.
 func (e *Engine) LearnerHistory(studentID, conceptID string) generator.History {
+	return e.LearnerHistoryIn(studentID, conceptID, nil)
+}
+
+// LearnerHistoryIn is LearnerHistory reached through courses (a lesson
+// opened from a course page): their texts decide the topic's main book.
+// Nil courses take the learner's followed courses that list the topic.
+func (e *Engine) LearnerHistoryIn(studentID, conceptID string, courses []string) generator.History {
 	h := newItemHistory(e.repo, studentID, conceptID)
 	if ih, ok := h.(*itemHistory); ok {
 		ih.bookCap = e.bookStepCap(conceptID)
+		ih.eng, ih.courses = e, courses
 	}
 	return h
 }

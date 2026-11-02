@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/chuma-beep/mathua/internal/books"
 	"github.com/chuma-beep/mathua/internal/generator"
 )
 
@@ -118,6 +119,12 @@ type Item struct {
 	// served to a learner until they have answered that one correctly at
 	// least once (fork change). Practice versions of a book exercise use it.
 	UnlocksAfter string `json:"unlocks_after,omitempty"`
+	// SourceBook names the book the item comes from (fork change; a name,
+	// file or id that internal/books resolves). Unset, the item's book is
+	// its book_ref's file, else, for an authored bank, its concept's book;
+	// an imported deck's cards take theirs from the module's sources.json
+	// (scripts/anki_sources.py). Bank.SourceOf resolves it.
+	SourceBook string `json:"source_book,omitempty"`
 
 	Explain string `json:"explain"`
 }
@@ -152,13 +159,17 @@ type Bank struct {
 	// FileExists reports whether a module's files/ folder has a file. Nil
 	// uses moduleDirs.
 	FileExists func(module, file string) bool
+	// listed marks the concepts of a module with a sources.json: their
+	// items' books come from it (SourceBook) and never from the concept.
+	listed map[string]bool
 }
 
 // LoadBank reads and validates every *.json bank file in the given folders
 // (each module's bank/ folder), in folder order and then file-name order.
 func LoadBank(dirs ...string) (*Bank, error) {
-	b := &Bank{concepts: map[string]*Concept{}, items: map[string]*Item{}, bankOf: map[string]string{}}
-	var files []string // the bank file of each chapter, in order
+	b := &Bank{concepts: map[string]*Concept{}, items: map[string]*Item{}, bankOf: map[string]string{}, listed: map[string]bool{}}
+	var files []string  // the bank file of each chapter, in order
+	var listedCh []bool // the chapter's module has a sources.json
 	for _, dir := range dirs {
 		b.moduleDirs = append(b.moduleDirs, filepath.Dir(filepath.Clean(dir)))
 		entries, err := os.ReadDir(dir)
@@ -180,6 +191,18 @@ func LoadBank(dirs ...string) (*Bank, error) {
 		if raw, err := os.ReadFile(filepath.Join(dir, "skip.json")); err == nil {
 			if err := json.Unmarshal(raw, &skip); err != nil {
 				return nil, fmt.Errorf("%s: %w", filepath.Join(dir, "skip.json"), err)
+			}
+		}
+		// Fork change: a module's sources.json names each imported card's
+		// book, {"<item id>": "<book id>"} (scripts/anki_sources.py).
+		var sources map[string]string
+		srcPath := filepath.Join(filepath.Dir(filepath.Clean(dir)), "sources.json")
+		if raw, err := os.ReadFile(srcPath); err == nil {
+			if err := json.Unmarshal(raw, &sources); err != nil {
+				return nil, fmt.Errorf("%s: %w", srcPath, err)
+			}
+			if sources == nil {
+				sources = map[string]string{}
 			}
 		}
 		for _, name := range names {
@@ -204,8 +227,18 @@ func LoadBank(dirs ...string) (*Bank, error) {
 					ch.Concepts[i].Items = kept
 				}
 			}
+			if sources != nil {
+				for i := range ch.Concepts {
+					for j := range ch.Concepts[i].Items {
+						if it := &ch.Concepts[i].Items[j]; it.SourceBook == "" {
+							it.SourceBook = sources[it.ID]
+						}
+					}
+				}
+			}
 			b.chapters = append(b.chapters, ch)
 			files = append(files, strings.TrimSuffix(name, ".json"))
+			listedCh = append(listedCh, sources != nil)
 		}
 	}
 	for ci := range b.chapters {
@@ -220,6 +253,7 @@ func LoadBank(dirs ...string) (*Bank, error) {
 			}
 			b.concepts[c.ID] = c
 			b.bankOf[c.ID] = files[ci]
+			b.listed[c.ID] = listedCh[ci]
 			for j := range c.Items {
 				it := &c.Items[j]
 				b.items[itemKey(c.ID, it.ID)] = it
@@ -230,6 +264,41 @@ func LoadBank(dirs ...string) (*Bank, error) {
 }
 
 func itemKey(conceptID, itemID string) string { return conceptID + "#" + itemID }
+
+// SourceOf is the book (internal/books id) an item of a concept comes from:
+// its source_book (or the module's sources.json), else its book_ref's file,
+// else its concept's book, unless the concept's module lists its items'
+// books in a sources.json. "" for an unsourced item.
+func (b *Bank) SourceOf(conceptID string, it *Item) string {
+	if it == nil {
+		return ""
+	}
+	if it.SourceBook != "" {
+		return books.ID(it.SourceBook)
+	}
+	if it.BookRef != nil && it.BookRef.File != "" {
+		return books.ID(it.BookRef.File)
+	}
+	if b != nil && b.listed[conceptID] {
+		return ""
+	}
+	if b != nil {
+		if c := b.concepts[conceptID]; c != nil {
+			return ConceptSource(c)
+		}
+	}
+	return ""
+}
+
+// ConceptSource is the book a concept's bank comes from: its book's name,
+// the Python Data Science Handbook for a section of it, "" for none.
+func ConceptSource(c *Concept) string {
+	name := c.Book.Name
+	if name == "" && strings.Contains(c.Book.URL, "PythonDataScienceHandbook") {
+		name = "Python Data Science Handbook"
+	}
+	return books.ID(name)
+}
 
 func validateConcept(c *Concept) error {
 	if c.ID == "" {

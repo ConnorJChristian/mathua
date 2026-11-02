@@ -97,9 +97,12 @@ type BookMeta struct {
 	// Shelf groups the book in the library ("Econometrics"); empty uses the track.
 	Shelf string `json:"shelf,omitempty"`
 	// TOC is the book's table of contents (PDF pages), for the library.
-	TOC    []TOCEntry `json:"toc,omitempty"`
-	Module string     `json:"-"`
-	File   string     `json:"-"`
+	TOC []TOCEntry `json:"toc,omitempty"`
+	// BookID names the book for the order of practice inside a topic
+	// (internal/books), for a file the registry's aliases do not name.
+	BookID string `json:"book_id,omitempty"`
+	Module string `json:"-"`
+	File   string `json:"-"`
 }
 
 // TOCEntry is one line of a book's table of contents.
