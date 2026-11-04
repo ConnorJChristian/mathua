@@ -28,7 +28,47 @@ import statistics
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DECAY_DAYS = 14  # internal/mastery/status.go
+DECAY_DAYS = 14  # internal/mastery/status.go; learning_report_test.py checks it against the shared fixture
+
+
+def due_at(p):
+    """When a progress row is or was due for review: the engine's rule
+    (internal/review, FORK.md "What is due"). A row is {"status", "lr"
+    (last reviewed), "la" (last attempted), "due" (next_review_due)} with
+    datetimes or None. Returns None for a row that is not mastered, or a
+    mastered row with no date and no history (due at once, no day to show).
+    """
+    if p["status"] != "MASTERED":
+        return None
+    if p["due"]:
+        return p["due"]
+    anchor = p["lr"] or p.get("la")
+    if not anchor:
+        return None
+    return anchor + dt.timedelta(days=DECAY_DAYS)
+
+
+def is_due(p, now):
+    """Whether a row is due for review at now, before the engine's exclusions
+    (the floor and credit-only foundations no course lists, which this script
+    cannot compute): a mastered row whose scheduled date has passed, or, with
+    no date, one reviewed DECAY_DAYS or more ago."""
+    if p["status"] != "MASTERED":
+        return False
+    at = due_at(p)
+    if at is None:
+        return True
+    return at <= now
+
+
+def overdue_days(p, now):
+    """Days past the row's due date at now (0 when not due)."""
+    if not is_due(p, now):
+        return 0.0
+    at = due_at(p)
+    if at is None:
+        return 0.0
+    return max(0.0, (now - at).total_seconds() / 86400)
 
 
 # ------------------------------------------------------------------ loading
@@ -197,14 +237,17 @@ def analyse(db, st, concepts, courses, cfg, days, now):
     slow.sort(key=lambda s: -s["ratio"])
     out["slow"] = slow[:12]
 
-    # --- review load and decay
-    due_now = [c for c, p in prog.items() if p["status"] == "MASTERED" and p["due"] and p["due"] <= now]
+    # --- review load and decay. Due is the engine's rule (is_due), before
+    # its floor and credit-only exclusions, so the count here can exceed the
+    # app's banner by the topics the learner is not reviewed on. Decaying is
+    # the pacing notion (mastery.EffectiveStatus), a separate one.
+    due_now = [c for c, p in prog.items() if is_due(p, now)]
     decaying = [c for c, p in prog.items() if p["status"] == "MASTERED" and p["lr"]
                 and (now - p["lr"]).days >= DECAY_DAYS]
     out["review"] = {
         "due_now": len(due_now), "decaying": len(decaying),
         "decaying_sample": [label(c) for c in sorted(decaying)[:10]],
-        "overdue_7d": sum(1 for c in due_now if (now - prog[c]["due"]).days >= 7),
+        "overdue_7d": sum(1 for c in due_now if overdue_days(prog[c], now) >= 7),
     }
 
     # --- mastery flow
