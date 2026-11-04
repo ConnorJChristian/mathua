@@ -433,7 +433,7 @@ func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 		for i, o := range stableOptions(c.ID, it) {
 			q += fmt.Sprintf("\n\n%c) %s", 'A'+i, o)
 		}
-		return generator.Problem{Question: q, Answer: prefixChoice + it.Correct, Explanation: walkthrough.Encode(joinNonEmpty(strings.TrimSpace(it.Explain), book), steps)}
+		return generator.Problem{Question: q, Answer: prefixChoice + it.Correct, Explanation: walkthrough.Encode(joinNonEmpty(walkthrough.TrimCovered(strings.TrimSpace(it.Explain), steps), book), steps)}
 	case KindOutput:
 		q := strings.TrimSpace(it.Prompt) + "\n\n```python\n" + strings.TrimRight(it.Code, "\n") + "\n```"
 		exp := joinNonEmpty(strings.TrimSpace(it.Explain)+"\n\nIt prints:\n\n```text\n"+strings.TrimRight(it.Expected, "\n")+"\n```", book)
@@ -475,11 +475,13 @@ func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 		js, _ := json.Marshal(fields)
 		q := strings.TrimSpace(it.Prompt) + "\n\n" + TypedMarker + string(js) + "-->"
 		exp := "**Answer:** " + strings.Join(shown, ", ")
-		if b := strings.TrimSpace(it.Back); b != "" {
+		// A worked solution the steps already say is not repeated under
+		// them; what follows it (the source line) stays.
+		if b := walkthrough.TrimCovered(strings.TrimSpace(it.Back), steps); b != "" {
 			exp += "\n\n" + b
 		}
-		if strings.TrimSpace(it.Explain) != "" {
-			exp += "\n\n" + strings.TrimSpace(it.Explain)
+		if e := walkthrough.TrimCovered(strings.TrimSpace(it.Explain), steps); e != "" {
+			exp += "\n\n" + e
 		}
 		if c.Book.URL != "" {
 			exp += "\n\n" + book
@@ -493,8 +495,8 @@ func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 	case KindTerm:
 		q := strings.TrimSpace(it.Prompt) + "\n\n" + TermMarker
 		exp := "**Answer:** " + strings.TrimSpace(it.Correct)
-		if strings.TrimSpace(it.Explain) != "" {
-			exp += "\n\n" + strings.TrimSpace(it.Explain)
+		if e := walkthrough.TrimCovered(strings.TrimSpace(it.Explain), steps); e != "" {
+			exp += "\n\n" + e
 		}
 		if book != "" {
 			exp += "\n\n" + book

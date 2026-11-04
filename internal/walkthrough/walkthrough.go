@@ -244,3 +244,23 @@ var blankLinesRe = regexp.MustCompile(`\n{3,}`)
 func collapseBlankLines(s string) string {
 	return strings.TrimSpace(blankLinesRe.ReplaceAllString(s, "\n\n"))
 }
+
+// TrimCovered returns text without the part the steps already say: when the
+// text opens with the steps' sentences in order (a worked solution the bank
+// build split into steps), what follows them is returned, typically the
+// source line; otherwise text is returned whole. Whitespace is not compared.
+func TrimCovered(text string, steps []string) string {
+	if len(steps) == 0 {
+		return text
+	}
+	norm := func(s string) string { return strings.Join(strings.Fields(s), " ") }
+	joined := norm(strings.Join(steps, " "))
+	flat := norm(text)
+	if joined == "" || !strings.HasPrefix(flat, joined) {
+		return text
+	}
+	rest := strings.TrimSpace(flat[len(joined):])
+	// The remainder's paragraph breaks were flattened with the rest; a
+	// trailing source line is one paragraph anyway.
+	return rest
+}

@@ -97,3 +97,17 @@ func TestBuildLiftsBankAnswerLineAndReading(t *testing.T) {
 		t.Fatalf("source line: %+v %q", w.Reading, w.Explain)
 	}
 }
+
+func TestTrimCovered(t *testing.T) {
+	back := "Spending everything buys m/p = 80.\nAlong the line the slope is −0.75.\n\nSource: Hoy 2.3, exercise 3."
+	steps := []string{"Spending everything buys m/p = 80.", "Along the line the slope is −0.75."}
+	if got := TrimCovered(back, steps); got != "Source: Hoy 2.3, exercise 3." {
+		t.Fatalf("got %q", got)
+	}
+	if got := TrimCovered(back, []string{"Something else."}); got != back {
+		t.Fatalf("uncovered text must be returned whole: %q", got)
+	}
+	if got := TrimCovered(back, nil); got != back {
+		t.Fatal("no steps, no trim")
+	}
+}

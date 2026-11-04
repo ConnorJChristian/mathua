@@ -57,7 +57,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nrent = pd.Series({\"Reno\": 1450, \"Elko\": 980, \"Ely\": 720})\nprint(rent[\"Elko\"], len(rent), \"Ely\" in rent)",
      "explain": "Lookup by label, the number of entries, and `in` checks the index (the keys), just as it does for a dict.",
-     "expected": "980 3 True"
+     "expected": "980 3 True",
+     "steps": [
+      "Line 3, `print(rent[\"Elko\"], len(rent), \"Ely\" in rent)`, prints `980 3 True`."
+     ]
     },
     {
      "id": "o2",
@@ -66,7 +69,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ns = pd.Series([3, 1, 4])\nprint(s.index.tolist(), s.dtype)",
      "explain": "Without an index argument pandas uses 0, 1, 2. Three integers give an int64 Series.",
-     "expected": "[0, 1, 2] int64"
+     "expected": "[0, 1, 2] int64",
+     "steps": [
+      "Line 3, `print(s.index.tolist(), s.dtype)`, prints `[0, 1, 2] int64`."
+     ]
     },
     {
      "id": "c1",
@@ -145,7 +151,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nimport pandas as pd\ndf = pd.DataFrame(np.arange(6).reshape(3, 2), columns=[\"x\", \"y\"])\nprint(df.shape, df[\"y\"].sum())",
      "explain": "Three rows and two columns. Column `y` holds 1, 3 and 5.",
-     "expected": "(3, 2) 9"
+     "expected": "(3, 2) 9",
+     "steps": [
+      "Line 4, `print(df.shape, df[\"y\"].sum())`, prints `(3, 2) 9`."
+     ]
     },
     {
      "id": "o2",
@@ -154,7 +163,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\na = pd.Series([1, 2], index=[\"p\", \"q\"])\nb = pd.Series([10, 30], index=[\"q\", \"r\"])\ndf = pd.DataFrame({\"a\": a, \"b\": b})\nprint(df)",
      "explain": "The row index is the union p, q, r. Each column is aligned by label, so gaps become NaN and both columns turn float.",
-     "expected": "     a     b\np  1.0   NaN\nq  2.0  10.0\nr  NaN  30.0"
+     "expected": "     a     b\np  1.0   NaN\nq  2.0  10.0\nr  NaN  30.0",
+     "steps": [
+      "Line 5, `print(df)`, prints:\n\n```text\n     a     b\np  1.0   NaN\nq  2.0  10.0\nr  NaN  30.0\n```"
+     ]
     },
     {
      "id": "c1",
@@ -237,7 +249,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\na = pd.Index([\"AL\", \"NV\", \"UT\"])\nb = pd.Index([\"NV\", \"UT\", \"WY\"])\nprint(a.symmetric_difference(b).tolist())",
      "explain": "Labels in exactly one of the two: AL (only in a) and WY (only in b).",
-     "expected": "['AL', 'WY']"
+     "expected": "['AL', 'WY']",
+     "steps": [
+      "Line 4, `print(a.symmetric_difference(b).tolist())`, prints `['AL', 'WY']`."
+     ]
     },
     {
      "id": "o2",
@@ -246,7 +261,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nidx = pd.Index([10, 20, 30, 40])\nprint(idx[1:3].tolist(), idx.size)",
      "explain": "An Index slices like an array: positions 1 and 2.",
-     "expected": "[20, 30] 4"
+     "expected": "[20, 30] 4",
+     "steps": [
+      "Line 3, `print(idx[1:3].tolist(), idx.size)`, prints `[20, 30] 4`."
+     ]
     },
     {
      "id": "c1",
@@ -325,7 +343,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ns = pd.Series([5, 6, 7, 8], index=[1, 3, 5, 7])\nprint(s.loc[3:5].tolist(), s.iloc[3:5].tolist())",
      "explain": "`loc[3:5]` takes labels 3 through 5 inclusive. `iloc[3:5]` takes positions 3 and 4, but there is only position 3.",
-     "expected": "[6, 7] [8]"
+     "expected": "[6, 7] [8]",
+     "steps": [
+      "Line 3, `print(s.loc[3:5].tolist(), s.iloc[3:5].tolist())`, prints `[6, 7] [8]`."
+     ]
     },
     {
      "id": "o2",
@@ -334,7 +355,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nprice = pd.Series([2.5, 4.0, 1.25], index=[\"eggs\", \"milk\", \"salt\"])\nprice.loc[\"salt\"] = 1.5\nprint(price[price < 3].index.tolist())",
      "explain": "The `loc` assignment updates salt to 1.5. The mask then keeps eggs and salt.",
-     "expected": "['eggs', 'salt']"
+     "expected": "['eggs', 'salt']",
+     "steps": [
+      "Line 4, `print(price[price < 3].index.tolist())`, prints `['eggs', 'salt']`."
+     ]
     },
     {
      "id": "c1",
@@ -417,7 +441,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"wage\": [21.0, 30.5, 18.0], \"hours\": [38, 45, 20]},\n                  index=[\"Ana\", \"Ben\", \"Cy\"])\nprint(df.loc[\"Ben\", \"hours\"], df.iloc[2, 0])",
      "explain": "`loc` uses the labels Ben and hours. `iloc[2, 0]` is the third row and first column: Cy's wage.",
-     "expected": "45 18.0"
+     "expected": "45 18.0",
+     "steps": [
+      "Line 4, `print(df.loc[\"Ben\", \"hours\"], df.iloc[2, 0])`, prints `45 18.0`."
+     ]
     },
     {
      "id": "o2",
@@ -426,7 +453,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"wage\": [21.0, 30.5, 18.0], \"hours\": [38, 45, 20]},\n                  index=[\"Ana\", \"Ben\", \"Cy\"])\ndf[\"pay\"] = df[\"wage\"] * df[\"hours\"]\nprint(df[df[\"pay\"] > 500].index.tolist())",
      "explain": "Pay is 798, 1372.5 and 360. A mask inside `[]` filters rows.",
-     "expected": "['Ana', 'Ben']"
+     "expected": "['Ana', 'Ben']",
+     "steps": [
+      "Line 5, `print(df[df[\"pay\"] > 500].index.tolist())`, prints `['Ana', 'Ben']`."
+     ]
     },
     {
      "id": "c1",
@@ -509,7 +539,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nq1 = pd.Series({\"NV\": 120, \"UT\": 90})\nq2 = pd.Series({\"UT\": 95, \"AZ\": 200})\nprint((q1 + q2).tolist())",
      "explain": "The result index is the sorted union AZ, NV, UT. Only UT is in both, so the other two are NaN.",
-     "expected": "[nan, nan, 185.0]"
+     "expected": "[nan, nan, 185.0]",
+     "steps": [
+      "Line 4, `print((q1 + q2).tolist())`, prints `[nan, nan, 185.0]`."
+     ]
     },
     {
      "id": "o2",
@@ -518,7 +551,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nimport pandas as pd\ns = pd.Series([1.0, 100.0], index=[\"lo\", \"hi\"])\nprint(np.log10(s))",
      "explain": "A ufunc applied to a Series keeps the index and order.",
-     "expected": "lo    0.0\nhi    2.0\ndtype: float64"
+     "expected": "lo    0.0\nhi    2.0\ndtype: float64",
+     "steps": [
+      "Line 4, `print(np.log10(s))`, prints:\n\n```text\nlo    0.0\nhi    2.0\ndtype: float64\n```"
+     ]
     },
     {
      "id": "c1",
@@ -588,7 +624,11 @@
       "`df.dropna(axis=1)`",
       "`df.fillna(how='all')`"
      ],
-     "explain": "The default `how='any'` drops a row with even one gap. `axis=1` works on columns instead."
+     "explain": "The default `how='any'` drops a row with even one gap. `axis=1` works on columns instead.",
+     "steps": [
+      "The default `how='any'` drops a row with even one gap.",
+      "`axis=1` works on columns instead."
+     ]
     },
     {
      "id": "m4",
@@ -610,7 +650,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ns = pd.Series([2, None, 7, None])\nprint(s.isna().sum(), s.fillna(0).tolist())",
      "explain": "Two entries are missing. `fillna(0)` replaces them, and the Series stays float because it was float to begin with.",
-     "expected": "2 [2.0, 0.0, 7.0, 0.0]"
+     "expected": "2 [2.0, 0.0, 7.0, 0.0]",
+     "steps": [
+      "Line 3, `print(s.isna().sum(), s.fillna(0).tolist())`, prints `2 [2.0, 0.0, 7.0, 0.0]`."
+     ]
     },
     {
      "id": "o2",
@@ -619,7 +662,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ns = pd.Series([2, None, 7], dtype=\"Int64\")\nprint(s.tolist(), s.dtype)",
      "explain": "The nullable integer dtype keeps whole numbers and stores the gap as `pd.NA`.",
-     "expected": "[2, <NA>, 7] Int64"
+     "expected": "[2, <NA>, 7] Int64",
+     "steps": [
+      "Line 3, `print(s.tolist(), s.dtype)`, prints `[2, <NA>, 7] Int64`."
+     ]
     },
     {
      "id": "o3",
@@ -628,7 +674,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nimport pandas as pd\ndf = pd.DataFrame({\"a\": [1, np.nan, np.nan], \"b\": [2, 5, np.nan]})\nprint(len(df.dropna()), len(df.dropna(how=\"all\")), len(df.dropna(thresh=1)))",
      "explain": "Only row 0 is complete. Row 2 is entirely missing, so `how='all'` drops just that one, and `thresh=1` keeps rows with at least one value: the same two.",
-     "expected": "1 2 2"
+     "expected": "1 2 2",
+     "steps": [
+      "Line 4, `print(len(df.dropna()), len(df.dropna(how=\"all\")), len(df.dropna(thresh=1)))`, prints `1 2 2`."
+     ]
     },
     {
      "id": "c1",
@@ -711,7 +760,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nidx = pd.MultiIndex.from_product([[\"NV\", \"UT\"], [2022, 2023]], names=[\"state\", \"year\"])\ngdp = pd.Series([210, 225, 230, 244], index=idx)\nprint(gdp.loc[\"UT\", 2022], gdp[\"NV\"].sum())",
      "explain": "UT in 2022 is the third entry, 230. The NV rows are 210 and 225.",
-     "expected": "230 435"
+     "expected": "230 435",
+     "steps": [
+      "Line 4, `print(gdp.loc[\"UT\", 2022], gdp[\"NV\"].sum())`, prints `230 435`."
+     ]
     },
     {
      "id": "o2",
@@ -720,7 +772,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nidx = pd.MultiIndex.from_product([[\"NV\", \"UT\"], [2022, 2023]], names=[\"state\", \"year\"])\ngdp = pd.Series([210, 225, 230, 244], index=idx)\nprint(gdp.xs(2023, level=\"year\").tolist())",
      "explain": "A cross-section at year 2023 takes one value per state.",
-     "expected": "[225, 244]"
+     "expected": "[225, 244]",
+     "steps": [
+      "Line 4, `print(gdp.xs(2023, level=\"year\").tolist())`, prints `[225, 244]`."
+     ]
     },
     {
      "id": "c1",
@@ -803,7 +858,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"state\": [\"NV\", \"NV\", \"UT\", \"UT\"],\n                   \"year\": [2022, 2023, 2022, 2023],\n                   \"gdp\": [210, 225, 230, 244]})\nwide = df.set_index([\"state\", \"year\"])[\"gdp\"].unstack()\nprint(wide)",
      "explain": "One row per state and one column per year. The column axis is named after the year level.",
-     "expected": "year   2022  2023\nstate            \nNV      210   225\nUT      230   244"
+     "expected": "year   2022  2023\nstate            \nNV      210   225\nUT      230   244",
+     "steps": [
+      "Line 6, `print(wide)`, prints:\n\n```text\nyear   2022  2023\nstate            \nNV      210   225\nUT      230   244\n```"
+     ]
     },
     {
      "id": "o2",
@@ -812,7 +870,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"state\": [\"NV\", \"UT\"], \"gdp\": [210, 230]}).set_index(\"state\")\nprint(df.reset_index().columns.tolist())",
      "explain": "The index named state comes back as the first column.",
-     "expected": "['state', 'gdp']"
+     "expected": "['state', 'gdp']",
+     "steps": [
+      "Line 3, `print(df.reset_index().columns.tolist())`, prints `['state', 'gdp']`."
+     ]
     },
     {
      "id": "c1",
@@ -895,7 +956,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nq1 = pd.Series([5, 7], index=[\"a\", \"b\"])\nq2 = pd.Series([6, 9], index=[\"a\", \"b\"])\nboth = pd.concat([q1, q2], keys=[\"Q1\", \"Q2\"])\nprint(both.loc[\"Q2\", \"a\"], len(both))",
      "explain": "`keys` adds an outer level naming the source piece.",
-     "expected": "6 4"
+     "expected": "6 4",
+     "steps": [
+      "Line 5, `print(both.loc[\"Q2\", \"a\"], len(both))`, prints `6 4`."
+     ]
     },
     {
      "id": "o2",
@@ -904,7 +968,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nx = pd.DataFrame({\"a\": [1], \"b\": [2]})\ny = pd.DataFrame({\"b\": [3], \"c\": [4]})\nprint(pd.concat([x, y], ignore_index=True))",
      "explain": "The outer join keeps every column; cells a piece did not have are NaN, which turns those columns float.",
-     "expected": "     a  b    c\n0  1.0  2  NaN\n1  NaN  3  4.0"
+     "expected": "     a  b    c\n0  1.0  2  NaN\n1  NaN  3  4.0",
+     "steps": [
+      "Line 4, `print(pd.concat([x, y], ignore_index=True))`, prints:\n\n```text\n     a  b    c\n0  1.0  2  NaN\n1  NaN  3  4.0\n```"
+     ]
     },
     {
      "id": "c1",
@@ -1000,7 +1067,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nworkers = pd.DataFrame({\"id\": [1, 2, 3], \"county\": [\"Elko\", \"Nye\", \"Lyon\"]})\nrates = pd.DataFrame({\"county\": [\"Elko\", \"Nye\"], \"min_wage\": [12.0, 11.5]})\nm = pd.merge(workers, rates, on=\"county\", how=\"left\")\nprint(m[\"min_wage\"].tolist())",
      "explain": "Lyon has no rate, so the left join gives it NaN.",
-     "expected": "[12.0, 11.5, nan]"
+     "expected": "[12.0, 11.5, nan]",
+     "steps": [
+      "Line 5, `print(m[\"min_wage\"].tolist())`, prints `[12.0, 11.5, nan]`."
+     ]
     },
     {
      "id": "o2",
@@ -1009,7 +1079,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\na = pd.DataFrame({\"k\": [1, 2], \"v\": [10, 20]})\nb = pd.DataFrame({\"k\": [1, 2], \"v\": [5, 6]})\nprint(pd.merge(a, b, on=\"k\", suffixes=(\"_old\", \"_new\")).columns.tolist())",
      "explain": "Both tables have a non-key column `v`, so the suffixes tell the two apart.",
-     "expected": "['k', 'v_old', 'v_new']"
+     "expected": "['k', 'v_old', 'v_new']",
+     "steps": [
+      "Line 4, `print(pd.merge(a, b, on=\"k\", suffixes=(\"_old\", \"_new\")).columns.tolist())`, prints `['k', 'v_old', 'v_new']`."
+     ]
     },
     {
      "id": "c1",
@@ -1088,7 +1161,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"sector\": [\"retail\", \"mining\", \"retail\", \"mining\"],\n                   \"wage\": [16.0, 34.0, 18.0, 30.0]})\nprint(df.groupby(\"sector\")[\"wage\"].max())",
      "explain": "The groups come out in sorted order, mining before retail.",
-     "expected": "sector\nmining    34.0\nretail    18.0\nName: wage, dtype: float64"
+     "expected": "sector\nmining    34.0\nretail    18.0\nName: wage, dtype: float64",
+     "steps": [
+      "Line 4, `print(df.groupby(\"sector\")[\"wage\"].max())`, prints:\n\n```text\nsector\nmining    34.0\nretail    18.0\nName: wage, dtype: float64\n```"
+     ]
     },
     {
      "id": "o2",
@@ -1097,7 +1173,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ns = pd.Series([3, 5, 2, 8, 1], index=[\"a\", \"b\", \"a\", \"c\", \"b\"])\nprint(s.groupby(level=0).sum().tolist())",
      "explain": "Grouping by the index labels: a is 3 + 2, b is 5 + 1, c is 8.",
-     "expected": "[5, 6, 8]"
+     "expected": "[5, 6, 8]",
+     "steps": [
+      "Line 3, `print(s.groupby(level=0).sum().tolist())`, prints `[5, 6, 8]`."
+     ]
     },
     {
      "id": "c1",
@@ -1176,7 +1255,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"g\": [\"a\", \"a\", \"b\", \"b\"], \"x\": [1.0, 3.0, 10.0, 14.0]})\nprint((df[\"x\"] - df.groupby(\"g\")[\"x\"].transform(\"mean\")).tolist())",
      "explain": "Group means are 2 and 12; each row minus its own group's mean.",
-     "expected": "[-1.0, 1.0, -2.0, 2.0]"
+     "expected": "[-1.0, 1.0, -2.0, 2.0]",
+     "steps": [
+      "Line 3, `print((df[\"x\"] - df.groupby(\"g\")[\"x\"].transform(\"mean\")).tolist())`, prints `[-1.0, 1.0, -2.0, 2.0]`."
+     ]
     },
     {
      "id": "o2",
@@ -1185,7 +1267,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"g\": [\"a\", \"a\", \"b\", \"c\", \"c\", \"c\"], \"x\": range(6)})\nprint(df.groupby(\"g\").filter(lambda d: len(d) > 1)[\"g\"].tolist())",
      "explain": "Group b has one row, so it is dropped; the others keep all rows.",
-     "expected": "['a', 'a', 'c', 'c', 'c']"
+     "expected": "['a', 'a', 'c', 'c', 'c']",
+     "steps": [
+      "Line 3, `print(df.groupby(\"g\").filter(lambda d: len(d) > 1)[\"g\"].tolist())`, prints `['a', 'a', 'c', 'c', 'c']`."
+     ]
     },
     {
      "id": "c1",
@@ -1264,7 +1349,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"region\": [\"N\", \"N\", \"S\", \"S\", \"S\"],\n                   \"year\": [2023, 2024, 2023, 2024, 2024],\n                   \"pay\": [10, 12, 8, 9, 11]})\nprint(df.pivot_table(\"pay\", index=\"region\", columns=\"year\", aggfunc=\"sum\"))",
      "explain": "South in 2024 has two rows, 9 and 11, which sum to 20.",
-     "expected": "year    2023  2024\nregion            \nN         10    12\nS          8    20"
+     "expected": "year    2023  2024\nregion            \nN         10    12\nS          8    20",
+     "steps": [
+      "Line 5, `print(df.pivot_table(\"pay\", index=\"region\", columns=\"year\", aggfunc=\"sum\"))`, prints:\n\n```text\nyear    2023  2024\nregion            \nN         10    12\nS          8    20\n```"
+     ]
     },
     {
      "id": "o2",
@@ -1273,7 +1361,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"region\": [\"N\", \"N\", \"S\"], \"year\": [1, 2, 1], \"pay\": [10, 12, 8]})\nt = df.pivot_table(\"pay\", index=\"region\", columns=\"year\", aggfunc=\"sum\", fill_value=0)\nprint(t.loc[\"S\", 2])",
      "explain": "No South row has year 2, so that cell would be missing; `fill_value=0` puts 0 there.",
-     "expected": "0"
+     "expected": "0",
+     "steps": [
+      "Line 4, `print(t.loc[\"S\", 2])`, prints `0`."
+     ]
     },
     {
      "id": "c1",
@@ -1352,7 +1443,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ns = pd.Series([\"  elko county\", \"Washoe COUNTY\", \"nye\"])\nprint(s.str.strip().str.title().tolist())",
      "explain": "`strip` removes the outer spaces; `title` capitalises each word.",
-     "expected": "['Elko County', 'Washoe County', 'Nye']"
+     "expected": "['Elko County', 'Washoe County', 'Nye']",
+     "steps": [
+      "Line 3, `print(s.str.strip().str.title().tolist())`, prints `['Elko County', 'Washoe County', 'Nye']`."
+     ]
     },
     {
      "id": "o2",
@@ -1361,7 +1455,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ncodes = pd.Series([\"NAICS-445\", \"NAICS-212\", \"SIC-58\"])\nprint(codes.str.extract(r\"-(\\d+)\")[0].astype(int).sum())",
      "explain": "The capture group pulls the digits after the dash: 445 + 212 + 58.",
-     "expected": "715"
+     "expected": "715",
+     "steps": [
+      "Line 3, `print(codes.str.extract(r\"-(\\d+)\")[0].astype(int).sum())`, prints `715`."
+     ]
     },
     {
      "id": "o3",
@@ -1370,7 +1467,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ntags = pd.Series([\"wage|rent\", \"rent\", \"tax|wage\"])\nprint(tags.str.get_dummies(\"|\"))",
      "explain": "One indicator column per distinct tag, in alphabetical order.",
-     "expected": "   rent  tax  wage\n0     1    0     1\n1     1    0     0\n2     0    1     1"
+     "expected": "   rent  tax  wage\n0     1    0     1\n1     1    0     0\n2     0    1     1",
+     "steps": [
+      "Line 3, `print(tags.str.get_dummies(\"|\"))`, prints:\n\n```text\n   rent  tax  wage\n0     1    0     1\n1     1    0     0\n2     0    1     1\n```"
+     ]
     },
     {
      "id": "c1",
@@ -1449,7 +1549,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nidx = pd.date_range(\"2024-01-01\", periods=4, freq=\"QE\")\nprint(idx.strftime(\"%Y-%m-%d\").tolist())",
      "explain": "Quarter ends: the last days of March, June, September and December.",
-     "expected": "['2024-03-31', '2024-06-30', '2024-09-30', '2024-12-31']"
+     "expected": "['2024-03-31', '2024-06-30', '2024-09-30', '2024-12-31']",
+     "steps": [
+      "Line 3, `print(idx.strftime(\"%Y-%m-%d\").tolist())`, prints `['2024-03-31', '2024-06-30', '2024-09-30', '2024-12-31']`."
+     ]
     },
     {
      "id": "o2",
@@ -1458,7 +1561,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ns = pd.Series(range(6), index=pd.date_range(\"2024-01-30\", periods=6, freq=\"D\"))\nprint(s.loc[\"2024-02\"].tolist())",
      "explain": "The daily index covers Jan 30 to Feb 4. A partial string selects every timestamp in February.",
-     "expected": "[2, 3, 4, 5]"
+     "expected": "[2, 3, 4, 5]",
+     "steps": [
+      "Line 3, `print(s.loc[\"2024-02\"].tolist())`, prints `[2, 3, 4, 5]`."
+     ]
     },
     {
      "id": "o3",
@@ -1467,7 +1573,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nd = pd.to_datetime([\"2024-03-15\", \"2024-07-04\"])\nprint(d.quarter.tolist(), (d[1] - d[0]).days)",
      "explain": "DatetimeIndex has date-part attributes like `quarter`, and subtracting timestamps gives a Timedelta.",
-     "expected": "[1, 3] 111"
+     "expected": "[1, 3] 111",
+     "steps": [
+      "Line 3, `print(d.quarter.tolist(), (d[1] - d[0]).days)`, prints `[1, 3] 111`."
+     ]
     },
     {
      "id": "c1",
@@ -1546,7 +1655,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nidx = pd.date_range(\"2024-01-01\", periods=6, freq=\"15D\")\ns = pd.Series([1, 2, 3, 4, 5, 6], index=idx)\nprint(s.resample(\"ME\").sum().tolist())",
      "explain": "The dates are Jan 1, Jan 16, Jan 31, Feb 15, Mar 1, Mar 16. Summing by month gives 1+2+3, 4, and 5+6.",
-     "expected": "[6, 4, 11]"
+     "expected": "[6, 4, 11]",
+     "steps": [
+      "Line 4, `print(s.resample(\"ME\").sum().tolist())`, prints `[6, 4, 11]`."
+     ]
     },
     {
      "id": "o2",
@@ -1555,7 +1667,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ngdp = pd.Series([100.0, 110.0, 99.0])\nprint(gdp.pct_change().round(2).tolist())",
      "explain": "Growth is 10% then -10%; the first value has no predecessor.",
-     "expected": "[nan, 0.1, -0.1]"
+     "expected": "[nan, 0.1, -0.1]",
+     "steps": [
+      "Line 3, `print(gdp.pct_change().round(2).tolist())`, prints `[nan, 0.1, -0.1]`."
+     ]
     },
     {
      "id": "o3",
@@ -1564,7 +1679,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ns = pd.Series([2.0, 4.0, 6.0, 8.0])\nprint(s.rolling(2).mean().tolist())",
      "explain": "Each value averages itself and the previous one.",
-     "expected": "[nan, 3.0, 5.0, 7.0]"
+     "expected": "[nan, 3.0, 5.0, 7.0]",
+     "steps": [
+      "Line 3, `print(s.rolling(2).mean().tolist())`, prints `[nan, 3.0, 5.0, 7.0]`."
+     ]
     },
     {
      "id": "c1",
@@ -1647,7 +1765,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"wage\": [15.0, 22.0, 30.0], \"hours\": [40, 35, 45]})\ncutoff = 20\nprint(df.query(\"wage > @cutoff and hours >= 40\").index.tolist())",
      "explain": "Only row 2 has a wage above 20 and at least 40 hours.",
-     "expected": "[2]"
+     "expected": "[2]",
+     "steps": [
+      "Line 4, `print(df.query(\"wage > @cutoff and hours >= 40\").index.tolist())`, prints `[2]`."
+     ]
     },
     {
      "id": "o2",
@@ -1656,7 +1777,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [10, 20]})\nout = df.eval(\"c = a * b\")\nprint(df.columns.tolist(), out[\"c\"].tolist())",
      "explain": "`df` is unchanged; the returned frame has the new column.",
-     "expected": "['a', 'b'] [10, 40]"
+     "expected": "['a', 'b'] [10, 40]",
+     "steps": [
+      "Line 4, `print(df.columns.tolist(), out[\"c\"].tolist())`, prints `['a', 'b'] [10, 40]`."
+     ]
     },
     {
      "id": "c1",

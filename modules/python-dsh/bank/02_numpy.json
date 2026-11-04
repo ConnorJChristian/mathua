@@ -57,7 +57,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([1, 2, 3], dtype=float)\nprint(x)",
      "explain": "`dtype=float` means `float64`. NumPy prints floats with a trailing dot when they have no fractional part.",
-     "expected": "[1. 2. 3.]"
+     "expected": "[1. 2. 3.]",
+     "steps": [
+      "Line 3, `print(x)`, prints `[1. 2. 3.]`."
+     ]
     },
     {
      "id": "o2",
@@ -66,7 +69,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([True, 2, 3.5])\nprint(x.dtype)",
      "explain": "Booleans upcast to numbers (True is 1), and the 3.5 makes the whole array floating point.",
-     "expected": "float64"
+     "expected": "float64",
+     "steps": [
+      "Line 3, `print(x.dtype)`, prints `float64`."
+     ]
     },
     {
      "id": "c1",
@@ -161,7 +167,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nprint(np.arange(3, 12, 3))",
      "explain": "`arange` counts from 3 in steps of 3 and stops *before* 12.",
-     "expected": "[3 6 9]"
+     "expected": "[3 6 9]",
+     "steps": [
+      "Line 2, `print(np.arange(3, 12, 3))`, prints `[3 6 9]`."
+     ]
     },
     {
      "id": "o2",
@@ -170,7 +179,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\na = np.full((2, 3), 7)\nprint(a.sum())",
      "explain": "`np.full((2, 3), 7)` is six sevens, which sum to 42.",
-     "expected": "42"
+     "expected": "42",
+     "steps": [
+      "Line 3, `print(a.sum())`, prints `42`."
+     ]
     },
     {
      "id": "o3",
@@ -179,7 +191,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nprint(np.eye(2, dtype=int))",
      "explain": "`eye(n)` is the n x n identity: ones on the diagonal, zeros elsewhere.",
-     "expected": "[[1 0]\n [0 1]]"
+     "expected": "[[1 0]\n [0 1]]",
+     "steps": [
+      "Line 2, `print(np.eye(2, dtype=int))`, prints:\n\n```text\n[[1 0]\n [0 1]]\n```"
+     ]
     },
     {
      "id": "c1",
@@ -282,7 +297,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.ones((3, 2, 4))\nprint(x.ndim, x.shape[1], x.size)",
      "explain": "Three axes; the second has length 2; 3 x 2 x 4 = 24 elements.",
-     "expected": "3 2 24"
+     "expected": "3 2 24",
+     "steps": [
+      "Line 3, `print(x.ndim, x.shape[1], x.size)`, prints `3 2 24`."
+     ]
     },
     {
      "id": "o2",
@@ -291,7 +309,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nprint(np.arange(5).shape)",
      "explain": "A one-dimensional array's shape is a one-element tuple, written with a trailing comma.",
-     "expected": "(5,)"
+     "expected": "(5,)",
+     "steps": [
+      "Line 2, `print(np.arange(5).shape)`, prints `(5,)`."
+     ]
     },
     {
      "id": "c1",
@@ -378,7 +399,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nm = np.arange(12).reshape(3, 4)\nprint(m[1, -1])",
      "explain": "Row 1 is `[4 5 6 7]`; its last element is 7.",
-     "expected": "7"
+     "expected": "7",
+     "steps": [
+      "Line 3, `print(m[1, -1])`, prints `7`."
+     ]
     },
     {
      "id": "o2",
@@ -387,7 +411,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nm = np.zeros((2, 2), dtype=int)\nm[0, 1] = 5\nm[1, 0] = -3.8\nprint(m)",
      "explain": "Assignment converts to the array's dtype, so -3.8 becomes -3 (truncated toward zero).",
-     "expected": "[[ 0  5]\n [-3  0]]"
+     "expected": "[[ 0  5]\n [-3  0]]",
+     "steps": [
+      "Line 5, `print(m)`, prints:\n\n```text\n[[ 0  5]\n [-3  0]]\n```"
+     ]
     },
     {
      "id": "c1",
@@ -470,7 +497,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.arange(1, 8)\nprint(x[::-2])",
      "explain": "A negative step walks backwards from the end: 7, 5, 3, 1.",
-     "expected": "[7 5 3 1]"
+     "expected": "[7 5 3 1]",
+     "steps": [
+      "Line 3, `print(x[::-2])`, prints `[7 5 3 1]`."
+     ]
     },
     {
      "id": "o2",
@@ -479,7 +509,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nm = np.arange(12).reshape(3, 4)\nprint(m[1:, :2])",
      "explain": "Rows 1 and 2, columns 0 and 1.",
-     "expected": "[[4 5]\n [8 9]]"
+     "expected": "[[4 5]\n [8 9]]",
+     "steps": [
+      "Line 3, `print(m[1:, :2])`, prints:\n\n```text\n[[4 5]\n [8 9]]\n```"
+     ]
     },
     {
      "id": "c1",
@@ -562,7 +595,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.arange(5)\ny = x[::2]\ny *= 10\nprint(x)",
      "explain": "`y` views elements 0, 2 and 4 of `x`, so multiplying `y` in place changes those entries of `x`.",
-     "expected": "[ 0  1 20  3 40]"
+     "expected": "[ 0  1 20  3 40]",
+     "steps": [
+      "Line 5, `print(x)`, prints `[ 0  1 20  3 40]`."
+     ]
     },
     {
      "id": "o2",
@@ -571,7 +607,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.arange(5)\ny = x[1:4].copy()\ny[0] = -1\nprint(x[1], y[0])",
      "explain": "`y` is a copy, so `x` keeps its 1.",
-     "expected": "1 -1"
+     "expected": "1 -1",
+     "steps": [
+      "Line 5, `print(x[1], y[0])`, prints `1 -1`."
+     ]
     },
     {
      "id": "c1",
@@ -654,7 +693,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nprint(np.arange(6).reshape(2, 3))",
      "explain": "Elements fill the first row, then the second (row-major order).",
-     "expected": "[[0 1 2]\n [3 4 5]]"
+     "expected": "[[0 1 2]\n [3 4 5]]",
+     "steps": [
+      "Line 2, `print(np.arange(6).reshape(2, 3))`, prints:\n\n```text\n[[0 1 2]\n [3 4 5]]\n```"
+     ]
     },
     {
      "id": "o2",
@@ -663,7 +705,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.arange(24).reshape(2, 3, -1)\nprint(x.shape)",
      "explain": "24 / (2 x 3) = 4, so the -1 becomes 4.",
-     "expected": "(2, 3, 4)"
+     "expected": "(2, 3, 4)",
+     "steps": [
+      "Line 3, `print(x.shape)`, prints `(2, 3, 4)`."
+     ]
     },
     {
      "id": "c1",
@@ -746,7 +791,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\na = np.array([1, 2])\nb = np.array([3, 4, 5])\nprint(np.concatenate([b, a]))",
      "explain": "Concatenation keeps the order of the list you pass.",
-     "expected": "[3 4 5 1 2]"
+     "expected": "[3 4 5 1 2]",
+     "steps": [
+      "Line 4, `print(np.concatenate([b, a]))`, prints `[3 4 5 1 2]`."
+     ]
     },
     {
      "id": "o2",
@@ -755,7 +803,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.arange(8)\nfirst, second = np.split(x, [5])\nprint(second)",
      "explain": "The single split point 5 cuts before index 5.",
-     "expected": "[5 6 7]"
+     "expected": "[5 6 7]",
+     "steps": [
+      "Line 4, `print(second)`, prints `[5 6 7]`."
+     ]
     },
     {
      "id": "c1",
@@ -838,7 +889,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.arange(1, 5)\nprint(10 - x * 2)",
      "explain": "Multiplication first, element by element: 10 - [2 4 6 8].",
-     "expected": "[8 6 4 2]"
+     "expected": "[8 6 4 2]",
+     "steps": [
+      "Line 3, `print(10 - x * 2)`, prints `[8 6 4 2]`."
+     ]
     },
     {
      "id": "o2",
@@ -847,7 +901,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([-7, 7])\nprint(x // 2, x % 3)",
      "explain": "Floor division rounds toward minus infinity, so -7 // 2 is -4; Python's modulo has the sign of the divisor, so -7 % 3 is 2.",
-     "expected": "[-4  3] [2 1]"
+     "expected": "[-4  3] [2 1]",
+     "steps": [
+      "Line 3, `print(x // 2, x % 3)`, prints `[-4  3] [2 1]`."
+     ]
     },
     {
      "id": "c1",
@@ -950,7 +1007,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nprint(np.add.accumulate(np.array([5, -2, 4])))",
      "explain": "Running totals: 5, 5-2, 5-2+4.",
-     "expected": "[5 3 7]"
+     "expected": "[5 3 7]",
+     "steps": [
+      "Line 2, `print(np.add.accumulate(np.array([5, -2, 4])))`, prints `[5 3 7]`."
+     ]
     },
     {
      "id": "o2",
@@ -959,7 +1019,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nprint(np.multiply.outer([1, 2], [10, 20, 30]))",
      "explain": "Row i, column j holds a[i] * b[j].",
-     "expected": "[[10 20 30]\n [20 40 60]]"
+     "expected": "[[10 20 30]\n [20 40 60]]",
+     "steps": [
+      "Line 2, `print(np.multiply.outer([1, 2], [10, 20, 30]))`, prints:\n\n```text\n[[10 20 30]\n [20 40 60]]\n```"
+     ]
     },
     {
      "id": "c1",
@@ -1042,7 +1105,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nm = np.array([[1, 8, 3],\n              [6, 2, 9]])\nprint(m.max(axis=1))",
      "explain": "axis=1 collapses the columns: the largest value in each row.",
-     "expected": "[8 9]"
+     "expected": "[8 9]",
+     "steps": [
+      "Line 4, `print(m.max(axis=1))`, prints `[8 9]`."
+     ]
     },
     {
      "id": "o2",
@@ -1051,7 +1117,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([4, 9, 1, 9])\nprint(x.argmin(), x.argmax())",
      "explain": "argmin is the position of 1; argmax returns the first position of the maximum.",
-     "expected": "2 1"
+     "expected": "2 1",
+     "steps": [
+      "Line 3, `print(x.argmin(), x.argmax())`, prints `2 1`."
+     ]
     },
     {
      "id": "o3",
@@ -1060,7 +1129,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([1.0, 2.0, np.nan])\nprint(np.sum(x), np.nansum(x))",
      "explain": "Any arithmetic with nan gives nan; nansum treats it as absent.",
-     "expected": "nan 3.0"
+     "expected": "nan 3.0",
+     "steps": [
+      "Line 3, `print(np.sum(x), np.nansum(x))`, prints `nan 3.0`."
+     ]
     },
     {
      "id": "c1",
@@ -1163,7 +1235,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\na = np.arange(3)\nb = np.arange(3)[:, np.newaxis]\nprint(a + b)",
      "explain": "A row `(3,)` plus a column `(3, 1)` broadcasts to a 3 x 3 table of sums.",
-     "expected": "[[0 1 2]\n [1 2 3]\n [2 3 4]]"
+     "expected": "[[0 1 2]\n [1 2 3]\n [2 3 4]]",
+     "steps": [
+      "Line 4, `print(a + b)`, prints:\n\n```text\n[[0 1 2]\n [1 2 3]\n [2 3 4]]\n```"
+     ]
     },
     {
      "id": "o2",
@@ -1172,7 +1247,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nm = np.ones((2, 3))\nprint((m * [1, 2, 3]).sum(axis=0))",
      "explain": "The list `[1, 2, 3]` multiplies each row; summing two identical rows doubles it.",
-     "expected": "[2. 4. 6.]"
+     "expected": "[2. 4. 6.]",
+     "steps": [
+      "Line 3, `print((m * [1, 2, 3]).sum(axis=0))`, prints `[2. 4. 6.]`."
+     ]
     },
     {
      "id": "c1",
@@ -1251,7 +1329,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nX = np.array([[1.0, 10.0],\n              [3.0, 30.0]])\nprint(X - X.mean(axis=0))",
      "explain": "Column means are 2 and 20; subtracting them centres each column.",
-     "expected": "[[ -1. -10.]\n [  1.  10.]]"
+     "expected": "[[ -1. -10.]\n [  1.  10.]]",
+     "steps": [
+      "Line 4, `print(X - X.mean(axis=0))`, prints:\n\n```text\n[[ -1. -10.]\n [  1.  10.]]\n```"
+     ]
     },
     {
      "id": "o2",
@@ -1260,7 +1341,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.arange(3)\ny = np.arange(2)[:, None]\nprint((x * y).shape)",
      "explain": "A `(3,)` row and a `(2, 1)` column broadcast to `(2, 3)`.",
-     "expected": "(2, 3)"
+     "expected": "(2, 3)",
+     "steps": [
+      "Line 4, `print((x * y).shape)`, prints `(2, 3)`."
+     ]
     },
     {
      "id": "c1",
@@ -1367,7 +1451,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([3, 8, 1, 9, 4])\nprint(np.sum((x > 2) & (x < 9)))",
      "explain": "3, 8 and 4 satisfy both conditions.",
-     "expected": "3"
+     "expected": "3",
+     "steps": [
+      "Line 3, `print(np.sum((x > 2) & (x < 9)))`, prints `3`."
+     ]
     },
     {
      "id": "o2",
@@ -1376,7 +1463,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([0, 2, 0, 7])\nprint(np.count_nonzero(x), np.any(x > 6), np.all(x > 0))",
      "explain": "Two non-zero values; 7 exceeds 6; the zeros are not positive.",
-     "expected": "2 True False"
+     "expected": "2 True False",
+     "steps": [
+      "Line 3, `print(np.count_nonzero(x), np.any(x > 6), np.all(x > 0))`, prints `2 True False`."
+     ]
     },
     {
      "id": "c1",
@@ -1459,7 +1549,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([5, -2, 7, -9, 3])\nprint(x[x < 0])",
      "explain": "The mask keeps the negative entries, in order.",
-     "expected": "[-2 -9]"
+     "expected": "[-2 -9]",
+     "steps": [
+      "Line 3, `print(x[x < 0])`, prints `[-2 -9]`."
+     ]
     },
     {
      "id": "o2",
@@ -1468,7 +1561,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.arange(6)\nx[x % 2 == 1] = 0\nprint(x)",
      "explain": "Assigning through a mask changes the original array: odd entries become 0.",
-     "expected": "[0 0 2 0 4 0]"
+     "expected": "[0 0 2 0 4 0]",
+     "steps": [
+      "Line 4, `print(x)`, prints `[0 0 2 0 4 0]`."
+     ]
     },
     {
      "id": "o3",
@@ -1477,7 +1573,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([4, 15, 8, 23])\nprint(np.where(x > 10, 'high', 'low'))",
      "explain": "Arrays of strings print with quotes inside the brackets.",
-     "expected": "['low' 'high' 'low' 'high']"
+     "expected": "['low' 'high' 'low' 'high']",
+     "steps": [
+      "Line 3, `print(np.where(x > 10, 'high', 'low'))`, prints `['low' 'high' 'low' 'high']`."
+     ]
     },
     {
      "id": "c1",
@@ -1580,7 +1679,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nm = np.arange(12).reshape(3, 4)\nprint(m[[2, 0], 1:3])",
      "explain": "Rows 2 and 0 (in that order), columns 1 and 2.",
-     "expected": "[[ 9 10]\n [ 1  2]]"
+     "expected": "[[ 9 10]\n [ 1  2]]",
+     "steps": [
+      "Line 3, `print(m[[2, 0], 1:3])`, prints:\n\n```text\n[[ 9 10]\n [ 1  2]]\n```"
+     ]
     },
     {
      "id": "o2",
@@ -1589,7 +1691,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([7, 3, 9])\norder = np.array([1, 2, 0])\nprint(x[order])",
      "explain": "Position 1 first, then 2, then 0.",
-     "expected": "[3 9 7]"
+     "expected": "[3 9 7]",
+     "steps": [
+      "Line 4, `print(x[order])`, prints `[3 9 7]`."
+     ]
     },
     {
      "id": "c1",
@@ -1672,7 +1777,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.zeros(4, dtype=int)\nnp.add.at(x, [0, 3, 3, 3], 1)\nprint(x)",
      "explain": "add.at counts every occurrence, so position 3 gets three increments.",
-     "expected": "[1 0 0 3]"
+     "expected": "[1 0 0 3]",
+     "steps": [
+      "Line 4, `print(x)`, prints `[1 0 0 3]`."
+     ]
     },
     {
      "id": "o2",
@@ -1681,7 +1789,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nprint(np.bincount(np.array([1, 1, 4, 2, 1])))",
      "explain": "bincount gives the count of 0, 1, 2, ... up to the largest value.",
-     "expected": "[0 3 1 0 1]"
+     "expected": "[0 3 1 0 1]",
+     "steps": [
+      "Line 2, `print(np.bincount(np.array([1, 1, 4, 2, 1])))`, prints `[0 3 1 0 1]`."
+     ]
     },
     {
      "id": "c1",
@@ -1760,7 +1871,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([4, 1, 3])\ny = np.array(['d', 'a', 'c'])\nprint(y[np.argsort(x)[::-1]])",
      "explain": "argsort gives ascending positions; reversing gives descending order of `x`.",
-     "expected": "['d' 'c' 'a']"
+     "expected": "['d' 'c' 'a']",
+     "steps": [
+      "Line 4, `print(y[np.argsort(x)[::-1]])`, prints `['d' 'c' 'a']`."
+     ]
     },
     {
      "id": "o2",
@@ -1769,7 +1883,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nm = np.array([[3, 1],\n              [2, 5]])\nprint(np.sort(m, axis=0))",
      "explain": "Each column is sorted on its own: [3, 2] becomes [2, 3] and [1, 5] stays.",
-     "expected": "[[2 1]\n [3 5]]"
+     "expected": "[[2 1]\n [3 5]]",
+     "steps": [
+      "Line 4, `print(np.sort(m, axis=0))`, prints:\n\n```text\n[[2 1]\n [3 5]]\n```"
+     ]
     },
     {
      "id": "c1",
@@ -1844,7 +1961,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([8, 3, 6, 1, 9])\nprint(np.sort(np.partition(x, 2)[:2]))",
      "explain": "The two smallest values are 1 and 3; sorting them makes the output definite.",
-     "expected": "[1 3]"
+     "expected": "[1 3]",
+     "steps": [
+      "Line 3, `print(np.sort(np.partition(x, 2)[:2]))`, prints `[1 3]`."
+     ]
     },
     {
      "id": "c1",
@@ -1899,7 +2019,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nX = np.array([[5, 1, 4],\n              [3, 9, 2]])\np = np.partition(X, 1, axis=1)\nprint(p[:, 1])",
      "explain": "With `axis=1` each row is partitioned on its own. Position 1 always holds the value a full sort would put there, so the column is each row's second-smallest value: 4 in the first row and 3 in the second.",
-     "expected": "[4 3]"
+     "expected": "[4 3]",
+     "steps": [
+      "Line 5, `print(p[:, 1])`, prints `[4 3]`."
+     ]
     },
     {
      "id": "c2",
@@ -1978,7 +2101,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\ndt = np.dtype([(\"city\", \"U10\"), (\"pop\", \"i8\")])\na = np.array([(\"Reno\", 264), (\"Elko\", 20), (\"Ely\", 4)], dtype=dt)\nprint(a[a[\"pop\"] > 10][\"city\"])",
      "explain": "The mask keeps records with population over 10; then the city field is taken.",
-     "expected": "['Reno' 'Elko']"
+     "expected": "['Reno' 'Elko']",
+     "steps": [
+      "Line 4, `print(a[a[\"pop\"] > 10][\"city\"])`, prints `['Reno' 'Elko']`."
+     ]
     },
     {
      "id": "c1",
@@ -2041,7 +2167,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\ntp = np.dtype([(\"id\", \"i8\"), (\"mat\", \"f8\", (2, 2))])\nX = np.zeros(3, dtype=tp)\nprint(X[\"mat\"].shape)",
      "explain": "A field can itself hold an array. Each of the three records carries a 2 by 2 block, so the `mat` field of the whole array has shape (3, 2, 2).",
-     "expected": "(3, 2, 2)"
+     "expected": "(3, 2, 2)",
+     "steps": [
+      "Line 4, `print(X[\"mat\"].shape)`, prints `(3, 2, 2)`."
+     ]
     },
     {
      "id": "c2",
