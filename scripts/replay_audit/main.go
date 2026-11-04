@@ -227,13 +227,19 @@ func freshCopy(src string) (string, error) {
 }
 
 func open(dbPath, sid string, seed int64) (*replay, error) {
-	root := os.Getenv("MATHUA_ROOT")
-	if root == "" {
-		return nil, fmt.Errorf("MATHUA_ROOT must name the install (its data/ and modules)")
-	}
 	mods, err := modules.Default()
 	if err != nil {
 		return nil, fmt.Errorf("modules: %w", err)
+	}
+	return openWith(dbPath, sid, seed, mods)
+}
+
+// openWith opens the replay on one module set (the test fixtures load
+// theirs explicitly, so MATHUA_PUBLIC_MODULES_ONLY does not decide).
+func openWith(dbPath, sid string, seed int64, mods *modules.Set) (*replay, error) {
+	root := os.Getenv("MATHUA_ROOT")
+	if root == "" {
+		return nil, fmt.Errorf("MATHUA_ROOT must name the install (its data/ and modules)")
 	}
 	dag, err := concepts.LoadDirs(filepath.Join(root, "data", "concepts"), mods.ConceptDirs()...)
 	if err != nil {
@@ -337,6 +343,16 @@ func (r *replay) session(n int) {
 		r.serves = append(r.serves, s)
 		b, _ := json.Marshal(s)
 		fmt.Fprintln(r.logw, string(b))
+	}
+
+	// What is due, read from every surface (surfaces.go): a disagreement
+	// is a bad serve of its own.
+	if rep := r.dueSurfaces(); len(rep.Disagreements) > 0 {
+		cid := ""
+		if len(rep.Due) > 0 {
+			cid = rep.Due[0]
+		}
+		note(Serve{Surface: "due", Concept: cid, Why: rep.String(), Flags: []string{"surfaces disagree on due: " + strings.Join(rep.Disagreements, "; ")}})
 	}
 
 	// Up next: the Study queue.
@@ -623,6 +639,9 @@ func (r *replay) runDiagnostic(sess *diagnostic.Session, q *engine.Question, sur
 
 func (r *replay) classify(s Serve, seen map[string]int) []string {
 	var flags []string
+	if s.Surface == "due" {
+		return s.Flags // classified by dueSurfaces
+	}
 	c := r.dag.Concept(s.Concept)
 	if c == nil {
 		return []string{"unknown concept"}
