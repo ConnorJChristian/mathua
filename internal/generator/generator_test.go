@@ -1,6 +1,8 @@
 package generator
 
 import (
+	"fmt"
+	"math/rand"
 	"testing"
 )
 
@@ -127,5 +129,36 @@ func TestProblem_Fields(t *testing.T) {
 	}
 	if p.Question == "" || p.Answer == "" || p.Explanation == "" {
 		t.Error("problem fields should not be empty")
+	}
+}
+
+// tableGen draws from a table with the global math/rand, as most of the
+// corpus's generators do.
+type tableGen struct{}
+
+func (tableGen) Generate(ctx GeneratorContext) Problem {
+	n := rand.Intn(1 << 20)
+	return Problem{Question: fmt.Sprintf("table entry %d", n), Answer: fmt.Sprint(n)}
+}
+
+// A seed decides the question. The registry seeds the global math/rand
+// from ctx.Seed (hash of learner, topic and attempt), which the engine, the
+// replay audit and gradecheck rely on; from Go 1.24 rand.Seed is a no-op
+// unless go.mod says "godebug randseednop=0", and without it gradecheck
+// sampled a different entry of calc.deriv.implicit_second on every run and
+// failed when the word-answer entry was drawn.
+func TestGenerateContext_SeedDecidesTheQuestion(t *testing.T) {
+	reg := NewRegistry()
+	reg.Register("t", tableGen{})
+	first, _ := reg.GenerateContext("t", GeneratorContext{Seed: 12345})
+	for i := 0; i < 20; i++ {
+		p, _ := reg.GenerateContext("t", GeneratorContext{Seed: 12345})
+		if p.Question != first.Question {
+			t.Fatalf("seed 12345 gave %q then %q: rand.Seed is not taking effect (go.mod godebug randseednop=0)", first.Question, p.Question)
+		}
+	}
+	other, _ := reg.GenerateContext("t", GeneratorContext{Seed: 54321})
+	if other.Question == first.Question {
+		t.Errorf("seeds 12345 and 54321 gave the same entry %q", first.Question)
 	}
 }
