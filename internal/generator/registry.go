@@ -9,6 +9,7 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/latex"
 	"github.com/chuma-beep/mathua/internal/solutions"
+	"github.com/chuma-beep/mathua/internal/walkthrough"
 )
 
 type Registry struct {
@@ -53,7 +54,14 @@ func (r *Registry) explain(conceptID string, p Problem) string {
 	// The graded answer is a fact every schema may reference, so an authored
 	// explanation never has to restate it in prose to close.
 	facts["answer"] = p.Answer
-	return latex.Canonicalize(loader.Assemble(conceptID, facts, p.Explanation), latex.Generators)
+	// Fork change: a schema's steps travel with the explanation as a steps
+	// block (internal/walkthrough), so every surface's feedback can show
+	// them one by one. Canonicalisation keeps the markers: they are HTML
+	// comments, which the scanner passes through.
+	if parts, ok := loader.AssembleParts(conceptID, facts); ok {
+		return latex.Canonicalize(walkthrough.Encode(parts.Explain, parts.Steps), latex.Generators)
+	}
+	return latex.Canonicalize(p.Explanation, latex.Generators)
 }
 
 func (r *Registry) Register(conceptID string, gen Generator) error {

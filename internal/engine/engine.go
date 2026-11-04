@@ -26,6 +26,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/scoring"
 	"github.com/chuma-beep/mathua/internal/storage"
+	"github.com/chuma-beep/mathua/internal/walkthrough"
 	xppolicy "github.com/chuma-beep/mathua/internal/xp"
 )
 
@@ -194,6 +195,15 @@ type AnswerResult struct {
 	// Proof is the detail of a graded proof (score out of 7, milestone
 	// checklist, feedback), nil for every other question.
 	Proof *grader.ProofReport `json:"proof,omitempty"`
+	// ConceptID is the concept the graded question belonged to (fork
+	// change): what the server needs to attach the topic's reading to the
+	// feedback. Empty before the fork.
+	ConceptID string `json:"concept_id,omitempty"`
+	// Walkthrough is the one feedback contract (fork change,
+	// internal/walkthrough): the key, the worked steps, the one-line reason,
+	// where the answer diverged and the reading. The server fills it from
+	// Explanation on the way out; the engine carries only the explanation.
+	Walkthrough *walkthrough.Walkthrough `json:"walkthrough,omitempty"`
 }
 
 type Engine struct {
@@ -1455,6 +1465,7 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 		Halted:         halted,
 		Remedial:       remedial,
 		Proof:          gr.Proof,
+		ConceptID:      sessionFields.conceptID,
 	}, nil
 }
 
@@ -1718,6 +1729,7 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 		ExpectedAnswer: expected,
 		Halted:         halted,
 		Remedial:       remedial,
+		ConceptID:      conceptID,
 		Proof:          gr.Proof,
 	}, nil
 }

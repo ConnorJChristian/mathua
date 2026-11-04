@@ -36,6 +36,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/quiz"
 	"github.com/chuma-beep/mathua/internal/scoring"
 	"github.com/chuma-beep/mathua/internal/storage"
+	"github.com/chuma-beep/mathua/internal/walkthrough"
 	"github.com/chuma-beep/mathua/internal/xp"
 )
 
@@ -1602,11 +1603,65 @@ func (s *Server) handleGoalPlan(w http.ResponseWriter, r *http.Request) {
 		"completion_estimates": report.CompletionEstimates,
 		"course_id":            placementCourse,
 		"sections":             sections,
+		// Fork change (FSRS_PORT_PLAN 0c): the run is over, so the results
+		// carry each answered question with its walkthrough.
+		"questions": s.placementWalkthroughs(studentID, req.SessionID),
 	}
 	if placementCourse != "" {
 		s.coursePlacementResult(out, studentID, placementCourse)
 	}
 	writeJSON(w, out)
+}
+
+// placementQuestion is one answered placement question on the results page:
+// what was asked, what was answered, and the walkthrough to the key.
+type placementQuestion struct {
+	ConceptID   string                   `json:"concept_id"`
+	ConceptName string                   `json:"concept_name"`
+	Question    string                   `json:"question"`
+	Answer      string                   `json:"answer"`
+	Correct     bool                     `json:"correct"`
+	DontKnow    bool                     `json:"dont_know"`
+	Walkthrough *walkthrough.Walkthrough `json:"walkthrough"`
+}
+
+// placementWalkthroughs lists the questions a finished placement recorded,
+// in the order they were asked, each with its walkthrough. An anonymous run
+// records no attempts and lists nothing.
+func (s *Server) placementWalkthroughs(studentID, sessionID string) []placementQuestion {
+	out := []placementQuestion{}
+	if studentID == "" {
+		return out
+	}
+	attempts, err := s.repo.GetSessionAttempts(studentID, sessionID)
+	if err != nil {
+		log.Printf("placement walkthroughs for %s: %v", sessionID, err)
+		return out
+	}
+	for _, a := range attempts {
+		if a.Source != "diagnostic" {
+			continue
+		}
+		name := a.ConceptID
+		if c := s.eng.GetDAG().Concept(a.ConceptID); c != nil {
+			name = c.Label
+		}
+		answer := strings.TrimSpace(a.Answer)
+		diagnosis := ""
+		if !a.Correct && answer != "" {
+			diagnosis = grader.DiagnoseIn(grader.GradingType(s.gradingTypeOf(a.ConceptID)), false, a.Expected, answer)
+		}
+		out = append(out, placementQuestion{
+			ConceptID:   a.ConceptID,
+			ConceptName: name,
+			Question:    a.Question,
+			Answer:      answer,
+			Correct:     a.Correct,
+			DontKnow:    answer == "" && !a.Correct,
+			Walkthrough: s.walkthroughOf(a.ConceptID, a.Expected, a.Explanation, answer, diagnosis),
+		})
+	}
+	return out
 }
 
 // coursePlacementResult makes a course placement's results agree with the
@@ -2737,6 +2792,7 @@ func (s *Server) handleReviewsAnswer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "failed to submit answer", 500)
 		return
 	}
+	s.attachWalkthrough(result, req.Answer, false)
 	next, err := s.eng.NextReviewQuestionTrack(req.SessionID, studentID, s.trackOf(r))
 	if err != nil {
 		log.Printf("handleReviewsAnswer: NextReviewQuestion failed for session %s: %v (returning result without next question)", req.SessionID, err)
@@ -3315,11 +3371,13 @@ func (s *Server) handleStudyAnswer(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "failed to submit study answer", 500)
 		return
 	}
+	s.attachWalkthrough(res, req.Answer, req.DontKnow)
 	writeJSON(w, map[string]interface{}{
 		"correct":         res.Correct,
 		"feedback":        res.Feedback,
 		"diagnosis":       res.Diagnosis,
 		"explanation":     res.Explanation,
+		"walkthrough":     res.Walkthrough,
 		"new_status":      res.NewStatus,
 		"streak":          res.Streak,
 		"required_streak": res.RequiredStreak,
@@ -3734,6 +3792,7 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 	if explanation == "" {
 		explanation = feedback
 	}
+	learnerAnswer := req.Answer
 	if req.DontKnow {
 		// Admitted unknown: forced miss, teaching content as feedback.
 		gr = grader.Result{Correct: false}
@@ -3741,6 +3800,7 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 		if feedback == "" {
 			feedback = "Not quite."
 		}
+		learnerAnswer = ""
 	}
 	// Record via quiz engine (advance index)
 	qEng := quiz.NewEngine(s.eng.GetDAG(), s.eng.GetGeneratorRegistry())
@@ -3807,7 +3867,8 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 		// The `diagnosis` and `explanation` keys are still passed so the helper is the single
 		// place that decides they do not cross, rather than the call site remembering to omit
 		// them. A verdict built anywhere else leaks by default; through the helper it does not.
-		done := map[string]interface{}{"done": true, "correct": gr.Correct, "feedback": feedback, "diagnosis": gr.Diagnosis, "explanation": explanation, "xp": xp, "new_status": newStatus, "remedial": remedial, "retake_available": true}
+		done := map[string]interface{}{"done": true, "correct": gr.Correct, "feedback": feedback, "diagnosis": gr.Diagnosis, "explanation": explanation, "xp": xp, "new_status": newStatus, "remedial": remedial, "retake_available": true,
+			assessmentKeyWalkthrough: s.walkthroughOf(req.ConceptID, expected, explanation, learnerAnswer, gr.Diagnosis)}
 		s.addCourseTestSummary(done, sess)
 		markMasteryCheck(done, sess, counted)
 		writeAssessmentVerdict(w, done)
@@ -3819,21 +3880,24 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 		name2 = c2.Label
 	}
 	writeAssessmentVerdict(w, s.withAnswerFormat(map[string]interface{}{
-		"done":               false,
-		"correct":            gr.Correct,
-		"feedback":           feedback,
-		"diagnosis":          gr.Diagnosis,
-		"explanation":        explanation,
-		"xp":                 xp,
-		"new_status":         newStatus,
-		"remedial":           remedial,
-		"concept_id":         cid,
-		"concept_name":       name2,
-		"question":           prob.Question,
-		"grading_type":       s.gradingTypeOf(cid),
-		"closed_book":        true,
-		"time_limit_seconds": s.eng.TimeLimitFor(studentID, cid),
-		"questions_total":    len(sess.Order),
+		"done":        false,
+		"correct":     gr.Correct,
+		"feedback":    feedback,
+		"diagnosis":   gr.Diagnosis,
+		"explanation": explanation,
+		// The walkthrough of the question just answered, never of the
+		// next one (the fork's assessment rule, below).
+		assessmentKeyWalkthrough: s.walkthroughOf(req.ConceptID, expected, explanation, learnerAnswer, gr.Diagnosis),
+		"xp":                     xp,
+		"new_status":             newStatus,
+		"remedial":               remedial,
+		"concept_id":             cid,
+		"concept_name":           name2,
+		"question":               prob.Question,
+		"grading_type":           s.gradingTypeOf(cid),
+		"closed_book":            true,
+		"time_limit_seconds":     s.eng.TimeLimitFor(studentID, cid),
+		"questions_total":        len(sess.Order),
 	}, cid))
 }
 
@@ -3993,6 +4057,17 @@ func writeJSON(w http.ResponseWriter, v interface{}) {
 // `/api/study/answer` deliberately does not use this. That is Learn's seam:
 // Learn teaches, and teaching is what it is for. One boundary, two rules, and
 // the difference between them is which handler the request reached.
+//
+// The fork's assessment rule (FSRS_PORT_PLAN 0c, internal/walkthrough). The
+// fork serves one learner studying from their own books, and they asked
+// that a wrong answer show the way to the right one wherever it is graded.
+// So a mastery check or course test verdict carries, under `walkthrough`,
+// the worked solution of the question just graded: the key, the steps, the
+// one-line reason and the reading. It never carries the next question's,
+// and `explanation` and `diagnosis` stay off the wire as before, so the
+// contract is the one key. The placement test is unchanged mid-test (a
+// verdict carries no solution); its results page lists the walkthroughs of
+// the questions answered, once the run is over (handleGoalPlan).
 // ---------------------------------------------------------------------------
 
 // assessmentVerdictFields are the keys an assessment response is built from. A
@@ -4027,6 +4102,9 @@ const (
 	assessmentKeySections = "sections"
 	// The finished course test restarted the mastery check (markMasteryCheck).
 	assessmentKeyCountedAsCheck = "counted_as_mastery_check"
+	// Fork change (FSRS_PORT_PLAN 0c): the walkthrough of the question just
+	// graded. See "The fork's assessment rule" below.
+	assessmentKeyWalkthrough = "walkthrough"
 )
 
 // assessmentVerdictKeys is the allowlist, as a set for lookup. Declared
@@ -4053,6 +4131,7 @@ var assessmentVerdictKeys = map[string]bool{
 	assessmentKeyTest:            true,
 	assessmentKeySections:        true,
 	assessmentKeyCountedAsCheck:  true,
+	assessmentKeyWalkthrough:     true,
 }
 
 // assessmentGraderTokens are the only feedback strings allowed through, and

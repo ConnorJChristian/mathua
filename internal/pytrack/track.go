@@ -18,6 +18,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
 	"github.com/chuma-beep/mathua/internal/modules"
+	"github.com/chuma-beep/mathua/internal/walkthrough"
 )
 
 // Answer prefixes. The served answer says which kind of question it was, so
@@ -421,17 +422,22 @@ func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 		}
 		book = fmt.Sprintf("Read more: [%s §%s, %s](%s)", name, c.Book.Section, c.Book.Title, c.Book.URL)
 	}
+	// Fork change (internal/walkthrough): the item's worked steps travel at
+	// the end of the explanation, so every surface's feedback can show them
+	// after the key. A flashcard whose back is itself a worked path, one
+	// line per step, gets those lines (Anki cards with working).
+	steps := it.Steps
 	switch it.Kind {
 	case KindChoice:
 		q := strings.TrimSpace(it.Prompt)
 		for i, o := range stableOptions(c.ID, it) {
 			q += fmt.Sprintf("\n\n%c) %s", 'A'+i, o)
 		}
-		return generator.Problem{Question: q, Answer: prefixChoice + it.Correct, Explanation: joinNonEmpty(strings.TrimSpace(it.Explain), book)}
+		return generator.Problem{Question: q, Answer: prefixChoice + it.Correct, Explanation: walkthrough.Encode(joinNonEmpty(strings.TrimSpace(it.Explain), book), steps)}
 	case KindOutput:
 		q := strings.TrimSpace(it.Prompt) + "\n\n```python\n" + strings.TrimRight(it.Code, "\n") + "\n```"
 		exp := joinNonEmpty(strings.TrimSpace(it.Explain)+"\n\nIt prints:\n\n```text\n"+strings.TrimRight(it.Expected, "\n")+"\n```", book)
-		return generator.Problem{Question: q, Answer: prefixOutput + it.Expected, Explanation: exp}
+		return generator.Problem{Question: q, Answer: prefixOutput + it.Expected, Explanation: walkthrough.Encode(exp, steps)}
 	case KindRecall:
 		q := strings.TrimSpace(it.Prompt) + "\n\n" + RecallMarker + "\n\n" + strings.TrimSpace(it.Back)
 		exp := strings.TrimSpace(it.Back)
@@ -443,7 +449,10 @@ func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 		} else if c.Book.Title != "" {
 			exp += "\n\nSource: " + c.Book.Title
 		}
-		p := generator.Problem{Question: q, Answer: prefixRecall + itemKey(c.ID, it.ID), Explanation: exp}
+		if len(steps) == 0 {
+			steps = BackSteps(it.Back)
+		}
+		p := generator.Problem{Question: q, Answer: prefixRecall + itemKey(c.ID, it.ID), Explanation: walkthrough.Encode(exp, steps)}
 		if t.servesWritten(c, it) {
 			p = writtenProblem(p, it)
 		}
@@ -477,7 +486,10 @@ func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 		} else if c.Book.Title != "" {
 			exp += "\n\nSource: " + c.Book.Title
 		}
-		return generator.Problem{Question: q, Answer: prefixMath + itemKey(c.ID, it.ID), Explanation: exp}
+		if len(steps) == 0 {
+			steps = BackSteps(it.Back)
+		}
+		return generator.Problem{Question: q, Answer: prefixMath + itemKey(c.ID, it.ID), Explanation: walkthrough.Encode(exp, steps)}
 	case KindTerm:
 		q := strings.TrimSpace(it.Prompt) + "\n\n" + TermMarker
 		exp := "**Answer:** " + strings.TrimSpace(it.Correct)
@@ -489,7 +501,7 @@ func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 		} else if c.Book.Title != "" {
 			exp += "\n\nSource: " + c.Book.Title
 		}
-		return generator.Problem{Question: q, Answer: prefixTerm + itemKey(c.ID, it.ID), Explanation: exp}
+		return generator.Problem{Question: q, Answer: prefixTerm + itemKey(c.ID, it.ID), Explanation: walkthrough.Encode(exp, steps)}
 	default: // KindCode
 		starter := strings.TrimRight(it.Starter, "\n")
 		if starter == "" {
@@ -502,7 +514,7 @@ func (t *Track) problem(c *Concept, it *Item) generator.Problem {
 		key := itemKey(c.ID, it.ID)
 		q := strings.TrimSpace(it.Prompt) + "\n\n```" + StarterFence + " task=" + key + "\n" + starter + "\n```"
 		exp := joinNonEmpty(strings.TrimSpace(it.Explain)+"\n\nOne solution:\n\n```python\n"+strings.TrimRight(it.Solution, "\n")+"\n```", book)
-		return generator.Problem{Question: q, Answer: prefixCode + key, Explanation: exp}
+		return generator.Problem{Question: q, Answer: prefixCode + key, Explanation: walkthrough.Encode(exp, steps)}
 	}
 }
 
@@ -745,6 +757,36 @@ func (t *Track) verdict(res *Result) grader.Result {
 		Diagnosis: diag,
 	}
 }
+
+// BackSteps reads a worked path off a flashcard's back, or a math item's
+// worked solution (fork change): the back's lines when at least two of them
+// carry working (an equals sign, or a numbered or bulleted step). A back that
+// is one statement, or prose without working, gives no steps, and the
+// feedback shows it whole as before.
+func BackSteps(back string) []string {
+	var lines []string
+	for _, l := range strings.Split(strings.ReplaceAll(back, "\r\n", "\n"), "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) < 2 {
+		return nil
+	}
+	working := 0
+	for _, l := range lines {
+		if strings.Contains(l, "=") || stepLeadRe.MatchString(l) {
+			working++
+		}
+	}
+	if working < 2 {
+		return nil
+	}
+	return lines
+}
+
+// stepLeadRe is a line that opens as a numbered or bulleted step.
+var stepLeadRe = regexp.MustCompile(`^(?:\(?\d+[.)]|[-*•]|Step \d+)\s`)
 
 func joinNonEmpty(parts ...string) string {
 	var out []string
