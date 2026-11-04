@@ -1,0 +1,19 @@
+{
+  "concept": "prob.rv.variance",
+  "setup": "\\(X\\) takes the values [[values]] with weights [[weights]] out of [[den]]; \\(\\mathrm{Var}(X) = E[X^{2}] - (E[X])^{2}\\).",
+  "steps": [
+    {
+      "fact": "mean",
+      "say": "The mean: \\(E[X] = [[mean_terms]] = [[mean]]\\)."
+    },
+    {
+      "fact": "second",
+      "say": "The second moment: \\(E[X^{2}] = [[sq_terms]] = [[second]]\\)."
+    },
+    {
+      "fact": "mean_sq",
+      "say": "Square the mean: \\((E[X])^{2} = [[mean]]^{2} = [[mean_sq]]\\)."
+    }
+  ],
+  "answer": "Subtract: \\(\\mathrm{Var}(X) = [[second]] - [[mean_sq]] = [[answer]]\\)."
+}

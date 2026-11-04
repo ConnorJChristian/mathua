@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand"
+	"strconv"
 	"strings"
 
 	"github.com/chuma-beep/mathua/internal/generator"
@@ -343,6 +344,9 @@ func (g *derivPowerRuleGen) Generate(ctx generator.GeneratorContext) generator.P
 		Question:    fmt.Sprintf("Find \\(f'(x)\\) if \\(f(x)=%dx^{%d}\\).", a, n),
 		Answer:      singleTerm(coef, exp),
 		Explanation: fmt.Sprintf("Power rule: f'(x)=%d·%d·x^(%d-1)=%s.", a, n, n, singleTerm(coef, exp)),
+		Facts: map[string]string{
+			"a": strconv.Itoa(a), "n": strconv.Itoa(n), "coef": strconv.Itoa(coef), "exp": strconv.Itoa(exp),
+		},
 	}
 }
 
@@ -366,6 +370,11 @@ func (g *derivSumRuleGen) Generate(ctx generator.GeneratorContext) generator.Pro
 		Question:    fmt.Sprintf("Find \\(f'(x)\\) if \\(f(x)=%dx^{%d}+%dx^{%d}\\).", a, n, b, m),
 		Answer:      answer,
 		Explanation: fmt.Sprintf("f'(x) = %d·%dx^%d + %d·%dx^%d = %s.", a, n, n-1, b, m, m-1, answer),
+		Facts: map[string]string{
+			"a": strconv.Itoa(a), "n": strconv.Itoa(n), "b": strconv.Itoa(b), "m": strconv.Itoa(m),
+			"d1": formatPoly([]term{{coef1, exp1}}), "d2": formatPoly([]term{{coef2, exp2}}),
+			"coef1": strconv.Itoa(coef1), "exp1": strconv.Itoa(exp1), "coef2": strconv.Itoa(coef2), "exp2": strconv.Itoa(exp2),
+		},
 	}
 }
 
@@ -569,6 +578,9 @@ func (g *integralPowerRuleGen) Generate(ctx generator.GeneratorContext) generato
 		Question:    fmt.Sprintf("Find \\(\\int %d x^{%d} \\, dx\\) (use power rule for integration, omit \\(+C\\)).", a, n),
 		Answer:      answer,
 		Explanation: fmt.Sprintf("∫%dx^%d dx = %d/(%d+1)·x^(%d+1)+C = %s+C.", a, n, a, n, n, answer),
+		Facts: map[string]string{
+			"a": strconv.Itoa(a), "n": strconv.Itoa(n), "n1": strconv.Itoa(n + 1), "coef": strconv.Itoa(coef),
+		},
 	}
 }
 
@@ -710,6 +722,9 @@ func (g *derivImplicitGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		Question:    fmt.Sprintf("Find \\(dy/dx\\) at \\((%d,%d)\\) for \\(x^{2}+y^{2}=%d\\).", a, bSqrt, r*r),
 		Answer:      answer,
 		Explanation: fmt.Sprintf("2x+2y·dy/dx=0 → dy/dx=-x/y. At (%d,%d): dy/dx=-%d/%d=%s.", a, bSqrt, a, bSqrt, answer),
+		Facts: map[string]string{
+			"x0": strconv.Itoa(a), "y0": strconv.Itoa(bSqrt), "rr": strconv.Itoa(r * r), "two_x0": strconv.Itoa(2 * a), "two_y0": strconv.Itoa(2 * bSqrt),
+		},
 	}
 }
 
@@ -912,6 +927,10 @@ func (g *differenceQuotientGen) Generate(ctx generator.GeneratorContext) generat
 		Answer:   fmt.Sprintf("%d", ans),
 		// The middle coefficient is printed as the number 2x0, never as "2·1·h" (Q35).
 		Explanation: fmt.Sprintf("(f(%d+h)-f(%d))/h = ((%d+h)²-%d²)/h = (%d+%dh+h²-%d)/h = (%dh+h²)/h = %d+h, which at h=%d is %d.", x0, x0, x0, x0, x0*x0, 2*x0, x0*x0, 2*x0, 2*x0, h, ans),
+		Facts: map[string]string{
+			"x0": strconv.Itoa(x0), "h": strconv.Itoa(h), "fx0": strconv.Itoa(fx), "x0h": strconv.Itoa(x0 + h), "fx0h": strconv.Itoa(fxh),
+			"two_x0": strconv.Itoa(2 * x0), "diff": strconv.Itoa(fxh - fx),
+		},
 	}
 }
 
@@ -923,10 +942,15 @@ func (g *differentialGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	dx := 0.1 + float64(rand.Intn(5))/10.0
 	fpx := float64(2 * x0)
 	dy := fpx * dx
+	x1 := float64(x0) + dx
 	return generator.Problem{
 		Question:    fmt.Sprintf("If \\(y=x^{2}\\) at \\(x=%d\\), approximate \\(\\Delta y\\) using the differential \\(dy\\) when \\(dx=%.1f\\).", x0, dx),
 		Answer:      fmt.Sprintf("%.2f", dy),
-		Explanation: fmt.Sprintf("dy = f'(x)dx = 2x·dx = 2·%d·%.1f = %.2f. The actual Δy is (%.1f)²-%d² = %.2f-%d = %.2f.", x0, dx, dy, float64(x0)+dx, x0, (float64(x0)+dx)*(float64(x0)+dx), x0*x0, (float64(x0)+dx)*(float64(x0)+dx)-float64(x0*x0)),
+		Explanation: fmt.Sprintf("dy = f'(x)dx = 2x·dx = 2·%d·%.1f = %.2f. The actual Δy is (%.1f)²-%d² = %.2f-%d = %.2f.", x0, dx, dy, x1, x0, x1*x1, x0*x0, x1*x1-float64(x0*x0)),
+		Facts: map[string]string{
+			"x0": strconv.Itoa(x0), "dx": fmt.Sprintf("%.1f", dx), "fpx": strconv.Itoa(2 * x0), "dy": fmt.Sprintf("%.2f", dy),
+			"x1": fmt.Sprintf("%.1f", x1), "fx1": fmt.Sprintf("%.2f", x1*x1), "fx0": strconv.Itoa(x0 * x0), "exact": fmt.Sprintf("%.2f", x1*x1-float64(x0*x0)),
+		},
 	}
 }
 
@@ -981,20 +1005,37 @@ func (g *partialDerivGen) Generate(ctx generator.GeneratorContext) generator.Pro
 	y0 := rand.Intn(max(1, scale*2)) + 1
 	which := rand.Intn(2)
 	var answerStr, explainStr string
+	// The two terms of the partial, each evaluated at the point, for the
+	// walkthrough (fork change): f = a·x²y + b·xy² so f_x = 2a·xy + b·y²
+	// and f_y = a·x² + 2b·xy.
+	var partial, term1, term2 string
+	var v1, v2 int
 	if which == 0 {
 		val := 2*a*x0*y0 + b*y0*y0
 		answerStr = fmt.Sprintf("%d", val)
 		explainStr = fmt.Sprintf("df/dx = 2axy + by^2 = 2(%d)(%d)(%d)+%d(%d)^2 = %d.", a, x0, y0, b, y0, val)
+		partial = fmt.Sprintf("%dxy + %dy^{2}", 2*a, b)
+		term1, v1 = fmt.Sprintf("2(%d)(%d)(%d)", a, x0, y0), 2*a*x0*y0
+		term2, v2 = fmt.Sprintf("%d(%d)^{2}", b, y0), b*y0*y0
 	} else {
 		val := a*x0*x0 + 2*b*x0*y0
 		answerStr = fmt.Sprintf("%d", val)
 		explainStr = fmt.Sprintf("df/dy = ax^2 + 2bxy = (%d)(%d)^2+2(%d)(%d)(%d) = %d.", a, x0, b, x0, y0, val)
+		partial = fmt.Sprintf("%dx^{2} + %dxy", a, 2*b)
+		term1, v1 = fmt.Sprintf("%d(%d)^{2}", a, x0), a*x0*x0
+		term2, v2 = fmt.Sprintf("2(%d)(%d)(%d)", b, x0, y0), 2*b*x0*y0
 	}
 	dir := []string{"x", "y"}[which]
+	other := []string{"y", "x"}[which]
 	return generator.Problem{
 		Question:    fmt.Sprintf("Find \\(\\partial f/\\partial %s\\) at \\((%d,%d)\\) for \\(f(x,y)=%dx^{2}y+%dxy^{2}\\). (enter a number)", dir, x0, y0, a, b),
 		Answer:      answerStr,
 		Explanation: explainStr,
+		Facts: map[string]string{
+			"a": strconv.Itoa(a), "b": strconv.Itoa(b), "x0": strconv.Itoa(x0), "y0": strconv.Itoa(y0),
+			"dir": dir, "other": other, "partial": partial,
+			"term1": term1, "v1": strconv.Itoa(v1), "term2": term2, "v2": strconv.Itoa(v2),
+		},
 	}
 }
 
@@ -2047,17 +2088,25 @@ func (g *derivPartialHigherGen) Generate(ctx generator.GeneratorContext) generat
 	type entry struct {
 		q, a, e string
 	}
-	table := []entry{
-		{"For \\(f(x,y)=x^{3}y^{2}\\), find \\(f_{xx}\\).", "6xy^2", "\\(f_{x} = 3x^{2}y^{2}\\), so \\(f_{xx} = 6xy^{2}\\)."},
-		{"For \\(f(x,y)=x^{3}y^{2}\\), find \\(f_{yy}\\).", "2x^3", "\\(f_{y} = 2x^{3}y\\), so \\(f_{yy} = 2x^{3}\\)."},
-		{"For \\(f(x,y)=x^{2}y\\), find \\(f_{xy}\\).", "2x", "\\(f_{x} = 2xy\\), so \\(f_{xy} = 2x\\)."},
-		{"For \\(f(x,y)=\\sin(x)\\cos(y)\\), find \\(f_{xx}\\).", "-sin(x)cos(y)", "\\(f_{x} = \\cos(x)\\cos(y)\\), so \\(f_{xx} = -\\sin(x)\\cos(y)\\)."},
+	// Each fixed entry publishes the same facts as the parameterised variant,
+	// so the walkthrough schema covers every draw (fork change).
+	type fixed struct {
+		q, a, e                              string
+		f, firstName, first, secondName, sec string
+	}
+	table := []fixed{
+		{"For \\(f(x,y)=x^{3}y^{2}\\), find \\(f_{xx}\\).", "6xy^2", "\\(f_{x} = 3x^{2}y^{2}\\), so \\(f_{xx} = 6xy^{2}\\).", "x^{3}y^{2}", "f_{x}", "3x^{2}y^{2}", "f_{xx}", "6xy^{2}"},
+		{"For \\(f(x,y)=x^{3}y^{2}\\), find \\(f_{yy}\\).", "2x^3", "\\(f_{y} = 2x^{3}y\\), so \\(f_{yy} = 2x^{3}\\).", "x^{3}y^{2}", "f_{y}", "2x^{3}y", "f_{yy}", "2x^{3}"},
+		{"For \\(f(x,y)=x^{2}y\\), find \\(f_{xy}\\).", "2x", "\\(f_{x} = 2xy\\), so \\(f_{xy} = 2x\\).", "x^{2}y", "f_{x}", "2xy", "f_{xy}", "2x"},
+		{"For \\(f(x,y)=\\sin(x)\\cos(y)\\), find \\(f_{xx}\\).", "-sin(x)cos(y)", "\\(f_{x} = \\cos(x)\\cos(y)\\), so \\(f_{xx} = -\\sin(x)\\cos(y)\\).", "\\sin(x)\\cos(y)", "f_{x}", "\\cos(x)\\cos(y)", "f_{xx}", "-\\sin(x)\\cos(y)"},
 	}
 	// Table items stay; most draws come from the parameterised variant so the
 	// pool is wide enough for mastery evidence.
 	if rand.Intn(4) == 0 {
 		e := table[rand.Intn(len(table))]
-		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e}
+		return generator.Problem{Question: e.q, Answer: e.a, Explanation: e.e, Facts: map[string]string{
+			"f": e.f, "first_name": e.firstName, "first": e.first, "second_name": e.secondName, "second": e.sec,
+		}}
 	}
 	return partialHigherVariant(ctx)
 }
@@ -3154,6 +3203,9 @@ func gradientVariant(ctx generator.GeneratorContext) generator.Problem {
 		Question:    fmt.Sprintf("Find \\(\\nabla f\\) at \\((%d,%d)\\) for \\(f(x,y)=%s\\). (enter as (a, b))", p, q, f),
 		Answer:      fmt.Sprintf("(%d, %d)", gx, gy),
 		Explanation: fmt.Sprintf("\\(\\nabla f = (f_{x}, f_{y}) = (%s,\\ %s)\\); at \\((%d,%d)\\) this is \\((%d, %d)\\).", fx, fy, p, q, gx, gy),
+		Facts: map[string]string{
+			"f": f, "fx": fx, "fy": fy, "p": strconv.Itoa(p), "q": strconv.Itoa(q), "gx": strconv.Itoa(gx), "gy": strconv.Itoa(gy),
+		},
 	}
 }
 
@@ -3338,6 +3390,10 @@ func linearApproxVariant(ctx generator.GeneratorContext) generator.Problem {
 			Answer:   plainPoly(line),
 			Explanation: fmt.Sprintf("\\(L(x) = f(a) + f'(a)(x-a)\\). Here \\(f(%d)=%d\\) and \\(f'(x)=%s\\), so \\(f'(%d)=%d\\). Then \\(L(x) = %d + %s(%s) = %s\\).",
 				a, fa, texXY([]xyTerm{{c * n, n - 1, 0}}), a, m, fa, paren(m), shiftTex(a), texXY(line)),
+			Facts: map[string]string{
+				"f": texXY([]xyTerm{{c, n, 0}}), "a": strconv.Itoa(a), "fa": strconv.Itoa(fa), "fprime": texXY([]xyTerm{{c * n, n - 1, 0}}),
+				"m": strconv.Itoa(m), "m_p": paren(m), "shift": shiftTex(a), "line": texXY(line),
+			},
 		}
 	case 1:
 		k := 2 + rand.Intn(8)
@@ -3353,6 +3409,9 @@ func linearApproxVariant(ctx generator.GeneratorContext) generator.Problem {
 			Answer:   ans,
 			Explanation: fmt.Sprintf("\\(f(%d)=%d\\) and \\(f'(x)=\\frac{1}{2\\sqrt{x}}\\), so \\(f'(%d)=\\frac{1}{%d}\\). Then \\(L(%d) = %d + \\frac{%d}{%d} = %s\\). This is an estimate, not the exact root: the square root is concave, so its tangent line lies above it and the estimate is slightly too large.",
 				k*k, k, k*k, 2*k, n, k, d, 2*k, ans),
+			Facts: map[string]string{
+				"kk": strconv.Itoa(k * k), "k": strconv.Itoa(k), "two_k": strconv.Itoa(2 * k), "n": strconv.Itoa(n), "d": strconv.Itoa(d), "root_est": ans,
+			},
 		}
 	case 2:
 		a := 1 + rand.Intn(3)
@@ -3437,6 +3496,7 @@ func totalDiffVariant(ctx generator.GeneratorContext) generator.Problem {
 			Answer:   fmt.Sprintf("dz = (%s) dx + (%s) dy", plainPoly(zx), plainPoly(zy)),
 			Explanation: fmt.Sprintf("\\(dz = z_{x}\\,dx + z_{y}\\,dy\\). Here \\(z_{x} = %s\\) and \\(z_{y} = %s\\), so \\(dz = (%s)\\,dx + (%s)\\,dy\\).",
 				texXY(zx), texXY(zy), texXY(zx), texXY(zy)),
+			Facts: map[string]string{"shape": "write", "z": texXY(z), "zx": texXY(zx), "zy": texXY(zy)},
 		}
 	case 1:
 		p := rand.Intn(5) - 1
@@ -3455,6 +3515,11 @@ func totalDiffVariant(ctx generator.GeneratorContext) generator.Problem {
 			Answer:   est,
 			Explanation: fmt.Sprintf("\\(df = f_{x}\\,dx + f_{y}\\,dy\\) with \\(f_{x} = %s\\) and \\(f_{y} = %s\\). At \\((%d,%d)\\) these are %d and %d, and \\(dx = %s\\), \\(dy = %s\\), so \\(df = %s\\cdot %s + %s\\cdot %s = %s\\). This is the linear estimate of the change, not the exact change.",
 				fx, fy, p, q, gx, gy, dxs, dys, paren(gx), wrapNeg(dxs), paren(gy), wrapNeg(dys), est),
+			Facts: map[string]string{
+				"shape": "estimate", "f": f, "fx": fx, "fy": fy, "p": strconv.Itoa(p), "q": strconv.Itoa(q),
+				"gx": strconv.Itoa(gx), "gy": strconv.Itoa(gy), "dx": dxs, "dy": dys,
+				"gx_p": paren(gx), "gy_p": paren(gy), "dx_p": wrapNeg(dxs), "dy_p": wrapNeg(dys), "est": est,
+			},
 		}
 	}
 	as := []int{1, 2, 3, 4, 5, 10}
@@ -3476,6 +3541,10 @@ func totalDiffVariant(ctx generator.GeneratorContext) generator.Problem {
 		Answer:   ans,
 		Explanation: fmt.Sprintf("\\(dQ = Q_{K}\\,dK + Q_{L}\\,dL\\) with \\(Q_{K} = \\frac{%d}{2}K^{-1/2}L^{1/2}\\) and \\(Q_{L} = \\frac{%d}{2}K^{1/2}L^{-1/2}\\). At \\(K=%d\\), \\(L=%d\\): \\(Q_{K} = %s\\) and \\(Q_{L} = %s\\), so \\(dQ = %s\\cdot %s + %s\\cdot %s = %s\\). This is the linear estimate of the change in output.",
 			a, a, k*k, l*l, qk, ql, qk, paren(dk), ql, paren(dl), ans),
+		Facts: map[string]string{
+			"shape": "output", "a": strconv.Itoa(a), "kk": strconv.Itoa(k * k), "ll": strconv.Itoa(l * l),
+			"dk": strconv.Itoa(dk), "dl": strconv.Itoa(dl), "dk_p": paren(dk), "dl_p": paren(dl), "qk": qk, "ql": ql, "dq": ans,
+		},
 	}
 }
 
@@ -3526,12 +3595,19 @@ func partialHigherVariant(ctx generator.GeneratorContext) generator.Problem {
 				Answer:   fmt.Sprintf("%d", val),
 				Explanation: fmt.Sprintf("\\(%s = %s\\), so \\(%s = %s\\). At \\((%d,%d)\\) this is %d.",
 					firstName, texXY(first), names[which], texXY(second), p, q, val),
+				Facts: map[string]string{
+					"f": texXY(f), "first_name": firstName, "first": texXY(first), "second_name": names[which], "second": texXY(second),
+					"p": strconv.Itoa(p), "q": strconv.Itoa(q), "value": strconv.Itoa(val),
+				},
 			}
 		}
 		return generator.Problem{
 			Question:    fmt.Sprintf("For \\(f(x,y)=%s\\), find \\(%s\\).", texXY(f), names[which]),
 			Answer:      plainPoly(second),
 			Explanation: fmt.Sprintf("\\(%s = %s\\), so \\(%s = %s\\).", firstName, texXY(first), names[which], texXY(second)),
+			Facts: map[string]string{
+				"f": texXY(f), "first_name": firstName, "first": texXY(first), "second_name": names[which], "second": texXY(second),
+			},
 		}
 	}
 }

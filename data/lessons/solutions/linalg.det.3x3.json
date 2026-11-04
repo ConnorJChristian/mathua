@@ -1,0 +1,23 @@
+{
+  "concept": "linalg.det.3x3",
+  "setup": "Expand along the first row: each entry times its two-by-two minor, with signs \\(+, -, +\\).",
+  "steps": [
+    {
+      "fact": "v1",
+      "say": "Entry [[a]] with the minor from rows 2–3, columns 2–3: \\([[m1]] = [[v1]]\\)."
+    },
+    {
+      "fact": "v2",
+      "say": "Entry [[b]] with the minor from columns 1 and 3: \\([[m2]] = [[v2]]\\), taken with a minus sign."
+    },
+    {
+      "fact": "v3",
+      "say": "Entry [[c]] with the minor from columns 1 and 2: \\([[m3]] = [[v3]]\\)."
+    },
+    {
+      "fact": "t1",
+      "say": "Combine: \\([[a]]\\cdot [[v1]] - [[b]]\\cdot [[v2]] + [[c]]\\cdot [[v3]] = [[t1]] - ([[t2]]) + ([[t3]]) = [[answer]]\\)."
+    }
+  ],
+  "answer": "So the determinant is [[answer]]."
+}

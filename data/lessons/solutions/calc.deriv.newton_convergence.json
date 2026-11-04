@@ -1,0 +1,19 @@
+{
+  "concept": "calc.deriv.newton_convergence",
+  "setup": "Newton's method replaces the curve by its tangent line and steps to where that line crosses zero: \\(x_{n+1} = x_n - f(x_n)/f'(x_n)\\).",
+  "steps": [
+    {
+      "fact": "k",
+      "say": "For \\(f(x) = x^{2} - [[k]]\\), \\(f'(x) = 2x\\), so one step is \\(x_1 = x_0 - \\frac{x_0^{2} - [[k]]}{2x_0}\\)."
+    },
+    {
+      "fact": "x0",
+      "say": "Simplify the step: \\(x_1 = \\frac{1}{2}\\left(x_0 + \\frac{[[k]]}{x_0}\\right)\\), the average of \\(x_0\\) and \\([[k]]/x_0\\)."
+    },
+    {
+      "fact": "answer",
+      "say": "Substitute \\(x_0 = [[x0]]\\): \\(x_1 = \\frac{1}{2}\\left([[x0]] + \\frac{[[k]]}{[[x0]]}\\right) = [[answer]]\\)."
+    }
+  ],
+  "answer": "So \\(x_1 = [[answer]]\\), already closer to \\(\\sqrt{[[k]]}\\)."
+}

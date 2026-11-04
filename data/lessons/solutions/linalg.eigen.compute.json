@@ -1,0 +1,15 @@
+{
+  "concept": "linalg.eigen.compute",
+  "setup": "The eigenvalues are the roots of the characteristic polynomial \\(\\det(A - \\lambda I) = 0\\).",
+  "steps": [
+    {
+      "fact": "a",
+      "say": "For a triangular matrix \\(A - \\lambda I\\) is triangular too, so its determinant is the product of the diagonal: \\(([[a]] - \\lambda)([[d]] - \\lambda)\\); the entry [[c]] above the diagonal never enters."
+    },
+    {
+      "fact": "d",
+      "say": "Set it to zero: \\(([[a]] - \\lambda)([[d]] - \\lambda) = 0\\) gives \\(\\lambda = [[a]]\\) or \\(\\lambda = [[d]]\\)."
+    }
+  ],
+  "answer": "So the eigenvalues are the diagonal entries, [[a]] and [[d]]."
+}

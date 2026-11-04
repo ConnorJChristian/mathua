@@ -1,0 +1,15 @@
+{
+  "concept": "linalg.det.2x2",
+  "setup": "For a two-by-two matrix, \\(\\det \\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix} = ad - bc\\): the product of the main diagonal minus the product of the other diagonal.",
+  "steps": [
+    {
+      "fact": "ad",
+      "say": "Main diagonal: \\([[a]] \\cdot [[d]] = [[ad]]\\)."
+    },
+    {
+      "fact": "bc",
+      "say": "Other diagonal: \\([[b]] \\cdot [[c]] = [[bc]]\\)."
+    }
+  ],
+  "answer": "Subtract: \\([[ad]] - [[bc]] = [[answer]]\\)."
+}

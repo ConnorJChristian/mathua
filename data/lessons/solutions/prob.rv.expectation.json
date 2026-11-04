@@ -1,0 +1,15 @@
+{
+  "concept": "prob.rv.expectation",
+  "setup": "\\(X\\) takes the values [[values]] with weights [[weights]] out of [[den]]; the law of the unconscious statistician gives \\(E[X^{2}] = \\sum x^{2} p(x)\\).",
+  "steps": [
+    {
+      "fact": "probs",
+      "say": "Turn the weights into probabilities by dividing by [[den]]: \\(p(x) = \\) [[probs]]."
+    },
+    {
+      "fact": "terms",
+      "say": "Square each value and weight it by its probability: \\(E[X^{2}] = [[terms]]\\)."
+    }
+  ],
+  "answer": "Adding the terms gives \\(E[X^{2}] = [[answer]]\\)."
+}

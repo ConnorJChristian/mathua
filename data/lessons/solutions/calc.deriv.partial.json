@@ -1,0 +1,10 @@
+{
+  "concept": "calc.deriv.partial",
+  "setup": "A partial derivative treats the other variable as a constant: differentiate \\(f(x,y) = [[a]]x^{2}y + [[b]]xy^{2}\\) with respect to \\([[dir]]\\), holding \\([[other]]\\) fixed.",
+  "steps": [
+    {"fact": "partial", "say": "Differentiate each term in \\([[dir]]\\): \\(\\partial f/\\partial [[dir]] = [[partial]]\\)."},
+    {"fact": "v1", "say": "Substitute \\((x, y) = ([[x0]], [[y0]])\\) into the first term: \\([[term1]] = [[v1]]\\)."},
+    {"fact": "v2", "say": "And into the second: \\([[term2]] = [[v2]]\\)."}
+  ],
+  "answer": "Add them: \\([[v1]] + [[v2]] = [[answer]]\\)."
+}

@@ -1,0 +1,21 @@
+{
+  "concept": "calc.multi.euler_homogeneous",
+  "setup": "Euler's theorem: a function homogeneous of degree \\(k\\) satisfies \\(x f_x + y f_y = k f(x, y)\\).",
+  "steps": [
+    {
+      "fact": "degree",
+      "say": "Every term of \\([[ftex]]\\) has total degree [[degree]], so \\(f(tx, ty) = t^{[[degree]]} f(x, y)\\): the degree is [[degree]]."
+    },
+    {
+      "fact": "f",
+      "optional": true,
+      "say": "Evaluate the function at \\(([[x]], [[y]])\\): \\(f([[x]], [[y]]) = [[f]]\\)."
+    },
+    {
+      "fact": "f",
+      "optional": true,
+      "say": "Euler's theorem then gives \\(x f_x + y f_y = [[degree]] \\cdot [[f]] = [[value]]\\), with no partial derivative to compute."
+    }
+  ],
+  "answer": "So the answer is [[answer]]."
+}

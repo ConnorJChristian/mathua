@@ -1,0 +1,22 @@
+{
+  "concept": "calc.deriv.gradient",
+  "setup": "The gradient is the vector of partial derivatives, \\(\\nabla f = (f_{x}, f_{y})\\), and it points in the direction of steepest ascent.",
+  "steps": [
+    {
+      "fact": "fx",
+      "optional": true,
+      "say": "For \\(f(x,y) = [[f]]\\), differentiate in \\(x\\) with \\(y\\) fixed: \\(f_{x} = [[fx]]\\)."
+    },
+    {
+      "fact": "fy",
+      "optional": true,
+      "say": "Differentiate in \\(y\\) with \\(x\\) fixed: \\(f_{y} = [[fy]]\\)."
+    },
+    {
+      "fact": "gx",
+      "optional": true,
+      "say": "Evaluate both at \\(([[p]], [[q]])\\): \\(f_{x} = [[gx]]\\) and \\(f_{y} = [[gy]]\\), so \\(\\nabla f([[p]], [[q]]) = ([[gx]], [[gy]])\\)."
+    }
+  ],
+  "answer": "So the answer is \\([[answer]]\\)."
+}

@@ -1,0 +1,37 @@
+{
+  "concept": "calc.deriv.linear_approx",
+  "setup": "The linearization at \\(a\\) is the tangent line, \\(L(x) = f(a) + f'(a)(x - a)\\).",
+  "steps": [
+    {
+      "fact": "fa",
+      "optional": true,
+      "say": "Evaluate the function at the point: \\(f([[a]]) = [[fa]]\\)."
+    },
+    {
+      "fact": "fprime",
+      "optional": true,
+      "say": "Differentiate: \\(f'(x) = [[fprime]]\\), so the slope at \\(x = [[a]]\\) is \\(f'([[a]]) = [[m]]\\)."
+    },
+    {
+      "fact": "line",
+      "optional": true,
+      "say": "Put both into the tangent line: \\(L(x) = [[fa]] + [[m_p]]([[shift]]) = [[line]]\\)."
+    },
+    {
+      "fact": "kk",
+      "optional": true,
+      "say": "Take the nearby perfect square \\([[kk]]\\): \\(f([[kk]]) = \\sqrt{[[kk]]} = [[k]]\\)."
+    },
+    {
+      "fact": "two_k",
+      "optional": true,
+      "say": "Differentiate: \\(f'(x) = \\frac{1}{2\\sqrt{x}}\\), so \\(f'([[kk]]) = \\frac{1}{[[two_k]]}\\)."
+    },
+    {
+      "fact": "root_est",
+      "optional": true,
+      "say": "The tangent line at \\([[kk]]\\) gives \\(L([[n]]) = [[k]] + \\frac{[[d]]}{[[two_k]]} = [[root_est]]\\), slightly above the true root because the square root is concave."
+    }
+  ],
+  "answer": "So the answer is \\([[answer]]\\)."
+}

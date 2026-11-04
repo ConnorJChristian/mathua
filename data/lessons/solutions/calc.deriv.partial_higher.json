@@ -1,0 +1,10 @@
+{
+  "concept": "calc.deriv.partial_higher",
+  "setup": "A second partial derivative differentiates a first partial once more: for \\(f(x,y) = [[f]]\\), find \\([[second_name]]\\) by differentiating \\([[first_name]]\\).",
+  "steps": [
+    {"fact": "first", "say": "First partial: \\([[first_name]] = [[first]]\\), differentiating with the other variable held fixed."},
+    {"fact": "second", "say": "Differentiate again, in the variable the second subscript names: \\([[second_name]] = [[second]]\\)."},
+    {"fact": "value", "optional": true, "say": "Substitute \\((x, y) = ([[p]], [[q]])\\): \\([[second_name]]([[p]], [[q]]) = [[value]]\\)."}
+  ],
+  "answer": "So \\([[second_name]] = [[answer]]\\)."
+}

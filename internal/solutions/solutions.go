@@ -191,6 +191,13 @@ func (l *Loader) AssembleParts(conceptID string, facts map[string]string) (Parts
 	}
 	p := Parts{Explain: plainNumbers(answer)}
 	if len(steps) == 0 {
+		// Every step skipped: the instance is a shape the schema does not
+		// cover (a generator's fixed-table draw beside its parameterised
+		// variant), and the generator's own explanation says more than the
+		// answer line would.
+		if len(s.Steps) > 0 {
+			return Parts{}, false
+		}
 		if setup != "" {
 			p.Explain = plainNumbers(setup + " " + answer)
 		}

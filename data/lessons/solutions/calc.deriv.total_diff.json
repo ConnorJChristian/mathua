@@ -1,0 +1,52 @@
+{
+  "concept": "calc.deriv.total_diff",
+  "setup": "The total differential adds up the first-order effect of each variable: \\(dz = z_{x}\\,dx + z_{y}\\,dy\\).",
+  "steps": [
+    {
+      "fact": "zx",
+      "optional": true,
+      "say": "Differentiate in \\(x\\) with \\(y\\) held fixed: \\(z_{x} = [[zx]]\\)."
+    },
+    {
+      "fact": "zy",
+      "optional": true,
+      "say": "Differentiate in \\(y\\) with \\(x\\) held fixed: \\(z_{y} = [[zy]]\\)."
+    },
+    {
+      "fact": "z",
+      "optional": true,
+      "say": "Put the two into \\(dz = z_{x}\\,dx + z_{y}\\,dy\\): \\(dz = ([[zx]])\\,dx + ([[zy]])\\,dy\\)."
+    },
+    {
+      "fact": "fx",
+      "optional": true,
+      "say": "The partials of \\(f = [[f]]\\) are \\(f_{x} = [[fx]]\\) and \\(f_{y} = [[fy]]\\)."
+    },
+    {
+      "fact": "gx",
+      "optional": true,
+      "say": "At the starting point \\(([[p]], [[q]])\\) they are \\(f_{x} = [[gx]]\\) and \\(f_{y} = [[gy]]\\)."
+    },
+    {
+      "fact": "dx",
+      "optional": true,
+      "say": "The moves are \\(dx = [[dx]]\\) and \\(dy = [[dy]]\\), so \\(df = [[gx_p]] \\cdot [[dx_p]] + [[gy_p]] \\cdot [[dy_p]] = [[est]]\\): the linear estimate of the change, not the exact change."
+    },
+    {
+      "fact": "qk",
+      "optional": true,
+      "say": "For \\(Q = [[a]]K^{1/2}L^{1/2}\\), the marginal products are \\(Q_{K} = \\frac{[[a]]}{2}K^{-1/2}L^{1/2}\\) and \\(Q_{L} = \\frac{[[a]]}{2}K^{1/2}L^{-1/2}\\)."
+    },
+    {
+      "fact": "ql",
+      "optional": true,
+      "say": "At \\(K = [[kk]]\\), \\(L = [[ll]]\\) they are \\(Q_{K} = [[qk]]\\) and \\(Q_{L} = [[ql]]\\)."
+    },
+    {
+      "fact": "dq",
+      "optional": true,
+      "say": "So \\(dQ = Q_{K}\\,dK + Q_{L}\\,dL = [[qk]] \\cdot [[dk_p]] + [[ql]] \\cdot [[dl_p]] = [[dq]]\\): the linear estimate of the change in output."
+    }
+  ],
+  "answer": "So the answer is \\([[answer]]\\)."
+}

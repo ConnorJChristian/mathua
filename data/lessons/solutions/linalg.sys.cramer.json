@@ -1,0 +1,15 @@
+{
+  "concept": "linalg.sys.cramer",
+  "setup": "Cramer's rule: \\([[var]]\\) is the determinant of the coefficient matrix with the [[col]] column replaced by the right-hand side, divided by the determinant of the coefficient matrix.",
+  "steps": [
+    {
+      "fact": "det",
+      "say": "The determinant of the coefficient matrix: \\([[a]]\\cdot [[d]] - [[b]]\\cdot [[c]] = [[det]]\\)."
+    },
+    {
+      "fact": "detv",
+      "say": "Replace the [[col]] column by the constants, \\([[replaced]]\\), and take its determinant: \\([[numer]] = [[detv]]\\)."
+    }
+  ],
+  "answer": "Divide: \\([[var]] = [[detv]] / [[det]] = [[answer]]\\)."
+}

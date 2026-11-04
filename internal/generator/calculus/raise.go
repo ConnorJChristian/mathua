@@ -407,7 +407,7 @@ func (g *marginalAnalysisGen) Generate(ctx generator.GeneratorContext) generator
 		Answer:   answer,
 		Explanation: fmt.Sprintf("Differentiating gives \\(C'(x) = %dx + %d\\), so at \\(x = %d\\) the marginal cost is %d.",
 			2*a, b, x0, marginal),
-		Facts: map[string]string{"a": strconv.Itoa(a), "b": strconv.Itoa(b), "x0": strconv.Itoa(x0), "marginal": answer},
+		Facts: map[string]string{"a": strconv.Itoa(a), "b": strconv.Itoa(b), "c": strconv.Itoa(c), "x0": strconv.Itoa(x0), "two_a": strconv.Itoa(2 * a), "marginal": answer},
 	}
 }
 
@@ -840,7 +840,7 @@ func (g *implicitFunctionGen) Generate(ctx generator.GeneratorContext) generator
 		Answer:   slope,
 		Explanation: fmt.Sprintf("With \\(F = x^{2}+y^{2}-%d\\), \\(F_x = 2x = %d\\) and \\(F_y = 2y = %d\\), so \\(dy/dx = -%d/%d = %s\\).",
 			k, 2*x, 2*y, 2*x, 2*y, slope),
-		Facts: map[string]string{"x": strconv.Itoa(x), "y": strconv.Itoa(y), "k": strconv.Itoa(k), "slope": slope},
+		Facts: map[string]string{"x": strconv.Itoa(x), "y": strconv.Itoa(y), "k": strconv.Itoa(k), "slope": slope, "fx": strconv.Itoa(2 * x), "fy": strconv.Itoa(2 * y)},
 	}
 }
 
@@ -928,7 +928,7 @@ func (g *eulerHomogeneousGen) Generate(ctx generator.GeneratorContext) generator
 			Question:    fmt.Sprintf("\\(f(x,y) = %s\\) is homogeneous. Of what degree? (Euler: \\(x f_x + y f_y = k f\\); enter \\(k\\))", f.tex),
 			Answer:      strconv.Itoa(f.degree),
 			Explanation: fmt.Sprintf("Every term of \\(%s\\) has total degree %d, so \\(f(tx, ty) = t^{%d} f(x, y)\\) and \\(k = %d\\).", f.tex, f.degree, f.degree, f.degree),
-			Facts:       map[string]string{"degree": strconv.Itoa(f.degree), "value": strconv.Itoa(f.degree)},
+			Facts:       map[string]string{"degree": strconv.Itoa(f.degree), "value": strconv.Itoa(f.degree), "ftex": f.tex},
 		}
 	}
 	v := f.eval(x, y)
@@ -938,7 +938,7 @@ func (g *eulerHomogeneousGen) Generate(ctx generator.GeneratorContext) generator
 		Question:    fmt.Sprintf("The function \\(f(x,y) = %s\\) is homogeneous of degree %d, so Euler's theorem gives \\(x f_x + y f_y = %d f\\). What is \\(x f_x + y f_y\\) at \\((x,y) = (%d,%d)\\)? (enter a number)", f.tex, f.degree, f.degree, x, y),
 		Answer:      answer,
 		Explanation: fmt.Sprintf("\\(f(%d,%d) = %d\\) and the sum is %d times it, %d.", x, y, v, f.degree, value),
-		Facts:       map[string]string{"x": strconv.Itoa(x), "y": strconv.Itoa(y), "f": strconv.Itoa(v), "value": answer},
+		Facts:       map[string]string{"x": strconv.Itoa(x), "y": strconv.Itoa(y), "f": strconv.Itoa(v), "value": answer, "ftex": f.tex, "degree": strconv.Itoa(f.degree)},
 	}
 }
 

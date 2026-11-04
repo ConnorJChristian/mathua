@@ -1,0 +1,23 @@
+{
+  "concept": "linalg.systems.matrix",
+  "setup": "Write the system as \\(A\\mathbf{x} = \\mathbf{b}\\) with \\(A = \\begin{pmatrix} [[a]] & [[b]] \\\\ [[c]] & [[d]] \\end{pmatrix}\\) and \\(\\mathbf{b} = ([[e1]], [[e2]])\\); a nonzero determinant means one solution, \\(\\mathbf{x} = A^{-1}\\mathbf{b}\\).",
+  "steps": [
+    {
+      "fact": "det",
+      "say": "The determinant of \\(A\\): \\([[a_p]]\\cdot [[d_p]] - [[b_p]]\\cdot [[c_p]] = [[det]]\\), which is not zero."
+    },
+    {
+      "fact": "detx",
+      "say": "Cramer's rule for \\(x\\): replace the first column of \\(A\\) by \\(\\mathbf{b}\\) and take the determinant, \\([[e1_p]]\\cdot [[d_p]] - [[b_p]]\\cdot [[e2_p]] = [[detx]]\\), so \\(x = [[detx]]/[[det_p]] = [[x]]\\)."
+    },
+    {
+      "fact": "dety",
+      "say": "And for \\(y\\): replace the second column, \\([[a_p]]\\cdot [[e2_p]] - [[e1_p]]\\cdot [[c_p]] = [[dety]]\\), so \\(y = [[dety]]/[[det_p]] = [[y]]\\)."
+    },
+    {
+      "fact": "x",
+      "say": "Check in the first equation: \\([[a_p]]\\cdot [[x_p]] + [[b_p]]\\cdot [[y_p]] = [[e1]]\\)."
+    }
+  ],
+  "answer": "So \\((x, y) = ([[x]], [[y]])\\)."
+}

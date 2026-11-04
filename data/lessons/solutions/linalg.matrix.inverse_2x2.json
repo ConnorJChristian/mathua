@@ -1,0 +1,15 @@
+{
+  "concept": "linalg.matrix.inverse_2x2",
+  "setup": "For \\(A = \\begin{pmatrix} [[a]] & [[b]] \\\\ [[c]] & [[d]] \\end{pmatrix}\\), \\(A^{-1} = \\frac{1}{\\det A}\\begin{pmatrix} d & -b \\\\ -c & a \\end{pmatrix}\\): swap the diagonal entries, negate the others, divide by the determinant.",
+  "steps": [
+    {
+      "fact": "determinant",
+      "say": "The determinant: \\([[a]]\\cdot [[d]] - [[b]]\\cdot [[c]] = [[determinant]]\\)."
+    },
+    {
+      "fact": "entry",
+      "say": "Swapping the diagonal puts \\(d = [[d]]\\) in the first row, first column; dividing by the determinant [[determinant]] leaves [[entry]]."
+    }
+  ],
+  "answer": "So the first-row, first-column entry of \\(A^{-1}\\) is [[entry]]."
+}

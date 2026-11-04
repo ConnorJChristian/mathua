@@ -1,0 +1,19 @@
+{
+  "concept": "calc.multi.implicit_function",
+  "setup": "Write the curve as a level set \\(F(x, y) = x^{2} + y^{2} - [[k]] = 0\\); the implicit function theorem gives \\(dy/dx = -F_x/F_y\\) wherever \\(F_y \\ne 0\\).",
+  "steps": [
+    {
+      "fact": "fx",
+      "say": "Partial derivatives: \\(F_x = 2x\\) and \\(F_y = 2y\\)."
+    },
+    {
+      "fact": "fy",
+      "say": "At \\(([[x]], [[y]])\\): \\(F_x = [[fx]]\\) and \\(F_y = [[fy]]\\), and \\(F_y \\ne 0\\), so \\(y\\) is a function of \\(x\\) there."
+    },
+    {
+      "fact": "slope",
+      "say": "So \\(dy/dx = -F_x/F_y = -[[fx]]/[[fy]] = [[slope]]\\)."
+    }
+  ],
+  "answer": "The slope of the curve at \\(([[x]], [[y]])\\) is [[slope]]."
+}
