@@ -17,8 +17,23 @@ import ChoiceOptions from '../../components/ChoiceOptions'
 import SubmitErrorBlock, { toSubmitError, type SubmitError } from '../../components/SubmitErrorBlock'
 import { MathAnswerInput, type MathFocusHandle } from '@/components/math/MathInput'
 import PythonAnswer from '../../components/python/PythonAnswer'
-import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint } from '../../lib/pythonQuestion'
+import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint, recallWhy } from '../../lib/pythonQuestion'
 import { track, questionHash, answerStyle } from '../../lib/events'
+import Walkthrough from '../../components/Walkthrough'
+import { walkthroughFromExplanation, type Walkthrough as WalkthroughData } from '../../lib/walkthrough'
+
+/**
+ * The feedback contract for a review result: the server's walkthrough, else
+ * one built from the explanation. A code task's miss keeps the failed checks
+ * below as its diagnosis, so the contract's divergence line is dropped there;
+ * a flashcard's back stays on the card, so its reason omits it.
+ */
+export function reviewWalkthrough(result: { explanation?: string; walkthrough?: WalkthroughData; correct: boolean; feedback: string }, question: string, recalled: boolean): WalkthroughData {
+  let w = result.walkthrough ?? walkthroughFromExplanation(result.explanation ?? '')
+  if (recalled) w = { ...w, explain: recallWhy(question, w.explain) }
+  if (!result.correct && question.includes('task=') && result.feedback) w = { ...w, diverged_at: undefined }
+  return w
+}
 
 type Phase = 'loading' | 'intro' | 'run' | 'done'
 
@@ -42,7 +57,7 @@ export default function ReviewHost() {
   const [reviewConceptName, setReviewConceptName] = useState('')
   const [reviewCount, setReviewCount] = useState(0)
   const [reviewAnswerInput, setReviewAnswerInput] = useState('')
-  const [reviewLastResult, setReviewLastResult] = useState<{ correct: boolean; feedback: string; explanation?: string; diagnosis?: string; xp?: number; proof?: ProofReportData } | null>(null)
+  const [reviewLastResult, setReviewLastResult] = useState<{ correct: boolean; feedback: string; explanation?: string; diagnosis?: string; xp?: number; proof?: ProofReportData; walkthrough?: WalkthroughData } | null>(null)
   const [reviewAccuracy, setReviewAccuracy] = useState({ correct: 0, total: 0 })
   const [reviewXp, setReviewXp] = useState(0)
   const [submitError, setSubmitError] = useState<SubmitError | null>(null)
@@ -140,7 +155,7 @@ export default function ReviewHost() {
       const xp = data.result?.xp ?? 0
       setReviewAccuracy(prev => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }))
       setReviewXp(prev => prev + xp)
-      setReviewLastResult({ correct, feedback, explanation: data.result?.explanation, diagnosis: data.result?.diagnosis, xp, proof: data.result?.proof })
+      setReviewLastResult({ correct, feedback, explanation: data.result?.explanation, diagnosis: data.result?.diagnosis, xp, proof: data.result?.proof, walkthrough: data.result?.walkthrough })
       if (data.done || !data.next_question) {
         setFinished(true)
         setTimeout(() => {
@@ -338,17 +353,25 @@ export default function ReviewHost() {
             <div className="animate-fadeIn">
               <p className={`text-base font-medium mb-2 text-center ${reviewLastResult.correct ? 'text-mathua-green' : 'text-mathua-red'}`}>{reviewLastResult.correct ? '✓ Correct!' : '✗ Not quite'}</p>
               {reviewLastResult.proof && <div className="mb-3 text-left"><ProofReport report={reviewLastResult.proof} flashcard={written} writing={writing} /></div>}
-              {/* The explanation is the solution for this instance and is the
-                  body of the result; `feedback` is the grader's verdict token
-                  ("Incorrect"), so showing it above the working is noise. Fall
-                  back to it only when there is no explanation at all. */}
-              {reviewLastResult.explanation ? (
-                <KatexContent externalLinks={isPy} className="text-mathua-secondary text-sm text-left whitespace-pre-wrap">{reviewLastResult.explanation}</KatexContent>
+              {/* The walkthrough is the body of the result (fork change,
+                  lib/walkthrough): the key, the steps and the reason for this
+                  instance. `feedback` is the grader's verdict token
+                  ("Incorrect"), shown only when there is no explanation at all. */}
+              {reviewLastResult.explanation || reviewLastResult.walkthrough ? (
+                <div className="text-left">
+                  <Walkthrough
+                    walkthrough={reviewWalkthrough(reviewLastResult, reviewQuestion, pyKind === 'recall')}
+                    correct={reviewLastResult.correct}
+                    hideAnswer={pyKind === 'recall' || pyKind === 'proof'}
+                    outputAnswer={pyKind === 'output'}
+                    externalLinks={isPy}
+                  />
+                </div>
               ) : (
                 <KatexContent className="text-mathua-secondary text-sm">{reviewLastResult.feedback}</KatexContent>
               )}
-              {/* Names the mistake when it is certain; empty otherwise. */}
-              {reviewLastResult.diagnosis && !(pyKind === 'code' && !reviewLastResult.correct) && !reviewLastResult.proof && (
+              {/* Names the mistake when it is certain, for a response without a walkthrough. */}
+              {reviewLastResult.diagnosis && !reviewLastResult.walkthrough && !(pyKind === 'code' && !reviewLastResult.correct) && !reviewLastResult.proof && (
                 <p className="mt-2 text-center font-mono text-[11px] text-mathua-muted">{reviewLastResult.diagnosis}</p>
               )}
               {pyKind === 'code' && !reviewLastResult.correct && reviewLastResult.feedback && (

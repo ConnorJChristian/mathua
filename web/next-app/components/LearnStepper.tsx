@@ -27,6 +27,20 @@ import ProofReport from './ProofReport'
 import { WRITING_HINT, WRITTEN_RECALL_HINT, answeredKind, displayAnswer, displayQuestion, isBankServed, isProofQuestion, isPythonGrading, isWritingQuestion, isWrittenRecall, plainAnswer, pythonHint, pythonKind, recallBack, recallWhy, typedEcho } from '../lib/pythonQuestion'
 import { choiceEcho } from '../lib/choices'
 import { StepSourceLine } from './StepSourceLine'
+import Walkthrough from './Walkthrough'
+import { walkthroughFromExplanation, type Walkthrough as WalkthroughData } from '../lib/walkthrough'
+
+/**
+ * The feedback contract for a Learn entry: the server's walkthrough when the
+ * response carried one, else one built from the explanation and the shown
+ * key. For a flashcard the back stays on the card, so the reason is the
+ * explanation without it (recallWhy).
+ */
+export function learnWalkthrough(feedback: { text: string; walkthrough?: WalkthroughData; diagnosis?: string }, shownAnswer: string, recallQuestion: string): WalkthroughData {
+  const w = feedback.walkthrough ?? walkthroughFromExplanation(feedback.text, shownAnswer)
+  if (!recallQuestion) return w
+  return { ...w, explain: recallWhy(recallQuestion, w.explain) }
+}
 
 // Append-only learning feed: intro once, then each submit locks its card and
 // the next question opens below. Scrollback IS the performance history —
@@ -43,7 +57,7 @@ interface QEntry {
   firstInputAt?: number
   // expected is the answer key, returned by the submission: the served
   // question no longer carries it (upstream fix, ported).
-  feedback: { correct: boolean; text: string; expected: string; diagnosis?: string; detail?: string; xp: number; proof?: ProofReportData; dontKnow?: boolean } | null
+  feedback: { correct: boolean; text: string; expected: string; diagnosis?: string; detail?: string; xp: number; proof?: ProofReportData; dontKnow?: boolean; walkthrough?: WalkthroughData } | null
 }
 
 type Entry =
@@ -579,7 +593,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
         // MATHUA_PROOF_COUNTS_FOR_MASTERY).
         setEntry(key, {
           checking: false,
-          feedback: { correct: !!res.correct, text: res.explanation ?? '', expected: res.expected_answer ?? '', diagnosis: res.diagnosis, detail: res.feedback, xp: res.xp ?? 0, proof: res.proof },
+          feedback: { correct: !!res.correct, text: res.explanation ?? '', expected: res.expected_answer ?? '', diagnosis: res.diagnosis, detail: res.feedback, xp: res.xp ?? 0, proof: res.proof, walkthrough: res.walkthrough },
         })
         appendAfter(350, async () => { await continueInSection(entry, difficulty) })
         return
@@ -605,6 +619,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             detail: res.feedback,
             xp: res.xp ?? 0,
             proof: res.proof,
+            walkthrough: res.walkthrough,
           },
         })
         // 2-in-a-row, and nothing else. This used to read
@@ -639,6 +654,7 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
             xp: 0,
             proof: res.proof,
             dontKnow,
+            walkthrough: res.walkthrough,
           },
         })
         appendAfter(350, async () => {
@@ -984,7 +1000,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
           const flashcard = qPy && pythonKind(qe.q.question) === 'recall'
           const recalled = qPy && pyKind === 'recall'
           const picked = !recalled && pyKind !== 'math' ? choiceEcho(qe.q.question, qe.answer) : null
-          const whyText = qe.feedback ? (recalled ? recallWhy(qe.q.question, qe.feedback.text) : qe.feedback.text) : ''
+          // The feedback contract (lib/walkthrough): the server's, or built
+          // from the explanation for a response without one. A flashcard's
+          // back stays on the card, so the reason omits it (recallWhy).
+          const walkthrough = qe.feedback ? learnWalkthrough(qe.feedback, shownAnswer, recalled ? qe.q.question : '') : null
           return (
             <div key={qe.key} className={`border bg-mathua-surface p-6 ${qe.feedback?.correct ? 'border-mathua-green-faint' : qe.feedback ? 'border-mathua-red-faint' : 'border-mathua-border'}`}>
               <KatexContent className="text-sm text-mathua-primary font-mono whitespace-pre-wrap">{qPy ? displayQuestion(qe.q.question) : qe.q.question}</KatexContent>
@@ -1087,20 +1106,10 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                       <CodeEcho text={qe.answer} className="mt-1 max-h-72 overflow-auto bg-mathua-code px-3 py-2 text-[12px] text-mathua-primary" />
                     </details>
                   )}
-                  {shownAnswer && (
-                    <p className="mt-1.5 font-mono text-xs text-mathua-primary">
-                      Answer: {pyKind === 'output' ? <CodeEcho text={shownAnswer} inline /> : <KatexContent>{shownAnswer}</KatexContent>}
-                    </p>
-                  )}
-                  {/* The explanation is the solution for *this* instance, shown
-                      on both verdicts: a correct answer still needs the
-                      reasoning that made it right. Guarded on a non-empty
-                      string so a server that returns nothing leaves no empty
-                      section behind. */}
-                  {/* The mistake, when it can be named with certainty. It is
-                      a description of what happened, never a hint about what
-                      to do, and it is empty far more often than not. */}
-                  {qe.feedback.diagnosis && !(pyKind === 'code' && qe.feedback.detail) && !qe.feedback.proof && (
+                  {/* The mistake, when it can be named with certainty, and the
+                      contract carries no divergence of its own (a response
+                      without a walkthrough). */}
+                  {qe.feedback.diagnosis && !qe.feedback.walkthrough && !(pyKind === 'code' && qe.feedback.detail) && !qe.feedback.proof && (
                     <p data-diagnosis className="mt-2 font-mono text-[11px] text-mathua-muted">{qe.feedback.diagnosis}</p>
                   )}
                   {/* A code task's miss lists every hidden check that failed, or the
@@ -1108,13 +1117,19 @@ export default function LearnStepper({ conceptId, returnStack = [] }: Props) {
                   {pyKind === 'code' && !qe.feedback.correct && qe.feedback.detail && (
                     <pre data-diagnosis className="mt-2 max-h-64 overflow-auto border border-mathua-red-faint bg-mathua-bg px-3 py-2 font-mono text-[11px] text-mathua-red whitespace-pre-wrap">{plainAnswer(qe.feedback.detail)}</pre>
                   )}
-                  {whyText && (
-                    <div className="mt-1.5">
-                      <p className="font-mono text-[11px] uppercase tracking-wider text-mathua-muted">
-                        {qe.feedback.correct ? 'Why' : 'How'}
-                      </p>
-                      <KatexContent externalLinks={qPy} className="mt-1 text-xs font-mono text-mathua-secondary whitespace-pre-wrap">{whyText}</KatexContent>
-                    </div>
+                  {/* The walkthrough: the key, the steps (first one visible after
+                      a miss), the reason on both verdicts, and the reading. A
+                      code task's miss keeps the failed checks above as its
+                      diagnosis, so the contract's reason line is not repeated. */}
+                  {walkthrough && (
+                    <Walkthrough
+                      walkthrough={pyKind === 'code' && qe.feedback.detail && !qe.feedback.correct ? { ...walkthrough, diverged_at: undefined } : walkthrough}
+                      correct={qe.feedback.correct}
+                      dontKnow={qe.feedback.dontKnow}
+                      hideAnswer={!shownAnswer && !walkthrough.answer || recalled || pyKind === 'proof'}
+                      outputAnswer={pyKind === 'output'}
+                      externalLinks={qPy}
+                    />
                   )}
                 </div>
               )}

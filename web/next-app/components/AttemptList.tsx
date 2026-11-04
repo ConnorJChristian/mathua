@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import KatexContent from './KatexContent'
 import type { AttemptRecord } from '../lib/api'
+import Walkthrough from './Walkthrough'
+import { walkthroughFromExplanation } from '../lib/walkthrough'
 
 function shortDate(iso: string): string {
   if (!iso) return ''
@@ -50,10 +52,11 @@ export default function AttemptList({ attempts }: { attempts: AttemptRecord[] })
               <span className="text-mathua-secondary"> · Correct: {a.expected}</span>
             )}
           </p>
+          {/* A missed question's walkthrough, from the explanation the row
+              recorded (fork change): the steps block it carries is shown as
+              steps, the first one open. */}
           {!a.correct && a.explanation && (
-            <KatexContent className="mt-1 text-[11px] font-mono text-mathua-secondary whitespace-pre-wrap break-words">
-              {a.explanation}
-            </KatexContent>
+            <Walkthrough walkthrough={walkthroughFromExplanation(a.explanation)} correct={false} hideAnswer />
           )}
           <Link
             href={`/learn?concept=${encodeURIComponent(a.concept_id)}`}

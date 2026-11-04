@@ -24,6 +24,8 @@ import PythonAnswer from '../../components/python/PythonAnswer'
 import { displayQuestion, isBankServed, isPythonGrading, plainAnswer, pythonHint, pythonKind } from '../../lib/pythonQuestion'
 import { track, questionHash, answerStyle } from '../../lib/events'
 import { verdictDetail } from '../../lib/verdict'
+import Walkthrough from '../../components/Walkthrough'
+import type { Walkthrough as WalkthroughData } from '../../lib/walkthrough'
 
 // 'failed' exists because 'done' used to carry two meanings. Any thrown request
 // set phase to 'done', and the done screen reads "No questions available" while
@@ -66,7 +68,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
   //
   // `dontKnow` is what the learner did, not what they scored: an admitted unknown still counts as
   // a miss, but the verdict must not read as "you were close and wrong".
-  const [quizLastResult, setQuizLastResult] = useState<{ correct: boolean; feedback: string; conceptId: string; xp?: number; dontKnow?: boolean } | null>(null)
+  const [quizLastResult, setQuizLastResult] = useState<{ correct: boolean; feedback: string; conceptId: string; xp?: number; dontKnow?: boolean; walkthrough?: WalkthroughData; kind?: string | null } | null>(null)
   const [quizAccuracy, setQuizAccuracy] = useState({ correct: 0, total: 0 })
   const [quizClosedBook, setQuizClosedBook] = useState(false)
   const [quizQuestionsTotal, setQuizQuestionsTotal] = useState(0)
@@ -159,7 +161,7 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
       // The verdict line already says right or wrong: no default "Correct!" under a "✓ Correct!".
       const feedback = dontKnow ? '' : verdictDetail(data.feedback)
       setQuizAccuracy(prev => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }))
-      setQuizLastResult({ correct, feedback, conceptId: quizConceptId.current, xp: data.xp, dontKnow })
+      setQuizLastResult({ correct, feedback, conceptId: quizConceptId.current, xp: data.xp, dontKnow, walkthrough: data.walkthrough, kind: isBankServed(quizGradingType.current, quizQuestion) ? pythonKind(quizQuestion) : null })
       if (data.remedial?.length) {
         setQuizRemedial(prev => Array.from(new Set([...prev, ...(data.remedial ?? [])])))
       }
@@ -455,16 +457,26 @@ export default function QuizHost({ courseId, scope = 'review' }: { courseId?: st
           ) : (
             <div className="animate-fadeIn">
               <p className={`text-base font-medium mb-2 ${quizLastResult.correct ? 'text-mathua-green' : 'text-mathua-red'}`}>{quizLastResult.dontKnow ? 'No answer' : quizLastResult.correct ? '✓ Correct!' : '✗ Not quite'}</p>
-              {/* Assessment state, and nothing else. This used to render the served worked
-                  solution and a one-sentence diagnosis on both verdicts; the diagnosis was
-                  answer-revealing on its own ("you are exactly one away"), and the solution
-                  handed over the answer mid-test, so the remaining questions measured whether
-                  the learner had read it rather than what they knew. Instruction lives in Learn,
-                  reached deliberately, one concept at a time. */}
               {isPy ? (
                 <pre className="text-mathua-secondary text-xs font-mono whitespace-pre-wrap">{plainAnswer(quizLastResult.feedback)}</pre>
               ) : (
                 <KatexContent className="text-mathua-secondary text-sm">{quizLastResult.feedback}</KatexContent>
+              )}
+              {/* Fork change (FSRS_PORT_PLAN 0c): the walkthrough of the question just
+                  graded, the key and the steps to it, on a mastery check and a course
+                  test too. The server sends it for the graded question only, never the
+                  next one (the fork's assessment rule, internal/server). */}
+              {quizLastResult.walkthrough && (
+                <div className="mt-2 text-left">
+                  <Walkthrough
+                    walkthrough={quizLastResult.walkthrough}
+                    correct={quizLastResult.correct}
+                    dontKnow={quizLastResult.dontKnow}
+                    hideAnswer={quizLastResult.kind === 'recall' || quizLastResult.kind === 'proof'}
+                    outputAnswer={quizLastResult.kind === 'output'}
+                    externalLinks={isPy}
+                  />
+                </div>
               )}
               {!quizLastResult.correct && quizLastResult.conceptId && (
                 <Link
