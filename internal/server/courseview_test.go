@@ -10,9 +10,10 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/auth"
 	"github.com/chuma-beep/mathua/internal/concepts"
-	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/engine"
 	"github.com/chuma-beep/mathua/internal/generator"
+	"github.com/chuma-beep/mathua/internal/mastery"
+	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/planning"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
@@ -147,6 +148,32 @@ func TestCourseView_NearestNextAndHonestDue(t *testing.T) {
 	json.Unmarshal(authedGet(t, mux, "/api/courses/view?id=plan.n", token).Body.Bytes(), &v)
 	if v.ReviewsDue != 1 {
 		t.Errorf("reviews_due = %d, want 1 (q mastered and past due)", v.ReviewsDue)
+	}
+	// A plan topic held on credit (mastered through the topics above it:
+	// no date, no attempts) is due 14 days after its credit, as the one
+	// due rule says (FORK.md "What is due"), and the page agrees with the
+	// count the banner shows (engine.DueReviewIDs).
+	credited := time.Now().Add(-(mastery.DecayDays*24 + 1) * time.Hour)
+	store.UpsertProgress(&storage.ConceptProgress{StudentID: sid, ConceptID: "s", Status: "MASTERED", PlacementSeeded: true, LastReviewed: &credited})
+	json.Unmarshal(authedGet(t, mux, "/api/courses/view?id=plan.n", token).Body.Bytes(), &v)
+	if v.ReviewsDue != 2 {
+		t.Errorf("reviews_due = %d, want 2 (q past due, s credited 14 days ago)", v.ReviewsDue)
+	}
+	dueOnPage := map[string]bool{}
+	for _, m := range v.Modules {
+		for _, tp := range m.Topics {
+			dueOnPage[tp.ID] = tp.Due
+		}
+	}
+	if !dueOnPage["s"] || !dueOnPage["q"] {
+		t.Errorf("due marks on the page = %v, want q and s", dueOnPage)
+	}
+	var due struct {
+		Count int `json:"count"`
+	}
+	json.Unmarshal(authedGet(t, mux, "/api/reviews/due", token).Body.Bytes(), &due)
+	if due.Count != 2 {
+		t.Errorf("/api/reviews/due = %d, want 2, the page's count", due.Count)
 	}
 }
 

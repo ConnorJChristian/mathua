@@ -5,23 +5,29 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chuma-beep/mathua/internal/mastery"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
 
 func TestReviewDueReason(t *testing.T) {
 	now := time.Now()
 	at := func(h int) *time.Time { v := now.Add(time.Duration(h) * time.Hour); return &v }
+	decayed := func(days int) *time.Time { v := now.AddDate(0, 0, -mastery.DecayDays-days); return &v }
 	for _, c := range []struct {
-		due  *time.Time
+		p    *storage.ConceptProgress
 		want string
 	}{
-		{at(-2), "review due today"},
-		{at(-30), "review due 1 day ago"},
-		{at(-75), "review due 3 days ago"},
-		{nil, "review due: not practised for a while"},
+		{&storage.ConceptProgress{Status: "MASTERED", NextReviewDue: at(-2)}, "review due today"},
+		{&storage.ConceptProgress{Status: "MASTERED", NextReviewDue: at(-30)}, "review due 1 day ago"},
+		{&storage.ConceptProgress{Status: "MASTERED", NextReviewDue: at(-75)}, "review due 3 days ago"},
+		// A credited topic has no date: its due day is the decay horizon.
+		{&storage.ConceptProgress{Status: "MASTERED", LastReviewed: decayed(0)}, "review due today"},
+		{&storage.ConceptProgress{Status: "MASTERED", LastReviewed: decayed(3)}, "review due 3 days ago"},
+		{&storage.ConceptProgress{Status: "MASTERED"}, "review due: not practised for a while"},
+		{nil, "review due"},
 	} {
-		if got := reviewDueReason(c.due, now); got != c.want {
-			t.Errorf("reviewDueReason(%v) = %q, want %q", c.due, got, c.want)
+		if got := reviewDueReason(c.p, now); got != c.want {
+			t.Errorf("reviewDueReason(%+v) = %q, want %q", c.p, got, c.want)
 		}
 	}
 }

@@ -239,6 +239,7 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 	}
 	snaps := s.eng.ConceptSnapshots(studentID, progress)
 	now := time.Now()
+	dueSet := s.eng.DueReviewSet(studentID, progress, now)
 	mods := s.eng.Modules()
 	decks := s.deckCounts()
 
@@ -260,14 +261,16 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		if p := progress[cid]; p != nil && p.Attempts > 0 {
 			t.Status = strings.ToLower(p.Status)
 			t.Attempts = p.Attempts
-			// Due means what the review session serves: a mastered topic
-			// whose review date has come (Q2). A learning topic's
-			// next_review_due is a practice date, not a review.
-			t.Due = p.Status == string(mastery.StatusMastered) && p.NextReviewDue != nil && !p.NextReviewDue.After(now)
 		} else if p != nil && p.PlacementSeeded {
 			// Placed by the placement test: reachable, not studied (Q33).
 			t.Placed = true
 		}
+		// Due means what the review session serves (engine.DueReviewIDs,
+		// the one due rule; Q2): a mastered topic whose review has come,
+		// by its date or, with none, the decay horizon, so a credited
+		// course topic is due 14 days after its credit. A learning topic's
+		// next_review_due is a practice date, not a review.
+		t.Due = dueSet[cid]
 		el := scheduler.EligibilityOf(snaps, now, cc)
 		t.Locked = !el.Eligible
 		opts := s.readingOptions(cid)
