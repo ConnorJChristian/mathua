@@ -635,6 +635,12 @@ Rules (`internal/generator/scaffold.go`):
    items; after the steps are done, and in reviews, a leftover exercise is
    served about half the time (the next untried one in book order, else a
    missed one), so the rest of the topic is not crowded out.
+7. The order within a step never goes back. An item of the course's own
+   book that only becomes servable once the step has moved past that book
+   (a practice version that unlocks when its exercise is right after a
+   missed exercise's retry, or an item added to the bank) joins the
+   step's practice set, untried first, instead of coming first again. The
+   step still waits for it, as for any item under the caps.
 
 The cap is `MATHUA_BOOK_STEP_CAP` (default 3; `0` switches it off, so every
 book exercise at a step comes before the next step, as before). A course in

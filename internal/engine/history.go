@@ -32,8 +32,9 @@ type itemHistory struct {
 	byKey   map[string]bool // answer key -> any correct
 	byQuest map[string]bool // mc answer key + "\x00" + question key -> any correct
 
-	stepOnce sync.Once
-	stepTop  int // highest scaffold step with a right generated answer
+	stepOnce  sync.Once
+	stepTop   int     // highest scaffold step with a right generated answer
+	stepTried [4]bool // steps with any generated attempt
 
 	bookCap int // generator.BookStepCapper
 
@@ -145,21 +146,36 @@ const stepWindow = 200
 // one of the topic's generated questions (not a bank item or a proof) at
 // this scaffold step or above, by the difficulty it was served at.
 func (h *itemHistory) GeneratedCorrectAt(step int) bool {
+	h.loadSteps()
+	return h.stepTop >= step
+}
+
+// GeneratedAttemptedAt implements generator.StepAttemptHistory: any answer,
+// right or wrong, to one of the topic's generated questions at this step.
+func (h *itemHistory) GeneratedAttemptedAt(step int) bool {
+	h.loadSteps()
+	return step >= 0 && step < len(h.stepTried) && h.stepTried[step]
+}
+
+func (h *itemHistory) loadSteps() {
 	h.stepOnce.Do(func() {
 		rows, err := h.repo.GetRecentAttemptsForConcept(h.studentID, h.conceptID, stepWindow)
 		if err != nil {
 			return
 		}
 		for _, r := range rows {
-			if !r.Correct || r.Difficulty == nil || grader.IsBankAnswer(r.Expected) || grader.IsProofAnswer(r.Expected) {
+			if r.Difficulty == nil || grader.IsBankAnswer(r.Expected) || grader.IsProofAnswer(r.Expected) {
 				continue
 			}
-			if s := generator.StepOfDifficulty(*r.Difficulty); s > h.stepTop {
+			s := generator.StepOfDifficulty(*r.Difficulty)
+			if s >= 0 && s < len(h.stepTried) {
+				h.stepTried[s] = true
+			}
+			if r.Correct && s > h.stepTop {
 				h.stepTop = s
 			}
 		}
 	})
-	return h.stepTop >= step
 }
 
 // LearnerHistory is the generator.History of one learner on one topic, or

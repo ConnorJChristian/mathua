@@ -161,9 +161,23 @@ func TestScaffold_BookStepCap(t *testing.T) {
 		t.Errorf("capped step: the bank's case and the untried exercises share the pool, saw %v", seen)
 	}
 	// A step with no more exercises than the cap still needs them all.
-	few := &Scaffold{Items: []ScaffoldItem{item("a1", 1, false, true, true), item("b1", 1, true, true, false), item("b2", 1, true, false, false), item("a2", 2, false, false, false)}, BookCap: 3}
+	few := &Scaffold{Items: []ScaffoldItem{item("a1", 1, false, false, false), item("b1", 1, true, true, false), item("b2", 1, true, false, false), item("a2", 2, false, false, false)}, BookCap: 3}
 	if p, _ := few.Pick(nil); p.Question != "b2" {
 		t.Errorf("two exercises under a cap of three: both tried first, got %q", p.Question)
+	}
+	// Once the step's practice set has been served (a1 tried), the
+	// untried exercise no longer comes first but it is still what the step
+	// needs: it comes from the pool, or the missed one as a retry, and
+	// nothing from step 2 (TestScaffold_LateMainBookItemJoinsThePracticeSet).
+	few.Items[0].Attempted, few.Items[0].Correct = true, true
+	for i := 0; i < 40; i++ {
+		p, _ := few.Pick(nil)
+		if p.Question != "b2" && p.Question != "b1" {
+			t.Fatalf("after the practice set, the cap still needs b2 (or b1 again): got %q", p.Question)
+		}
+		if p.Question == "b2" && p.Tier != TierPractice {
+			t.Fatalf("a late b2 is served from the practice set, got %s", p.Tier)
+		}
 	}
 }
 
@@ -387,5 +401,80 @@ func TestScaffold_OneBookIsUnchanged(t *testing.T) {
 	}
 	if gens < 60 || gens > 140 {
 		t.Errorf("the rest shares with generated questions as before: %d of 200 generated", gens)
+	}
+}
+
+// A main-book item that only becomes servable once the step has moved past
+// the main book joins the practice set, so the order within a step never
+// goes back. The case from C's replay (linalg.vec.span): Hoy's exercise
+// 10.1 #7 is missed, Schaum's items follow, the practice set begins, the
+// exercise comes back as a retry and is right, and its practice version
+// unlocks; it used to come first again as the main book.
+func TestScaffold_LateMainBookItemJoinsThePracticeSet(t *testing.T) {
+	build := func(unlocked bool, late bool) *Scaffold {
+		ex := srcItem("hoy ex 10.1.7", 1, "hoy", true, true, late) // tried; right once the retry lands
+		items := []ScaffoldItem{ex}
+		if unlocked {
+			items = append(items, srcItem("hoy practice 10.1.7.1", 1, "hoy", false, false, false))
+		}
+		for i := 0; i < 3; i++ {
+			items = append(items, srcItem(fmt.Sprintf("schaum %d", i), 1, "schaums-linear-algebra", false, late, false))
+		}
+		items = append(items, srcItem("hoy ex 10.2.1", 2, "hoy", true, false, false))
+		sc := &Scaffold{Items: items, BookCap: 3, Share: 1, Generated: genAt}
+		sc.GeneratedTried[1] = late
+		sc.ArrangeBooks(BookPolicy{Texts: []string{"hoy"}, ParallelCap: 3}, "")
+		return sc
+	}
+	// The exercise was missed and nothing else tried: the step has not moved
+	// past the main book, so a practice version that unlocks comes first.
+	sc := build(true, false)
+	sc.Items[0].Correct = true
+	if p, ok := sc.Pick(nil); !ok || p.Question != "hoy practice 10.1.7.1" || p.Tier != TierMain {
+		t.Fatalf("unlocked before the step moved on: want the practice version first as main, got %q %s", p.Question, p.Tier)
+	}
+	// Schaum's three tried and the practice set served, then the retry is
+	// right and the practice version unlocks: it is served, untried first,
+	// from the practice set, never as the main book again.
+	sc = build(true, true)
+	if !sc.pastMain(1) {
+		t.Fatal("parallel items and a generated question tried: the step is past the main book")
+	}
+	for i := 0; i < 20; i++ {
+		p, ok := sc.Pick(nil)
+		if !ok || p.Step != 1 {
+			t.Fatalf("step 1 is not done (the practice version is untried): got %q step %d", p.Question, p.Step)
+		}
+		if p.Question == "hoy practice 10.1.7.1" && p.Tier != TierPractice {
+			t.Fatalf("the late practice version came back as %s", p.Tier)
+		}
+		if p.Tier == TierMain {
+			t.Fatalf("main book again after the practice set: %q", p.Question)
+		}
+	}
+	// It is still served (untried first in the practice pool), and the
+	// step is done once it has been.
+	seen := false
+	for i := 0; i < 50 && !seen; i++ {
+		p, _ := sc.Pick(nil)
+		seen = p.Question == "hoy practice 10.1.7.1"
+	}
+	if !seen {
+		t.Fatal("the unlocked practice version is never served")
+	}
+	sc.Items[1].Attempted, sc.Items[1].Correct = true, true
+	if sc.Frontier() != 2 {
+		t.Errorf("frontier = %d, want 2 once the late item is tried", sc.Frontier())
+	}
+	// Without the generated flag, tried parallel items alone say the step
+	// moved on; with nothing but the main book tried, it has not.
+	sc = build(true, true)
+	sc.GeneratedTried[1] = false
+	if !sc.pastMain(1) {
+		t.Error("tried parallel items: past the main book")
+	}
+	sc = build(false, false)
+	if sc.pastMain(1) {
+		t.Error("only the main book tried: not past it")
 	}
 }

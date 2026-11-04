@@ -912,8 +912,16 @@ func (r *replay) replayOrder(topics []string, course string, rounds int) int {
 						path[k] = "practice set"
 					}
 				}
-				fmt.Printf("  r%d step %d %-9s %-32s [%s]\n", round+1, p.Step, tier, src, strings.Join(path, " -> "))
+				q := strings.Join(strings.Fields(p.Question), " ")
+				if len(q) > 48 {
+					q = q[:48] + "..."
+				}
 				ok := r.rng.Float64() < 0.8
+				mark := "right"
+				if !ok {
+					mark = "wrong"
+				}
+				fmt.Printf("  r%d step %d %-9s %-32s [%s] %s: %s\n", round+1, p.Step, tier, src, strings.Join(path, " -> "), mark, q)
 				r.eng.SubmitStudyAnswer(fresh.ID, cid, r.answerFor(p.Answer, ok), 20, p.Question)
 			}
 			all = append(all, probs...)
