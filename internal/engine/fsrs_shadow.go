@@ -442,3 +442,48 @@ func (e *Engine) ApplyFSRSSeed(studentID string, s FSRSSeed) (bool, error) {
 	}
 	return !res.Duplicate, nil
 }
+
+// ReviewExclusions is the set the due rule leaves out (the floor,
+// credit-only foundations off the followed courses, unless pinned): the
+// same notReviewed set every surface applies. Read-only, for the shadow
+// report.
+func (e *Engine) ReviewExclusions(studentID string, progress map[string]*storage.ConceptProgress) map[string]bool {
+	return e.notReviewed(studentID, progress)
+}
+
+// FSRSDueIDs is what FSRS would serve at now: the topics with FSRS state
+// whose retrievability is below retention, minus ReviewExclusions and
+// topics the graph lacks, lowest R first. Nothing in the engine calls it
+// in Phase 2 (shadow decides nothing); scripts/fsrs_shadow_report does,
+// and Phase 3's "due" will be this rule.
+func (e *Engine) FSRSDueIDs(studentID string, progress map[string]*storage.ConceptProgress, now time.Time, retention float64) []string {
+	skip := e.notReviewed(studentID, progress)
+	type due struct {
+		id string
+		r  float64
+	}
+	var out []due
+	for cid, p := range progress {
+		if p == nil || skip[cid] || e.dag.Concept(cid) == nil {
+			continue
+		}
+		m, last := FSRSMemory(p)
+		if m.IsZero() || last.IsZero() {
+			continue
+		}
+		if r := review.Retrievability(m, now.Sub(last).Hours()/24); r < retention {
+			out = append(out, due{cid, r})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].r != out[j].r {
+			return out[i].r < out[j].r
+		}
+		return out[i].id < out[j].id
+	})
+	ids := make([]string, len(out))
+	for i, d := range out {
+		ids[i] = d.id
+	}
+	return ids
+}
