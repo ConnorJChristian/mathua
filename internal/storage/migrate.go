@@ -93,9 +93,40 @@ CREATE TABLE IF NOT EXISTS concept_progress (
     weakness_score   REAL    NOT NULL DEFAULT 0,
     placement_seeded INTEGER NOT NULL DEFAULT 0,
     implicit_credit  REAL    NOT NULL DEFAULT 0,
+    fsrs_stability   REAL,
+    fsrs_difficulty  REAL,
+    fsrs_last_review TEXT,
+    fsrs_reps        INTEGER NOT NULL DEFAULT 0,
+    fsrs_lapses      INTEGER NOT NULL DEFAULT 0,
+    fsrs_state       TEXT    NOT NULL DEFAULT 'none',
+    fsrs_seed        TEXT    NOT NULL DEFAULT '',
     PRIMARY KEY (student_id, concept_id),
     FOREIGN KEY (student_id) REFERENCES students(id)
 );
+
+-- One row per FSRS scheduling event (FSRS plan 3.2): the replay and fitting
+-- dataset and the audit trail. idempotency_key makes a retried submission a
+-- no-op; engine_mode records whether shadow or active scheduling wrote it.
+CREATE TABLE IF NOT EXISTS review_log (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id      TEXT    NOT NULL,
+    concept_id      TEXT    NOT NULL,
+    at              TEXT    NOT NULL,
+    source          TEXT    NOT NULL,
+    rating          INTEGER NOT NULL,
+    elapsed_days    REAL    NOT NULL DEFAULT 0,
+    s_before        REAL    NOT NULL DEFAULT 0,
+    s_after         REAL    NOT NULL DEFAULT 0,
+    d_before        REAL    NOT NULL DEFAULT 0,
+    d_after         REAL    NOT NULL DEFAULT 0,
+    r_at_review     REAL    NOT NULL DEFAULT 0,
+    item_id         TEXT    NOT NULL DEFAULT '',
+    level           INTEGER NOT NULL DEFAULT 0,
+    response_ms     INTEGER NOT NULL DEFAULT 0,
+    idempotency_key TEXT    NOT NULL UNIQUE,
+    engine_mode     TEXT    NOT NULL DEFAULT 'shadow'
+);
+CREATE INDEX IF NOT EXISTS idx_review_log_topic ON review_log(student_id, concept_id, at);
 
 CREATE TABLE IF NOT EXISTS sessions (
     id         TEXT PRIMARY KEY,

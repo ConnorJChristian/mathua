@@ -120,3 +120,40 @@ func must(t *testing.T, err error) {
 		t.Fatalf("setup: %v", err)
 	}
 }
+
+// A repair rebuilds the row from its attempts, whole. The FSRS state has its
+// own history (the review_log) and must come through unchanged (FSRS plan
+// Phase 1 round-trip, the "third copy of the state machine").
+func TestRepair_KeepsFSRSState(t *testing.T) {
+	repo, dag, sid, sess := testRepo(t)
+	base := time.Now().UTC().Add(-time.Hour)
+	must(t, func() error {
+		_, err := repo.RecordAttempt(storage.AttemptEntry{
+			SessionID: sess, StudentID: sid, ConceptID: "t",
+			Answer: "4 and 1/10", Expected: "4 1/10", Correct: false,
+			ElapsedSeconds: 5, Timestamp: base,
+		})
+		return err
+	}())
+	s, d := 21.5, 3.25
+	last := base.Add(-24 * time.Hour).Truncate(time.Second) // RFC3339 storage
+	must(t, repo.UpsertProgress(&storage.ConceptProgress{
+		StudentID: sid, ConceptID: "t", Status: "LEARNING", Attempts: 1,
+		FSRSStability: &s, FSRSDifficulty: &d, FSRSLastReview: &last, FSRSReps: 3, FSRSLapses: 1, FSRSState: "relearning", FSRSSeed: "mastery",
+	}))
+	eng := engine.New(repo, dag, generator.NewRegistry(), nil, nil)
+	defer eng.Close()
+	var buf bytes.Buffer
+	sum, err := Run(eng, repo, dag, false, &buf)
+	if err != nil || sum.ProgressWrites != 1 {
+		t.Fatalf("repair: %v %+v\n%s", err, sum, buf.String())
+	}
+	got, _ := repo.GetProgress(sid, "t")
+	if got == nil || got.FSRSStability == nil || *got.FSRSStability != s || got.FSRSDifficulty == nil || *got.FSRSDifficulty != d ||
+		got.FSRSLastReview == nil || !got.FSRSLastReview.Equal(last) || got.FSRSReps != 3 || got.FSRSLapses != 1 || got.FSRSState != "relearning" || got.FSRSSeed != "mastery" {
+		t.Fatalf("repair dropped FSRS state: %+v", got)
+	}
+	if got.Attempts != 1 || got.Streak != 1 {
+		t.Errorf("repair did not rebuild the SM-2 side: %+v", got)
+	}
+}

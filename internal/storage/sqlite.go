@@ -95,6 +95,13 @@ func authMigrate(db *sql.DB) error {
 		"ALTER TABLE concept_progress ADD COLUMN weakness_score REAL NOT NULL DEFAULT 0",
 		"ALTER TABLE concept_progress ADD COLUMN placement_seeded INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE concept_progress ADD COLUMN implicit_credit REAL NOT NULL DEFAULT 0",
+		"ALTER TABLE concept_progress ADD COLUMN fsrs_stability REAL",
+		"ALTER TABLE concept_progress ADD COLUMN fsrs_difficulty REAL",
+		"ALTER TABLE concept_progress ADD COLUMN fsrs_last_review TEXT",
+		"ALTER TABLE concept_progress ADD COLUMN fsrs_reps INTEGER NOT NULL DEFAULT 0",
+		"ALTER TABLE concept_progress ADD COLUMN fsrs_lapses INTEGER NOT NULL DEFAULT 0",
+		"ALTER TABLE concept_progress ADD COLUMN fsrs_state TEXT NOT NULL DEFAULT 'none'",
+		"ALTER TABLE concept_progress ADD COLUMN fsrs_seed TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE active_sessions ADD COLUMN last_concept_id TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE active_sessions ADD COLUMN session_review INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE active_sessions ADD COLUMN session_new INTEGER NOT NULL DEFAULT 0",
@@ -848,7 +855,9 @@ func (s *SQLiteStore) GetProgress(studentID, conceptID string) (*ConceptProgress
 		SELECT student_id, concept_id, status, streak, best_streak,
 		       avg_response_time, attempts, last_attempted, last_reviewed,
 		       next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-		       mastered_at, weakness_score, placement_seeded, implicit_credit
+		       mastered_at, weakness_score, placement_seeded, implicit_credit,
+		       fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
+		       fsrs_lapses, fsrs_state, fsrs_seed
 		FROM concept_progress
 		WHERE student_id = ? AND concept_id = ?
 	`, studentID, conceptID)
@@ -865,7 +874,9 @@ func (s *SQLiteStore) GetAllProgress(studentID string) (map[string]*ConceptProgr
 		SELECT student_id, concept_id, status, streak, best_streak,
 		       avg_response_time, attempts, last_attempted, last_reviewed,
 		       next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-		       mastered_at, weakness_score, placement_seeded, implicit_credit
+		       mastered_at, weakness_score, placement_seeded, implicit_credit,
+		       fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
+		       fsrs_lapses, fsrs_state, fsrs_seed
 		FROM concept_progress
 		WHERE student_id = ?
 	`, studentID)
@@ -891,8 +902,10 @@ func (s *SQLiteStore) UpsertProgress(p *ConceptProgress) error {
 			(student_id, concept_id, status, streak, best_streak,
 			 avg_response_time, attempts, last_attempted, last_reviewed,
 			 next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-			 mastered_at, weakness_score, placement_seeded, implicit_credit)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 mastered_at, weakness_score, placement_seeded, implicit_credit,
+			 fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
+			 fsrs_lapses, fsrs_state, fsrs_seed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			status            = excluded.status,
 			streak            = excluded.streak,
@@ -906,13 +919,22 @@ func (s *SQLiteStore) UpsertProgress(p *ConceptProgress) error {
 			sm2_interval      = excluded.sm2_interval,
 			sm2_efactor       = excluded.sm2_efactor,
 			mastered_at       = excluded.mastered_at,
-			weakness_score    = excluded.weakness_score
+			weakness_score    = excluded.weakness_score,
+			fsrs_stability    = excluded.fsrs_stability,
+			fsrs_difficulty   = excluded.fsrs_difficulty,
+			fsrs_last_review  = excluded.fsrs_last_review,
+			fsrs_reps         = excluded.fsrs_reps,
+			fsrs_lapses       = excluded.fsrs_lapses,
+			fsrs_state        = excluded.fsrs_state,
+			fsrs_seed         = excluded.fsrs_seed
 	`,
 		p.StudentID, p.ConceptID, p.Status, p.Streak, p.BestStreak,
 		p.AvgResponseTime, p.Attempts,
 		nullTime(p.LastAttempted), nullTime(p.LastReviewed),
 		nullTime(p.NextReviewDue), p.SM2Repetitions, p.SM2Interval,
 		p.SM2EFactor, nullTime(p.MasteredAt), p.WeaknessScore, boolToInt(p.PlacementSeeded), p.ImplicitCredit,
+		nullFloat(p.FSRSStability), nullFloat(p.FSRSDifficulty), nullTime(p.FSRSLastReview), p.FSRSReps,
+		p.FSRSLapses, fsrsStateOrNone(p.FSRSState), p.FSRSSeed,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert progress: %w", err)
@@ -933,8 +955,10 @@ func (s *SQLiteStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			(student_id, concept_id, status, streak, best_streak,
 			 avg_response_time, attempts, last_attempted, last_reviewed,
 			 next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-			 mastered_at, weakness_score, placement_seeded, implicit_credit)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 mastered_at, weakness_score, placement_seeded, implicit_credit,
+			 fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
+			 fsrs_lapses, fsrs_state, fsrs_seed)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			status            = excluded.status,
 			streak            = excluded.streak,
@@ -950,7 +974,14 @@ func (s *SQLiteStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			mastered_at       = excluded.mastered_at,
 			weakness_score    = excluded.weakness_score,
 			placement_seeded  = excluded.placement_seeded,
-			implicit_credit   = excluded.implicit_credit
+			implicit_credit   = excluded.implicit_credit,
+			fsrs_stability    = excluded.fsrs_stability,
+			fsrs_difficulty   = excluded.fsrs_difficulty,
+			fsrs_last_review  = excluded.fsrs_last_review,
+			fsrs_reps         = excluded.fsrs_reps,
+			fsrs_lapses       = excluded.fsrs_lapses,
+			fsrs_state        = excluded.fsrs_state,
+			fsrs_seed         = excluded.fsrs_seed
 	`)
 	if err != nil {
 		tx.Rollback()
@@ -964,6 +995,8 @@ func (s *SQLiteStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			nullTime(p.LastAttempted), nullTime(p.LastReviewed),
 			nullTime(p.NextReviewDue), p.SM2Repetitions, p.SM2Interval,
 			p.SM2EFactor, nullTime(p.MasteredAt), p.WeaknessScore, boolToInt(p.PlacementSeeded), p.ImplicitCredit,
+			nullFloat(p.FSRSStability), nullFloat(p.FSRSDifficulty), nullTime(p.FSRSLastReview), p.FSRSReps,
+			p.FSRSLapses, fsrsStateOrNone(p.FSRSState), p.FSRSSeed,
 		); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("exec progress batch: %w", err)
@@ -1246,6 +1279,7 @@ func (s *SQLiteStore) ResetProgress(studentID string) error {
 		{"DELETE FROM sessions WHERE student_id = ?", []interface{}{studentID}},
 		{"DELETE FROM concept_progress WHERE student_id = ?", []interface{}{studentID}},
 		{"DELETE FROM student_topic_speed WHERE student_id = ?", []interface{}{studentID}},
+		{"DELETE FROM review_log WHERE student_id = ?", []interface{}{studentID}},
 		{"DELETE FROM quiz_completions WHERE student_id = ?", []interface{}{studentID}},
 		{"DELETE FROM server_sessions WHERE kind IN ('study_expected','study_plan') AND (key = ? OR key LIKE ? || '|%')", []interface{}{studentID, studentID}},
 		{`UPDATE students SET xp_total = 0, xp_today = 0, diagnostic_completed = 0, diagnostic_completed_at = '',
@@ -1291,6 +1325,7 @@ func (s *SQLiteStore) DeleteAccount(studentID string) error {
 		{"DELETE FROM sessions WHERE student_id = ?", []interface{}{studentID}},
 		{"DELETE FROM concept_progress WHERE student_id = ?", []interface{}{studentID}},
 		{"DELETE FROM student_topic_speed WHERE student_id = ?", []interface{}{studentID}},
+		{"DELETE FROM review_log WHERE student_id = ?", []interface{}{studentID}},
 		{"DELETE FROM quiz_completions WHERE student_id = ?", []interface{}{studentID}},
 		{"DELETE FROM server_sessions WHERE kind IN ('study_expected','study_plan','study_plan_prefs') AND (key = ? OR key LIKE ? || '|%')", []interface{}{studentID, studentID}},
 		{"DELETE FROM question_reports WHERE reporter_id = ?", []interface{}{studentID}},
@@ -1709,17 +1744,31 @@ func (s *SQLiteStore) LastQuizCompletion(studentID string) (*QuizCompletion, err
 
 func scanProgress(scanner interface{ Scan(...interface{}) error }) (*ConceptProgress, error) {
 	p := &ConceptProgress{}
-	var lastAtt, lastRev, nextRev, masterAt sql.NullString
+	var lastAtt, lastRev, nextRev, masterAt, fsrsLast sql.NullString
 	var placementSeeded sql.NullInt64
+	var fsrsS, fsrsD sql.NullFloat64
+	var fsrsState, fsrsSeed sql.NullString
 	err := scanner.Scan(
 		&p.StudentID, &p.ConceptID, &p.Status, &p.Streak, &p.BestStreak,
 		&p.AvgResponseTime, &p.Attempts, &lastAtt, &lastRev,
 		&nextRev, &p.SM2Repetitions, &p.SM2Interval, &p.SM2EFactor,
 		&masterAt, &p.WeaknessScore, &placementSeeded, &p.ImplicitCredit,
+		&fsrsS, &fsrsD, &fsrsLast, &p.FSRSReps, &p.FSRSLapses, &fsrsState, &fsrsSeed,
 	)
 	if err != nil {
 		return nil, err
 	}
+	if fsrsS.Valid {
+		v := fsrsS.Float64
+		p.FSRSStability = &v
+	}
+	if fsrsD.Valid {
+		v := fsrsD.Float64
+		p.FSRSDifficulty = &v
+	}
+	p.FSRSLastReview = parseDate(fsrsLast)
+	p.FSRSState = fsrsStateOrNone(fsrsState.String)
+	p.FSRSSeed = fsrsSeed.String
 	p.LastAttempted = parseDate(lastAtt)
 	p.LastReviewed = parseDate(lastRev)
 	p.NextReviewDue = parseDate(nextRev)
@@ -1737,6 +1786,23 @@ func parseDate(ns sql.NullString) *time.Time {
 		return nil
 	}
 	return &t
+}
+
+// nullFloat stores a nil pointer as NULL (no FSRS state).
+func nullFloat(f *float64) interface{} {
+	if f == nil {
+		return nil
+	}
+	return *f
+}
+
+// fsrsStateOrNone is the stored fsrs_state: "none" for the empty value, so
+// a row written by code that knows nothing of FSRS reads as having no state.
+func fsrsStateOrNone(s string) string {
+	if s == "" {
+		return "none"
+	}
+	return s
 }
 
 func nullTime(t *time.Time) interface{} {

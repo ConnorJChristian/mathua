@@ -105,8 +105,36 @@ CREATE TABLE IF NOT EXISTS concept_progress (
     weakness_score   DOUBLE PRECISION NOT NULL DEFAULT 0,
     placement_seeded INTEGER NOT NULL DEFAULT 0,
     implicit_credit  DOUBLE PRECISION NOT NULL DEFAULT 0,
+    fsrs_stability   DOUBLE PRECISION,
+    fsrs_difficulty  DOUBLE PRECISION,
+    fsrs_last_review TEXT,
+    fsrs_reps        INTEGER NOT NULL DEFAULT 0,
+    fsrs_lapses      INTEGER NOT NULL DEFAULT 0,
+    fsrs_state       TEXT    NOT NULL DEFAULT 'none',
+    fsrs_seed        TEXT    NOT NULL DEFAULT '',
     PRIMARY KEY (student_id, concept_id)
 );
+
+CREATE TABLE IF NOT EXISTS review_log (
+    id              BIGSERIAL PRIMARY KEY,
+    student_id      TEXT    NOT NULL,
+    concept_id      TEXT    NOT NULL,
+    at              TEXT    NOT NULL,
+    source          TEXT    NOT NULL,
+    rating          INTEGER NOT NULL,
+    elapsed_days    DOUBLE PRECISION NOT NULL DEFAULT 0,
+    s_before        DOUBLE PRECISION NOT NULL DEFAULT 0,
+    s_after         DOUBLE PRECISION NOT NULL DEFAULT 0,
+    d_before        DOUBLE PRECISION NOT NULL DEFAULT 0,
+    d_after         DOUBLE PRECISION NOT NULL DEFAULT 0,
+    r_at_review     DOUBLE PRECISION NOT NULL DEFAULT 0,
+    item_id         TEXT    NOT NULL DEFAULT '',
+    level           INTEGER NOT NULL DEFAULT 0,
+    response_ms     BIGINT  NOT NULL DEFAULT 0,
+    idempotency_key TEXT    NOT NULL UNIQUE,
+    engine_mode     TEXT    NOT NULL DEFAULT 'shadow'
+);
+CREATE INDEX IF NOT EXISTS idx_review_log_topic ON review_log(student_id, concept_id, at);
 
 CREATE TABLE IF NOT EXISTS sessions (
     id         TEXT PRIMARY KEY,
@@ -370,6 +398,13 @@ func pgAuthMigrate(db *sql.DB) error {
 		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS weakness_score DOUBLE PRECISION NOT NULL DEFAULT 0",
 		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS placement_seeded INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS implicit_credit DOUBLE PRECISION NOT NULL DEFAULT 0",
+		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS fsrs_stability DOUBLE PRECISION",
+		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS fsrs_difficulty DOUBLE PRECISION",
+		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS fsrs_last_review TEXT",
+		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS fsrs_reps INTEGER NOT NULL DEFAULT 0",
+		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS fsrs_lapses INTEGER NOT NULL DEFAULT 0",
+		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS fsrs_state TEXT NOT NULL DEFAULT 'none'",
+		"ALTER TABLE concept_progress ADD COLUMN IF NOT EXISTS fsrs_seed TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE active_sessions ADD COLUMN IF NOT EXISTS last_concept_id TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE active_sessions ADD COLUMN IF NOT EXISTS session_review INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE active_sessions ADD COLUMN IF NOT EXISTS session_new INTEGER NOT NULL DEFAULT 0",
@@ -1083,7 +1118,9 @@ func (s *PostgresStore) GetProgress(studentID, conceptID string) (*ConceptProgre
 		SELECT student_id, concept_id, status, streak, best_streak,
 		       avg_response_time, attempts, last_attempted, last_reviewed,
 		       next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-		       mastered_at, weakness_score, placement_seeded, implicit_credit
+		       mastered_at, weakness_score, placement_seeded, implicit_credit,
+		       fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
+		       fsrs_lapses, fsrs_state, fsrs_seed
 		FROM concept_progress
 		WHERE student_id = $1 AND concept_id = $2
 	`, studentID, conceptID)
@@ -1100,7 +1137,9 @@ func (s *PostgresStore) GetAllProgress(studentID string) (map[string]*ConceptPro
 		SELECT student_id, concept_id, status, streak, best_streak,
 		       avg_response_time, attempts, last_attempted, last_reviewed,
 		       next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-		       mastered_at, weakness_score, placement_seeded, implicit_credit
+		       mastered_at, weakness_score, placement_seeded, implicit_credit,
+		       fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
+		       fsrs_lapses, fsrs_state, fsrs_seed
 		FROM concept_progress
 		WHERE student_id = $1
 	`, studentID)
@@ -1126,8 +1165,11 @@ func (s *PostgresStore) UpsertProgress(p *ConceptProgress) error {
 			(student_id, concept_id, status, streak, best_streak,
 			 avg_response_time, attempts, last_attempted, last_reviewed,
 			 next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-			 mastered_at, weakness_score, placement_seeded, implicit_credit)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+			 mastered_at, weakness_score, placement_seeded, implicit_credit,
+			 fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
+			 fsrs_lapses, fsrs_state, fsrs_seed)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+		        $18, $19, $20, $21, $22, $23, $24)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			status            = EXCLUDED.status,
 			streak            = EXCLUDED.streak,
@@ -1141,13 +1183,22 @@ func (s *PostgresStore) UpsertProgress(p *ConceptProgress) error {
 			sm2_interval      = EXCLUDED.sm2_interval,
 			sm2_efactor       = EXCLUDED.sm2_efactor,
 			mastered_at       = EXCLUDED.mastered_at,
-			weakness_score    = EXCLUDED.weakness_score
+			weakness_score    = EXCLUDED.weakness_score,
+			fsrs_stability    = EXCLUDED.fsrs_stability,
+			fsrs_difficulty   = EXCLUDED.fsrs_difficulty,
+			fsrs_last_review  = EXCLUDED.fsrs_last_review,
+			fsrs_reps         = EXCLUDED.fsrs_reps,
+			fsrs_lapses       = EXCLUDED.fsrs_lapses,
+			fsrs_state        = EXCLUDED.fsrs_state,
+			fsrs_seed         = EXCLUDED.fsrs_seed
 	`,
 		p.StudentID, p.ConceptID, p.Status, p.Streak, p.BestStreak,
 		p.AvgResponseTime, p.Attempts,
 		nullTime(p.LastAttempted), nullTime(p.LastReviewed),
 		nullTime(p.NextReviewDue), p.SM2Repetitions, p.SM2Interval,
 		p.SM2EFactor, nullTime(p.MasteredAt), p.WeaknessScore, boolToInt(p.PlacementSeeded), p.ImplicitCredit,
+		nullFloat(p.FSRSStability), nullFloat(p.FSRSDifficulty), nullTime(p.FSRSLastReview), p.FSRSReps,
+		p.FSRSLapses, fsrsStateOrNone(p.FSRSState), p.FSRSSeed,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert progress: %w", err)
@@ -1168,8 +1219,11 @@ func (s *PostgresStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			(student_id, concept_id, status, streak, best_streak,
 			 avg_response_time, attempts, last_attempted, last_reviewed,
 			 next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-			 mastered_at, weakness_score, placement_seeded, implicit_credit)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+			 mastered_at, weakness_score, placement_seeded, implicit_credit,
+			 fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
+			 fsrs_lapses, fsrs_state, fsrs_seed)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+		        $18, $19, $20, $21, $22, $23, $24)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			status            = EXCLUDED.status,
 			streak            = EXCLUDED.streak,
@@ -1185,7 +1239,14 @@ func (s *PostgresStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			mastered_at       = EXCLUDED.mastered_at,
 			weakness_score    = EXCLUDED.weakness_score,
 			placement_seeded  = EXCLUDED.placement_seeded,
-			implicit_credit   = EXCLUDED.implicit_credit
+			implicit_credit   = EXCLUDED.implicit_credit,
+			fsrs_stability    = EXCLUDED.fsrs_stability,
+			fsrs_difficulty   = EXCLUDED.fsrs_difficulty,
+			fsrs_last_review  = EXCLUDED.fsrs_last_review,
+			fsrs_reps         = EXCLUDED.fsrs_reps,
+			fsrs_lapses       = EXCLUDED.fsrs_lapses,
+			fsrs_state        = EXCLUDED.fsrs_state,
+			fsrs_seed         = EXCLUDED.fsrs_seed
 	`)
 	if err != nil {
 		tx.Rollback()
@@ -1199,6 +1260,8 @@ func (s *PostgresStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			nullTime(p.LastAttempted), nullTime(p.LastReviewed),
 			nullTime(p.NextReviewDue), p.SM2Repetitions, p.SM2Interval,
 			p.SM2EFactor, nullTime(p.MasteredAt), p.WeaknessScore, boolToInt(p.PlacementSeeded), p.ImplicitCredit,
+			nullFloat(p.FSRSStability), nullFloat(p.FSRSDifficulty), nullTime(p.FSRSLastReview), p.FSRSReps,
+			p.FSRSLapses, fsrsStateOrNone(p.FSRSState), p.FSRSSeed,
 		); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("exec progress batch: %w", err)
@@ -1474,6 +1537,7 @@ func (s *PostgresStore) ResetProgress(studentID string) error {
 		{"DELETE FROM sessions WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM concept_progress WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM student_topic_speed WHERE student_id = $1", []interface{}{studentID}},
+		{"DELETE FROM review_log WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM quiz_completions WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM server_sessions WHERE kind IN ('study_expected','study_plan') AND (key = $1 OR key LIKE $1 || '|%')", []interface{}{studentID}},
 		{`UPDATE students SET xp_total = 0, xp_today = 0, diagnostic_completed = 0, diagnostic_completed_at = '',
@@ -1517,6 +1581,7 @@ func (s *PostgresStore) DeleteAccount(studentID string) error {
 		{"DELETE FROM sessions WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM concept_progress WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM student_topic_speed WHERE student_id = $1", []interface{}{studentID}},
+		{"DELETE FROM review_log WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM quiz_completions WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM server_sessions WHERE kind IN ('study_expected','study_plan','study_plan_prefs') AND (key = $1 OR key LIKE $1 || '|%')", []interface{}{studentID}},
 		{"DELETE FROM question_reports WHERE reporter_id = $1", []interface{}{studentID}},

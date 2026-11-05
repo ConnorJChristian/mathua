@@ -76,6 +76,51 @@ type ConceptProgress struct {
 	// engine/credit.go). It accumulates from 0 and the concept is credited
 	// once it reaches 1.
 	ImplicitCredit float64 `json:"implicit_credit,omitempty"`
+	// FSRS memory state (FSRS plan 3.2, Phase 1). Nil FSRSStability means
+	// no state: a credited, placed or never-reviewed row. These columns are
+	// read and written by every progress path, including the whole-row
+	// batch rewrites (PropagateWeakness, creditPrerequisites,
+	// ApplyGoalResults) and mathua repair, and fsrs_roundtrip_test.go holds
+	// that each path keeps them. Nothing reads them for a decision while
+	// MATHUA_FSRS is off.
+	FSRSStability  *float64   `json:"fsrs_stability,omitempty"`
+	FSRSDifficulty *float64   `json:"fsrs_difficulty,omitempty"`
+	FSRSLastReview *time.Time `json:"fsrs_last_review,omitempty"`
+	FSRSReps       int        `json:"fsrs_reps,omitempty"`
+	FSRSLapses     int        `json:"fsrs_lapses,omitempty"`
+	// FSRSState is none, review or relearning (review.Phase).
+	FSRSState string `json:"fsrs_state,omitempty"`
+	// FSRSSeed is how the state was first set: mastery, anki, credit or
+	// placement; empty with no state.
+	FSRSSeed string `json:"fsrs_seed,omitempty"`
+}
+
+// ReviewLogEntry is one FSRS scheduling event (plan 3.2): the replay and
+// fitting dataset and the audit trail. review.Replay rebuilds a topic's
+// state from its entries in order of At.
+type ReviewLogEntry struct {
+	ID        int64
+	StudentID string
+	ConceptID string
+	At        time.Time
+	// Source: review, mastery_check, course_test, practice_lapse, implicit,
+	// seed.
+	Source string
+	Rating int
+	// ElapsedDays is the whole-day elapsed time the update read.
+	ElapsedDays float64
+	SBefore     float64
+	SAfter      float64
+	DBefore     float64
+	DAfter      float64
+	RAtReview   float64
+	ItemID      string
+	Level       int
+	ResponseMS  int64
+	// IdempotencyKey is unique: a retried submission inserts nothing.
+	IdempotencyKey string
+	// EngineMode is shadow or active: which MATHUA_FSRS mode wrote it.
+	EngineMode string
 }
 
 type Session struct {
@@ -561,6 +606,12 @@ type Repository interface {
 	// UpsertProgressBatch persists many rows in one transaction — the
 	// N+1 antidote for PropagateWeakness and ApplyGoalResults.
 	UpsertProgressBatch(ps []*ConceptProgress) error
+	// InsertReviewLog appends one FSRS event. It returns false, nil when an
+	// entry with the same idempotency key already exists (nothing written).
+	InsertReviewLog(e ReviewLogEntry) (bool, error)
+	// ReviewLogFor returns a learner's log entries, one topic's or all of
+	// them ("" for conceptID), oldest first (At, then ID).
+	ReviewLogFor(studentID, conceptID string) ([]ReviewLogEntry, error)
 
 	CreateSession(studentID string) (*Session, error)
 	GetSession(id string) (*Session, error)
