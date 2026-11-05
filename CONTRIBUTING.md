@@ -205,7 +205,7 @@ A second audit guards the lesson corpus (`python3 scripts/audit_lessons.py:191`)
 - a lesson file that is missing on disk
 - an orphaned source
 - a KP shard section that does not resolve (all 1250 shard files × 3 = 3750 KPs)
-- a diagram mapping that points at a missing asset or a non-existent concept (`engine.go:762`, 183 diagrams)
+- a diagram mapping that points at a missing asset or a non-existent concept (`engine.go:772`, 183 diagrams)
 - a stale course target
 - a `grading_type` or `threshold` that fails its sanity check
 - incorrect `enrichment.json` wiring

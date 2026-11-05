@@ -902,10 +902,10 @@ core and the storage; it changes no behaviour. What exists:
 **The flag.** `MATHUA_FSRS=off|shadow|active`, read once at startup,
 logged (`fsrs: mode off`) and shown as `fsrs_mode` on `GET /api/config`.
 `off` is the default: SM-2 and the one due rule above decide everything,
-and nothing FSRS is read or written. `shadow` (phase 2) will compute the
-FSRS update on every scheduling event and write it without reading it for
-a decision; `active` (phase 3) will make "due" read FSRS. In phase 1 both
-are accepted and do nothing. An unknown value is `off` with a warning, so
+and nothing FSRS is read or written. `shadow` (phase 2, below) computes the
+FSRS update on every scheduling event and writes it without reading it for
+a decision; `active` (phase 3) will make "due" read FSRS; until then it
+behaves as shadow. An unknown value is `off` with a warning, so
 a typo never turns scheduling on. Rollback at any phase is
 `MATHUA_FSRS=off`; stored state stays. Rolling the binary back to one from
 before phase 1 also works (it ignores the new columns and table and keeps
@@ -989,6 +989,108 @@ it. `MATHUA_ROOT` must name the install.
 ```bash
 MATHUA_ROOT=$PWD go run ./scripts/fsrs_doctor -db snapshot.db
 ```
+
+## FSRS (phase 2: shadow)
+
+With `MATHUA_FSRS=shadow` every scheduling event writes its FSRS update,
+and nothing reads it for a decision: the review queue, the due counts, Up
+next and its reasons, the mixed session, pacing, plan order, the gate, the
+mastery check's picks and XP are exactly what `off` gives. Only the
+`fsrs_*` columns and `review_log` differ (and `/api/progress` shows the
+columns, as it shows every progress column). Rollback is `MATHUA_FSRS=off`;
+what shadow wrote stays and is ignored.
+
+**Turning it on (Docker).** Add one line under the `mathua` service in
+your `docker-compose.override.yml` and restart:
+
+```yaml
+services:
+  mathua:
+    environment:
+      - MATHUA_FSRS=shadow
+```
+
+The log then says `fsrs: mode shadow` and `fsrs: rules ...`. Run
+`scripts/fsrs_doctor` on a snapshot each day (it should report 0 findings)
+and `scripts/fsrs_shadow_report` weekly; the Phase 3 gate wants 14 days of
+shadow with no errors.
+
+**What is an event** (plan 3.3). Right means Good, wrong or "I don't
+know" means Again; Hard and Easy are not used.
+
+| Answer | Event | `review_log.source` |
+| --- | --- | --- |
+| A review-session answer (objective item) | yes | `review` |
+| A weekly mastery check item | yes | `mastery_check` |
+| A course review test item | yes | `course_test` |
+| A practice miss on a MASTERED topic | a lapse when R < 0.95; logged and held at or above | `practice_lapse` |
+| A practice right answer on a MASTERED topic | no (evidence only) | |
+| The answer that first takes a topic to MASTERED | creates the state: the reference first Good, S = w[2] (2.31 days) | `first_mastery` |
+| An LLM-graded proof or written card | Good if fully correct, else Again, only when it was graded (no key, a failed call: no event) | as its context |
+| A self-graded recall card | no | |
+| Placement, the onboarding diagnostic, implicit or encompasses credit | no | |
+
+A topic that is not mastered and has no state is not yet in the memory
+model: its answers write nothing. A review less than a day after the last
+uses the FSRS-6 short-term formula. At most one stability-raising event
+per topic per learner-local day (`MATHUA_TZ`) changes the state; a later
+one the same day is logged with `held = daily_cap` and changes nothing.
+`held = lapse_r_high` marks a practice miss while R was still at or above
+the lapse threshold.
+
+The open rows are C's decisions (plan section 8), so each is a switch,
+`MATHUA_FSRS_RULES`, whose default is the plan's proposal:
+`course_tests`, `mastery_check`, `practice_lapse` with `lapse_below_r`
+(0.95), `judged`, `first_mastery`, `daily_cap`, `seed_on_touch`, each
+`on` or `off` (for example `MATHUA_FSRS_RULES=course_tests=off`). A typo is
+an error at startup and the defaults apply; the rules in force are logged.
+
+**Existing mastered topics** (plan 3.4). A topic mastered before shadow
+mode, with attempts of its own, gets its state by replaying those attempts
+in time order: the reference first Good at its mastery, then each later
+review or mastery-check answer and each practice miss under the threshold,
+under the daily cap. This happens at its first event (`seed_on_touch`) or
+all at once with
+
+```bash
+MATHUA_ROOT=$PWD go run ./scripts/fsrs_seed -db mathua.db           # dry run: prints what it would write
+MATHUA_ROOT=$PWD go run ./scripts/fsrs_seed -db mathua.db -apply    # writes it; rerunning is a no-op
+```
+
+Both run the same replay. Credited and placement-only rows (mastered with
+no attempts of their own) get no state, so FSRS never calls them due; their
+first real answer creates it, labelled `fsrs_seed = credit` or
+`placement`. On C's 2026-10-29 snapshot: 11 topics to seed, 44 left
+without state.
+
+**One commit per answer.** `Repository.CommitAnswer` writes the progress
+row, the attempt and, in shadow, the `review_log` rows and the `fsrs_*`
+columns in one transaction; a failure anywhere rolls all of it back. Each
+event's `idempotency_key` is `<session>:<attempt id>` for a practice or
+review-session answer and `<session>:a<attempt row id>` for Learn and quiz
+answers (seeded rows: `seed:a<attempt row id>`); a key already stored makes
+the submission a retry, and nothing of it is written. A shadow write that
+fails never costs the learner the answer: it is logged
+(`fsrs: shadow event ... not written`) and the answer is committed without
+it. Off writes nothing FSRS.
+
+**The clock.** The engine, scheduler, planner and store read the time
+through `internal/clock` (the wall clock in the server). `replay_audit`
+runs on a simulated clock, so the same snapshot, `-seed` and `-now` give
+byte-identical output: `-fsrs off|shadow`, `-surfaces` (every surface per
+session), `-dump` (the final database as text; `-dump-fsrs=false` leaves
+out the FSRS columns and the log), `-out-db`, `-fresh course` (a fresh
+learner placed into a course). Its one-day aging also moves
+`fsrs_last_review` and `review_log.at`; a daily QA clock shift must do the
+same (`local-data/qa/PLAYBOOK_ADDENDUM_FSRS_SHADOW.md`).
+
+**The report.** `scripts/fsrs_shadow_report -db <copy>` (read-only,
+Markdown) gives, per learner: the first-day backlog if FSRS were switched
+on (the number Phase 3's cap and spreading must absorb), per day what the
+review sessions served against what FSRS would have served (R < 0.9 with
+the due rule's exclusions), the calibration of the logged R against the
+outcomes (10% bins, log loss, Brier) and a 30-day workload forecast under
+both rules.
 
 ## Learning reports
 
