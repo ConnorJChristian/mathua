@@ -313,3 +313,54 @@ func TestFSRSColumns_InterleavedWriteSurvivesSnapshotRewrite(t *testing.T) {
 		_ = repo.DeleteAccount(st.ID)
 	}
 }
+
+// Reset and account deletion clear the learner's whole review_log, whatever
+// else is there, on both stores (FSRS Phase 1 review, rollback note). The
+// case that matters: a binary from before Phase 1 resets a learner and
+// leaves their log rows behind (its reset does not know the table), so the
+// log has rows with no progress row. A reset on this binary removes them,
+// other learners' logs untouched; so does account deletion with no progress
+// rows at all.
+func TestReviewLog_ResetAndDeleteClearOrphanRows(t *testing.T) {
+	for tag, repo := range fsrsStores(t) {
+		mk := func(name string) string {
+			st, err := repo.CreateStudent(fmt.Sprintf("fsrs-rb-%s-%s-%d", name, tag, time.Now().UnixNano()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return st.ID
+		}
+		reset, gone, other := mk("reset"), mk("gone"), mk("other")
+		at := time.Date(2026, 11, 5, 17, 0, 0, 0, time.UTC)
+		for _, sid := range []string{reset, gone, other} {
+			for i, cid := range []string{"a", "b"} {
+				if _, err := repo.InsertReviewLog(ReviewLogEntry{StudentID: sid, ConceptID: cid, At: at.Add(time.Duration(i) * time.Hour),
+					Source: "review", Rating: 3, IdempotencyKey: fmt.Sprintf("rb:%s:%s", sid, cid), EngineMode: "shadow"}); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		// Only "other" has a progress row; the others' logs are orphans, as
+		// an old binary's reset leaves them.
+		if err := repo.UpsertProgress(&ConceptProgress{StudentID: other, ConceptID: "a", Status: "MASTERED"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.ResetProgress(reset); err != nil {
+			t.Fatal(err)
+		}
+		if left, _ := repo.ReviewLogFor(reset, ""); len(left) != 0 {
+			t.Errorf("[%s] reset left %d orphan review_log rows", tag, len(left))
+		}
+		if err := repo.DeleteAccount(gone); err != nil {
+			t.Fatal(err)
+		}
+		if left, _ := repo.ReviewLogFor(gone, ""); len(left) != 0 {
+			t.Errorf("[%s] account deletion left %d review_log rows", tag, len(left))
+		}
+		if kept, _ := repo.ReviewLogFor(other, ""); len(kept) != 2 {
+			t.Errorf("[%s] another learner's log: %d rows, want 2", tag, len(kept))
+		}
+		_ = repo.DeleteAccount(reset)
+		_ = repo.DeleteAccount(other)
+	}
+}

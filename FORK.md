@@ -907,7 +907,14 @@ FSRS update on every scheduling event and write it without reading it for
 a decision; `active` (phase 3) will make "due" read FSRS. In phase 1 both
 are accepted and do nothing. An unknown value is `off` with a warning, so
 a typo never turns scheduling on. Rollback at any phase is
-`MATHUA_FSRS=off`; stored state stays. `MATHUA_TZ` (default
+`MATHUA_FSRS=off`; stored state stays. Rolling the binary back to one from
+before phase 1 also works (it ignores the new columns and table and keeps
+them through its writes), but its reset and account deletion do not know
+`review_log`, so they leave that learner's log rows behind; `fsrs_doctor`
+reports them as "review_log rows with no progress row". There is no
+down-migration. Resetting the learner again on a phase 1 binary removes
+them: `ResetProgress` and `DeleteAccount` delete the learner's whole log in
+their transaction, whatever else is stored. `MATHUA_TZ` (default
 `America/Los_Angeles`) is the learner's zone for the daily cap and the
 one-raise-per-day rule of later phases (`internal/review/day.go`);
 timestamps are stored in UTC.
