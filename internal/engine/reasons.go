@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chuma-beep/mathua/internal/mastery"
+	"github.com/chuma-beep/mathua/internal/review"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
@@ -84,12 +84,19 @@ func (e *Engine) planReasons(studentID string) map[string]string {
 	return out
 }
 
-// reviewDueReason words how overdue a review is.
-func reviewDueReason(due *time.Time, now time.Time) string {
-	if due == nil {
+// reviewDueReason words how overdue a review is, from the row's due date
+// (review.DueAt: its scheduled date, or the decay horizon of a credited
+// topic with none). A mastered row with no date and no history has no day
+// to name.
+func reviewDueReason(p *storage.ConceptProgress, now time.Time) string {
+	if p == nil {
+		return "review due"
+	}
+	due, ok := review.DueAt(progressRow(p))
+	if !ok {
 		return "review due: not practised for a while"
 	}
-	days := int(math.Floor(now.Sub(*due).Hours() / 24))
+	days := int(math.Floor(now.Sub(due).Hours() / 24))
 	switch {
 	case days <= 0:
 		return "review due today"
@@ -100,37 +107,21 @@ func reviewDueReason(due *time.Time, now time.Time) string {
 	}
 }
 
-// mostOverdue is the due review the review session serves first: the one
-// furthest past its date, among the topics the learner is reviewed on.
-func (e *Engine) mostOverdue(progress map[string]*storage.ConceptProgress, skip map[string]bool, now time.Time) (*storage.ConceptProgress, int) {
-	var best *storage.ConceptProgress
-	n := 0
-	for _, p := range progress {
-		if p == nil || skip[p.ConceptID] || p.NextReviewDue == nil || p.NextReviewDue.After(now) || mastery.Status(p.Status) != mastery.StatusMastered {
-			continue
-		}
-		n++
-		if best == nil || p.NextReviewDue.Before(*best.NextReviewDue) {
-			best = p
-		}
-	}
-	return best, n
-}
-
-// explainRecommendations fills Why on every recommendation.
-func (e *Engine) explainRecommendations(res *scheduler.RecommendationResponse, studentID string, progress map[string]*storage.ConceptProgress, remedial map[string]bool, urgent map[string]string) {
-	now := time.Now()
+// explainRecommendations fills Why on every recommendation. dueIDs is the
+// due set the review card stands for (DueReviewIDs, most overdue first):
+// the card's reason names the most overdue review and how many are due,
+// the same number as the count.
+func (e *Engine) explainRecommendations(res *scheduler.RecommendationResponse, studentID string, progress map[string]*storage.ConceptProgress, remedial map[string]bool, urgent map[string]string, dueIDs []string, now time.Time) {
 	plan := e.planReasons(studentID)
-	skip := e.notReviewed(studentID, progress)
 	explain := func(r *scheduler.Recommendation) {
 		if r == nil || r.Why != "" {
 			return
 		}
 		switch {
 		case r.Kind == scheduler.KindReview:
-			if p, n := e.mostOverdue(progress, skip, now); p != nil {
-				r.Why = reviewDueReason(p.NextReviewDue, now)
-				if n > 1 {
+			if len(dueIDs) > 0 {
+				r.Why = reviewDueReason(progress[dueIDs[0]], now)
+				if n := len(dueIDs); n > 1 {
 					r.Why += fmt.Sprintf(" (%d due)", n)
 				}
 			} else {
@@ -178,10 +169,7 @@ func (e *Engine) explainRecommendations(res *scheduler.RecommendationResponse, s
 // review session.
 func (e *Engine) questionReason(studentID, conceptID string, isReview bool, progress map[string]*storage.ConceptProgress) string {
 	if isReview {
-		if p := progress[conceptID]; p != nil {
-			return reviewDueReason(p.NextReviewDue, time.Now())
-		}
-		return "review due"
+		return reviewDueReason(progress[conceptID], time.Now())
 	}
 	for _, p := range e.Pins(studentID) {
 		if p.Concept == conceptID {

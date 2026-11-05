@@ -1,0 +1,19 @@
+{
+  "_comment": "The due rule's cases (internal/review, FORK.md 'What is due'). Times are days relative to now (negative = past); null = never / no date. Read by internal/review/due_test.go and scripts/learning_report_test.py, so Go and Python agree.",
+  "decay_days": 14,
+  "cases": [
+    {"name": "learning row with a practice date that has passed is not due", "status": "LEARNING", "last_reviewed": -3, "last_attempted": -3, "next_review_due": -2, "due": false, "overdue": 0},
+    {"name": "practicing row is never due", "status": "PRACTICING", "last_reviewed": -30, "last_attempted": -30, "next_review_due": null, "due": false, "overdue": 0},
+    {"name": "unseen row is never due", "status": "UNSEEN", "last_reviewed": null, "last_attempted": null, "next_review_due": null, "due": false, "overdue": 0},
+    {"name": "mastered, date passed yesterday", "status": "MASTERED", "last_reviewed": -2, "last_attempted": -2, "next_review_due": -1, "due": true, "overdue": 1},
+    {"name": "mastered, date passed today", "status": "MASTERED", "last_reviewed": -1, "last_attempted": -1, "next_review_due": 0, "due": true, "overdue": 0},
+    {"name": "mastered, date tomorrow", "status": "MASTERED", "last_reviewed": -1, "last_attempted": -1, "next_review_due": 1, "due": false, "overdue": 0},
+    {"name": "mastered, long interval: decayed for pacing but the date is in the future, so not due", "status": "MASTERED", "last_reviewed": -20, "last_attempted": -20, "next_review_due": 10, "due": false, "overdue": 0},
+    {"name": "mastered, long interval, date passed: overdue counts from the date, not the decay horizon", "status": "MASTERED", "last_reviewed": -40, "last_attempted": -40, "next_review_due": -3, "due": true, "overdue": 3},
+    {"name": "credited row (no date), reviewed 13 days ago: not yet", "status": "MASTERED", "last_reviewed": -13, "last_attempted": null, "next_review_due": null, "due": false, "overdue": 0},
+    {"name": "credited row (no date), reviewed 14 days ago: due today", "status": "MASTERED", "last_reviewed": -14, "last_attempted": null, "next_review_due": null, "due": true, "overdue": 0},
+    {"name": "credited row (no date), reviewed 17 days ago: 3 days overdue", "status": "MASTERED", "last_reviewed": -17, "last_attempted": null, "next_review_due": null, "due": true, "overdue": 3},
+    {"name": "mastered, no date, never reviewed, attempted 20 days ago: due from the attempt", "status": "MASTERED", "last_reviewed": null, "last_attempted": -20, "next_review_due": null, "due": true, "overdue": 6},
+    {"name": "mastered, no date, no history: due at once, no date to show", "status": "MASTERED", "last_reviewed": null, "last_attempted": null, "next_review_due": null, "due": true, "overdue": 0}
+  ]
+}

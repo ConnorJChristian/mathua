@@ -2,6 +2,12 @@ module github.com/chuma-beep/mathua
 
 go 1.26.6
 
+// rand.Seed is a no-op from Go 1.24 (GODEBUG randseednop=1), which made
+// generator.Registry's per-question seeding inert: every generated question
+// was drawn at random whatever seed the engine, the replay or gradecheck
+// passed. This keeps rand.Seed effective for the module.
+godebug randseednop=0
+
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/chuma-beep/latexnorm v0.1.1

@@ -8,6 +8,7 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/mastery"
+	"github.com/chuma-beep/mathua/internal/review"
 )
 
 type Candidate struct {
@@ -49,6 +50,20 @@ type ConceptSnapshot struct {
 	// Attempts is how many times the learner has actually answered on the
 	// concept; a placement-seeded row has none.
 	Attempts int
+}
+
+// Row is what the due rule (internal/review) reads of the snapshot.
+func (s *ConceptSnapshot) Row() review.Row {
+	if s == nil {
+		return review.Row{Status: mastery.StatusUnseen}
+	}
+	return review.Row{Status: s.Status, LastReviewed: s.LastReviewed, LastAttempted: s.LastAttempted, NextReviewDue: s.NextReviewDue}
+}
+
+// IsDue reports whether the snapshot is due for review at now: the one rule
+// every surface reads (review.IsDue).
+func (s *ConceptSnapshot) IsDue(now time.Time) bool {
+	return review.IsDue(s.Row(), now)
 }
 
 // Next picks the next concept for a student to work on.
@@ -222,14 +237,19 @@ func buildCandidates(dag *concepts.DAG, snapshots map[string]*ConceptSnapshot, n
 			continue
 		}
 		snap := snapshots[c.ID]
-		effStatus, isReview := effectiveState(snap, now)
-		// Fork fix: a mastered topic whose review is due is a review
-		// candidate. It used to be skipped here before isReview was read, so
-		// the due count grew while the review session served nothing.
-		if effStatus == mastery.StatusMastered && !isReview {
+		_, isReview := effectiveState(snap, now)
+		// A mastered topic is a candidate only as a review, and only when
+		// it is due (review.IsDue): decayed for pacing with a future date is
+		// not due. Fork fix: it used to be skipped here before isReview was
+		// read, so the due count grew while the review session served
+		// nothing.
+		if snap != nil && snap.Status == mastery.StatusMastered && !isReview {
 			continue
 		}
-		if !prereqsMet(dag, c, snapshots, now) {
+		// A due review is served whatever its prerequisites read: the topic
+		// is mastered, and the count (engine.DueReviewIDs) does not look at
+		// them either, so the two cannot disagree.
+		if !isReview && !prereqsMet(dag, c, snapshots, now) {
 			continue
 		}
 		priority := computePriority(snap, now, isReview)
@@ -241,16 +261,17 @@ func buildCandidates(dag *concepts.DAG, snapshots map[string]*ConceptSnapshot, n
 	return out
 }
 
+// effectiveState is the snapshot's status with decay applied (for
+// prerequisites and pacing) and whether it is due for review. The two are
+// different notions (FORK.md "What is due"): isReview is review.IsDue and
+// nothing else, so it agrees with the due count, the Study banner, the Up
+// next review card and the reasons.
 func effectiveState(snap *ConceptSnapshot, now time.Time) (mastery.Status, bool) {
 	if snap == nil {
 		return mastery.StatusUnseen, false
 	}
 	status := mastery.EffectiveStatus(snap.Status, daysSince(snap.LastReviewed), mastery.DecayDays)
-	isReview := status == "DECAYING"
-	if snap.Status == mastery.StatusMastered && snap.NextReviewDue != nil && !snap.NextReviewDue.After(now) {
-		isReview = true
-	}
-	return status, isReview
+	return status, snap.IsDue(now)
 }
 
 func prereqsMet(dag *concepts.DAG, c *concepts.Concept, snapshots map[string]*ConceptSnapshot, now time.Time) bool {
@@ -297,8 +318,8 @@ func computePriority(snap *ConceptSnapshot, now time.Time, isDecaying bool) floa
 
 // reviewPriority orders due reviews by how overdue they are (fork change),
 // whatever course, book or domain they come from: days past the review's
-// due date, or, for a topic decaying without a scheduled review, days past
-// the decay horizon. Time since the last review breaks ties. Every review
+// due date (review.Overdue: for a topic with no scheduled review, days past
+// the decay horizon). Time since the last review breaks ties. Every review
 // stays above 5, the old decaying bonus, so a due review still outranks a
 // new topic in the mixed session.
 func reviewPriority(snap *ConceptSnapshot, now time.Time) float64 {
@@ -309,19 +330,10 @@ func reviewPriority(snap *ConceptSnapshot, now time.Time) float64 {
 	if since >= 999 {
 		since = daysSince(snap.LastAttempted)
 	}
-	overdue := 0.0
-	if snap.NextReviewDue != nil && !snap.NextReviewDue.After(now) {
-		overdue = now.Sub(*snap.NextReviewDue).Hours() / 24
-	} else if since < 999 {
-		overdue = since - float64(mastery.DecayDays)
-	}
-	if overdue < 0 {
-		overdue = 0
-	}
 	if since >= 999 {
 		since = 0
 	}
-	return 5 + overdue + 0.001*since
+	return 5 + review.Overdue(snap.Row(), now) + 0.001*since
 }
 
 // NextReview picks the next due-for-review concept.

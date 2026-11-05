@@ -653,9 +653,13 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	// A due review is served whatever path it is on (FORK.md: reviews
+	// come most overdue first across every course and book), as the review
+	// session serves it and the count counts it.
 	if path := e.activePath[studentID]; len(path) > 0 {
-		for cid := range snapshots {
-			if !path[cid] {
+		now := time.Now()
+		for cid, snap := range snapshots {
+			if !path[cid] && !(snap.IsDue(now) && !skip[cid]) {
 				skip[cid] = true
 			}
 		}

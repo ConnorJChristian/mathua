@@ -461,12 +461,45 @@ locks course material.
 
 `TestNoFloorTopicsForCourseLearner` holds this on the whole base graph.
 
+**What is due.** One rule (`internal/review`, `IsDue`) says whether a
+topic is due for review, and every surface reads it: the review session,
+the mixed session, the due count (`/api/reviews/due`: the Study banner,
+the sidebar badge, the profile), the course page's due marks, the Up next
+review card and its reason ("review due 3 days ago (8 due)"), and the
+replay audit. Two rules used to disagree: the session served any mastered
+topic 14 days after its last review, with or without a scheduled date,
+while the count took only rows with a past date, so a credited course
+topic came up in `/review` on its fifteenth day while the banner said 0.
+
+- Only a mastered topic can be due. A learning topic's `next_review_due`
+  is a practice date, not a review.
+- With a scheduled date, the date decides: due once it has passed, not
+  before, however long the interval (decay no longer caps it at 14 days
+  in the session).
+- Without a date (a topic credited through the topics above it, which has
+  no review of its own), it is due `mastery.DecayDays` (14) after its last
+  review.
+- Topics the learner is not reviewed on (the floor; credit-only
+  foundations no followed course lists, unless pinned) are not due, on any
+  surface. A credited topic a followed course lists as its own, or a
+  pinned one, is due 14 days after it was credited and is counted and
+  served like any other.
+
+Decay for pacing, plan order, the readiness gate and the progress bar
+(`mastery.EffectiveStatus`, DECAYING 14 days after the last review
+whatever the date says) is a separate notion and unchanged: with a long
+interval a topic can be decayed for pacing before it is due for review.
+`scripts/replay_audit` reads every surface each session and flags a
+disagreement ("surfaces disagree on due"); `TestDueSurfacesAgree` holds it
+for 30 days on three learners.
+
 **How the queue is ordered.** Up next, the review session and the mixed
 session (`/session`) follow the same rules:
 
 1. **Reviews come most overdue first**, across every course and book: days
-   past the review's due date (a decaying topic with no date: days past the
-   decay horizon). They are not grouped by course, module or domain. A topic
+   past the review's due date (a credited topic with no date: days past
+   its decay horizon). They are not grouped by course, module or domain,
+   and a due review is served whatever course path it is on. A topic
    two courses share is one review. A review session serves a topic once; a
    review missed there is rescheduled, not asked again three questions on.
 2. **Due reviews come before new topics.** Up next puts one review card
@@ -496,9 +529,10 @@ and its remediation, the course placements and the onboarding placement),
 with the engine's reason, then classifies each serve: below the floor,
 credit-only off the courses, off every course path, the same topic twice in
 a review session or a list, unmet prerequisites, an after-due topic while a
-due one is ready, remediation that is not a direct prerequisite, and a
-placement question deeper than `CoursePlacementDepth`. It ages the copy one
-day between sessions.
+due one is ready, remediation that is not a direct prerequisite, a
+placement question deeper than `CoursePlacementDepth`, and a session whose
+surfaces disagree on what is due. It ages the copy one day between
+sessions.
 
 ```bash
 MATHUA_ROOT=$PWD go run ./scripts/replay_audit -db snapshot.db -student <id> -sessions 30 -json serves.jsonl
@@ -601,6 +635,12 @@ Rules (`internal/generator/scaffold.go`):
    items; after the steps are done, and in reviews, a leftover exercise is
    served about half the time (the next untried one in book order, else a
    missed one), so the rest of the topic is not crowded out.
+7. The order within a step never goes back. An item of the course's own
+   book that only becomes servable once the step has moved past that book
+   (a practice version that unlocks when its exercise is right after a
+   missed exercise's retry, or an item added to the bank) joins the
+   step's practice set, untried first, instead of coming first again. The
+   step still waits for it, as for any item under the caps.
 
 The cap is `MATHUA_BOOK_STEP_CAP` (default 3; `0` switches it off, so every
 book exercise at a step comes before the next step, as before). A course in

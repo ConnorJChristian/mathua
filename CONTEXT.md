@@ -25,7 +25,7 @@ _Avoid_: progress, progress card, transcript (fine in prose, not in a route)
 **Diagnostic (frontier)** — Adaptive CAT finding knowledge frontier (`internal/diagnostic/cat.go:1`, `improve.md:27` 30–45 min, covering set + info-gain). Entry: `/onboard` welcome (`onboard/page.tsx:56`), CTA on `Profile` (`profile:209`) labeled `Recommended` vs `Retake` (`profile:209`).  
 _Avoid_: test, assessment, quiz (reserved)
 
-**Seam** — Public boundary to test at (the `tdd` skill's term: the narrowest interface that makes the behavior observable). Pre-agreed seams for next bite: `Learn → SubmitStudyAnswer` (`POST /api/study/answer` `server.go:484` → `submitAnswerWithTask` `engine.go:1266`).
+**Seam** — Public boundary to test at (the `tdd` skill's term: the narrowest interface that makes the behavior observable). Pre-agreed seams for next bite: `Learn → SubmitStudyAnswer` (`POST /api/study/answer` `server.go:484` → `submitAnswerWithTask` `engine.go:1529`).
 
 **TaskLesson / TaskReview / TaskMultistep / TaskQuiz** — XP task types (`internal/xp/policy.go` effort-derived bases). Q2 locked: `*.word` and plain share the effort calibration (thresholds already differ). Reviews and quizzes earn the same effort base as lessons; the task type does not change the number.
 _Avoid_: flat per-question XP, word as separate prereq depth (temporary node, future `Variants` fold via `enrichment.json` `improve.md:114`)

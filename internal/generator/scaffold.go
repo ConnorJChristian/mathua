@@ -80,6 +80,15 @@ type StepHistory interface {
 	GeneratedCorrectAt(step int) bool
 }
 
+// StepAttemptHistory is implemented by a History that also knows the steps
+// at which the learner has tried the topic's generated questions, right or
+// wrong: once the practice set of a step has been served, an item of the
+// main book that unlocks later joins the practice set rather than coming
+// first again.
+type StepAttemptHistory interface {
+	GeneratedAttemptedAt(step int) bool
+}
+
 // DefaultBookStepCap is how many book exercises a learner tries at a
 // scaffold step before the step can be done, when no course sets one.
 const DefaultBookStepCap = 3
@@ -159,6 +168,9 @@ type Scaffold struct {
 	Generated func(step int) Problem
 	// GeneratedDone[s] is a right generated answer at step s or above.
 	GeneratedDone [4]bool
+	// GeneratedTried[s] is any attempt at a generated question at step s:
+	// the step's practice set has been served (pastMain).
+	GeneratedTried [4]bool
 	// Share is the chance a bank item is served rather than a generated
 	// question when a step has both.
 	Share float64
@@ -477,6 +489,26 @@ func (s *Scaffold) Pick(served map[string]bool) (Problem, bool) {
 	return Problem{}, false
 }
 
+// pastMain reports that a step has moved past the main book: the learner
+// has tried something later in the step's order (a parallel book's item,
+// an unsourced item or a generated question). A main-book item that only
+// becomes servable now (a practice version that unlocks once its exercise
+// is right, after the exercise was missed and retried; an item added to
+// the bank) then joins the practice set instead of coming first again, so
+// the order within a step never goes back (FORK.md "The order of practice
+// inside a topic"; the replay audit's served-order check).
+func (s *Scaffold) pastMain(step int) bool {
+	if s.GeneratedTried[step] || s.GeneratedDone[step] {
+		return true
+	}
+	for _, it := range s.Items {
+		if it.Step == step && it.Attempted && !s.isMain(it) {
+			return true
+		}
+	}
+	return false
+}
+
 // pickAt serves one question at a step that this request has not served:
 // the main book's exercises first, in book order (an untried one, or a
 // missed one half the time, as generator.PickBook); then, when the topic has
@@ -485,7 +517,8 @@ func (s *Scaffold) Pick(served map[string]bool) (Problem, bool) {
 // the bank's other items, untried first and at random, and the generated
 // questions. Once BookCap of the step's book exercises (or ParallelCap of a
 // book's items) have been tried, the untried rest no longer come first:
-// they join the step's untried items.
+// they join the step's untried items. So does a main-book item that turns
+// up once the step has moved past the main book (pastMain).
 func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 	try := func(it ScaffoldItem, tier string) (Problem, bool) {
 		p, ok := it.Serve()
@@ -501,6 +534,7 @@ func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 		tried, _ := s.bookTried(step)
 		capped = tried >= s.BookCap
 	}
+	late := s.pastMain(step)
 	// Quota groups: the main book's other items and each parallel book.
 	type quota struct {
 		count   int // tried, or served in this request
@@ -510,6 +544,12 @@ func (s *Scaffold) pickAt(step int, served map[string]bool) (Problem, bool) {
 	var grouped []ScaffoldItem
 	for _, it := range s.Items {
 		if it.Step != step {
+			continue
+		}
+		if late && !it.Attempted && s.isMain(it) {
+			// The main book's turn at this step has passed: a late item of
+			// it is served from the practice set, untried first.
+			fresh = append(fresh, it)
 			continue
 		}
 		if g := s.group(it); g != "" {

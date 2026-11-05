@@ -2,10 +2,12 @@ package engine
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/chuma-beep/mathua/internal/mastery"
+	"github.com/chuma-beep/mathua/internal/review"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
@@ -78,42 +80,79 @@ func (e *Engine) conceptSnapshots(studentID string) (map[string]*scheduler.Conce
 	return e.conceptSnapshotsFrom(studentID, progress), nil
 }
 
-// ReviewsDue counts concepts whose SM-2 interval has elapsed. Moved here from the server,
+// ReviewsDue counts the topics due for review. Moved here from the server,
 // which computed it inline and which the recommender needs it from.
 func (e *Engine) ReviewsDue(studentID string) (int, error) {
 	return e.ReviewsDueTrack(studentID, "")
 }
 
-// ReviewsDueTrack counts due reviews in one track ("" is the Math track).
+// ReviewsDueTrack counts due reviews in one track ("" is the Math track):
+// the length of DueReviewIDs, so the count, the Study banner and the
+// sidebar badge (/api/reviews/due) agree with the review session.
 func (e *Engine) ReviewsDueTrack(studentID, track string) (int, error) {
 	progress, err := e.repo.GetAllProgress(studentID)
 	if err != nil {
 		return 0, fmt.Errorf("load progress: %w", err)
 	}
-	now := time.Now()
-	count := 0
+	return len(e.DueReviewIDs(studentID, track, progress, time.Now())), nil
+}
+
+// DueReviewIDs is the one answer to "what is due for review" (fork change,
+// FSRS plan Phase 0): every topic the learner is reviewed on whose row is
+// due (review.IsDue), most overdue first. It is what the due count, the
+// Study banner, the course page's due marks, the Up next review card and
+// its reason, the review session and the mixed session's review serves all
+// read, so they cannot disagree about a topic.
+//
+// Not due, whatever the row says: a topic the learner is not reviewed on
+// (notReviewed: below their floor, or a credit-only foundation no followed
+// course lists, unless pinned), a topic outside the track, and a row for a
+// topic the graph no longer has (the session could not serve it).
+func (e *Engine) DueReviewIDs(studentID, track string, progress map[string]*storage.ConceptProgress, now time.Time) []string {
 	skip := e.notReviewed(studentID, progress)
-	for _, p := range progress {
-		if !e.InTrack(p.ConceptID, track) || skip[p.ConceptID] {
-			continue
-		}
-		if p.NextReviewDue == nil {
-			continue
-		}
-		if p.NextReviewDue.After(now) {
-			continue
-		}
-		// A stored MASTERED row with a due review IS due a review — scheduler.effectiveState
-		// says so explicitly, which is what put it in the review bucket in the first place.
-		// A LEARNING or PRACTICING row also carries a NextReviewDue (practice
-		// sets one), but the review session never serves it: counting it
-		// made "8 topics due" banners for an empty session (fork fix).
-		if mastery.Status(p.Status) != mastery.StatusMastered {
-			continue
-		}
-		count++
+	type due struct {
+		id      string
+		overdue float64
 	}
-	return count, nil
+	var out []due
+	for cid, p := range progress {
+		if p == nil || skip[cid] || e.dag.Concept(cid) == nil || !e.InTrack(cid, track) {
+			continue
+		}
+		if r := progressRow(p); review.IsDue(r, now) {
+			out = append(out, due{cid, review.Overdue(r, now)})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].overdue != out[j].overdue {
+			return out[i].overdue > out[j].overdue
+		}
+		return out[i].id < out[j].id
+	})
+	ids := make([]string, len(out))
+	for i, d := range out {
+		ids[i] = d.id
+	}
+	return ids
+}
+
+// DueReviewSet is DueReviewIDs as a set, for surfaces that mark topics.
+func (e *Engine) DueReviewSet(studentID string, progress map[string]*storage.ConceptProgress, now time.Time) map[string]bool {
+	out := map[string]bool{}
+	for _, id := range e.DueReviewIDs(studentID, "", progress, now) {
+		out[id] = true
+	}
+	return out
+}
+
+// progressRow is what the due rule reads of a stored row.
+func progressRow(p *storage.ConceptProgress) review.Row {
+	return review.Row{
+		Status:        mastery.Status(p.Status),
+		LastReviewed:  timeOrZero(p.LastReviewed),
+		LastAttempted: timeOrZero(p.LastAttempted),
+		NextReviewDue: p.NextReviewDue,
+	}
 }
 
 // RecommendNext is the learner's head plus their alternatives. It is the answer to "what
@@ -144,9 +183,12 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
 	weakness := e.weaknessMapFromProgress(progress)
-	due, err := e.ReviewsDueTrack(studentID, track)
-	if err != nil {
-		return scheduler.RecommendationResponse{Alternatives: []scheduler.Recommendation{}}, err
+	now := time.Now()
+	dueIDs := e.DueReviewIDs(studentID, track, progress, now)
+	due := len(dueIDs)
+	dueSet := make(map[string]bool, due)
+	for _, id := range dueIDs {
+		dueSet[id] = true
 	}
 	quizDue, _ := e.QuizDue(studentID)
 	quizXP, _ := e.QuizXPSince(studentID)
@@ -180,11 +222,14 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	// snapshot and read as never seen, so one whose prerequisite the
 	// placement had credited was offered as "Ready to learn" ("Addition word
 	// problems" after a calculus placement; Q27).
+	// A due review is never off the path (FORK.md: reviews come most
+	// overdue first "across every course and book"): the review card
+	// stands for the whole due set, as the count does.
 	e.ensureActivePath(studentID)
 	e.mu.Lock()
 	if path := e.activePath[studentID]; len(path) > 0 {
 		for cid := range snapshots {
-			if !path[cid] {
+			if !path[cid] && !dueSet[cid] {
 				exclude = append(exclude, cid)
 			}
 		}
@@ -215,12 +260,12 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	for _, id := range e.QuizRemedial(studentID) {
 		remedial[id] = true
 	}
-	urgent := e.urgentTopics(studentID, progress, time.Now())
+	urgent := e.urgentTopics(studentID, progress, now)
 	res := sched.Recommend(scheduler.RecommendInput{
 		Urgent:              urgent,
 		Remedial:            remedial,
 		Snapshots:           snapshots,
-		Now:                 time.Now(),
+		Now:                 now,
 		Weakness:            weakness,
 		DueReviews:          due,
 		QuizDue:             quizDue,
@@ -243,7 +288,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 			res.Alternatives = append(jump[1:], res.Alternatives...)
 		}
 	}
-	e.explainRecommendations(&res, studentID, progress, remedial, urgent)
+	e.explainRecommendations(&res, studentID, progress, remedial, urgent, dueIDs, now)
 	return res, nil
 }
 

@@ -1997,7 +1997,8 @@ func (g *derivImplicitSecondGen) Generate(ctx generator.GeneratorContext) genera
 	table := []entry{
 		{"For \\(x^{2}+y^{2}=25\\), what is \\(dy/dx\\)?", "-x/y", "Implicit: \\(2x+2y\\,y'=0\\), so \\(y'=-x/y\\)."},
 		{"For \\(x^{2}+y^{2}=25\\), what is \\(d^{2}y/dx^{2}\\) in terms of \\(x,y\\)?", "-25/y^3", "Differentiate \\(y'=-x/y\\): \\(y'' = -(y-xy')/y^{2} = -(y+x^{2}/y)/y^{2} = -25/y^{3}\\)."},
-		{"What is the first step in finding a second implicit derivative?", "find dy/dx by implicit differentiation", "Compute \\(dy/dx\\) first, then differentiate that relation implicitly again."},
+		// A word key: a slash would make the grader read it as mathematics.
+		{"What is the first step in finding a second implicit derivative?", "find the first derivative implicitly", "Compute \\(dy/dx\\) first (implicit differentiation), then differentiate that relation implicitly again."},
 		{"For \\(y=x^{3}\\) (explicit check), what is \\(y''\\)?", "6x", "\\(y'=3x^{2}\\), \\(y''=6x\\)."},
 	}
 	e := table[rand.Intn(len(table))]

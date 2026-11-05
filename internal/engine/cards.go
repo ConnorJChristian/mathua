@@ -378,6 +378,11 @@ func (m *mixGen) scaffold(ctx generator.GeneratorContext) *generator.Scaffold {
 				sc.GeneratedDone[s] = sh.GeneratedCorrectAt(s)
 			}
 		}
+		if sh, ok := ctx.History.(generator.StepAttemptHistory); ok {
+			for s := 1; s <= 3; s++ {
+				sc.GeneratedTried[s] = sh.GeneratedAttemptedAt(s)
+			}
+		}
 	}
 	if ctx.NoCards {
 		sc.ArrangeBooks(generator.BookPolicyOf(ctx.History), m.Source())
