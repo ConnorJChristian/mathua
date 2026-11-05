@@ -921,7 +921,9 @@ timestamps are stored in UTC.
 
 **The model.** `internal/fsrs` is upstream's pure FSRS-6 package, copied
 byte-for-byte (so upstream fixes cherry-pick), with its 115 values pinned
-against py-fsrs 6.3.2 (`tools/fsrs-reference`). `internal/review/fsrs.go`
+against py-fsrs 6.3.2 (`tools/fsrs-reference`; upstream's five files there
+are byte-identical too, and the fork's additions are described in
+`tools/fsrs-reference/FORK_REVIEW_VECTORS.md`). `internal/review/fsrs.go`
 composes it the way the reference scheduler does, which upstream's own
 engine integration does not (`FSRS_UPSTREAM_ANALYSIS.md`, items 3-5):
 
