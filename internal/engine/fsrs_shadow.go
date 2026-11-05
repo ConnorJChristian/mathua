@@ -371,3 +371,74 @@ func (e *Engine) commitAnswer(progress, before *storage.ConceptProgress, o grade
 // ErrDuplicateAnswer is a retried answer whose event is already stored: the
 // first submission's writes stand and nothing of this one is recorded.
 var ErrDuplicateAnswer = fmt.Errorf("answer already recorded: %w", ErrNoActiveQuestion)
+
+// FSRSSeed is what seeding would write for one stateless mastered row
+// (plan 3.4, scripts/fsrs_seed): the review_log rows replayed from its own
+// attempts and the state they leave.
+type FSRSSeed struct {
+	ConceptID string
+	Seed      string
+	Log       []storage.ReviewLogEntry
+	State     review.Memory
+	Last      time.Time
+}
+
+// FSRSSeedPlan lists, for one learner, what seeding would do: a seed for
+// each MASTERED row with no FSRS state and attempts of its own (the same
+// replay as the first-touch seed, SeedOnTouch), and the ids of the mastered
+// rows it leaves without state (credited or placed only: plan 3.4). It
+// writes nothing.
+func (e *Engine) FSRSSeedPlan(studentID string, now time.Time) (seeds []FSRSSeed, none []string, err error) {
+	progress, err := e.repo.GetAllProgress(studentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	ids := make([]string, 0, len(progress))
+	for id := range progress {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		p := progress[id]
+		if mastery.Status(p.Status) != mastery.StatusMastered {
+			continue
+		}
+		if m, _ := FSRSMemory(p); !m.IsZero() {
+			continue
+		}
+		r, err := e.newFSRSRun(p)
+		if err != nil {
+			return nil, nil, err
+		}
+		ok, err := e.seedFromAttempts(r, p, now)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !ok || r.mem.IsZero() {
+			none = append(none, id)
+			continue
+		}
+		seeds = append(seeds, FSRSSeed{ConceptID: id, Seed: "mastery", Log: r.out, State: r.mem, Last: r.last})
+	}
+	return seeds, none, nil
+}
+
+// ApplyFSRSSeed writes one seed: its log rows and the state, in one
+// transaction. Its keys are the attempts' own ("seed:a<id>"), so applying
+// twice writes nothing the second time (storage.CommitResult.Duplicate,
+// returned as false, nil).
+func (e *Engine) ApplyFSRSSeed(studentID string, s FSRSSeed) (bool, error) {
+	p, err := e.repo.GetProgress(studentID, s.ConceptID)
+	if err != nil || p == nil {
+		return false, fmt.Errorf("seed %s: progress: %v", s.ConceptID, err)
+	}
+	if m, _ := FSRSMemory(p); !m.IsZero() {
+		return false, nil
+	}
+	setFSRS(p, s.State, s.Last, s.Seed)
+	res, err := e.repo.CommitAnswer(storage.AnswerCommit{FSRS: &storage.FSRSCommit{Log: s.Log, State: p}})
+	if err != nil {
+		return false, err
+	}
+	return !res.Duplicate, nil
+}

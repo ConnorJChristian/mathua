@@ -302,3 +302,39 @@ func TestShadow_RetryIsDuplicate(t *testing.T) {
 		t.Errorf("the retry recorded %d attempts in the session, want 1", n)
 	}
 }
+
+// scripts/fsrs_seed's plan is the first-touch seed: the same rows, the same
+// state; applying it twice writes once; a credited row is left alone.
+func TestFSRSSeedPlan(t *testing.T) {
+	e, sid, sim := shadowEngine(t)
+	e.SetFSRSMode(review.ModeOff)
+	answerCorrectly(t, e, sid, 6)
+	last := clock.Now().AddDate(0, 0, -20)
+	e.repo.UpsertProgress(&storage.ConceptProgress{StudentID: sid, ConceptID: "b", Status: string(mastery.StatusMastered), PlacementSeeded: true, LastReviewed: &last, SM2EFactor: 2.5})
+	sim.Advance(4 * 24 * time.Hour)
+	e.SetFSRSMode(review.ModeShadow)
+	seeds, none, err := e.FSRSSeedPlan(sid, clock.Now())
+	if err != nil || len(seeds) != 1 || seeds[0].ConceptID != "a" || len(none) != 1 || none[0] != "b" {
+		t.Fatalf("plan %+v none %v err %v", seeds, none, err)
+	}
+	if n := len(logOf(t, e, sid, "a")); n != 0 {
+		t.Fatalf("the plan wrote %d rows", n)
+	}
+	if seeds[0].State != review.Initial(fsrs.Good) {
+		t.Errorf("seeded state %+v, want the reference first Good", seeds[0].State)
+	}
+	if ok, err := e.ApplyFSRSSeed(sid, seeds[0]); !ok || err != nil {
+		t.Fatalf("apply: %v %v", ok, err)
+	}
+	if ok, err := e.ApplyFSRSSeed(sid, seeds[0]); ok || err != nil {
+		t.Fatalf("second apply: %v %v, want a no-op", ok, err)
+	}
+	p, _ := e.repo.GetProgress(sid, "a")
+	if p.FSRSSeed != "mastery" || p.FSRSState != "review" {
+		t.Errorf("row %+v", p)
+	}
+	if pb, _ := e.repo.GetProgress(sid, "b"); pb.FSRSState != "none" {
+		t.Errorf("credited row seeded: %+v", pb)
+	}
+	replayAgrees(t, e, sid)
+}
