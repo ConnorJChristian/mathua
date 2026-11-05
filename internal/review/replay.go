@@ -20,6 +20,9 @@ type Event struct {
 	Source string
 	SAfter float64
 	DAfter float64
+	// Held is the review_log row's held reason: a held event was logged
+	// without changing the state (Apply), so Replay skips it.
+	Held string
 }
 
 // Replay rebuilds a topic's memory from its log, oldest first: the
@@ -42,14 +45,27 @@ func Replay(p Params, log []Event) Memory {
 // non-seed event whose rating is invalid (wrapping ErrInvalidRating). The
 // returned memory skips every such event.
 func ReplayChecked(p Params, log []Event) (Memory, error) {
+	m, _, err := ReplayLast(p, log)
+	return m, err
+}
+
+// ReplayLast is ReplayChecked that also returns the time of the last event
+// that changed the state (a seed or an applied review; not a held one): what
+// fsrs_last_review must equal.
+func ReplayLast(p Params, log []Event) (Memory, time.Time, error) {
 	var m Memory
+	var last time.Time
 	var first error
 	for i, e := range log {
+		if e.Held != "" {
+			continue
+		}
 		if e.Source == "seed" {
 			m = Memory{Stability: e.SAfter, Difficulty: e.DAfter, Reps: m.Reps, Lapses: m.Lapses, Phase: PhaseReview}
 			if m.Stability < fsrs.StabilityMin {
 				m.Stability = fsrs.StabilityMin
 			}
+			last = e.At
 			continue
 		}
 		if err := CheckRating(e.Rating); err != nil {
@@ -66,8 +82,9 @@ func ReplayChecked(p Params, log []Event) (Memory, error) {
 		default:
 			m = p.Next(m, e.Rating, e.ElapsedDays)
 		}
+		last = e.At
 	}
-	return m, first
+	return m, last, first
 }
 
 // Diff reports how a stored memory differs from a replayed one, or "" when
