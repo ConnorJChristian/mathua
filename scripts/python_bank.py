@@ -543,11 +543,20 @@ def default_steps(item):
 def build_chapter(path):
     ns = runpy.run_path(path, init_globals=dict(HELPERS))
     chapter = ns["CHAPTER"]
+    # STEPS (fork change, task 0c): an authoring file may keep its items'
+    # walkthroughs in a table keyed "<concept>#<item>", one string per
+    # step, beside the items (or in a shared module), for tasks whose
+    # steps are a line-by-line why of the reference solution.
+    table = ns.get("STEPS") or {}
     errors = []
     jobs = []
     with cf.ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         for c in chapter["concepts"]:
             errors.extend(check_gating(c["id"], c["items"]))
+            for item in c["items"]:
+                key = c["id"] + "#" + item["id"]
+                if key in table and "steps" not in item:
+                    with_steps(item, table[key])
             for idx, item in enumerate(c["items"]):
                 jobs.append((c, idx, pool.submit(check_item, c["id"], default_steps(item))))
         for c, idx, fut in jobs:
