@@ -1,0 +1,15 @@
+{
+  "concept": "calc.seq.limit_value",
+  "setup": "For a ratio of polynomials as \\(n \\to \\infty\\), divide top and bottom by the highest power, \\(n^{2}\\).",
+  "steps": [
+    {
+      "fact": "a",
+      "say": "The numerator becomes \\([[a]] + [[b]]/n + [[c]]/n^{2}\\) and the denominator \\([[d]] + [[e]]/n + [[f]]/n^{2}\\)."
+    },
+    {
+      "fact": "d",
+      "say": "Every term with an \\(n\\) underneath tends to 0, so the ratio tends to \\([[a]]/[[d]]\\), the ratio of the leading coefficients."
+    }
+  ],
+  "answer": "So the limit is [[limit]]."
+}

@@ -940,7 +940,11 @@ func (g *totalProbabilityGen) Generate(ctx generator.GeneratorContext) generator
 		Facts: map[string]string{
 			"w1": strconv.Itoa(c.w1), "a1": strconv.Itoa(c.a1), "t1": strconv.Itoa(c.t1),
 			"w2": strconv.Itoa(c.w2), "a2": strconv.Itoa(c.a2), "t2": strconv.Itoa(c.t2),
-			"answer": answer,
+			"answer": answer, "total": strconv.Itoa(total),
+			"p1": decimal6(float64(c.w1) / float64(total)), "p2": decimal6(float64(c.w2) / float64(total)),
+			"c1": decimal6(float64(c.a1) / float64(c.t1)), "c2": decimal6(float64(c.a2) / float64(c.t2)),
+			"term1": decimal6(float64(c.w1) / float64(total) * float64(c.a1) / float64(c.t1)),
+			"term2": decimal6(float64(c.w2) / float64(total) * float64(c.a2) / float64(c.t2)),
 		},
 	}
 }

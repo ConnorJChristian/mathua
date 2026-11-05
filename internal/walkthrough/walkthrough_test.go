@@ -2,6 +2,7 @@ package walkthrough
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -109,5 +110,45 @@ func TestTrimCovered(t *testing.T) {
 	}
 	if got := TrimCovered(back, nil); got != back {
 		t.Fatal("no steps, no trim")
+	}
+}
+
+func TestWorkedSteps(t *testing.T) {
+	got := WorkedSteps("The integrating factor is $e^{x}$. $\\frac{d}{dx}(ye^{x}) = e^{x}$. Integrate: $ye^{x} = e^{x} + C$, so $y = 1 + Ce^{-x}$.")
+	if len(got) != 3 || got[0] != "The integrating factor is $e^{x}$." {
+		t.Fatalf("got %q", got)
+	}
+	if got := WorkedSteps("In 1917 the party seized power, e.g. in Petrograd. By 1921 the war was over."); got != nil {
+		t.Fatalf("prose with years is not working: %q", got)
+	}
+	if got := WorkedSteps("$3x_1^2 - 12 = 0$ gives $x_1 = \\pm2$; $2x_2 - 4 = 0$ gives $x_2 = 2$. Points $(-2, 2)$ and $(2, 2)$.\n\nSource: Hoy 12.1."); len(got) != 3 || got[1] != "$2x_2 - 4 = 0$ gives $x_2 = 2$." {
+		t.Fatalf("semicolon clauses with working are steps, the source is not: %q", got)
+	}
+	if got := WorkedSteps("The mean of a boolean column is the share of True values."); got != nil {
+		t.Fatalf("one sentence is a reason, not steps: %q", got)
+	}
+}
+
+func TestWorkedStepsAssignmentChain(t *testing.T) {
+	got := WorkedSteps("a_2 = 1+2 = 3, a_3 = 3+2 = 5, a_4 = 5+2 = 7")
+	if len(got) != 3 || got[2] != "a_4 = 5+2 = 7" {
+		t.Fatalf("got %q", got)
+	}
+	// Not an assignment chain: a list after a colon stays one step.
+	if got := WorkedSteps("Endpoints: $f(0)=0$, $f(3)=-3$. Global max value is 0 at $x=0$."); len(got) != 2 {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestWorkedStepsNeverSplitsMathOrHTML(t *testing.T) {
+	back := `\(Y_0 = 6000\)<br>\(Y_1 = 6450\).<br><br>Check: \[ Y_t = Y_{t-1} + 450. \] So \(6450 = 6000 + 450\).`
+	got := WorkedSteps(back)
+	for _, s := range got {
+		if strings.Count(s, `\[`) != strings.Count(s, `\]`) || strings.Count(s, `\(`) != strings.Count(s, `\)`) {
+			t.Fatalf("a step split inside mathematics: %q", s)
+		}
+	}
+	if len(got) < 2 {
+		t.Fatalf("got %q", got)
 	}
 }

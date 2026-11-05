@@ -692,24 +692,14 @@ type derivImplicitGen struct{}
 
 func (g *derivImplicitGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	scale := int(1 + ctx.Difficulty*5)
-	r := rand.Intn(max(1, scale*2)) + 3
+	// The point comes first and the circle through it second (fork fix):
+	// the constant used to be r² for a drawn r, with y₀ = r² − x₀² whenever
+	// that was not a perfect square, so the served point was off the curve
+	// ("(6,45) on x² + y² = 81"). Now x₀² + y₀² is the constant by
+	// construction, and the walkthrough's check holds.
 	a := rand.Intn(max(1, scale*2)) + 1
-	b := r*r - a*a
-	// Ensure integer b
-	for b <= 0 {
-		a = rand.Intn(r) + 1
-		b = r*r - a*a
-	}
-	bSqrt := 1
-	for i := 2; i*i <= b; i++ {
-		if i*i == b {
-			bSqrt = i
-			break
-		}
-	}
-	if bSqrt == 1 {
-		bSqrt = b
-	}
+	bSqrt := rand.Intn(max(1, scale*2)) + 1
+	rr := a*a + bSqrt*bSqrt
 	// dy/dx = -a/bSqrt
 	gcd := mathutil.GCD(mathutil.Abs(a), bSqrt)
 	num := -a / gcd
@@ -719,11 +709,11 @@ func (g *derivImplicitGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		answer = fmt.Sprintf("%d", num)
 	}
 	return generator.Problem{
-		Question:    fmt.Sprintf("Find \\(dy/dx\\) at \\((%d,%d)\\) for \\(x^{2}+y^{2}=%d\\).", a, bSqrt, r*r),
+		Question:    fmt.Sprintf("Find \\(dy/dx\\) at \\((%d,%d)\\) for \\(x^{2}+y^{2}=%d\\).", a, bSqrt, rr),
 		Answer:      answer,
 		Explanation: fmt.Sprintf("2x+2y·dy/dx=0 → dy/dx=-x/y. At (%d,%d): dy/dx=-%d/%d=%s.", a, bSqrt, a, bSqrt, answer),
 		Facts: map[string]string{
-			"x0": strconv.Itoa(a), "y0": strconv.Itoa(bSqrt), "rr": strconv.Itoa(r * r), "two_x0": strconv.Itoa(2 * a), "two_y0": strconv.Itoa(2 * bSqrt),
+			"x0": strconv.Itoa(a), "y0": strconv.Itoa(bSqrt), "rr": strconv.Itoa(rr), "two_x0": strconv.Itoa(2 * a), "two_y0": strconv.Itoa(2 * bSqrt),
 		},
 	}
 }

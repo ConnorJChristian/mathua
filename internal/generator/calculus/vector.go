@@ -159,6 +159,6 @@ func (g *lagrangeGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		Answer:   fmt.Sprintf("%d", s*s/4),
 		Explanation: fmt.Sprintf("Lagrange gives y = lambda and x = lambda, so x = y = %d/2 = %d and the product is %d*%d = %d. The constraint forces the two factors to share the sum equally.",
 			s, s/2, s/2, s/2, s*s/4),
-		Facts: map[string]string{"s": fmt.Sprintf("%d", s), "maximum": fmt.Sprintf("%d", s*s/4)},
+		Facts: map[string]string{"s": fmt.Sprintf("%d", s), "maximum": fmt.Sprintf("%d", s*s/4), "half": fmt.Sprintf("%d", s/2)},
 	}
 }

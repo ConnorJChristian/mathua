@@ -15,6 +15,7 @@ package calculus
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 
 	"github.com/chuma-beep/mathua/internal/generator"
 )
@@ -43,7 +44,7 @@ func (g *sequenceLimitGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		Answer:   fmt.Sprintf("%d", ratio),
 		Explanation: fmt.Sprintf("For a ratio of polynomials at infinity only the highest powers matter, so the limit is the ratio of the leading coefficients: %d/%d = %d. The lower terms are negligible because the squared terms grow fastest.",
 			a, d, ratio),
-		Facts: map[string]string{"limit": fmt.Sprintf("%d", ratio)},
+		Facts: map[string]string{"limit": fmt.Sprintf("%d", ratio), "a": fmt.Sprintf("%d", a), "d": fmt.Sprintf("%d", d), "b": fmt.Sprintf("%d", b), "c": fmt.Sprintf("%d", c), "e": fmt.Sprintf("%d", e), "f": fmt.Sprintf("%d", f)},
 	}
 }
 
@@ -56,15 +57,21 @@ func (g *recursiveValueGen) Generate(ctx generator.GeneratorContext) generator.P
 	c := 1 + rand.Intn(5+int(ctx.Difficulty*5))
 	steps := 2 + rand.Intn(3+int(ctx.Difficulty*3))
 	v := start
+	// Each term as the recurrence produces it, for the walkthrough (fork
+	// change): "a_2 = 2·6 + 3 = 15".
+	chain := make([]string, 0, steps)
 	for i := 0; i < steps; i++ {
+		prev := v
 		v = r*v + c
+		chain = append(chain, fmt.Sprintf("a_%d = %d·%d + %d = %d", i+2, r, prev, c, v))
 	}
 	return generator.Problem{
 		Question: fmt.Sprintf("A sequence is defined by \\(a_1 = %d\\) and \\(a_{n+1} = %da_n + %d\\). Find \\(a_{%d}\\).", start, r, c, steps+1),
 		Answer:   fmt.Sprintf("%d", v),
 		Explanation: fmt.Sprintf("Apply the recurrence %d times: each term is %d times the one before plus %d, which gives %d. A recursive sequence is defined by what each term does to its predecessor, so the only way to reach a term is through the ones before it.",
 			steps, r, c, v),
-		Facts: map[string]string{"value": fmt.Sprintf("%d", v)},
+		Facts: map[string]string{"value": fmt.Sprintf("%d", v), "start": fmt.Sprintf("%d", start), "r": fmt.Sprintf("%d", r), "c": fmt.Sprintf("%d", c),
+			"steps": fmt.Sprintf("%d", steps), "n": fmt.Sprintf("%d", steps+1), "chain": strings.Join(chain, ", ")},
 	}
 }
 

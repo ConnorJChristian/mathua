@@ -13,6 +13,7 @@
 package walkthrough
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -248,19 +249,159 @@ func collapseBlankLines(s string) string {
 // TrimCovered returns text without the part the steps already say: when the
 // text opens with the steps' sentences in order (a worked solution the bank
 // build split into steps), what follows them is returned, typically the
-// source line; otherwise text is returned whole. Whitespace is not compared.
+// source line; otherwise text is returned whole. Whitespace, semicolons and
+// commas are not compared: a step split off a clause lost its separator.
 func TrimCovered(text string, steps []string) string {
 	if len(steps) == 0 {
 		return text
 	}
-	norm := func(s string) string { return strings.Join(strings.Fields(s), " ") }
-	joined := norm(strings.Join(steps, " "))
-	flat := norm(text)
-	if joined == "" || !strings.HasPrefix(flat, joined) {
+	skip := func(r rune) bool { return r == ' ' || r == '\n' || r == '\t' || r == '\r' || r == ';' || r == ',' }
+	want := []rune(strings.Join(steps, " "))
+	w := 0
+	for w < len(want) && skip(want[w]) {
+		w++
+	}
+	if w == len(want) {
 		return text
 	}
-	rest := strings.TrimSpace(flat[len(joined):])
-	// The remainder's paragraph breaks were flattened with the rest; a
-	// trailing source line is one paragraph anyway.
-	return rest
+	runes := []rune(text)
+	for i, r := range runes {
+		if skip(r) {
+			continue
+		}
+		if r != want[w] {
+			return text
+		}
+		w++
+		for w < len(want) && skip(want[w]) {
+			w++
+		}
+		if w == len(want) {
+			return strings.TrimSpace(string(runes[i+1:]))
+		}
+	}
+	return text
+}
+
+// abbrevRe is an abbreviation or an initial a sentence does not end on.
+var abbrevRe = regexp.MustCompile(`(?:\b(?:e\.g|i\.e|cf|vs|approx|eq|Eq|fig|Fig|ch|Ch|sec|Sec|p|pp|no|No|Prof|Dr|Thm|Def|Prop|Cor|Lem|Ex|resp)|\b[A-Z])\.$`)
+
+// workingRe says a sentence works something out: an equals sign or a
+// comparison, an operator between two numbers, a power, or a colon
+// introducing a value. A year or a count on its own is prose.
+var workingRe = regexp.MustCompile(`[=≈→⇒≤≥<>∂∫∑√^]|\d\s*[-+*/−×·±]\s*\d|\d\s*[a-zA-Zα-ωπλ]\b|:\s*[-−(\\]{0,2}\d`)
+
+var sentenceEndRe = regexp.MustCompile(`(?:[.!?])\s+`)
+
+// SplitSentences is a paragraph's sentences: a full stop, question or
+// exclamation mark followed by white space ends one unless it closes an
+// abbreviation or an initial. A sentence whose clauses are joined by
+// semicolons and each work something out is one step per clause.
+// (scripts/python_bank.py split_sentences is the same rule for the bank
+// build.)
+func SplitSentences(text string) []string {
+	var out []string
+	// Mathematics is never split: each span becomes a placeholder while the
+	// sentence boundaries are found, and is put back after.
+	var spans []string
+	text = mathSpanRe.ReplaceAllStringFunc(strings.TrimSpace(text), func(m string) string {
+		spans = append(spans, m)
+		return fmt.Sprintf("\x00%d\x01", len(spans)-1)
+	})
+	restore := func(s string) string {
+		return spanRefRe.ReplaceAllStringFunc(s, func(ref string) string {
+			n, _ := strconv.Atoi(ref[1 : len(ref)-1])
+			return spans[n]
+		})
+	}
+	for text != "" {
+		loc := sentenceEndRe.FindStringIndex(text)
+		var chunk string
+		if loc == nil {
+			chunk, text = text, ""
+		} else {
+			chunk, text = text[:loc[0]+1], text[loc[1]:]
+		}
+		if len(out) > 0 && abbrevRe.MatchString(out[len(out)-1]) {
+			out[len(out)-1] += " " + chunk
+		} else {
+			out = append(out, chunk)
+		}
+	}
+	var steps []string
+	for _, sent := range out {
+		clauses := semicolonRe.Split(sent, -1)
+
+		all := len(clauses) > 1
+		for _, c := range clauses {
+			if !workingRe.MatchString(restore(c)) {
+				all = false
+			}
+		}
+		if !all {
+			// A chain of assignments, "a_2 = 3, a_3 = 5, a_4 = 7": one step
+			// each, when every clause opens as an assignment.
+			clauses = commaRe.Split(sent, -1)
+			all = len(clauses) > 1
+			for _, c := range clauses {
+				if !assignRe.MatchString(restore(c)) {
+					all = false
+				}
+			}
+		}
+		if all {
+			for _, c := range clauses {
+				steps = append(steps, restore(strings.TrimRight(c, ";,")))
+			}
+		} else {
+			steps = append(steps, restore(sent))
+		}
+	}
+	return steps
+}
+
+var (
+	mathSpanRe  = regexp.MustCompile(`(?s)\\\[.*?\\\]|\\\(.*?\\\)|\$\$.*?\$\$|\$[^$\n]*\$`)
+	spanRefRe   = regexp.MustCompile("\x00[0-9]+\x01")
+	semicolonRe = regexp.MustCompile(`;\s+`)
+	commaRe     = regexp.MustCompile(`,\s+`)
+	brParaRe    = regexp.MustCompile(`(?i)(?:<br\s*/?>\s*){2,}`)
+	brRe        = regexp.MustCompile(`(?i)<br\s*/?>`)
+	paraRe      = regexp.MustCompile(`\n\s*\n`)
+	assignRe    = regexp.MustCompile(`^[$\\(]*[A-Za-z][A-Za-z0-9_{}^']*(?:\([^()]*\))?\s*=`)
+)
+
+// WorkedSteps is the steps a worked solution works through: its sentences in
+// order, without a closing "Source:" paragraph, when at least two of them
+// carry working. A one-sentence reason, or prose with no working, gives no
+// steps and is shown whole as the reason. The bank build does the same for
+// authored items; this is for generated explanations and imported backs.
+func WorkedSteps(text string) []string {
+	var steps []string
+	// An imported card's back breaks lines with HTML.
+	text = brParaRe.ReplaceAllString(text, "\n\n")
+	text = brRe.ReplaceAllString(text, "\n")
+	for _, para := range paraRe.Split(text, -1) {
+		para = strings.Join(strings.Fields(para), " ")
+		if para == "" || strings.HasPrefix(para, "Source:") || strings.HasPrefix(para, "```") || strings.HasPrefix(para, "Read more:") {
+			continue
+		}
+		for _, st := range SplitSentences(para) {
+			// A source written into the last sentence is a citation, not a step.
+			if strings.HasPrefix(st, "Source:") || strings.HasPrefix(st, "Read more:") {
+				continue
+			}
+			steps = append(steps, st)
+		}
+	}
+	working := 0
+	for _, s := range steps {
+		if workingRe.MatchString(s) {
+			working++
+		}
+	}
+	if len(steps) < 2 || working < 2 {
+		return nil
+	}
+	return steps
 }

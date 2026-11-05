@@ -1,0 +1,11 @@
+{
+  "concept": "calc.seq.recursive_value",
+  "setup": "A recursive sequence is defined by what each term does to its predecessor, so reach \\(a_{[[n]]}\\) from \\(a_1 = [[start]]\\) one step at a time.",
+  "steps": [
+    {
+      "fact": "chain",
+      "say": "Apply \\(a_{n+1} = [[r]]a_n + [[c]]\\) [[steps]] times: [[chain]]."
+    }
+  ],
+  "answer": "So \\(a_{[[n]]} = [[value]]\\)."
+}

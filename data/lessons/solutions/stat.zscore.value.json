@@ -1,0 +1,15 @@
+{
+  "concept": "stat.zscore.value",
+  "setup": "A z-score measures how far a value sits from the mean, in standard deviations: \\(z = (x - \\mu)/\\sigma\\).",
+  "steps": [
+    {
+      "fact": "dev",
+      "say": "Distance from the mean: \\([[x]] - [[mean]] = [[dev]]\\)."
+    },
+    {
+      "fact": "sd",
+      "say": "Divide by the standard deviation: \\([[dev]] / [[sd]] = [[z]]\\)."
+    }
+  ],
+  "answer": "So \\(z = [[z]]\\): the value is [[z]] standard deviations from the mean, above it when positive and below when negative."
+}

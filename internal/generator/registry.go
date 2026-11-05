@@ -43,7 +43,7 @@ func (r *Registry) explain(conceptID string, p Problem) string {
 	loader := r.solutions
 	r.mu.RUnlock()
 	if loader == nil {
-		return latex.Canonicalize(p.Explanation, latex.Generators)
+		return ownSteps(latex.Canonicalize(p.Explanation, latex.Generators))
 	}
 	// Copy: the generator owns p.Facts and reuse of a Problem must not see
 	// the always-present entries we add below.
@@ -61,7 +61,20 @@ func (r *Registry) explain(conceptID string, p Problem) string {
 	if parts, ok := loader.AssembleParts(conceptID, facts); ok {
 		return latex.Canonicalize(walkthrough.Encode(parts.Explain, parts.Steps), latex.Generators)
 	}
-	return latex.Canonicalize(p.Explanation, latex.Generators)
+	return ownSteps(latex.Canonicalize(p.Explanation, latex.Generators))
+}
+
+// ownSteps reads the steps off a generator's own explanation when no schema
+// covers the instance (fork change): its sentences, in order, when at least
+// two carry working (walkthrough.WorkedSteps). The numbers are the
+// generator's own, so they cannot drift from the key; a one-sentence
+// explanation stays the reason.
+func ownSteps(explanation string) string {
+	steps := walkthrough.WorkedSteps(explanation)
+	if len(steps) == 0 {
+		return explanation
+	}
+	return walkthrough.Encode(walkthrough.TrimCovered(explanation, steps), steps)
 }
 
 func (r *Registry) Register(conceptID string, gen Generator) error {

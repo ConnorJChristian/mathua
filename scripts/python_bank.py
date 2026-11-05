@@ -149,13 +149,30 @@ _ABBREV = re.compile(r"(?:\b(?:e\.g|i\.e|cf|vs|approx|eq|Eq|fig|Fig|ch|Ch|sec|Se
 _WORKING = re.compile(r"[=≈→⇒≤≥<>∂∫∑√^]|\d\s*[-+*/−×·±]\s*\d|\d\s*[a-zA-Zα-ωπλ]\b|:\s*[-−(\\]{0,2}\d")
 
 
+_ASSIGN = re.compile(r"^[$\\(]*[A-Za-z][A-Za-z0-9_{}^']*(?:\([^()]*\))?\s*=")
+
+
+_MATH = re.compile(r"\\\[.*?\\\]|\\\(.*?\\\)|\$\$.*?\$\$|\$[^$\n]*\$", re.S)
+
+
 def split_sentences(text):
     """A paragraph's sentences. A full stop, question or exclamation mark
     followed by white space ends one unless it closes an abbreviation or an
     initial. A sentence whose clauses are joined by semicolons and each work
-    something out ("x₁ = ±2; x₂ = 2") is one step per clause."""
+    something out ("x₁ = ±2; x₂ = 2") is one step per clause. Mathematics is
+    never split: each span is masked while the boundaries are found."""
+    spans = []
+
+    def mask(m):
+        spans.append(m.group(0))
+        return "\x00%d\x01" % (len(spans) - 1)
+
+    def restore(s):
+        return re.sub("\x00(\\d+)\x01", lambda m: spans[int(m.group(1))], s)
+
+    text = _MATH.sub(mask, text.strip())
     out = []
-    for chunk in re.split(r"(?<=[.!?])\s+", text.strip()):
+    for chunk in re.split(r"(?<=[.!?])\s+", text):
         if not chunk:
             continue
         if out and _ABBREV.search(out[-1]):
@@ -165,10 +182,13 @@ def split_sentences(text):
     steps = []
     for sent in out:
         clauses = re.split(r";\s+", sent)
-        if len(clauses) > 1 and all(_WORKING.search(c) for c in clauses):
-            steps.extend(c.rstrip(";") for c in clauses)
-        else:
-            steps.append(sent)
+        if not (len(clauses) > 1 and all(_WORKING.search(restore(c)) for c in clauses)):
+            # A chain of assignments, "a_2 = 3, a_3 = 5, a_4 = 7": one step
+            # each, when every clause opens as an assignment.
+            clauses = re.split(r",\s+", sent)
+            if not (len(clauses) > 1 and all(_ASSIGN.match(restore(c)) for c in clauses)):
+                clauses = [sent]
+        steps.extend(restore(c.rstrip(";,")) for c in clauses)
     return steps
 
 
@@ -181,11 +201,15 @@ def worked_steps(text, min_working=2):
     The steps are read off the text the builder wrote from its computed
     values, so they carry exactly the numbers the key was built from."""
     steps = []
-    for para in re.split(r"\n\s*\n", dedent(text or "")):
+    text = re.sub(r"(?i)(?:<br\s*/?>\s*){2,}", "\n\n", dedent(text or ""))
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+    for para in re.split(r"\n\s*\n", text):
         para = " ".join(para.split())
         if not para or para.startswith("Source:") or para.startswith("```"):
             continue
         steps.extend(split_sentences(para))
+    # A source written into the last sentence is the item's citation, not a step.
+    steps = [s for s in steps if not s.startswith(("Source:", "Read more:"))]
     if len(steps) < 2 or sum(1 for s in steps if _WORKING.search(s)) < min_working:
         return []
     return steps

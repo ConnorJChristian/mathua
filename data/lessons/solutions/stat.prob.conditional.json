@@ -1,0 +1,16 @@
+{
+  "concept": "stat.prob.conditional",
+  "setup": "Conditioning on \\(B\\) restricts attention to the cases where \\(B\\) happened: \\(P(A \\mid B) = P(A \\text{ and } B) / P(B)\\).",
+  "steps": [
+    {
+      "fact": "both",
+      "say": "Divide the two probabilities: \\(\\frac{[[both]]/[[d]]}{[[b]]/[[d]]}\\); the common denominator [[d]] cancels, leaving \\([[both]]/[[b]]\\)."
+    },
+    {
+      "fact": "reduced",
+      "optional": true,
+      "say": "Reduce the fraction: \\([[both]]/[[b]] = [[reduced]]\\)."
+    }
+  ],
+  "answer": "So \\(P(A \\mid B) = [[out_num]]/[[out_den]]\\)."
+}

@@ -762,32 +762,37 @@ func (t *Track) verdict(res *Result) grader.Result {
 
 // BackSteps reads a worked path off a flashcard's back, or a math item's
 // worked solution (fork change): the back's lines when at least two of them
-// carry working (an equals sign, or a numbered or bulleted step). A back that
-// is one statement, or prose without working, gives no steps, and the
-// feedback shows it whole as before.
+// carry working (an equals sign, or a numbered or bulleted step), else its
+// sentences when at least two work something out (walkthrough.WorkedSteps).
+// A back that is one statement, or prose without working, gives no steps,
+// and the feedback shows it whole as before.
 func BackSteps(back string) []string {
 	var lines []string
+	// An imported card's back breaks lines with HTML.
+	back = brRe.ReplaceAllString(back, "\n")
 	for _, l := range strings.Split(strings.ReplaceAll(back, "\r\n", "\n"), "\n") {
 		if l = strings.TrimSpace(l); l != "" {
 			lines = append(lines, l)
 		}
 	}
-	if len(lines) < 2 {
-		return nil
-	}
-	working := 0
-	for _, l := range lines {
-		if strings.Contains(l, "=") || stepLeadRe.MatchString(l) {
-			working++
+	if len(lines) >= 2 {
+		working := 0
+		for _, l := range lines {
+			if strings.Contains(l, "=") || stepLeadRe.MatchString(l) {
+				working++
+			}
+		}
+		if working >= 2 {
+			return lines
 		}
 	}
-	if working < 2 {
-		return nil
-	}
-	return lines
+	// A back written as a paragraph of working: its sentences.
+	return walkthrough.WorkedSteps(back)
 }
 
 // stepLeadRe is a line that opens as a numbered or bulleted step.
+var brRe = regexp.MustCompile(`(?i)<br\s*/?>`)
+
 var stepLeadRe = regexp.MustCompile(`^(?:\(?\d+[.)]|[-*•]|Step \d+)\s`)
 
 func joinNonEmpty(parts ...string) string {
