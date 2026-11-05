@@ -91,6 +91,14 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 	if err := store.UpsertProgress(nan); err != nil {
 		t.Fatal(err)
 	}
+	// A log row with rating 0 (an event-to-rating bug): Replay skips it, so
+	// the state replays consistently, and the doctor still flags the row.
+	zeroRated := row("calc.deriv.concept", m, t0, "MASTERED")
+	logRow("calc.deriv.concept", t0, fsrs.Good, 0, review.Memory{}, m, 0, "k8")
+	logRow("calc.deriv.concept", t0, fsrs.Rating(0), 0, m, m, 0, "k9")
+	if err := store.UpsertProgress(zeroRated); err != nil {
+		t.Fatal(err)
+	}
 	// A floor topic (arithmetic) with a past date: the rule excludes it and
 	// the session must not serve it; a consistent due row too.
 	past := now.Add(-48 * time.Hour)
@@ -104,7 +112,7 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if counts["learners"] != 1 || counts["log_rows"] != 7 {
+	if counts["learners"] != 1 || counts["log_rows"] != 9 {
 		t.Errorf("counts %v", counts)
 	}
 	want := map[string]string{
@@ -113,6 +121,7 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 		"unlogged:calc.deriv.quotient_rule": "no FSRS state",
 		"orphan:no.such.topic":              "",
 		"invalid:calc.limit.concept":        "stability NaN",
+		"invalid:calc.deriv.concept":        "invalid rating",
 	}
 	seen := map[string]bool{}
 	for _, f := range findings {
@@ -124,7 +133,7 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 			t.Errorf("missing finding %s", k)
 		}
 	}
-	for _, k := range []string{"replay:calc.deriv.power_rule", "surfaced:arith.add.double", "unlogged:calc.deriv.power_rule", "invalid:calc.deriv.power_rule"} {
+	for _, k := range []string{"replay:calc.deriv.power_rule", "surfaced:arith.add.double", "unlogged:calc.deriv.power_rule", "invalid:calc.deriv.power_rule", "replay:calc.deriv.concept"} {
 		if seen[k] {
 			t.Errorf("false finding %s", k)
 		}
@@ -139,10 +148,10 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer reopened.Close()
-	if log, _ := reopened.ReviewLogFor(sid, ""); len(log) != 7 {
+	if log, _ := reopened.ReviewLogFor(sid, ""); len(log) != 9 {
 		t.Errorf("the doctor changed the log: %d rows", len(log))
 	}
-	if sessions, _ := reopened.GetAllProgress(sid); len(sessions) != 7 {
+	if sessions, _ := reopened.GetAllProgress(sid); len(sessions) != 8 {
 		t.Errorf("the doctor changed the progress rows: %d", len(sessions))
 	}
 }

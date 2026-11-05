@@ -29,13 +29,32 @@ type Event struct {
 // stored fsrs_last_review, replays the same). A "seed" event sets the
 // state outright. The result must equal the stored row exactly; fsrs_doctor
 // reports a row that differs.
+//
+// A non-seed event with a rating outside 1..4 changes nothing (as Review
+// fails closed); ReplayChecked reports it, and fsrs_doctor flags such rows
+// as "invalid".
 func Replay(p Params, log []Event) Memory {
+	m, _ := ReplayChecked(p, log)
+	return m
+}
+
+// ReplayChecked is Replay that also returns an error naming the first
+// non-seed event whose rating is invalid (wrapping ErrInvalidRating). The
+// returned memory skips every such event.
+func ReplayChecked(p Params, log []Event) (Memory, error) {
 	var m Memory
-	for _, e := range log {
+	var first error
+	for i, e := range log {
 		if e.Source == "seed" {
 			m = Memory{Stability: e.SAfter, Difficulty: e.DAfter, Reps: m.Reps, Lapses: m.Lapses, Phase: PhaseReview}
 			if m.Stability < fsrs.StabilityMin {
 				m.Stability = fsrs.StabilityMin
+			}
+			continue
+		}
+		if err := CheckRating(e.Rating); err != nil {
+			if first == nil {
+				first = fmt.Errorf("event %d at %s: %w", i, e.At.UTC().Format(time.RFC3339Nano), err)
 			}
 			continue
 		}
@@ -48,7 +67,7 @@ func Replay(p Params, log []Event) Memory {
 			m = p.Next(m, e.Rating, e.ElapsedDays)
 		}
 	}
-	return m
+	return m, first
 }
 
 // Diff reports how a stored memory differs from a replayed one, or "" when

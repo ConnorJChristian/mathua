@@ -963,7 +963,9 @@ log with the rows.
 **Replay and the doctor.** `review.Replay(log)` rebuilds a topic's state
 from its log and must reproduce the stored row exactly.
 `scripts/fsrs_doctor -db <path> [-student id] [-json]` (read-only, on a
-copy) reports orphaned state, S <= 0 or NaN, D out of range, a state
+copy) reports orphaned state, S <= 0 or NaN, D out of range, a log row
+whose rating is not 1..4 (the wrapper fails closed on one: no state, or the
+state unchanged; `ReviewChecked` returns `ErrInvalidRating`), a state
 without a log or a log without a row, a topic the review session would
 serve that the due rule excludes (or the reverse), and a stored state
 that differs from its replay; exit 1 on findings. The daily QA run calls

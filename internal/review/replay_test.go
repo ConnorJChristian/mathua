@@ -1,6 +1,7 @@
 package review
 
 import (
+	"errors"
 	"math/rand"
 	"testing"
 	"time"
@@ -72,5 +73,37 @@ func TestReplay_ReproducesTheStoredStateExactly(t *testing.T) {
 	}
 	if Replay(p, nil) != (Memory{}) {
 		t.Error("an empty log replays to state")
+	}
+}
+
+// ReviewChecked and ReplayChecked say so on an invalid rating (FSRS Phase 1
+// review, L1); the unchecked forms fail closed (no state, or unchanged).
+func TestInvalidRating_Errors(t *testing.T) {
+	p := DefaultParams()
+	at := time.Date(2026, 11, 5, 17, 0, 0, 0, time.UTC)
+	good := p.Initial(fsrs.Good)
+	for _, bad := range []fsrs.Rating{0, 5, -1} {
+		if m, el, r, err := p.ReviewChecked(Memory{}, bad, time.Time{}, at); !errors.Is(err, ErrInvalidRating) || !m.IsZero() || el != 0 || r != 0 {
+			t.Errorf("ReviewChecked(no state, %d) = %+v %v %v %v", bad, m, el, r, err)
+		}
+		if m, _, _, err := p.ReviewChecked(good, bad, at, at.Add(72*time.Hour)); !errors.Is(err, ErrInvalidRating) || m != good {
+			t.Errorf("ReviewChecked(state, %d) = %+v %v", bad, m, err)
+		}
+		if p.Initial(bad) != (Memory{}) {
+			t.Errorf("Initial(%d) created state", bad)
+		}
+		m, err := ReplayChecked(p, []Event{{At: at, Rating: fsrs.Good}, {At: at.Add(time.Hour), Rating: bad}})
+		if !errors.Is(err, ErrInvalidRating) || m != good {
+			t.Errorf("ReplayChecked with a rating-%d event = %+v %v", bad, m, err)
+		}
+	}
+	for r := fsrs.Again; r <= fsrs.Easy; r++ {
+		if _, _, _, err := p.ReviewChecked(Memory{}, r, time.Time{}, at); err != nil {
+			t.Errorf("ReviewChecked(%d): %v", r, err)
+		}
+	}
+	// A seed event carries no rating of its own and is not an error.
+	if _, err := ReplayChecked(p, []Event{{At: at, Source: "seed", SAfter: 3, DAfter: 5}}); err != nil {
+		t.Errorf("seed event: %v", err)
 	}
 }

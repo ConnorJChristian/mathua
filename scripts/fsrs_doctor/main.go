@@ -5,7 +5,8 @@
 //     (kept, never deleted: plan 3.7);
 //   - invalid: FSRS state with S <= 0, NaN or infinite, D outside [1, 10],
 //     a state name that is not none/review/relearning, or a state with no
-//     stability (and the reverse);
+//     stability (and the reverse), or a review_log row (other than a seed)
+//     whose rating is not 1..4;
 //   - surfaced: a topic the review session would serve that the due rule
 //     excludes, or one the rule says is due that the session would not
 //     serve (the Phase 0 disagreement, read without writing a session);
@@ -143,6 +144,13 @@ func Run(dbPath, onlyStudent string) ([]Finding, map[string]int, error) {
 			byTopic[e.ConceptID] = append(byTopic[e.ConceptID], e)
 			if dag.Concept(e.ConceptID) == nil {
 				findings = append(findings, Finding{"orphan", sid, e.ConceptID, "review_log row for a topic the graph no longer has"})
+			}
+			// A review row's rating must be Again..Easy; a seed row sets
+			// the state outright and carries no rating of its own.
+			if e.Source != "seed" {
+				if err := review.CheckRating(fsrs.Rating(e.Rating)); err != nil {
+					findings = append(findings, Finding{"invalid", sid, e.ConceptID, fmt.Sprintf("review_log row %d (%s): %v", e.ID, e.Source, err)})
+				}
 			}
 		}
 		for cid, p := range progress {

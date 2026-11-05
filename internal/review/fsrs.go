@@ -28,6 +28,8 @@ package review
 // modified: a fix that belongs there goes upstream first (plan 6.3).
 
 import (
+	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -110,12 +112,28 @@ func (p Params) maxInterval() int {
 	return DefaultMaxInterval
 }
 
+// ErrInvalidRating is returned for a rating outside Again..Easy (1..4).
+// Every path fails closed on one: no state is created and an existing state
+// is left as it was (FSRS Phase 1 review, L1: a first review with rating 0
+// used to become Good, so a Phase 2 event-to-rating bug would fail open).
+var ErrInvalidRating = errors.New("fsrs: invalid rating")
+
+// CheckRating is nil for Again, Hard, Good and Easy, and wraps
+// ErrInvalidRating otherwise.
+func CheckRating(rating fsrs.Rating) error {
+	if rating.Valid() {
+		return nil
+	}
+	return fmt.Errorf("%w: %d (want 1..4)", ErrInvalidRating, int(rating))
+}
+
 // Initial is the state after a topic's first review: S = w[rating-1],
 // D = D0(rating), one repetition (a lapse if the rating is Again). This is
-// the reference's Learning-state branch for a card with no stability.
+// the reference's Learning-state branch for a card with no stability. An
+// invalid rating gives no state (the zero Memory).
 func (p Params) Initial(rating fsrs.Rating) Memory {
 	if !rating.Valid() {
-		rating = fsrs.Good
+		return Memory{}
 	}
 	m := Memory{
 		Stability:  p.Weights.InitialStability(rating),
@@ -249,7 +267,27 @@ func ElapsedWholeDays(last, now time.Time) float64 {
 // since the last review, Next otherwise. It returns the elapsed whole days
 // it used (0 for a first review) and the retrievability it read before the
 // update (0 for a first review, 1 on the same day), for the review_log.
+//
+// An invalid rating changes nothing: m comes back as it was, with 0 and 0.
+// A caller that commits a review (Phase 2) uses ReviewChecked, which says
+// so with ErrInvalidRating instead of returning silently.
 func (p Params) Review(m Memory, rating fsrs.Rating, lastReview, now time.Time) (next Memory, elapsedDays, retrievability float64) {
+	next, elapsedDays, retrievability, _ = p.ReviewChecked(m, rating, lastReview, now)
+	return next, elapsedDays, retrievability
+}
+
+// ReviewChecked is Review with the invalid-rating case as an error: for a
+// rating outside 1..4 it returns m unchanged and an error wrapping
+// ErrInvalidRating, so nothing should be written.
+func (p Params) ReviewChecked(m Memory, rating fsrs.Rating, lastReview, now time.Time) (next Memory, elapsedDays, retrievability float64, err error) {
+	if err := CheckRating(rating); err != nil {
+		return m, 0, 0, err
+	}
+	next, elapsedDays, retrievability = p.review(m, rating, lastReview, now)
+	return next, elapsedDays, retrievability, nil
+}
+
+func (p Params) review(m Memory, rating fsrs.Rating, lastReview, now time.Time) (next Memory, elapsedDays, retrievability float64) {
 	if m.IsZero() || lastReview.IsZero() {
 		return p.Initial(rating), 0, 0
 	}
