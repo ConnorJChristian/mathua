@@ -17,7 +17,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/chuma-beep/mathua/internal/generator/all"
 	"github.com/chuma-beep/mathua/internal/gradecheck"
@@ -27,6 +29,7 @@ func main() {
 	local := flag.Bool("local", false, "include modules-local/ (otherwise only the committed modules)")
 	code := flag.Bool("code", false, "run code tasks through the Python runner (slow)")
 	seeds := flag.Int("seeds", 3, "problems to sample per generator concept (0 skips generators)")
+	source := flag.String("seed", "day", "sampler source for the generator problems: \"day\" (today's UTC date, so a daily run draws new problems), \"fixed\" (the test suite's source) or an integer")
 	module := flag.String("module", "", "comma-separated module ids to check")
 	concept := flag.String("concept", "", "comma-separated concept ids to check")
 	noVariants := flag.Bool("no-variants", false, "skip equivalent spellings of the keys")
@@ -44,6 +47,22 @@ func main() {
 		os.Exit(2)
 	}
 	opts := gradecheck.Options{Code: *code, Variants: !*noVariants, Wrong: !*noWrong, Seeds: *seeds}
+	switch *source {
+	case "day":
+		opts.Source = gradecheck.DaySeed(time.Now())
+	case "fixed":
+		opts.Source = 0
+	default:
+		n, err := strconv.ParseInt(*source, 10, 64)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "seed:", err)
+			os.Exit(2)
+		}
+		opts.Source = n
+	}
+	if *seeds > 0 && *module == "" {
+		fmt.Fprintf(os.Stderr, "generators: %d problems per concept, sampler source %d\n", *seeds, opts.Source)
+	}
 	if *module != "" {
 		opts.Modules = strings.Split(*module, ",")
 	}

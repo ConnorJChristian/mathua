@@ -31,6 +31,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/engine"
@@ -99,6 +100,14 @@ type Options struct {
 	Wrong bool
 	// Seeds is how many problems to sample per generator concept.
 	Seeds int
+	// Source seeds the sampler that draws the Seeds problems. 0 means the
+	// fixed source 1, so `go test` draws the same problems every run. The
+	// daily QA passes DaySeed, so each day grades new instances of every
+	// generator's table (a fixed source would never draw an entry its three
+	// seeds miss: that is how implicit_second's word key hid).
+	Source int64
+	// probe, when set, sees every generated question (tests).
+	probe func(question string)
 	// Modules limits the bank check to these module ids (empty: all).
 	Modules []string
 	// Concepts limits the check to these concept ids (empty: all).
@@ -784,6 +793,15 @@ func perturbOutput(s string) string {
 	return s + " x"
 }
 
+// DaySeed is the sampler source for a day: the UTC date as yyyymmdd, so a
+// daily run draws new problems each day and the same ones when rerun that
+// day. Day 0 (the zero time) is never produced for a real date, and 0 would
+// mean the fixed source anyway.
+func DaySeed(now time.Time) int64 {
+	y, m, d := now.UTC().Date()
+	return int64(y)*10000 + int64(m)*100 + int64(d)
+}
+
 // CheckGenerators samples every generator concept: the problem's own answer
 // grades right as clicked or typed, an empty answer grades wrong, and a
 // nearby wrong answer grades wrong.
@@ -793,7 +811,11 @@ func (c *Checker) CheckGenerators(opts Options) Report {
 	if n <= 0 {
 		n = 3
 	}
-	rng := rand.New(rand.NewSource(1))
+	src := opts.Source
+	if src == 0 {
+		src = 1
+	}
+	rng := rand.New(rand.NewSource(src))
 	ids := c.Reg.Concepts()
 	sort.Strings(ids)
 	for _, id := range ids {
@@ -819,6 +841,9 @@ func (c *Checker) CheckGenerators(opts Options) Report {
 				break
 			}
 			rep.Problems++
+			if opts.probe != nil {
+				opts.probe(p.Question)
+			}
 			at := func(check, answer, feedback string) {
 				rep.Failures = append(rep.Failures, Failure{Module: "data", Bank: "generator", Concept: id, Kind: gt,
 					Check: check, Answer: answer, Feedback: feedback, Expected: p.Answer, Custom: custom})

@@ -729,7 +729,11 @@ answer takes, and so must its plausible spellings (1/2 and 0.5, 3x^2 and
 not. `go test ./internal/gradecheck` grades every item of the committed
 modules and a sample of every generator that way; `make gradecheck` does
 the same over `modules-local/` (`GRADECHECK_FLAGS=-code` runs every code
-task's solution and starter too, slowly), and
+task's solution and starter too, slowly). The test draws the same three
+problems per generator every run (a fixed sampler source); `make
+gradecheck` draws from today's UTC date (`-seed day`, the default, or
+`-seed fixed`, or an integer), so the daily run grades new instances and
+reaches, over days, table entries three fixed draws never pick. And
 `python3 scripts/audit_grading_style.py` lists the items whose prompt and
 kind disagree, by rule. It skips what `internal/pytrack/written.go` also
 skips: a method question ("how does one prove"), a purpose clause ("to
