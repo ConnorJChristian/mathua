@@ -34,6 +34,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/proof"
 	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/quiz"
+	"github.com/chuma-beep/mathua/internal/review"
 	"github.com/chuma-beep/mathua/internal/scoring"
 	"github.com/chuma-beep/mathua/internal/storage"
 	"github.com/chuma-beep/mathua/internal/xp"
@@ -232,6 +233,20 @@ func New(eng *engine.Engine, repo storage.Repository, auth *auth.AuthService, op
 		aiAssistantMaxTokens: ai.DefaultAssistantMaxTokens,
 		aiGoalMaxTokens:      ai.DefaultGoalMaxTokens,
 		ipHeader:             trustedHeader,
+	}
+	// The FSRS scheduling mode (MATHUA_FSRS) and the learner's zone
+	// (MATHUA_TZ) are read once and logged, so a log line says which rule
+	// this process runs. Phase 1: off changes nothing; shadow and active
+	// do nothing yet (plan section 5).
+	if mode, err := review.CurrentMode(); err != nil {
+		log.Printf("warning: %v", err)
+	} else {
+		log.Printf("fsrs: mode %s", mode)
+	}
+	if zone, err := review.LearnerZone(); err != nil {
+		log.Printf("warning: MATHUA_TZ: %v; using UTC", err)
+	} else {
+		log.Printf("fsrs: learner zone %s", zone)
 	}
 	// MATHUA_LOADTEST=1 relaxes rate limits so load generators measure the
 	// app and database instead of the limiter. Local/staging use only —
@@ -672,6 +687,10 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	// operational detail that a client has no use for and an attacker does, so
 	// none of them cross this boundary.
 	cfg["ai_enabled"] = s.aiChain != nil && s.aiChain.Enabled()
+	// The FSRS scheduling mode (MATHUA_FSRS: off, shadow or active), so the
+	// web and the QA tooling can see which rule the server runs.
+	fsrsMode, _ := review.CurrentMode()
+	cfg["fsrs_mode"] = string(fsrsMode)
 	if v := os.Getenv("GOOGLE_CLIENT_ID"); v != "" {
 		cfg["google_client_id"] = v
 	} else if v := os.Getenv("GOOGLE_OAUTH_CLIENT_ID"); v != "" {

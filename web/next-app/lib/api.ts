@@ -650,6 +650,8 @@ export interface ConfigRes {
 	 * are not attempted and the deterministic paths stand alone.
 	 */
 	ai_enabled?: boolean
+	/** The server's FSRS scheduling mode: "off" (SM-2 and the 14-day rule), "shadow" or "active". */
+	fsrs_mode?: 'off' | 'shadow' | 'active'
 }
 
 export async function getConfig(): Promise<ConfigRes | null> {
