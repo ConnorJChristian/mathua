@@ -173,3 +173,133 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 		t.Errorf("the doctor changed the progress rows: %d", len(sessions))
 	}
 }
+
+// doctorFixture is a store on a temp file with one learner and one
+// consistent topic (first mastery at t0, a review at t1), for the checks
+// added after the review.
+func doctorFixture(t *testing.T) (db string, store *storage.SQLiteStore, sid string, t0, t1 time.Time) {
+	t.Helper()
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MATHUA_ROOT", root)
+	t.Setenv("MATHUA_PUBLIC_MODULES_ONLY", "1")
+	db = filepath.Join(t.TempDir(), "doctor.db")
+	store, err = storage.NewSQLiteStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := store.CreateStudent("doctored")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sid = st.ID
+	p := review.DefaultParams()
+	t0 = time.Now().UTC().Truncate(time.Second).Add(-10 * 24 * time.Hour)
+	t1 = t0.Add(3*24*time.Hour + 500*time.Millisecond)
+	m := p.Initial(fsrs.Good)
+	next, elapsed, r := p.Review(m, fsrs.Good, t0, t1)
+	cid := "calc.deriv.power_rule"
+	for i, x := range []storage.ReviewLogEntry{
+		{At: t0, Source: "first_mastery", Rating: 3, SAfter: m.Stability, DAfter: m.Difficulty},
+		{At: t1, Source: "review", Rating: 3, ElapsedDays: elapsed, SBefore: m.Stability, SAfter: next.Stability, DBefore: m.Difficulty, DAfter: next.Difficulty, RAtReview: r},
+	} {
+		x.StudentID, x.ConceptID, x.EngineMode, x.IdempotencyKey = sid, cid, "shadow", "k"+string(rune('0'+i))
+		if _, err := store.InsertReviewLog(x); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s, d, last := next.Stability, next.Difficulty, t1
+	row := &storage.ConceptProgress{StudentID: sid, ConceptID: cid, Status: "MASTERED", Streak: 3, Attempts: 7, LastReviewed: &t1, LastAttempted: &t1, MasteredAt: &t0,
+		FSRSStability: &s, FSRSDifficulty: &d, FSRSLastReview: &last, FSRSReps: next.Reps, FSRSLapses: next.Lapses, FSRSState: string(next.Phase), FSRSSeed: "mastery"}
+	if err := store.UpsertProgress(row); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFSRSState(row); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"s1", "s2", "s3"} {
+		if err := store.EnsureSession(id, sid); err != nil {
+			t.Fatal(err)
+		}
+	}
+	attempt := func(at time.Time, source, expected string, correct bool) {
+		if _, err := store.RecordAttempt(storage.AttemptEntry{SessionID: "s1", StudentID: sid, ConceptID: cid, Answer: "x", Expected: expected,
+			Correct: correct, Timestamp: at, Source: source}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	attempt(t0, "practice", "42", true)                         // the mastering answer
+	attempt(t1, "review", "42", true)                           // logged at t1 (the same second)
+	attempt(t0.Add(-time.Hour), "review", "42", true)           // before the topic's first event: not in the model yet
+	attempt(t1.Add(time.Hour), "review", "recall:card-1", true) // self-graded: no event
+	attempt(t1.Add(2*time.Hour), "practice", "42", false)       // practice: left out
+	return db, store, sid, t0, t1
+}
+
+// M2: an event the app dropped is visible. The fsrs_errors row is an
+// "error" finding and the answer with no log row a "missing" one; the
+// doctor exits non-zero (findings). The consistent fixture has none.
+func TestDoctor_DroppedEventIsFound(t *testing.T) {
+	db, store, _, _, _ := doctorFixture(t)
+	store.Close()
+	if findings, _, err := Run(db, ""); err != nil || len(findings) != 0 {
+		t.Fatalf("clean fixture: %v %+v", err, findings)
+	}
+
+	db, store, sid, _, t1 := doctorFixture(t)
+	dropped := t1.Add(26 * time.Hour)
+	id, err := store.RecordAttempt(storage.AttemptEntry{SessionID: "s2", StudentID: sid, ConceptID: "calc.deriv.power_rule", Answer: "7", Expected: "42",
+		Timestamp: dropped, Source: "review"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordFSRSError(storage.FSRSError{At: dropped, StudentID: sid, ConceptID: "calc.deriv.power_rule", AttemptID: id, Stage: "written", Error: "injected"}); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	findings, counts, err := Run(db, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]int{}
+	for _, f := range findings {
+		seen[f.Check+":"+f.Concept]++
+		t.Logf("%s %s: %s", f.Check, f.Concept, f.Detail)
+	}
+	if seen["error:calc.deriv.power_rule"] != 1 || seen["missing:calc.deriv.power_rule"] != 1 || len(findings) != 2 || counts["fsrs_errors"] != 1 {
+		t.Errorf("findings %+v counts %v; want exactly one error and one missing on calc.deriv.power_rule", findings, counts)
+	}
+
+	// The rules in force decide: with judged=off a proof review needs no row;
+	// with course_tests=off a quiz answer is left out.
+	db, store, sid, _, t1 = doctorFixture(t)
+	for i, x := range []struct{ source, expected string }{{"review", "proof:p1"}, {"quiz", "42"}} {
+		if _, err := store.RecordAttempt(storage.AttemptEntry{SessionID: "s3", StudentID: sid, ConceptID: "calc.deriv.power_rule", Answer: "x", Expected: x.expected,
+			Timestamp: t1.Add(time.Duration(30+i) * time.Hour), Source: x.source}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.Close()
+	if findings, _, _ := Run(db, ""); len(findings) != 2 {
+		t.Errorf("default rules: %+v, want the proof and the quiz answer missing", findings)
+	}
+	off := review.DefaultRules()
+	off.Judged, off.CourseTests = false, false
+	for _, x := range []struct {
+		source, expected string
+		def, off         bool
+	}{
+		{"review", "42", true, true}, {"review", "proof:p1", true, false}, {"review", "recall:c", false, false},
+		{"quiz", "42", true, false}, {"quiz", "recall:c", false, false}, {"practice", "42", false, false}, {"diagnostic", "42", false, false},
+	} {
+		a := storage.AttemptEntry{Source: x.source, Expected: x.expected}
+		if got := needsEvent(a, review.DefaultRules()); got != x.def {
+			t.Errorf("default rules, %s %s: needsEvent %v", x.source, x.expected, got)
+		}
+		if got := needsEvent(a, off); got != x.off {
+			t.Errorf("judged=off,course_tests=off, %s %s: needsEvent %v", x.source, x.expected, got)
+		}
+	}
+}

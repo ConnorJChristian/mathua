@@ -126,3 +126,86 @@ func (s *PostgresStore) ReviewLogFor(studentID, conceptID string) ([]ReviewLogEn
 	}
 	return scanReviewLog(rows)
 }
+
+// FSRSError is one fsrs_errors row: an FSRS event dropped from a committed
+// answer (FSRS Phase 2 review, M2). Stage is "computed" (fsrsCommit failed)
+// or "written" (the commit with the event failed and the answer was
+// committed without it).
+type FSRSError struct {
+	ID        int64
+	At        time.Time
+	StudentID string
+	ConceptID string
+	AttemptID int64
+	Stage     string
+	Error     string
+}
+
+const fsrsErrorColumns = `id, at, student_id, concept_id, attempt_id, stage, error`
+
+func fsrsErrorArgs(e FSRSError) []interface{} {
+	return []interface{}{e.At.UTC().Format(ReviewLogAtLayout), e.StudentID, e.ConceptID, e.AttemptID, e.Stage, e.Error}
+}
+
+func scanFSRSErrors(rows *sql.Rows) ([]FSRSError, error) {
+	defer rows.Close()
+	var out []FSRSError
+	for rows.Next() {
+		var e FSRSError
+		var at string
+		if err := rows.Scan(&e.ID, &at, &e.StudentID, &e.ConceptID, &e.AttemptID, &e.Stage, &e.Error); err != nil {
+			return nil, fmt.Errorf("scan fsrs_errors: %w", err)
+		}
+		t, err := time.Parse(time.RFC3339Nano, at)
+		if err != nil {
+			return nil, fmt.Errorf("fsrs_errors at %q: %w", at, err)
+		}
+		e.At = t
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLiteStore) RecordFSRSError(e FSRSError) error {
+	_, err := s.db.Exec(`INSERT INTO fsrs_errors (at, student_id, concept_id, attempt_id, stage, error)
+		VALUES (?, ?, ?, ?, ?, ?)`, fsrsErrorArgs(e)...)
+	if err != nil {
+		return fmt.Errorf("insert fsrs_errors: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) FSRSErrors(studentID string) ([]FSRSError, error) {
+	q, args := `SELECT `+fsrsErrorColumns+` FROM fsrs_errors`, []interface{}{}
+	if studentID != "" {
+		q += ` WHERE student_id = ?`
+		args = append(args, studentID)
+	}
+	rows, err := s.db.Query(q+` ORDER BY at, id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fsrs_errors: %w", err)
+	}
+	return scanFSRSErrors(rows)
+}
+
+func (s *PostgresStore) RecordFSRSError(e FSRSError) error {
+	_, err := s.db.Exec(`INSERT INTO fsrs_errors (at, student_id, concept_id, attempt_id, stage, error)
+		VALUES ($1, $2, $3, $4, $5, $6)`, fsrsErrorArgs(e)...)
+	if err != nil {
+		return fmt.Errorf("insert fsrs_errors: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresStore) FSRSErrors(studentID string) ([]FSRSError, error) {
+	q, args := `SELECT `+fsrsErrorColumns+` FROM fsrs_errors`, []interface{}{}
+	if studentID != "" {
+		q += ` WHERE student_id = $1`
+		args = append(args, studentID)
+	}
+	rows, err := s.db.Query(q+` ORDER BY at, id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fsrs_errors: %w", err)
+	}
+	return scanFSRSErrors(rows)
+}

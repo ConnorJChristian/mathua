@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chuma-beep/mathua/internal/clock"
 	"github.com/chuma-beep/mathua/internal/fsrs"
 	"github.com/chuma-beep/mathua/internal/grader"
 	"github.com/chuma-beep/mathua/internal/mastery"
@@ -347,13 +348,17 @@ func (e *Engine) fsrsCommit(before, after *storage.ConceptProgress, o gradedAtte
 // commitAnswer writes one graded answer: the progress row and the attempt,
 // and in shadow or active mode the FSRS event, in one transaction
 // (storage.CommitAnswer). A shadow failure never costs the learner the
-// answer: the event is dropped, logged, and the answer committed without
-// it.
+// answer: the event is dropped, logged, the answer committed without it,
+// and an fsrs_errors row recorded in its own statement after the answer
+// (so it survives the rollback), for the doctor (review M2).
 func (e *Engine) commitAnswer(progress, before *storage.ConceptProgress, o gradedAttempt) (int64, error) {
 	c := storage.AnswerCommit{Progress: progress, Attempt: o.attempt}
+	var stage string
+	var cause error
 	fc, err := e.fsrsCommit(before, progress, o)
 	if err != nil {
 		log.Printf("fsrs: %s event for %s/%s not computed: %v", e.fsrsMode, o.studentID, o.conceptID, err)
+		stage, cause = "computed", err
 	}
 	c.FSRS = fc
 	res, err := e.repo.CommitAnswer(c)
@@ -362,10 +367,25 @@ func (e *Engine) commitAnswer(progress, before *storage.ConceptProgress, o grade
 	}
 	if err != nil && c.FSRS != nil {
 		log.Printf("fsrs: %s event for %s/%s not written: %v", e.fsrsMode, o.studentID, o.conceptID, err)
+		stage, cause = "written", err
 		c.FSRS = nil
 		res, err = e.repo.CommitAnswer(c)
 	}
+	if stage != "" {
+		e.recordFSRSError(o, res.AttemptID, stage, cause)
+	}
 	return res.AttemptID, err
+}
+
+// recordFSRSError appends the fsrs_errors row for an event dropped from an
+// answer: stage "computed" (fsrsCommit failed) or "written" (its commit
+// failed). attemptID is the committed attempt's row id (0 when the answer
+// itself failed too). A failure here is only logged.
+func (e *Engine) recordFSRSError(o gradedAttempt, attemptID int64, stage string, cause error) {
+	if err := e.repo.RecordFSRSError(storage.FSRSError{At: clock.Now().UTC(), StudentID: o.studentID, ConceptID: o.conceptID,
+		AttemptID: attemptID, Stage: stage, Error: cause.Error()}); err != nil {
+		log.Printf("fsrs: recording the dropped %s event for %s/%s: %v", e.fsrsMode, o.studentID, o.conceptID, err)
+	}
 }
 
 // ErrDuplicateAnswer is a retried answer whose event is already stored: the

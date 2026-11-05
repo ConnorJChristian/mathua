@@ -633,6 +633,13 @@ type Repository interface {
 	// ReviewLogFor returns a learner's log entries, one topic's or all of
 	// them ("" for conceptID), oldest first (At, then ID).
 	ReviewLogFor(studentID, conceptID string) ([]ReviewLogEntry, error)
+	// RecordFSRSError appends one fsrs_errors row in its own statement: a
+	// shadow/active event that was not computed or not written while its
+	// answer was committed without it (review_log.go).
+	RecordFSRSError(e FSRSError) error
+	// FSRSErrors lists a learner's fsrs_errors rows ("" for every
+	// learner), oldest first.
+	FSRSErrors(studentID string) ([]FSRSError, error)
 
 	CreateSession(studentID string) (*Session, error)
 	GetSession(id string) (*Session, error)

@@ -1085,8 +1085,18 @@ answer a retry; a commit of seed rows only (`fsrs_seed -apply`) is a
 duplicate on any stored key, so a seed never overwrites a state an answer
 wrote meanwhile. A shadow write that
 fails never costs the learner the answer: it is logged
-(`fsrs: shadow event ... not written`) and the answer is committed without
-it. Off writes nothing FSRS.
+(`fsrs: shadow event ... not computed` / `not written`), the answer is
+committed without it, and one `fsrs_errors` row (time, learner, topic,
+attempt id, stage, error) is written in its own statement after the answer,
+so it survives the rollback. `scripts/fsrs_doctor` reports every such row
+(`error`) and also cross-checks the attempts (`missing`): every review
+answer, and every quiz answer while both `mastery_check` and `course_tests`
+count, at or after its topic's first `review_log` row must have a row for
+that topic in the same second (self-graded `recall:` cards never; proofs
+only with `judged=on`; practice is left out, since whether a miss was a
+lapse depends on the status at the time). `scripts/fsrs_shadow_report`
+prints the `fsrs_errors` count; the Phase 3 gate is "0 rows over 14 days".
+Off writes nothing FSRS.
 
 **The clock.** The engine, scheduler, planner and store read the time
 through `internal/clock` (the wall clock in the server). `replay_audit`

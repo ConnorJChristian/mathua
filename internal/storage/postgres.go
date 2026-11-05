@@ -138,6 +138,16 @@ CREATE TABLE IF NOT EXISTS review_log (
 );
 CREATE INDEX IF NOT EXISTS idx_review_log_topic ON review_log(student_id, concept_id, at);
 
+CREATE TABLE IF NOT EXISTS fsrs_errors (
+    id         BIGSERIAL PRIMARY KEY,
+    at         TEXT    NOT NULL,
+    student_id TEXT    NOT NULL,
+    concept_id TEXT    NOT NULL,
+    attempt_id BIGINT  NOT NULL DEFAULT 0,
+    stage      TEXT    NOT NULL,
+    error      TEXT    NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
     id         TEXT PRIMARY KEY,
     student_id TEXT NOT NULL,
@@ -1521,6 +1531,7 @@ func (s *PostgresStore) ResetProgress(studentID string) error {
 		{"DELETE FROM concept_progress WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM student_topic_speed WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM review_log WHERE student_id = $1", []interface{}{studentID}},
+		{"DELETE FROM fsrs_errors WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM quiz_completions WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM server_sessions WHERE kind IN ('study_expected','study_plan') AND (key = $1 OR key LIKE $1 || '|%')", []interface{}{studentID}},
 		{`UPDATE students SET xp_total = 0, xp_today = 0, diagnostic_completed = 0, diagnostic_completed_at = '',
@@ -1565,6 +1576,7 @@ func (s *PostgresStore) DeleteAccount(studentID string) error {
 		{"DELETE FROM concept_progress WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM student_topic_speed WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM review_log WHERE student_id = $1", []interface{}{studentID}},
+		{"DELETE FROM fsrs_errors WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM quiz_completions WHERE student_id = $1", []interface{}{studentID}},
 		{"DELETE FROM server_sessions WHERE kind IN ('study_expected','study_plan','study_plan_prefs') AND (key = $1 OR key LIKE $1 || '|%')", []interface{}{studentID}},
 		{"DELETE FROM question_reports WHERE reporter_id = $1", []interface{}{studentID}},

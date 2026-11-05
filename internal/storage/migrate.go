@@ -129,6 +129,20 @@ CREATE TABLE IF NOT EXISTS review_log (
 );
 CREATE INDEX IF NOT EXISTS idx_review_log_topic ON review_log(student_id, concept_id, at);
 
+-- One row per shadow/active FSRS event that was not computed or not written
+-- (FSRS Phase 2 review, M2): the answer was committed without it. Written in
+-- its own transaction, after the answer, so it survives the rollback. The
+-- doctor reports every row; the Phase 3 gate is "0 rows in 14 days".
+CREATE TABLE IF NOT EXISTS fsrs_errors (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    at         TEXT    NOT NULL,
+    student_id TEXT    NOT NULL,
+    concept_id TEXT    NOT NULL,
+    attempt_id INTEGER NOT NULL DEFAULT 0,
+    stage      TEXT    NOT NULL,
+    error      TEXT    NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS sessions (
     id         TEXT PRIMARY KEY,
     student_id TEXT NOT NULL,

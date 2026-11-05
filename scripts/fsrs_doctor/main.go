@@ -15,7 +15,12 @@
 //   - replay: a stored state that differs from replaying its log
 //     (review.ReplayLast: held rows are logged and skipped), or an
 //     fsrs_last_review that is not the last applied row's time, the
-//     event-sourcing check.
+//     event-sourcing check;
+//   - error: an fsrs_errors row, an event the app dropped (not computed
+//     or not written) while committing its answer without it;
+//   - missing: an answer that should have written an event and has no
+//     review_log row (missingEvents), the dropped event seen from the
+//     attempts.
 //
 // Usage: MATHUA_ROOT=<install> go run ./scripts/fsrs_doctor -db <path>
 // [-student <id>] [-json]. Exit 1 on any finding, 2 on a usage error.
@@ -31,12 +36,14 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/engine"
 	"github.com/chuma-beep/mathua/internal/fsrs"
 	"github.com/chuma-beep/mathua/internal/generator/all"
+	"github.com/chuma-beep/mathua/internal/grader"
 	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/planning"
 	"github.com/chuma-beep/mathua/internal/review"
@@ -73,8 +80,8 @@ func main() {
 		for _, f := range findings {
 			fmt.Printf("%-9s %s %s: %s\n", f.Check, f.Student, f.Concept, f.Detail)
 		}
-		fmt.Printf("fsrs_doctor: %d learners, %d progress rows with FSRS state, %d log rows, %d findings\n",
-			counts["learners"], counts["with_state"], counts["log_rows"], len(findings))
+		fmt.Printf("fsrs_doctor: %d learners, %d progress rows with FSRS state, %d log rows, %d fsrs_errors rows, %d findings\n",
+			counts["learners"], counts["with_state"], counts["log_rows"], counts["fsrs_errors"], len(findings))
 	}
 	if len(findings) > 0 {
 		os.Exit(1)
@@ -131,7 +138,17 @@ func Run(dbPath, onlyStudent string) ([]Finding, map[string]int, error) {
 	var findings []Finding
 	now := time.Now().UTC()
 	params := review.DefaultParams()
+	rules, _ := review.CurrentRules()
 	for _, sid := range students {
+		errs, err := store.FSRSErrors(sid)
+		if err != nil {
+			return nil, nil, fmt.Errorf("fsrs_errors %s: %w", sid, err)
+		}
+		counts["fsrs_errors"] += len(errs)
+		for _, e := range errs {
+			findings = append(findings, Finding{"error", sid, e.ConceptID, fmt.Sprintf("fsrs_errors row %d at %s: event not %s (attempt %d): %s",
+				e.ID, e.At.UTC().Format(time.RFC3339), e.Stage, e.AttemptID, e.Error)})
+		}
 		progress, err := store.GetAllProgress(sid)
 		if err != nil {
 			return nil, nil, fmt.Errorf("progress %s: %w", sid, err)
@@ -199,6 +216,14 @@ func Run(dbPath, onlyStudent string) ([]Finding, map[string]int, error) {
 				findings = append(findings, Finding{"unlogged", sid, cid, "review_log rows with no progress row"})
 			}
 		}
+		atts, err := store.GetAttemptsForStudent(sid)
+		if err != nil {
+			return nil, nil, fmt.Errorf("attempts %s: %w", sid, err)
+		}
+		for _, a := range missingEvents(atts, byTopic, rules) {
+			findings = append(findings, Finding{"missing", sid, a.ConceptID, fmt.Sprintf("%s attempt %d at %s has no review_log row in its second (a dropped event; see the error check)",
+				a.Source, a.ID, a.Timestamp.UTC().Format(time.RFC3339))})
+		}
 		// Due rule versus what the session would surface, read-only.
 		due := eng.DueReviewIDs(sid, "", progress, now)
 		dueSet := map[string]bool{}
@@ -230,6 +255,59 @@ func Run(dbPath, onlyStudent string) ([]Finding, map[string]int, error) {
 		return a.Concept < b.Concept
 	})
 	return findings, counts, nil
+}
+
+// needsEvent reports whether an attempt, under the rules in force, must
+// have written a review_log row once its topic is in the memory model (the
+// plan 3.3 table): a review-session answer always; a quiz answer when the
+// rules count both quiz kinds (the attempt does not say whether it was a
+// mastery check or a course review test, so with only one counting it is
+// left out); never a self-graded recall card; a proof or judged item only
+// with judged=on (an ungraded one writes no attempt). Practice is left
+// out: whether a miss was a lapse depends on the status at that moment.
+func needsEvent(a storage.AttemptEntry, rules review.Rules) bool {
+	if strings.HasPrefix(a.Expected, "recall:") {
+		return false
+	}
+	if grader.IsProofAnswer(a.Expected) && !rules.Judged {
+		return false
+	}
+	switch a.Source {
+	case "review":
+		return true
+	case "quiz":
+		return rules.MasteryCheck && rules.CourseTests
+	}
+	return false
+}
+
+// missingEvents is the attempts that needed an event (needsEvent), at or
+// after their topic's first review_log row, with no row for that topic in
+// the same second (attempts are stored to the second; an event's at is
+// its attempt's time). The FSRS Phase 2 reviewer's proposed check: a
+// dropped shadow write leaves the state consistent with its log, so only
+// the attempts show it.
+func missingEvents(atts []storage.AttemptEntry, byTopic map[string][]storage.ReviewLogEntry, rules review.Rules) []storage.AttemptEntry {
+	seconds := map[string]map[int64]bool{}
+	for cid, entries := range byTopic {
+		set := map[int64]bool{}
+		for _, e := range entries {
+			set[e.At.Unix()] = true
+		}
+		seconds[cid] = set
+	}
+	var out []storage.AttemptEntry
+	for _, a := range atts {
+		entries := byTopic[a.ConceptID]
+		if len(entries) == 0 || !needsEvent(a, rules) || a.Timestamp.Unix() < entries[0].At.Unix() {
+			continue
+		}
+		if !seconds[a.ConceptID][a.Timestamp.Unix()] {
+			out = append(out, a)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 func memoryOf(p *storage.ConceptProgress) review.Memory {

@@ -45,6 +45,9 @@ func TestShadowReport(t *testing.T) {
 	if err := store.WriteFSRSState(row); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.RecordFSRSError(storage.FSRSError{At: t1, StudentID: st.ID, ConceptID: cid, AttemptID: 9, Stage: "written", Error: "injected"}); err != nil {
+		t.Fatal(err)
+	}
 	store.Close()
 	before, _ := os.ReadFile(db)
 
@@ -57,6 +60,7 @@ func TestShadowReport(t *testing.T) {
 	b, _ := os.ReadFile(out)
 	md := string(b)
 	for _, want := range []string{
+		"**fsrs_errors: 1 rows**", "1 fsrs_errors rows.",
 		"### First-day backlog", "| FSRS, R < 0.90, state as stored | 1 |",
 		"### Per day", "### Calibration", "| 90-100% | 1 |", "### Workload forecast, next 10 days",
 	} {
