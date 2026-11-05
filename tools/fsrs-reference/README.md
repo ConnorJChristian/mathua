@@ -46,3 +46,17 @@ that Mathua implements.
 Mathua does not implement learning steps, relearning steps, the same-day
 stability update or interval fuzzing. The conformance matrix records those
 features as not applicable by design. It does not treat them as passing.
+
+## Fork addition: review sequences (ma-econ)
+
+`generate_review_vectors.py` and `review_vectors.json` belong to the fork and
+drive `Scheduler.review_card` end to end (the first review, the same-day
+path, lapses, gaps over a year, the reference's parameter bounds, a 365-day
+maximum interval). `internal/review` (the fork's wrapper) is pinned against
+them in `TestReview_MatchesReferenceSequences`. The two upstream files above
+are left byte-identical to upstream.
+
+```sh
+/opt/py311venv/bin/python -I tools/fsrs-reference/generate_review_vectors.py
+go test ./internal/review -run 'Reference|Retrievability_Matches' -v
+```

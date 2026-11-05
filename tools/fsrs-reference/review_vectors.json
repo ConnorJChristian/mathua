@@ -1,0 +1,1894 @@
+{
+  "schema_version": 1,
+  "reference": {
+    "distribution": "fsrs",
+    "version": "6.3.2",
+    "python": "3.11.2",
+    "default_parameters": [
+      0.212,
+      1.2931,
+      2.3065,
+      8.2956,
+      6.4133,
+      0.8334,
+      3.0194,
+      0.001,
+      1.8722,
+      0.1666,
+      0.796,
+      1.4835,
+      0.0614,
+      0.2629,
+      1.6483,
+      0.6014,
+      1.8729,
+      0.5425,
+      0.0912,
+      0.0658,
+      0.1542
+    ],
+    "lower_bounds": [
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      1.0,
+      0.001,
+      0.001,
+      0.001,
+      0.0,
+      0.0,
+      0.001,
+      0.001,
+      0.001,
+      0.001,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.1
+    ],
+    "upper_bounds": [
+      100.0,
+      100.0,
+      100.0,
+      100.0,
+      10.0,
+      4.0,
+      4.0,
+      0.75,
+      4.5,
+      0.8,
+      3.5,
+      5.0,
+      0.25,
+      0.9,
+      4.0,
+      1.0,
+      6.0,
+      2.0,
+      2.0,
+      0.8,
+      0.8
+    ],
+    "learning_steps_seconds": [],
+    "relearning_steps_seconds": [],
+    "enable_fuzzing": false
+  },
+  "sequences": [
+    {
+      "name": "first_review_rating_1",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 1,
+          "gap_days": 0
+        }
+      ],
+      "steps": [
+        {
+          "rating": 1,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 0.212,
+          "difficulty": 6.4133,
+          "interval_days": 1,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "first_review_rating_2",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 2,
+          "gap_days": 0
+        }
+      ],
+      "steps": [
+        {
+          "rating": 2,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 1.2931,
+          "difficulty": 5.112170705601056,
+          "interval_days": 1,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "first_review_rating_3",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "first_review_rating_4",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 4,
+          "gap_days": 0
+        }
+      ],
+      "steps": [
+        {
+          "rating": 4,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 8.2956,
+          "difficulty": 1.0,
+          "interval_days": 8,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "same_day_after_good_rating_1",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 1,
+          "gap_days": 0.5
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 0.5,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 0.7750839828558984,
+          "difficulty": 7.394502741279718,
+          "interval_days": 1,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "same_day_after_good_rating_2",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 2,
+          "gap_days": 0.5
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 2,
+          "gap_days": 0.5,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 2.3065,
+          "difficulty": 4.752858488532557,
+          "interval_days": 2,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "same_day_after_good_rating_3",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.5
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.5,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 2.3065,
+          "difficulty": 2.111214235785395,
+          "interval_days": 2,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "same_day_after_good_rating_4",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 4,
+          "gap_days": 0.5
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 0.5,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 3.946054067969477,
+          "difficulty": 1.0,
+          "interval_days": 4,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "same_day_after_again_again",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 1,
+          "gap_days": 0
+        },
+        {
+          "rating": 1,
+          "gap_days": 0.25
+        }
+      ],
+      "steps": [
+        {
+          "rating": 1,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 0.212,
+          "difficulty": 6.4133,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 0.25,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 0.08335671711031604,
+          "difficulty": 8.806304468856837,
+          "interval_days": 1,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "same_day_after_again_good",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 1,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.25
+        }
+      ],
+      "steps": [
+        {
+          "rating": 1,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 0.212,
+          "difficulty": 6.4133,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.25,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 0.24668918777567272,
+          "difficulty": 6.402115069296838,
+          "interval_days": 1,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "twenty_three_hours_is_same_day",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.9583333333333334
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.9583333333333334,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 2.3065,
+          "difficulty": 2.111214235785395,
+          "interval_days": 2,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "twenty_four_hours_is_next_day",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 1.0
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 1.0,
+          "elapsed_whole_days": 1,
+          "retrievability_before": 0.9468474993825461,
+          "stability": 7.31530074407728,
+          "difficulty": 2.111214235785395,
+          "interval_days": 7,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "same_day_three_goods",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.1
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.1
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.1
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.1,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 2.3065,
+          "difficulty": 2.111214235785395,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.1,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 2.3065,
+          "difficulty": 2.1043313908464483,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.1,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 2.3065,
+          "difficulty": 2.0974554287524403,
+          "interval_days": 2,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "lapse_at_due",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        },
+        {
+          "rating": 1,
+          "gap_days": 11
+        },
+        {
+          "rating": 3,
+          "gap_days": 1
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9094932559773545,
+          "stability": 10.964332335820698,
+          "difficulty": 2.111214235785395,
+          "interval_days": 11,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 11,
+          "elapsed_whole_days": 11,
+          "retrievability_before": 0.8997767176252718,
+          "stability": 1.5383372358832694,
+          "difficulty": 7.392238132342694,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 1,
+          "elapsed_whole_days": 1,
+          "retrievability_before": 0.9267922096596412,
+          "stability": 3.5539099871036797,
+          "difficulty": 7.38007426350719,
+          "interval_days": 4,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9344959705334239,
+          "stability": 7.17881910476972,
+          "difficulty": 7.3679225585405215,
+          "interval_days": 7,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "lapse_overdue",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        },
+        {
+          "rating": 3,
+          "gap_days": 11
+        },
+        {
+          "rating": 1,
+          "gap_days": 60
+        },
+        {
+          "rating": 3,
+          "gap_days": 1
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9094932559773545,
+          "stability": 10.964332335820698,
+          "difficulty": 2.111214235785395,
+          "interval_days": 11,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 11,
+          "elapsed_whole_days": 11,
+          "retrievability_before": 0.8997767176252718,
+          "stability": 46.28021728755693,
+          "difficulty": 2.1043313908464483,
+          "interval_days": 46,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 60,
+          "elapsed_whole_days": 60,
+          "retrievability_before": 0.881195333488019,
+          "stability": 3.026979642511121,
+          "difficulty": 7.389975788014609,
+          "interval_days": 3,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 1,
+          "elapsed_whole_days": 1,
+          "retrievability_before": 0.9576602732218662,
+          "stability": 5.052187584615102,
+          "difficulty": 7.377814181523433,
+          "interval_days": 5,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "two_lapses",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 1,
+          "gap_days": 2
+        },
+        {
+          "rating": 1,
+          "gap_days": 1
+        },
+        {
+          "rating": 3,
+          "gap_days": 1
+        },
+        {
+          "rating": 3,
+          "gap_days": 3
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9094932559773545,
+          "stability": 0.6075801062519337,
+          "difficulty": 7.394502741279718,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 1,
+          "elapsed_whole_days": 1,
+          "retrievability_before": 0.8623103828079355,
+          "stability": 0.21883753600161715,
+          "difficulty": 9.128819137736839,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 1,
+          "elapsed_whole_days": 1,
+          "retrievability_before": 0.7692767167367304,
+          "stability": 0.9102774203197422,
+          "difficulty": 9.114918687895939,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 3,
+          "elapsed_whole_days": 3,
+          "retrievability_before": 0.8005779938168328,
+          "stability": 2.8601382033806284,
+          "difficulty": 9.10103213850488,
+          "interval_days": 3,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "lapse_same_day_relearn",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        },
+        {
+          "rating": 1,
+          "gap_days": 11
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.01
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9094932559773545,
+          "stability": 10.964332335820698,
+          "difficulty": 2.111214235785395,
+          "interval_days": 11,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 11,
+          "elapsed_whole_days": 11,
+          "retrievability_before": 0.8997767176252718,
+          "stability": 1.5383372358832694,
+          "difficulty": 7.392238132342694,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.01,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 1.5711972634299298,
+          "difficulty": 7.38007426350719,
+          "interval_days": 2,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "gap_400_days_good",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 400
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 400,
+          "elapsed_whole_days": 400,
+          "retrievability_before": 0.4525497146213213,
+          "stability": 65.60482031893629,
+          "difficulty": 2.111214235785395,
+          "interval_days": 66,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "gap_400_days_again",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 1,
+          "gap_days": 400
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 400,
+          "elapsed_whole_days": 400,
+          "retrievability_before": 0.4525497146213213,
+          "stability": 1.2903439218164554,
+          "difficulty": 7.394502741279718,
+          "interval_days": 1,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "gap_800_days_after_s100",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 4,
+          "gap_days": 0
+        },
+        {
+          "rating": 4,
+          "gap_days": 8
+        },
+        {
+          "rating": 4,
+          "gap_days": 50
+        },
+        {
+          "rating": 3,
+          "gap_days": 800
+        }
+      ],
+      "steps": [
+        {
+          "rating": 4,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 8.2956,
+          "difficulty": 1.0,
+          "interval_days": 8,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 8,
+          "elapsed_whole_days": 8,
+          "retrievability_before": 0.9024733005284542,
+          "stability": 65.62422616189994,
+          "difficulty": 1.0,
+          "interval_days": 66,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 50,
+          "elapsed_whole_days": 50,
+          "retrievability_before": 0.9175732717622415,
+          "stability": 335.5525386700555,
+          "difficulty": 1.0,
+          "interval_days": 336,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 800,
+          "elapsed_whole_days": 800,
+          "retrievability_before": 0.8304108901278283,
+          "stability": 1532.3179604572963,
+          "difficulty": 1.0,
+          "interval_days": 365,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "easy_ladder_hits_cap",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 4,
+          "gap_days": 0
+        },
+        {
+          "rating": 4,
+          "gap_days": 8
+        },
+        {
+          "rating": 4,
+          "gap_days": 50
+        },
+        {
+          "rating": 4,
+          "gap_days": 200
+        },
+        {
+          "rating": 4,
+          "gap_days": 365
+        },
+        {
+          "rating": 4,
+          "gap_days": 365
+        }
+      ],
+      "steps": [
+        {
+          "rating": 4,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 8.2956,
+          "difficulty": 1.0,
+          "interval_days": 8,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 8,
+          "elapsed_whole_days": 8,
+          "retrievability_before": 0.9024733005284542,
+          "stability": 65.62422616189994,
+          "difficulty": 1.0,
+          "interval_days": 66,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 50,
+          "elapsed_whole_days": 50,
+          "retrievability_before": 0.9175732717622415,
+          "stability": 335.5525386700555,
+          "difficulty": 1.0,
+          "interval_days": 336,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 200,
+          "elapsed_whole_days": 200,
+          "retrievability_before": 0.9315031329392494,
+          "stability": 1204.6064962031671,
+          "difficulty": 1.0,
+          "interval_days": 365,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 365,
+          "elapsed_whole_days": 365,
+          "retrievability_before": 0.9606875335035618,
+          "stability": 2634.926846511156,
+          "difficulty": 1.0,
+          "interval_days": 365,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 365,
+          "elapsed_whole_days": 365,
+          "retrievability_before": 0.9805559432461873,
+          "stability": 3982.4443368656807,
+          "difficulty": 1.0,
+          "interval_days": 365,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "good_ladder_ten",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        },
+        {
+          "rating": 3,
+          "gap_days": 11
+        },
+        {
+          "rating": 3,
+          "gap_days": 46
+        },
+        {
+          "rating": 3,
+          "gap_days": 163
+        },
+        {
+          "rating": 3,
+          "gap_days": 365
+        },
+        {
+          "rating": 3,
+          "gap_days": 365
+        },
+        {
+          "rating": 3,
+          "gap_days": 365
+        },
+        {
+          "rating": 3,
+          "gap_days": 365
+        },
+        {
+          "rating": 3,
+          "gap_days": 365
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9094932559773545,
+          "stability": 10.964332335820698,
+          "difficulty": 2.111214235785395,
+          "interval_days": 11,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 11,
+          "elapsed_whole_days": 11,
+          "retrievability_before": 0.8997767176252718,
+          "stability": 46.28021728755693,
+          "difficulty": 2.1043313908464483,
+          "interval_days": 46,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 46,
+          "elapsed_whole_days": 46,
+          "retrievability_before": 0.9004166937961716,
+          "stability": 162.86220163874916,
+          "difficulty": 2.0974554287524403,
+          "interval_days": 163,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 163,
+          "elapsed_whole_days": 163,
+          "retrievability_before": 0.8999418855553695,
+          "stability": 497.4471936002745,
+          "difficulty": 2.0905863426205262,
+          "interval_days": 365,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 365,
+          "elapsed_whole_days": 365,
+          "retrievability_before": 0.9198304425157381,
+          "stability": 1172.3755535348007,
+          "difficulty": 2.083724125574744,
+          "interval_days": 365,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 365,
+          "elapsed_whole_days": 365,
+          "retrievability_before": 0.9597582032324117,
+          "stability": 1854.0776350986175,
+          "difficulty": 2.0768687707460076,
+          "interval_days": 365,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 365,
+          "elapsed_whole_days": 365,
+          "retrievability_before": 0.9731557697565797,
+          "stability": 2517.3218988689123,
+          "difficulty": 2.0700202712721,
+          "interval_days": 365,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 365,
+          "elapsed_whole_days": 365,
+          "retrievability_before": 0.9797140665383296,
+          "stability": 3162.824727481385,
+          "difficulty": 2.0631786202976663,
+          "interval_days": 365,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 365,
+          "elapsed_whole_days": 365,
+          "retrievability_before": 0.9836086010349838,
+          "stability": 3793.1971799828148,
+          "difficulty": 2.056343810974207,
+          "interval_days": 365,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "hard_ladder",
+      "parameters": "default",
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 2,
+          "gap_days": 0
+        },
+        {
+          "rating": 2,
+          "gap_days": 1
+        },
+        {
+          "rating": 2,
+          "gap_days": 2
+        },
+        {
+          "rating": 2,
+          "gap_days": 3
+        },
+        {
+          "rating": 2,
+          "gap_days": 5
+        }
+      ],
+      "steps": [
+        {
+          "rating": 2,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 1.2931,
+          "difficulty": 5.112170705601056,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 2,
+          "gap_days": 1,
+          "elapsed_whole_days": 1,
+          "retrievability_before": 0.9166697187203525,
+          "stability": 3.2494117658571677,
+          "difficulty": 6.7404595108297,
+          "interval_days": 3,
+          "state": "review"
+        },
+        {
+          "rating": 2,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9297850712910951,
+          "stability": 5.806148601183973,
+          "difficulty": 7.821393497998797,
+          "interval_days": 6,
+          "state": "review"
+        },
+        {
+          "rating": 2,
+          "gap_days": 3,
+          "elapsed_whole_days": 3,
+          "retrievability_before": 0.9387618560572756,
+          "stability": 8.495662233239774,
+          "difficulty": 8.538967850205447,
+          "interval_days": 8,
+          "state": "review"
+        },
+        {
+          "rating": 2,
+          "gap_days": 5,
+          "elapsed_whole_days": 5,
+          "retrievability_before": 0.9321711885760474,
+          "stability": 11.67154160046927,
+          "difficulty": 9.015327144165033,
+          "interval_days": 12,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "mixed_lower_bounds",
+      "parameters": [
+        0.001,
+        0.001,
+        0.001,
+        0.001,
+        1.0,
+        0.001,
+        0.001,
+        0.001,
+        0.0,
+        0.0,
+        0.001,
+        0.001,
+        0.001,
+        0.001,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.1
+      ],
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        },
+        {
+          "rating": 1,
+          "gap_days": 5
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.5
+        },
+        {
+          "rating": 4,
+          "gap_days": 1
+        },
+        {
+          "rating": 2,
+          "gap_days": 20
+        },
+        {
+          "rating": 3,
+          "gap_days": 400
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 0.001,
+          "difficulty": 1.0,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.43928698992079857,
+          "stability": 0.0010056087023900453,
+          "difficulty": 1.0,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 5,
+          "elapsed_whole_days": 5,
+          "retrievability_before": 0.40105523551273653,
+          "stability": 0.001,
+          "difficulty": 1.0019949954954968,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.5,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 0.001,
+          "difficulty": 1.0019899959954979,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 1,
+          "elapsed_whole_days": 1,
+          "retrievability_before": 0.4708035411268901,
+          "stability": 0.0010052923117026943,
+          "difficulty": 1.0009862223845545,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 2,
+          "gap_days": 20,
+          "elapsed_whole_days": 20,
+          "retrievability_before": 0.3491306941879738,
+          "stability": 0.0010052923117026943,
+          "difficulty": 1.0019811221869819,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 400,
+          "elapsed_whole_days": 400,
+          "retrievability_before": 0.2587534461503485,
+          "stability": 0.0010127452919542646,
+          "difficulty": 1.0019761365602915,
+          "interval_days": 1,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "mixed_upper_bounds",
+      "parameters": [
+        100.0,
+        100.0,
+        100.0,
+        100.0,
+        10.0,
+        4.0,
+        4.0,
+        0.75,
+        4.5,
+        0.8,
+        3.5,
+        5.0,
+        0.25,
+        0.9,
+        4.0,
+        1.0,
+        6.0,
+        2.0,
+        2.0,
+        0.8,
+        0.8
+      ],
+      "desired_retention": 0.9,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        },
+        {
+          "rating": 1,
+          "gap_days": 5
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.5
+        },
+        {
+          "rating": 4,
+          "gap_days": 1
+        },
+        {
+          "rating": 2,
+          "gap_days": 20
+        },
+        {
+          "rating": 3,
+          "gap_days": 400
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 100.0,
+          "difficulty": 1.0,
+          "interval_days": 100,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9977534234717149,
+          "stability": 117.84937367304147,
+          "difficulty": 1.0,
+          "interval_days": 118,
+          "state": "review"
+        },
+        {
+          "rating": 1,
+          "gap_days": 5,
+          "elapsed_whole_days": 5,
+          "retrievability_before": 0.9952476850950857,
+          "stability": 2.158486571458925,
+          "difficulty": 1.0,
+          "interval_days": 2,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 0.5,
+          "elapsed_whole_days": 0,
+          "retrievability_before": 1.0,
+          "stability": 63.68069547951692,
+          "difficulty": 1.0,
+          "interval_days": 64,
+          "state": "review"
+        },
+        {
+          "rating": 4,
+          "gap_days": 1,
+          "elapsed_whole_days": 1,
+          "retrievability_before": 0.9982351034417205,
+          "stability": 140.4888478086601,
+          "difficulty": 1.0,
+          "interval_days": 140,
+          "state": "review"
+        },
+        {
+          "rating": 2,
+          "gap_days": 20,
+          "elapsed_whole_days": 20,
+          "retrievability_before": 0.984252181252167,
+          "stability": 277.62929022584234,
+          "difficulty": 1.0,
+          "interval_days": 278,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 400,
+          "elapsed_whole_days": 400,
+          "retrievability_before": 0.8626639191178243,
+          "stability": 1989.3046972212924,
+          "difficulty": 1.0,
+          "interval_days": 365,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "good_ladder_retention_0.85",
+      "parameters": "default",
+      "desired_retention": 0.85,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        },
+        {
+          "rating": 3,
+          "gap_days": 7
+        },
+        {
+          "rating": 3,
+          "gap_days": 20
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 4,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9094932559773545,
+          "stability": 10.964332335820698,
+          "difficulty": 2.111214235785395,
+          "interval_days": 21,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 7,
+          "elapsed_whole_days": 7,
+          "retrievability_before": 0.9277904444502333,
+          "stability": 36.123635746675305,
+          "difficulty": 2.1043313908464483,
+          "interval_days": 69,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 20,
+          "elapsed_whole_days": 20,
+          "retrievability_before": 0.9353277771966927,
+          "stability": 96.85114584645595,
+          "difficulty": 2.0974554287524403,
+          "interval_days": 185,
+          "state": "review"
+        }
+      ]
+    },
+    {
+      "name": "good_ladder_retention_0.95",
+      "parameters": "default",
+      "desired_retention": 0.95,
+      "maximum_interval": 365,
+      "events": [
+        {
+          "rating": 3,
+          "gap_days": 0
+        },
+        {
+          "rating": 3,
+          "gap_days": 2
+        },
+        {
+          "rating": 3,
+          "gap_days": 7
+        },
+        {
+          "rating": 3,
+          "gap_days": 20
+        }
+      ],
+      "steps": [
+        {
+          "rating": 3,
+          "gap_days": 0,
+          "elapsed_whole_days": null,
+          "retrievability_before": null,
+          "stability": 2.3065,
+          "difficulty": 2.118103970459016,
+          "interval_days": 1,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 2,
+          "elapsed_whole_days": 2,
+          "retrievability_before": 0.9094932559773545,
+          "stability": 10.964332335820698,
+          "difficulty": 2.111214235785395,
+          "interval_days": 4,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 7,
+          "elapsed_whole_days": 7,
+          "retrievability_before": 0.9277904444502333,
+          "stability": 36.123635746675305,
+          "difficulty": 2.1043313908464483,
+          "interval_days": 15,
+          "state": "review"
+        },
+        {
+          "rating": 3,
+          "gap_days": 20,
+          "elapsed_whole_days": 20,
+          "retrievability_before": 0.9353277771966927,
+          "stability": 96.85114584645595,
+          "difficulty": 2.0974554287524403,
+          "interval_days": 39,
+          "state": "review"
+        }
+      ]
+    }
+  ],
+  "retrievability": [
+    {
+      "stability": 0.212,
+      "elapsed_days": 0,
+      "value": 1.0
+    },
+    {
+      "stability": 0.212,
+      "elapsed_days": 0.5,
+      "value": 1.0
+    },
+    {
+      "stability": 0.212,
+      "elapsed_days": 0.999,
+      "value": 1.0
+    },
+    {
+      "stability": 0.212,
+      "elapsed_days": 1,
+      "value": 0.7661957302284143
+    },
+    {
+      "stability": 0.212,
+      "elapsed_days": 1.5,
+      "value": 0.7661957302284143
+    },
+    {
+      "stability": 0.212,
+      "elapsed_days": 7,
+      "value": 0.5822354046773924
+    },
+    {
+      "stability": 0.212,
+      "elapsed_days": 30,
+      "value": 0.4668712814735086
+    },
+    {
+      "stability": 0.212,
+      "elapsed_days": 365,
+      "value": 0.31791061636841167
+    },
+    {
+      "stability": 0.212,
+      "elapsed_days": 400,
+      "value": 0.3134558719220179
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 0,
+      "value": 1.0
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 0.5,
+      "value": 1.0
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 0.999,
+      "value": 1.0
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 1,
+      "value": 0.9468474993825461
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 1.5,
+      "value": 0.9468474993825461
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 7,
+      "value": 0.8083099402375552
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 30,
+      "value": 0.6675263338730357
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 365,
+      "value": 0.45894521558406376
+    },
+    {
+      "stability": 2.3065,
+      "elapsed_days": 400,
+      "value": 0.4525497146213213
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 0,
+      "value": 1.0
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 0.5,
+      "value": 1.0
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 0.999,
+      "value": 1.0
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 1,
+      "value": 0.995053873233249
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 1.5,
+      "value": 0.995053873233249
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 7,
+      "value": 0.9687347056895719
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 30,
+      "value": 0.9
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 365,
+      "value": 0.6739135724243192
+    },
+    {
+      "stability": 30.0,
+      "elapsed_days": 400,
+      "value": 0.6651612284768166
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 0,
+      "value": 1.0
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 0.5,
+      "value": 1.0
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 0.999,
+      "value": 1.0
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 1,
+      "value": 0.9996226100206778
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 1.5,
+      "value": 0.9996226100206778
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 7,
+      "value": 0.9973804087483675
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 30,
+      "value": 0.9891193612939486
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 365,
+      "value": 0.9061664775782597
+    },
+    {
+      "stability": 400.0,
+      "elapsed_days": 400,
+      "value": 0.9
+    }
+  ]
+}
