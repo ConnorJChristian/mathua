@@ -67,7 +67,7 @@ func TestSelfGradedCardDoesNotAdvanceMastery(t *testing.T) {
 	st, _ := e.CreateStudent("c")
 	p := &storage.ConceptProgress{StudentID: st.ID, ConceptID: "a", Status: string(mastery.StatusPracticing), Streak: 2, Attempts: 4, SM2EFactor: 2.5}
 	for i := 0; i < 6; i++ {
-		if _, _, err := e.applyGradedAttempt(p, gradedAttempt{studentID: st.ID, conceptID: "a", requiredStreak: 3, timeThreshold: 60, elapsed: 3, correct: true, selfGraded: true}); err != nil {
+		if _, _, _, err := e.applyGradedAttempt(p, gradedAttempt{studentID: st.ID, conceptID: "a", requiredStreak: 3, timeThreshold: 60, elapsed: 3, correct: true, selfGraded: true}); err != nil {
 			t.Fatal(err)
 		}
 	}

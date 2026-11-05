@@ -1348,7 +1348,15 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 		}
 	}
 
-	newStatus, evidence, err := e.applyGradedAttempt(progress, gradedAttempt{
+	// The attempt row is committed with the progress row (and, in shadow
+	// or active mode, the FSRS event). Its id is the XP ledger's event key:
+	// one answer, one award, and a replayed award for that id is refused by
+	// the unique index.
+	fsrsSource := fsrsSrcPractice
+	if sessionFields.isReview {
+		fsrsSource = fsrsSrcReview
+	}
+	newStatus, evidence, xpAttemptID, err := e.applyGradedAttempt(progress, gradedAttempt{
 		studentID:      studentID,
 		conceptID:      sessionFields.conceptID,
 		requiredStreak: sessionFields.requiredStreak,
@@ -1359,29 +1367,25 @@ func (e *Engine) SubmitAnswer(sessionID, studentID, attemptID, answer string, el
 		difficulty:     difficultyOrNil(sessionFields.questionDifficulty),
 		review:         sessionFields.isReview,
 		selfGraded:     practiceOnly(sessionFields.expectedAnswer),
+		attempt: &storage.AttemptEntry{
+			SessionID:      sessionID,
+			StudentID:      studentID,
+			ConceptID:      sessionFields.conceptID,
+			Answer:         answer,
+			Expected:       sessionFields.expectedAnswer,
+			Correct:        gr.Correct,
+			ElapsedSeconds: elapsedSeconds,
+			Timestamp:      nowUTC(),
+			Question:       sessionFields.questionText,
+			Source:         sourceForTask(sessionFields.isReview),
+			Explanation:    sessionFields.explanation,
+			Difficulty:     difficultyOrNil(sessionFields.questionDifficulty),
+		},
+		fsrs: fsrsAnswer{source: fsrsSource, expected: sessionFields.expectedAnswer, graded: gr.Proof != nil,
+			key: sessionID + ":" + attemptID},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("save progress: %w", err)
-	}
-
-	// Record attempt. Its id is the XP ledger's event key: one answer, one
-	// award, and a replayed award for that id is refused by the unique index.
-	xpAttemptID, err := e.repo.RecordAttempt(storage.AttemptEntry{
-		SessionID:      sessionID,
-		StudentID:      studentID,
-		ConceptID:      sessionFields.conceptID,
-		Answer:         answer,
-		Expected:       sessionFields.expectedAnswer,
-		Correct:        gr.Correct,
-		ElapsedSeconds: elapsedSeconds,
-		Timestamp:      nowUTC(),
-		Question:       sessionFields.questionText,
-		Source:         sourceForTask(sessionFields.isReview),
-		Explanation:    sessionFields.explanation,
-		Difficulty:     difficultyOrNil(sessionFields.questionDifficulty),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("record attempt: %w", err)
 	}
 
 	// The active session already holds the explanation the generator produced
@@ -1518,7 +1522,7 @@ func (e *Engine) submitStudy(studentID, conceptID, answer string, elapsedSeconds
 	if strings.HasSuffix(conceptID, ".word") {
 		taskType = TaskMultistep
 	}
-	return e.submitAnswerWithTask(studentID, conceptID, answer, "", elapsedSeconds, taskType, true, dontKnow, questionText, nil)
+	return e.submitAnswerWithTask(studentID, conceptID, answer, "", elapsedSeconds, taskType, true, dontKnow, questionText, nil, fsrsSrcPractice)
 }
 
 // SubmitQuizAnswer is the single-path quiz grader: TaskQuiz base XP (20),
@@ -1532,14 +1536,27 @@ func (e *Engine) submitStudy(studentID, conceptID, answer string, elapsedSeconds
 // attempt with a difficulty nobody actually served — and because the whole point of this
 // argument is that the quiz path produces the same evidence as the study path.
 func (e *Engine) SubmitQuizAnswer(studentID, conceptID, answer, expected string, elapsedSeconds float64, questionText string, difficulty *float64) (*AnswerResult, error) {
-	return e.submitAnswerWithTask(studentID, conceptID, answer, expected, elapsedSeconds, TaskQuiz, false, false, questionText, difficulty)
+	return e.submitAnswerWithTask(studentID, conceptID, answer, expected, elapsedSeconds, TaskQuiz, false, false, questionText, difficulty, fsrsSrcMasteryCheck)
+}
+
+// SubmitCourseTestAnswer is SubmitQuizAnswer for a course review test's
+// item: the same grading, progress and XP, and in shadow or active mode an
+// FSRS event under source course_test (Rules.CourseTests) rather than
+// mastery_check.
+func (e *Engine) SubmitCourseTestAnswer(studentID, conceptID, answer, expected string, elapsedSeconds float64, questionText string, difficulty *float64) (*AnswerResult, error) {
+	return e.submitAnswerWithTask(studentID, conceptID, answer, expected, elapsedSeconds, TaskQuiz, false, false, questionText, difficulty, fsrsSrcCourseTest)
+}
+
+// SubmitCourseTestDontKnow is SubmitQuizDontKnow for a course review test.
+func (e *Engine) SubmitCourseTestDontKnow(studentID, conceptID, expected string, elapsedSeconds float64, questionText string, difficulty *float64) (*AnswerResult, error) {
+	return e.submitAnswerWithTask(studentID, conceptID, "", expected, elapsedSeconds, TaskQuiz, false, true, questionText, difficulty, fsrsSrcCourseTest)
 }
 
 // SubmitQuizDontKnow records an admitted unknown ("I don't know" button) as
 // a quiz miss: weakness up, streak reset, remedial queued — but no XP and no
 // rushing penalty (an instant admit is honesty, not rushing).
 func (e *Engine) SubmitQuizDontKnow(studentID, conceptID, expected string, elapsedSeconds float64, questionText string, difficulty *float64) (*AnswerResult, error) {
-	return e.submitAnswerWithTask(studentID, conceptID, "", expected, elapsedSeconds, TaskQuiz, false, true, questionText, difficulty)
+	return e.submitAnswerWithTask(studentID, conceptID, "", expected, elapsedSeconds, TaskQuiz, false, true, questionText, difficulty, fsrsSrcMasteryCheck)
 }
 
 // difficulty is the difficulty the question that produced this attempt was served at, or
@@ -1547,7 +1564,7 @@ func (e *Engine) SubmitQuizDontKnow(studentID, conceptID, expected string, elaps
 // passed by the caller from the served problem. It is never derived from the learner's
 // current weakness, because that is a different number: it is the difficulty a *future*
 // question would get, not the one the learner just answered.
-func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected string, elapsedSeconds float64, taskType string, useAnchor bool, dontKnow bool, questionText string, difficulty *float64) (*AnswerResult, error) {
+func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected string, elapsedSeconds float64, taskType string, useAnchor bool, dontKnow bool, questionText string, difficulty *float64, fsrsSource string) (*AnswerResult, error) {
 	if e.dag.Concept(conceptID) == nil {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownConcept, conceptID)
 	}
@@ -1626,20 +1643,6 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 			SM2EFactor: 2.5,
 		}
 	}
-	newStatus, evidence, err := e.applyGradedAttempt(progress, gradedAttempt{
-		studentID:      studentID,
-		conceptID:      conceptID,
-		requiredStreak: requiredStreak,
-		timeThreshold:  timeThreshold,
-		elapsed:        elapsedSeconds,
-		correct:        gr.Correct,
-		questionText:   questionText,
-		difficulty:     difficulty,
-		selfGraded:     practiceOnly(expected),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("save progress: %w", err)
-	}
 	// The explanation is the one the generator produced for the question this
 	// learner actually saw, held in the anchor written when it was served. It
 	// is returned whether the answer was right or wrong: a correct answer still
@@ -1654,25 +1657,42 @@ func (e *Engine) submitAnswerWithTask(studentID, conceptID, answer, expected str
 	if explanation == "" {
 		explanation = gr.Feedback
 	}
-	xpAttemptID, err := e.repo.RecordAttempt(storage.AttemptEntry{
-		SessionID:      sessionID,
-		StudentID:      studentID,
-		ConceptID:      conceptID,
-		Answer:         answer,
-		Expected:       expected,
-		Correct:        gr.Correct,
-		ElapsedSeconds: elapsedSeconds,
-		Timestamp:      nowUTC(),
-		Question:       questionText,
-		Source:         sourceForTaskType(taskType),
-		Explanation:    explanation,
-		// The same value the evidence window was just given, so the persisted row and the
-		// decision it fed cannot disagree. This column used to be left NULL on this path,
-		// which is what made quiz and study evidence incomparable.
-		Difficulty: difficulty,
+	if fsrsSource == "" {
+		fsrsSource = fsrsSrcPractice
+	}
+	// The progress row and the attempt (and, in shadow or active mode, the
+	// FSRS event) are one commit.
+	newStatus, evidence, xpAttemptID, err := e.applyGradedAttempt(progress, gradedAttempt{
+		studentID:      studentID,
+		conceptID:      conceptID,
+		requiredStreak: requiredStreak,
+		timeThreshold:  timeThreshold,
+		elapsed:        elapsedSeconds,
+		correct:        gr.Correct,
+		questionText:   questionText,
+		difficulty:     difficulty,
+		selfGraded:     practiceOnly(expected),
+		attempt: &storage.AttemptEntry{
+			SessionID:      sessionID,
+			StudentID:      studentID,
+			ConceptID:      conceptID,
+			Answer:         answer,
+			Expected:       expected,
+			Correct:        gr.Correct,
+			ElapsedSeconds: elapsedSeconds,
+			Timestamp:      nowUTC(),
+			Question:       questionText,
+			Source:         sourceForTaskType(taskType),
+			Explanation:    explanation,
+			// The same value the evidence window was just given, so the persisted row and the
+			// decision it fed cannot disagree. This column used to be left NULL on this path,
+			// which is what made quiz and study evidence incomparable.
+			Difficulty: difficulty,
+		},
+		fsrs: fsrsAnswer{source: fsrsSource, expected: expected, graded: gr.Proof != nil},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("record attempt: %w", err)
+		return nil, fmt.Errorf("save progress: %w", err)
 	}
 	xp := e.awardXP(studentID, xppolicy.AwardValue(gr.Correct, elapsedSeconds, timeThreshold, difficulty))
 	toMaster := -1
@@ -2967,6 +2987,11 @@ type gradedAttempt struct {
 	// a deliberate "unknown" be indistinguishable at the call site — which is exactly the
 	// bug that let the quiz path record unknown difficulty for every attempt.
 	difficulty *float64
+	// attempt is the attempt row this answer writes, committed with the
+	// progress row (FSRS Phase 2: storage.CommitAnswer), and fsrs what the
+	// shadow event needs (fsrs_shadow.go).
+	attempt *storage.AttemptEntry
+	fsrs    fsrsAnswer
 }
 
 // applyGradedAttempt is the single mastery authority.
@@ -2985,7 +3010,8 @@ type gradedAttempt struct {
 // answers a caller legitimately needs: the status is reported to the client as
 // `new_status`, and the evidence is what lets a client render progress from the same
 // number rather than keeping a second copy of the formula.
-func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedAttempt) (mastery.Status, mastery.Evidence, error) {
+func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedAttempt) (mastery.Status, mastery.Evidence, int64, error) {
+	before := *progress
 	if o.selfGraded {
 		// A self-graded card touches the record (so the topic counts as
 		// studied and its weakness moves a little) and nothing else.
@@ -2996,10 +3022,11 @@ func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedA
 		} else {
 			progress.WeaknessScore = math.Min(1, progress.WeaknessScore+0.1)
 		}
-		if err := e.repo.UpsertProgress(progress); err != nil {
-			return mastery.Status(progress.Status), mastery.Evidence{}, err
+		attemptID, err := e.commitAnswer(progress, &before, o)
+		if err != nil {
+			return mastery.Status(progress.Status), mastery.Evidence{}, 0, err
 		}
-		return mastery.Status(progress.Status), mastery.Evidence{}, nil
+		return mastery.Status(progress.Status), mastery.Evidence{}, attemptID, nil
 	}
 	progress.Attempts++
 	progress.LastAttempted = ptrTime(nowUTC())
@@ -3145,8 +3172,11 @@ func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedA
 		}
 	}
 
-	if err := e.repo.UpsertProgress(progress); err != nil {
-		return mastery.Status(progress.Status), evidence, err
+	// The progress row, the attempt and (shadow, active) the FSRS event, in
+	// one transaction.
+	attemptID, err := e.commitAnswer(progress, &before, o)
+	if err != nil {
+		return mastery.Status(progress.Status), evidence, 0, err
 	}
 	// Fork change: mastery credits the prerequisites below this concept, and any
 	// correct answer keeps already-credited ones fresh (see credit.go).
@@ -3155,7 +3185,7 @@ func (e *Engine) applyGradedAttempt(progress *storage.ConceptProgress, o gradedA
 		e.dropQuizRemedial(o.studentID, o.conceptID)
 	}
 	e.PropagateWeakness(o.studentID)
-	return newStatus, evidence, nil
+	return newStatus, evidence, attemptID, nil
 }
 
 // BackfillWeeklyXP replays this week's attempts into the XP ledger.

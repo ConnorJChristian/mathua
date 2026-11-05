@@ -237,12 +237,18 @@ func New(eng *engine.Engine, repo storage.Repository, auth *auth.AuthService, op
 	}
 	// The FSRS scheduling mode (MATHUA_FSRS) and the learner's zone
 	// (MATHUA_TZ) are read once and logged, so a log line says which rule
-	// this process runs. Phase 1: off changes nothing; shadow and active
-	// do nothing yet (plan section 5).
+	// this process runs. Off writes nothing FSRS; shadow (Phase 2) writes
+	// review_log and the fsrs_* columns on every event of the rules below
+	// and reads them for nothing; active is Phase 3 (plan section 5).
 	if mode, err := review.CurrentMode(); err != nil {
 		log.Printf("warning: %v", err)
 	} else {
 		log.Printf("fsrs: mode %s", mode)
+	}
+	if rules, err := review.CurrentRules(); err != nil {
+		log.Printf("warning: %v; using the defaults", err)
+	} else {
+		log.Printf("fsrs: rules %s", rules)
 	}
 	if zone, err := review.LearnerZone(); err != nil {
 		log.Printf("warning: MATHUA_TZ: %v; using UTC", err)
@@ -3838,9 +3844,19 @@ func (s *Server) handleQuizAnswer(w http.ResponseWriter, r *http.Request) {
 		// recomputing it is what makes a quiz attempt count for mastery exactly as much as
 		// the equivalent study attempt.
 		servedDifficulty := sess.LastProblem.Difficulty
-		if req.DontKnow {
+		// A course review test's item is an FSRS event of its own source
+		// (course_test, FSRS Phase 2); the weekly check's is mastery_check.
+		sess.Lock()
+		courseTest := sess.CourseID != ""
+		sess.Unlock()
+		switch {
+		case req.DontKnow && courseTest:
+			res, err = s.eng.SubmitCourseTestDontKnow(studentID, req.ConceptID, expected, req.Elapsed, sess.LastProblem.Question, servedDifficulty)
+		case req.DontKnow:
 			res, err = s.eng.SubmitQuizDontKnow(studentID, req.ConceptID, expected, req.Elapsed, sess.LastProblem.Question, servedDifficulty)
-		} else {
+		case courseTest:
+			res, err = s.eng.SubmitCourseTestAnswer(studentID, req.ConceptID, req.Answer, expected, req.Elapsed, sess.LastProblem.Question, servedDifficulty)
+		default:
 			res, err = s.eng.SubmitQuizAnswer(studentID, req.ConceptID, req.Answer, expected, req.Elapsed, sess.LastProblem.Question, servedDifficulty)
 		}
 		if err != nil {
