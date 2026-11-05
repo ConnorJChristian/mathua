@@ -62,6 +62,9 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 	if err := store.UpsertProgress(good); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.WriteFSRSState(good); err != nil {
+		t.Fatal(err)
+	}
 	// A row whose state does not match its log (a dropped event).
 	bad := row("calc.deriv.chain_rule", m, t0, "MASTERED")
 	logRow("calc.deriv.chain_rule", t0, fsrs.Good, 0, review.Memory{}, m, 0, "k3")
@@ -70,9 +73,15 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 	if err := store.UpsertProgress(bad); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.WriteFSRSState(bad); err != nil {
+		t.Fatal(err)
+	}
 	// State with no log; log with no state; an orphan with state; S NaN; D out of range.
 	unlogged := row("calc.deriv.product_rule", next, t1, "MASTERED")
 	if err := store.UpsertProgress(unlogged); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFSRSState(unlogged); err != nil {
 		t.Fatal(err)
 	}
 	logRow("calc.deriv.quotient_rule", t0, fsrs.Good, 0, review.Memory{}, m, 0, "k5")
@@ -84,11 +93,17 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 	if err := store.UpsertProgress(orphan); err != nil {
 		t.Fatal(err)
 	}
+	if err := store.WriteFSRSState(orphan); err != nil {
+		t.Fatal(err)
+	}
 	nan := row("calc.limit.concept", next, t1, "MASTERED")
 	v := math.NaN()
 	nan.FSRSStability = &v
 	logRow("calc.limit.concept", t1, fsrs.Good, 0, review.Memory{}, next, 0, "k7")
 	if err := store.UpsertProgress(nan); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFSRSState(nan); err != nil {
 		t.Fatal(err)
 	}
 	// A log row with rating 0 (an event-to-rating bug): Replay skips it, so
@@ -97,6 +112,9 @@ func TestDoctor_FindsEachClass(t *testing.T) {
 	logRow("calc.deriv.concept", t0, fsrs.Good, 0, review.Memory{}, m, 0, "k8")
 	logRow("calc.deriv.concept", t0, fsrs.Rating(0), 0, m, m, 0, "k9")
 	if err := store.UpsertProgress(zeroRated); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.WriteFSRSState(zeroRated); err != nil {
 		t.Fatal(err)
 	}
 	// A floor topic (arithmetic) with a past date: the rule excludes it and

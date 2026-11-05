@@ -906,10 +906,8 @@ func (s *SQLiteStore) UpsertProgress(p *ConceptProgress) error {
 			(student_id, concept_id, status, streak, best_streak,
 			 avg_response_time, attempts, last_attempted, last_reviewed,
 			 next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-			 mastered_at, weakness_score, placement_seeded, implicit_credit,
-			 fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
-			 fsrs_lapses, fsrs_state, fsrs_seed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 mastered_at, weakness_score, placement_seeded, implicit_credit)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			status            = excluded.status,
 			streak            = excluded.streak,
@@ -923,22 +921,13 @@ func (s *SQLiteStore) UpsertProgress(p *ConceptProgress) error {
 			sm2_interval      = excluded.sm2_interval,
 			sm2_efactor       = excluded.sm2_efactor,
 			mastered_at       = excluded.mastered_at,
-			weakness_score    = excluded.weakness_score,
-			fsrs_stability    = excluded.fsrs_stability,
-			fsrs_difficulty   = excluded.fsrs_difficulty,
-			fsrs_last_review  = excluded.fsrs_last_review,
-			fsrs_reps         = excluded.fsrs_reps,
-			fsrs_lapses       = excluded.fsrs_lapses,
-			fsrs_state        = excluded.fsrs_state,
-			fsrs_seed         = excluded.fsrs_seed
+			weakness_score    = excluded.weakness_score
 	`,
 		p.StudentID, p.ConceptID, p.Status, p.Streak, p.BestStreak,
 		p.AvgResponseTime, p.Attempts,
 		nullTime(p.LastAttempted), nullTime(p.LastReviewed),
 		nullTime(p.NextReviewDue), p.SM2Repetitions, p.SM2Interval,
 		p.SM2EFactor, nullTime(p.MasteredAt), p.WeaknessScore, boolToInt(p.PlacementSeeded), p.ImplicitCredit,
-		nullFloat(p.FSRSStability), nullFloat(p.FSRSDifficulty), nullTime(p.FSRSLastReview), p.FSRSReps,
-		p.FSRSLapses, fsrsStateOrNone(p.FSRSState), p.FSRSSeed,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert progress: %w", err)
@@ -959,10 +948,8 @@ func (s *SQLiteStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			(student_id, concept_id, status, streak, best_streak,
 			 avg_response_time, attempts, last_attempted, last_reviewed,
 			 next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-			 mastered_at, weakness_score, placement_seeded, implicit_credit,
-			 fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
-			 fsrs_lapses, fsrs_state, fsrs_seed)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 mastered_at, weakness_score, placement_seeded, implicit_credit)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			status            = excluded.status,
 			streak            = excluded.streak,
@@ -978,14 +965,7 @@ func (s *SQLiteStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			mastered_at       = excluded.mastered_at,
 			weakness_score    = excluded.weakness_score,
 			placement_seeded  = excluded.placement_seeded,
-			implicit_credit   = excluded.implicit_credit,
-			fsrs_stability    = excluded.fsrs_stability,
-			fsrs_difficulty   = excluded.fsrs_difficulty,
-			fsrs_last_review  = excluded.fsrs_last_review,
-			fsrs_reps         = excluded.fsrs_reps,
-			fsrs_lapses       = excluded.fsrs_lapses,
-			fsrs_state        = excluded.fsrs_state,
-			fsrs_seed         = excluded.fsrs_seed
+			implicit_credit   = excluded.implicit_credit
 	`)
 	if err != nil {
 		tx.Rollback()
@@ -999,8 +979,6 @@ func (s *SQLiteStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			nullTime(p.LastAttempted), nullTime(p.LastReviewed),
 			nullTime(p.NextReviewDue), p.SM2Repetitions, p.SM2Interval,
 			p.SM2EFactor, nullTime(p.MasteredAt), p.WeaknessScore, boolToInt(p.PlacementSeeded), p.ImplicitCredit,
-			nullFloat(p.FSRSStability), nullFloat(p.FSRSDifficulty), nullTime(p.FSRSLastReview), p.FSRSReps,
-			p.FSRSLapses, fsrsStateOrNone(p.FSRSState), p.FSRSSeed,
 		); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("exec progress batch: %w", err)

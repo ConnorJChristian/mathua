@@ -168,13 +168,9 @@ func replay(dag *concepts.DAG, repo storage.Repository, studentID, conceptID str
 	machine := &mastery.Machine{}
 	p := &storage.ConceptProgress{StudentID: studentID, ConceptID: conceptID, SM2EFactor: 2.5}
 	// The FSRS state is not rebuilt from attempts (its own history is the
-	// review_log, replayed by review.Replay); a repair keeps the row's
-	// state as it stands. This row is written whole, so without this copy
-	// a repair would null every FSRS column (FSRS plan, Phase 1).
-	if cur, err := repo.GetProgress(studentID, conceptID); err == nil && cur != nil {
-		p.FSRSStability, p.FSRSDifficulty, p.FSRSLastReview = cur.FSRSStability, cur.FSRSDifficulty, cur.FSRSLastReview
-		p.FSRSReps, p.FSRSLapses, p.FSRSState, p.FSRSSeed = cur.FSRSReps, cur.FSRSLapses, cur.FSRSState, cur.FSRSSeed
-	}
+	// review_log, replayed by review.Replay). UpsertProgress never writes the
+	// fsrs_* columns, so a repair keeps whatever state is stored when it
+	// writes, with no copy from an earlier read that could be stale.
 	status := mastery.StatusUnseen
 	sm2 := scheduler.SM2{Repetitions: 0, EFactor: 2.5, Interval: 0}
 

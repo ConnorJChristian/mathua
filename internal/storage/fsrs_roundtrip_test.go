@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -77,23 +78,46 @@ func TestFSRSColumns_SurviveEveryStoreWrite(t *testing.T) {
 			t.Fatal(err)
 		}
 		// 1. Single-row upsert, insert then update (the graded-answer path).
+		// It never writes the FSRS columns: the insert takes the defaults
+		// and an update keeps what is stored, whatever the struct carries.
+		// WriteFSRSState is their one writer.
 		row := fsrsRow(st.ID, "a")
 		if err := repo.UpsertProgress(row); err != nil {
 			t.Fatal(err)
 		}
 		got, _ := repo.GetProgress(st.ID, "a")
-		sameFSRS(t, tag+" upsert insert", row, got)
+		sameFSRS(t, tag+" upsert insert (no state)", &ConceptProgress{FSRSState: "none"}, got)
+		if err := repo.WriteFSRSState(row); err != nil {
+			t.Fatal(err)
+		}
+		got, _ = repo.GetProgress(st.ID, "a")
+		sameFSRS(t, tag+" write state", row, got)
+		if got.Streak != row.Streak || got.Attempts != row.Attempts {
+			t.Errorf("[%s] WriteFSRSState changed other columns: %+v", tag, got)
+		}
+		stale := *row
+		stale.Streak = 4
+		s0 := 1.0
+		stale.FSRSStability, stale.FSRSReps, stale.FSRSState = &s0, 0, "none"
+		if err := repo.UpsertProgress(&stale); err != nil {
+			t.Fatal(err)
+		}
+		got, _ = repo.GetProgress(st.ID, "a")
+		sameFSRS(t, tag+" upsert update keeps state", row, got)
+		if got.Streak != 4 {
+			t.Errorf("[%s] the update lost streak", tag)
+		}
 		row.Streak = 4
 		*row.FSRSStability = 30.5
 		row.FSRSReps = 5
 		row.FSRSState = "relearning"
-		if err := repo.UpsertProgress(row); err != nil {
+		if err := repo.WriteFSRSState(row); err != nil {
 			t.Fatal(err)
 		}
 		got, _ = repo.GetProgress(st.ID, "a")
-		sameFSRS(t, tag+" upsert update", row, got)
-		if got.Streak != 4 {
-			t.Errorf("[%s] the update also lost streak", tag)
+		sameFSRS(t, tag+" write state update", row, got)
+		if err := repo.WriteFSRSState(fsrsRow(st.ID, "no-row")); !errors.Is(err, ErrNoProgressRow) {
+			t.Errorf("[%s] WriteFSRSState on a missing row: %v, want ErrNoProgressRow", tag, err)
 		}
 		// 2. Batch upsert of a loaded snapshot with one other column changed
 		// (PropagateWeakness, creditPrerequisites, ApplyGoalResults).
@@ -101,7 +125,8 @@ func TestFSRSColumns_SurviveEveryStoreWrite(t *testing.T) {
 		cp := *all["a"]
 		cp.StudentID, cp.ConceptID = st.ID, "a"
 		cp.WeaknessScore = 0.3
-		fresh := &ConceptProgress{StudentID: st.ID, ConceptID: "b", Status: "UNSEEN"}
+		fresh := fsrsRow(st.ID, "b") // a struct with FSRS fields set: a batch insert ignores them
+		fresh.Status = "UNSEEN"
 		if err := repo.UpsertProgressBatch([]*ConceptProgress{&cp, fresh}); err != nil {
 			t.Fatal(err)
 		}
@@ -235,12 +260,56 @@ func TestFSRSColumns_MigrateAnOlderSQLiteFile(t *testing.T) {
 		t.Errorf("migrated row: %+v", got)
 	}
 	row := fsrsRow(st.ID, "a")
-	if err := repo.UpsertProgress(row); err != nil {
+	if err := repo.WriteFSRSState(row); err != nil {
 		t.Fatal(err)
 	}
 	got, _ = repo.GetProgress(st.ID, "a")
 	sameFSRS(t, "migrated", row, got)
 	if ins, err := repo.InsertReviewLog(ReviewLogEntry{StudentID: st.ID, ConceptID: "a", At: time.Now().UTC(), Source: "review", Rating: 3, IdempotencyKey: "m1"}); err != nil || !ins {
 		t.Errorf("review_log after migration: %v %v", ins, err)
+	}
+}
+
+// A whole-row rewrite from a snapshot taken before a review commit must not
+// roll that review back (FSRS Phase 1 review, Phase 2 note: lost updates).
+// Snapshot, then an FSRS write lands, then the batch and the single upsert
+// write the stale snapshot: the newer FSRS state survives both.
+func TestFSRSColumns_InterleavedWriteSurvivesSnapshotRewrite(t *testing.T) {
+	for tag, repo := range fsrsStores(t) {
+		st, err := repo.CreateStudent(fmt.Sprintf("fsrs-race-%s-%d", tag, time.Now().UnixNano()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		row := fsrsRow(st.ID, "a")
+		if err := repo.UpsertProgress(row); err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.WriteFSRSState(row); err != nil {
+			t.Fatal(err)
+		}
+		snap, _ := repo.GetAllProgress(st.ID) // the request's snapshot
+		newer := fsrsRow(st.ID, "a")          // a review commits in between
+		s2 := 40.25
+		newer.FSRSStability, newer.FSRSReps = &s2, 5
+		if err := repo.WriteFSRSState(newer); err != nil {
+			t.Fatal(err)
+		}
+		cp := *snap["a"]
+		cp.WeaknessScore = 0.4
+		if err := repo.UpsertProgressBatch([]*ConceptProgress{&cp}); err != nil {
+			t.Fatal(err)
+		}
+		got, _ := repo.GetProgress(st.ID, "a")
+		sameFSRS(t, tag+" batch after interleaved write", newer, got)
+		if got.WeaknessScore != 0.4 {
+			t.Errorf("[%s] batch did not write weakness", tag)
+		}
+		cp.Streak = 7
+		if err := repo.UpsertProgress(&cp); err != nil {
+			t.Fatal(err)
+		}
+		got, _ = repo.GetProgress(st.ID, "a")
+		sameFSRS(t, tag+" upsert after interleaved write", newer, got)
+		_ = repo.DeleteAccount(st.ID)
 	}
 }

@@ -137,10 +137,12 @@ func TestRepair_KeepsFSRSState(t *testing.T) {
 	}())
 	s, d := 21.5, 3.25
 	last := base.Add(-24 * time.Hour).Truncate(time.Second) // RFC3339 storage
-	must(t, repo.UpsertProgress(&storage.ConceptProgress{
+	seeded := &storage.ConceptProgress{
 		StudentID: sid, ConceptID: "t", Status: "LEARNING", Attempts: 1,
 		FSRSStability: &s, FSRSDifficulty: &d, FSRSLastReview: &last, FSRSReps: 3, FSRSLapses: 1, FSRSState: "relearning", FSRSSeed: "mastery",
-	}))
+	}
+	must(t, repo.UpsertProgress(seeded))
+	must(t, repo.WriteFSRSState(seeded))
 	eng := engine.New(repo, dag, generator.NewRegistry(), nil, nil)
 	defer eng.Close()
 	var buf bytes.Buffer

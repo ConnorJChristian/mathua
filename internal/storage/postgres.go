@@ -1169,11 +1169,8 @@ func (s *PostgresStore) UpsertProgress(p *ConceptProgress) error {
 			(student_id, concept_id, status, streak, best_streak,
 			 avg_response_time, attempts, last_attempted, last_reviewed,
 			 next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-			 mastered_at, weakness_score, placement_seeded, implicit_credit,
-			 fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
-			 fsrs_lapses, fsrs_state, fsrs_seed)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-		        $18, $19, $20, $21, $22, $23, $24)
+			 mastered_at, weakness_score, placement_seeded, implicit_credit)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			status            = EXCLUDED.status,
 			streak            = EXCLUDED.streak,
@@ -1187,22 +1184,13 @@ func (s *PostgresStore) UpsertProgress(p *ConceptProgress) error {
 			sm2_interval      = EXCLUDED.sm2_interval,
 			sm2_efactor       = EXCLUDED.sm2_efactor,
 			mastered_at       = EXCLUDED.mastered_at,
-			weakness_score    = EXCLUDED.weakness_score,
-			fsrs_stability    = EXCLUDED.fsrs_stability,
-			fsrs_difficulty   = EXCLUDED.fsrs_difficulty,
-			fsrs_last_review  = EXCLUDED.fsrs_last_review,
-			fsrs_reps         = EXCLUDED.fsrs_reps,
-			fsrs_lapses       = EXCLUDED.fsrs_lapses,
-			fsrs_state        = EXCLUDED.fsrs_state,
-			fsrs_seed         = EXCLUDED.fsrs_seed
+			weakness_score    = EXCLUDED.weakness_score
 	`,
 		p.StudentID, p.ConceptID, p.Status, p.Streak, p.BestStreak,
 		p.AvgResponseTime, p.Attempts,
 		nullTime(p.LastAttempted), nullTime(p.LastReviewed),
 		nullTime(p.NextReviewDue), p.SM2Repetitions, p.SM2Interval,
 		p.SM2EFactor, nullTime(p.MasteredAt), p.WeaknessScore, boolToInt(p.PlacementSeeded), p.ImplicitCredit,
-		nullFloat(p.FSRSStability), nullFloat(p.FSRSDifficulty), nullTime(p.FSRSLastReview), p.FSRSReps,
-		p.FSRSLapses, fsrsStateOrNone(p.FSRSState), p.FSRSSeed,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert progress: %w", err)
@@ -1223,11 +1211,8 @@ func (s *PostgresStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			(student_id, concept_id, status, streak, best_streak,
 			 avg_response_time, attempts, last_attempted, last_reviewed,
 			 next_review_due, sm2_repetitions, sm2_interval, sm2_efactor,
-			 mastered_at, weakness_score, placement_seeded, implicit_credit,
-			 fsrs_stability, fsrs_difficulty, fsrs_last_review, fsrs_reps,
-			 fsrs_lapses, fsrs_state, fsrs_seed)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-		        $18, $19, $20, $21, $22, $23, $24)
+			 mastered_at, weakness_score, placement_seeded, implicit_credit)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			status            = EXCLUDED.status,
 			streak            = EXCLUDED.streak,
@@ -1243,14 +1228,7 @@ func (s *PostgresStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			mastered_at       = EXCLUDED.mastered_at,
 			weakness_score    = EXCLUDED.weakness_score,
 			placement_seeded  = EXCLUDED.placement_seeded,
-			implicit_credit   = EXCLUDED.implicit_credit,
-			fsrs_stability    = EXCLUDED.fsrs_stability,
-			fsrs_difficulty   = EXCLUDED.fsrs_difficulty,
-			fsrs_last_review  = EXCLUDED.fsrs_last_review,
-			fsrs_reps         = EXCLUDED.fsrs_reps,
-			fsrs_lapses       = EXCLUDED.fsrs_lapses,
-			fsrs_state        = EXCLUDED.fsrs_state,
-			fsrs_seed         = EXCLUDED.fsrs_seed
+			implicit_credit   = EXCLUDED.implicit_credit
 	`)
 	if err != nil {
 		tx.Rollback()
@@ -1264,8 +1242,6 @@ func (s *PostgresStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 			nullTime(p.LastAttempted), nullTime(p.LastReviewed),
 			nullTime(p.NextReviewDue), p.SM2Repetitions, p.SM2Interval,
 			p.SM2EFactor, nullTime(p.MasteredAt), p.WeaknessScore, boolToInt(p.PlacementSeeded), p.ImplicitCredit,
-			nullFloat(p.FSRSStability), nullFloat(p.FSRSDifficulty), nullTime(p.FSRSLastReview), p.FSRSReps,
-			p.FSRSLapses, fsrsStateOrNone(p.FSRSState), p.FSRSSeed,
 		); err != nil {
 			tx.Rollback()
 			return fmt.Errorf("exec progress batch: %w", err)

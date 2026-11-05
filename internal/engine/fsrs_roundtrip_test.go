@@ -9,7 +9,9 @@ import (
 )
 
 // Every whole-row write path keeps the FSRS columns (FSRS plan 3.2, 4.7:
-// the release blocker). The graph is a <- b. A row on "a" carries FSRS
+// the release blocker). Since the Phase 1 review the progress upserts never
+// write them (only WriteFSRSState does), so "keeps" means the stored state
+// at write time, not the snapshot's. The graph is a <- b. A row on "a" carries FSRS
 // state; each path rewrites rows and the state must come through. The
 // store-level statements are tested on SQLite and Postgres in
 // internal/storage/fsrs_roundtrip_test.go; these are the engine paths that
@@ -25,6 +27,9 @@ func seedFSRS(t *testing.T, e *Engine, sid, cid, status string) *storage.Concept
 		FSRSStability: &s, FSRSDifficulty: &d, FSRSLastReview: &last, FSRSReps: 2, FSRSLapses: 0, FSRSState: "review", FSRSSeed: "mastery",
 	}
 	if err := e.repo.UpsertProgress(row); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.repo.WriteFSRSState(row); err != nil {
 		t.Fatal(err)
 	}
 	return row
@@ -117,4 +122,47 @@ func TestFSRSColumns_SurviveGradedAnswer(t *testing.T) {
 	}
 	// With MATHUA_FSRS off nothing moves the state, so it reads as seeded.
 	assertFSRSKept(t, "applyGradedAttempt", e, sid, "a", want)
+}
+
+// interleavingRepo runs before() just ahead of the first batch write: a
+// review commit that lands between a path's snapshot read and its write.
+type interleavingRepo struct {
+	storage.Repository
+	before func()
+}
+
+func (r *interleavingRepo) UpsertProgressBatch(ps []*storage.ConceptProgress) error {
+	if r.before != nil {
+		r.before()
+		r.before = nil
+	}
+	return r.Repository.UpsertProgressBatch(ps)
+}
+
+// PropagateWeakness reads every row, then writes the batch. An FSRS write
+// between the two survives the batch (FSRS Phase 1 review, Phase 2 note:
+// lost updates).
+func TestFSRSColumns_InterleavedReviewSurvivesPropagateWeakness(t *testing.T) {
+	e := testEngine(t)
+	sid := creditStudent(t, e)
+	seedFSRS(t, e, sid, "b", "MASTERED")
+	if err := e.repo.UpsertProgress(&storage.ConceptProgress{StudentID: sid, ConceptID: "a", Status: "LEARNING", WeaknessScore: 0.9}); err != nil {
+		t.Fatal(err)
+	}
+	base := e.repo
+	newer, _ := base.GetProgress(sid, "b")
+	s2 := 99.5
+	newer.FSRSStability, newer.FSRSReps = &s2, 3
+	e.repo = &interleavingRepo{Repository: base, before: func() {
+		if err := base.WriteFSRSState(newer); err != nil {
+			t.Error(err)
+		}
+	}}
+	defer func() { e.repo = base }()
+	e.PropagateWeakness(sid)
+	got, _ := base.GetProgress(sid, "b")
+	if got.WeaknessScore <= 0 {
+		t.Fatalf("weakness did not propagate onto b: %+v (the path under test did not run)", got)
+	}
+	assertFSRSKept(t, "PropagateWeakness after an interleaved review", e, sid, "b", newer)
 }

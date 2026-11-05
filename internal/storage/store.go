@@ -77,12 +77,14 @@ type ConceptProgress struct {
 	// once it reaches 1.
 	ImplicitCredit float64 `json:"implicit_credit,omitempty"`
 	// FSRS memory state (FSRS plan 3.2, Phase 1). Nil FSRSStability means
-	// no state: a credited, placed or never-reviewed row. These columns are
-	// read and written by every progress path, including the whole-row
-	// batch rewrites (PropagateWeakness, creditPrerequisites,
-	// ApplyGoalResults) and mathua repair, and fsrs_roundtrip_test.go holds
-	// that each path keeps them. Nothing reads them for a decision while
-	// MATHUA_FSRS is off.
+	// no state: a credited, placed or never-reviewed row. Every progress
+	// read fills them; only Repository.WriteFSRSState writes them.
+	// UpsertProgress and UpsertProgressBatch leave the stored values alone,
+	// so a whole-row rewrite from an earlier snapshot (PropagateWeakness,
+	// creditPrerequisites, ApplyGoalResults, mathua repair, a graded
+	// answer) cannot roll back a review committed in between;
+	// fsrs_roundtrip_test.go holds each path. Nothing reads them for a
+	// decision while MATHUA_FSRS is off.
 	FSRSStability  *float64   `json:"fsrs_stability,omitempty"`
 	FSRSDifficulty *float64   `json:"fsrs_difficulty,omitempty"`
 	FSRSLastReview *time.Time `json:"fsrs_last_review,omitempty"`
@@ -602,10 +604,17 @@ type Repository interface {
 
 	GetProgress(studentID, conceptID string) (*ConceptProgress, error)
 	GetAllProgress(studentID string) (map[string]*ConceptProgress, error)
+	// UpsertProgress writes one row. It never writes the fsrs_* columns: a
+	// new row takes their defaults (no state), an existing row keeps them.
 	UpsertProgress(p *ConceptProgress) error
 	// UpsertProgressBatch persists many rows in one transaction — the
-	// N+1 antidote for PropagateWeakness and ApplyGoalResults.
+	// N+1 antidote for PropagateWeakness and ApplyGoalResults. Like
+	// UpsertProgress it never writes the fsrs_* columns.
 	UpsertProgressBatch(ps []*ConceptProgress) error
+	// WriteFSRSState is the one writer of the fsrs_* columns: it sets the
+	// seven of them on an existing row from p and touches nothing else
+	// (ErrNoProgressRow when the row does not exist).
+	WriteFSRSState(p *ConceptProgress) error
 	// InsertReviewLog appends one FSRS event. It returns false, nil when an
 	// entry with the same idempotency key already exists (nothing written).
 	InsertReviewLog(e ReviewLogEntry) (bool, error)

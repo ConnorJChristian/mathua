@@ -952,12 +952,18 @@ both stores; reads order by `at, id`, so events at one instant keep their
 insertion order. Fork data migration 1001 rewrites rows in the older
 RFC3339Nano form (fork-owned data migrations number from 1001 so they
 cannot collide with upstream's 1..n).
-Migrations run on SQLite and Postgres alike. Every progress write path
-keeps the columns, including the three whole-row batch rewrites
-(weakness propagation, prerequisite credit, placement) and `mathua
-repair`, which rebuilds a row from attempts but copies the FSRS state;
-`fsrs_roundtrip_test.go` in `internal/storage` (both stores) and
-`internal/engine` holds each path. Reset and account deletion drop the
+Migrations run on SQLite and Postgres alike. The `fsrs_*` columns have
+one writer, `Repository.WriteFSRSState` (column-scoped; Phase 2's review
+commit calls it with the log row in one transaction). `UpsertProgress`
+and `UpsertProgressBatch` never write them: a new row takes the defaults
+(no state), an existing row keeps what is stored at write time. Every
+progress writer builds its row from a snapshot read earlier in the
+request, so a whole-row rewrite (weakness propagation, prerequisite
+credit, placement, a graded answer, `mathua repair`) can no longer roll
+back a review committed in between. `fsrs_roundtrip_test.go` in
+`internal/storage` (both stores) and `internal/engine` holds each path,
+including an FSRS write interleaved between a snapshot and its batch
+write. Reset and account deletion drop the
 log with the rows.
 
 **Replay and the doctor.** `review.Replay(log)` rebuilds a topic's state
