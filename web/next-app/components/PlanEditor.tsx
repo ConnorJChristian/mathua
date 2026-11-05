@@ -188,7 +188,7 @@ export default function PlanEditor({ compact = false, initialDestination, onSave
             <dl className="mt-4 space-y-1 font-mono text-xs text-mathua-secondary">
               <div className="flex justify-between"><dt>Topics remaining</dt><dd className="text-mathua-primary">{e.remaining.length} of {e.total}</dd></div>
               <div className="flex justify-between"><dt>Focused time remaining</dt><dd className="text-mathua-primary">≈ {Math.round(e.time_min_remaining / 60)}h {(Math.round(e.time_min_remaining % 60))}m</dd></div>
-              <div className="flex justify-between"><dt>Reviews due</dt><dd className="text-mathua-primary">{e.reviews_due}</dd></div>
+              <div className="flex justify-between"><dt title="Mastered topics priced as a review pass for pacing: decayed, or past their date. The Study page counts what is due.">Review passes (pacing)</dt><dd className="text-mathua-primary">{e.review_passes}</dd></div>
               <div className="flex justify-between"><dt>Mastery checks ahead</dt><dd className="text-mathua-primary">{e.quizzes_ahead}</dd></div>
               <div className="flex justify-between"><dt>Diagnostic + planning time</dt><dd className="text-mathua-primary">≈ {e.diagnostic_min} min</dd></div>
               <div className="flex justify-between"><dt>Initial estimate coverage</dt><dd className="text-mathua-primary">{est?.probes.length} probe topics</dd></div>

@@ -32,7 +32,7 @@ const estimate = {
     remaining: ['a', 'b'],
     xp_remaining: 100,
     time_min_remaining: 125,
-    reviews_due: 1,
+    review_passes: 1,
     quizzes_ahead: 1,
     assessment_min: 10,
     diagnostic_min: 5,
@@ -78,6 +78,17 @@ describe('PlanEditor', () => {
       deadline_days: 0,
       rest_days: 1,
     })
+  })
+
+  // The estimator prices a decayed-or-past-date mastered topic as a review
+  // pass, with no floor or credit-only exclusion. That is a pacing figure,
+  // not the due count the Study page shows, so it is not labelled as one
+  // (FSRS Phase 0 review, F2).
+  it('labels the estimator\'s review passes as pacing, never as reviews due', async () => {
+    render(<PlanEditor />)
+    await screen.findByText(/Remaining workload/)
+    expect(screen.getByText(/Review passes \(pacing\)/)).toBeTruthy()
+    expect(screen.queryByText(/Reviews due/)).toBeNull()
   })
 
   it('deadline presets set the deadline, not the daily goal', async () => {

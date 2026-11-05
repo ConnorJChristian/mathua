@@ -230,8 +230,8 @@ func TestEstimate_AgreesWithSchedulerOnDecay(t *testing.T) {
 				"a": {Status: "MASTERED", LastReviewed: &reviewed, NextReviewDue: ptrTime(time.Now().UTC().AddDate(0, 0, 90))},
 			}
 			est := EstimateWorkload(path, progress, map[string]AttemptStats{}, EstimateOpts{})
-			if got := est.ReviewsDue; (got > 0) != tc.wantDue {
-				t.Errorf("ReviewsDue = %d with %.0f days since review, want due=%v", got, tc.daysSince, tc.wantDue)
+			if got := est.ReviewPasses; (got > 0) != tc.wantDue {
+				t.Errorf("ReviewPasses = %d with %.0f days since review, want due=%v", got, tc.daysSince, tc.wantDue)
 			}
 			// The same fact read through the shared constant the scheduler uses.
 			if got := mastery.EffectiveStatus(mastery.StatusMastered, tc.daysSince, mastery.DecayDays); (got == "DECAYING") != tc.wantDue {

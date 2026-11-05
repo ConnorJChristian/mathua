@@ -910,7 +910,8 @@ export interface WorkloadEstimate {
 	remaining: string[]
 	xp_remaining: number
 	time_min_remaining: number
-	reviews_due: number
+	/** Mastered topics priced as a review pass (decayed for pacing, or past their date). Not the due count: that is /api/reviews/due. */
+	review_passes: number
 	quizzes_ahead: number
 	assessment_min: number
 	diagnostic_min: number

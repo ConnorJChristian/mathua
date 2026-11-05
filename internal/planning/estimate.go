@@ -61,10 +61,18 @@ type WorkloadEstimate struct {
 	Costs            []ConceptCost `json:"costs"`
 	XPRemaining      float64       `json:"xp_remaining"`
 	TimeMinRemaining float64       `json:"time_min_remaining"`
-	ReviewsDue       int           `json:"reviews_due"`
-	QuizzesAhead     int           `json:"quizzes_ahead"`
-	AssessmentMin    float64       `json:"assessment_min"`
-	DiagnosticMin    float64       `json:"diagnostic_min"`
+	// ReviewPasses counts the mastered topics on the path priced as a review
+	// pass instead of done: decayed for pacing (DecayDays since the last
+	// review) or past their date, with no floor or credit-only exclusion.
+	// It is a pacing figure (FSRS plan 3.5), not the count of due reviews:
+	// that is review.IsDue through engine.DueReviewIDs, and the two differ
+	// for a topic with a long interval reviewed over DecayDays ago. The JSON
+	// name says so; it used to be "reviews_due" and PlanEditor showed it as
+	// "Reviews due" beside the banner's real count (Phase 0 review, F2).
+	ReviewPasses  int     `json:"review_passes"`
+	QuizzesAhead  int     `json:"quizzes_ahead"`
+	AssessmentMin float64 `json:"assessment_min"`
+	DiagnosticMin float64 `json:"diagnostic_min"`
 	// Days and FinishDate answer plan-by-effort; RequiredPerDay/Feasible
 	// answer plan-by-deadline (zero values when no deadline given).
 	Days           float64 `json:"days"`
@@ -143,7 +151,7 @@ func EstimateWorkload(path *Path, progress map[string]*storage.ConceptProgress, 
 			cost.Review = true
 			est.Costs = append(est.Costs, cost)
 			est.Remaining = append(est.Remaining, c.ID)
-			est.ReviewsDue++
+			est.ReviewPasses++
 			est.XPRemaining += cost.XP
 			est.TimeMinRemaining += cost.TimeMin
 			continue
@@ -250,7 +258,8 @@ func reviewCost(c *concepts.Concept, p *storage.ConceptProgress, s AttemptStats)
 	}
 }
 
-// reviewDue reports whether a mastered concept needs a review pass.
+// reviewDue reports whether a mastered concept is priced as a review pass:
+// decayed for pacing, or past its date. Not the due rule (see ReviewPasses).
 func reviewDue(p *storage.ConceptProgress, now time.Time, decayDays float64) bool {
 	if p == nil {
 		return false
