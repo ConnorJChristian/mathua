@@ -255,4 +255,10 @@ func (e *Engine) LessonDependentsByDomain(conceptIDs []string, progress map[stri
 type ProgressView struct {
 	*storage.ConceptProgress
 	MasteryPct float64 `json:"mastery_pct"`
+	// Due is whether the topic is due for review by the one rule
+	// (review.IsDue through DueReviewIDs, exclusions applied), so a client
+	// never infers due-ness from the DECAYING pacing status: a topic with a
+	// long interval reviewed over DecayDays ago is decaying and not due
+	// (FSRS Phase 0 review, F1).
+	Due bool `json:"due,omitempty"`
 }

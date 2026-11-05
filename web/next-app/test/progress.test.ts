@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { isMastered, prereqMet, countByDomain, countOverall, type CatalogueConcept } from '../lib/progress'
+import { isMastered, isDueForReview, prereqMet, countByDomain, countOverall, type CatalogueConcept } from '../lib/progress'
 import type { ConceptProgress } from '../lib/api'
 
-const p = (status: string, completed?: boolean): ConceptProgress => ({ status, streak: 0, completed })
+const p = (status: string, completed?: boolean, due?: boolean): ConceptProgress => ({ status, streak: 0, completed, due })
 
 // a ──► b ──► c, with d independent.
 const catalogue: CatalogueConcept[] = [
@@ -54,8 +54,8 @@ describe('countByDomain', () => {
     // counted as learning or locked. With b mastered and c practicing, a has
     // no prerequisites and c's are met, so nothing in x is locked.
     const got = countByDomain(catalogue, { b: p('MASTERED'), c: p('PRACTICING') })
-    expect(got.get('x')).toEqual({ total: 3, mastered: 1, dueForReview: 0, learning: 1, completed: 0, locked: 0 })
-    expect(got.get('y')).toEqual({ total: 1, mastered: 0, dueForReview: 0, learning: 0, completed: 0, locked: 0 })
+    expect(got.get('x')).toEqual({ total: 3, mastered: 1, dueForReview: 0, fading: 0, learning: 1, completed: 0, locked: 0 })
+    expect(got.get('y')).toEqual({ total: 1, mastered: 0, dueForReview: 0, fading: 0, learning: 0, completed: 0, locked: 0 })
   })
 
   it('locks a concept whose prerequisite is unmet', () => {
@@ -144,12 +144,37 @@ describe('decay', () => {
     const stale = countOverall(catalogue, { a: p('DECAYING') })
 
     expect(fresh.mastered).toBe(1)
-    expect(fresh.dueForReview).toBe(0)
+    expect(fresh.fading).toBe(0)
     expect(stale.mastered).toBe(1)
-    expect(stale.dueForReview).toBe(1)
+    expect(stale.fading).toBe(1)
 
     // And the two still disagree where they should: `isMastered` is the strict
     // question, and it is false for a stale concept.
     expect(isMastered(p('DECAYING'))).toBe(false)
+  })
+
+  it('counts due for review from the server\'s rule, not from decay', () => {
+    // DECAYING is the pacing notion (a fortnight since the last review). Whether a
+    // review is *due* is the server's one rule (review.IsDue, exclusions applied),
+    // carried as `due` on the row. A topic with a long interval reviewed over a
+    // fortnight ago is decaying and not due; a topic reviewed yesterday whose date
+    // has passed is due and not decaying. The profile used to count decay as
+    // "due for review" and link it to /review (FSRS Phase 0 review, F1).
+    const decayedNotDue = countOverall(catalogue, { a: p('DECAYING', undefined, false) })
+    expect(decayedNotDue.dueForReview).toBe(0)
+    expect(decayedNotDue.fading).toBe(1)
+
+    const dueNotDecayed = countOverall(catalogue, { a: p('MASTERED', undefined, true) })
+    expect(dueNotDecayed.dueForReview).toBe(1)
+    expect(dueNotDecayed.fading).toBe(0)
+    expect(dueNotDecayed.mastered).toBe(1)
+
+    const both = countOverall(catalogue, { a: p('DECAYING', undefined, true) })
+    expect(both.dueForReview).toBe(1)
+    expect(both.fading).toBe(1)
+
+    // A payload predating the field reads as not due, never as due.
+    expect(isDueForReview(p('DECAYING'))).toBe(false)
+    expect(countByDomain(catalogue, { a: p('DECAYING') }).get('x')?.dueForReview).toBe(0)
   })
 })

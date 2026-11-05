@@ -36,6 +36,8 @@ export function prereqStateWord(p: EligibilityPrereq): string {
       return 'Mastered'
     case 'due_for_review':
       return 'Mastered · due a check'
+    case 'fading':
+      return 'Mastered · fading'
     case 'in_progress':
       return 'In progress'
     case 'unlocked':

@@ -13,7 +13,7 @@ import { getLessonReadiness, getProgress, type ConceptProgress, type ReadinessRe
 import { getUserInfo } from '../../lib/auth'
 import { concepts } from '../../lib/conceptData'
 import { domainLabel } from '../../lib/domains'
-import { masteryState } from '../../lib/progress'
+import { isDueForReview, masteryState } from '../../lib/progress'
 import { backTarget, courseReturnLabel, learnConceptPath, parseReturnStack, pushReturn, studyConceptPath, withReturnStack } from '../../lib/learnReturn'
 import { hrefConceptId } from '../../lib/nextUp'
 
@@ -58,13 +58,15 @@ function stateLabel(state: string | undefined): string {
   }
 }
 
-/** A dependent's state from the learner's own history — the only source the client has for it. */
+/** A dependent's state from the learner's own history — the only source the client has for it.
+ *  Due is the server's `due` (the one rule); decaying is the pacing notion and reads "fading". */
 function dependentStateWord(p: ConceptProgress | undefined): string {
+  if (isDueForReview(p)) return 'Due a check'
   switch (masteryState(p)) {
     case 'mastered':
       return 'Mastered'
     case 'decaying':
-      return 'Due a check'
+      return 'Fading'
     case 'practicing':
     case 'learning':
       return 'In progress'

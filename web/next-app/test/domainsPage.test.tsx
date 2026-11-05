@@ -285,6 +285,21 @@ describe('DomainTable', () => {
 })
 
 describe('buildDomainRows', () => {
+  it('marks a concept due for review only from the server\'s due flag; decay is "fading"', () => {
+    // FSRS Phase 0 review, F1: DECAYING is the pacing notion, and a topic with a long
+    // interval reviewed over a fortnight ago is decaying and not due. The row's `due`
+    // comes from the server's one rule (review.IsDue, exclusions applied).
+    const [a, b] = concepts.filter(c => (c.prerequisites ?? []).length === 0).map(c => c.id)
+    const rows = buildDomainRows(concepts, {
+      [a]: { status: 'DECAYING', streak: 3, due: false },
+      [b]: { status: 'MASTERED', streak: 3, due: true },
+    })
+    const all = rows.flatMap(r => r.concepts)
+    expect(all.find(c => c.id === a)?.status).toBe('fading')
+    expect(all.find(c => c.id === b)?.status).toBe('dueForReview')
+    expect(rows.reduce((n, r) => n + r.dueForReview, 0)).toBe(1)
+  })
+
   it('puts the weakest domain first when sorting by needs attention', () => {
     const rows = buildDomainRows(concepts, {})
     const weak = { ...rows[0], mastered: 0, label: 'Zzz' }

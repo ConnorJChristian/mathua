@@ -81,6 +81,13 @@ export const ConceptProgressSchema = z.object({
    * rebuilt. Optional so a payload predating the field still parses.
    */
   mastery_pct: z.number().optional(),
+  /**
+   * Due for review by the server's one rule (review.IsDue, exclusions applied).
+   * Separate from `status: DECAYING`, which is the pacing notion: a topic with a
+   * long interval reviewed over a fortnight ago is decaying and not due. Optional
+   * so a payload predating the field still parses; absent reads as not due.
+   */
+  due: z.boolean().optional(),
 })
 
 const ProgressMapSchema = z.record(z.string(), ConceptProgressSchema)
@@ -273,6 +280,8 @@ export interface ConceptProgress {
   // Set by the lesson-completion endpoint (PR1, server-owned). Optional so
   // pre-PR1 payloads keep validating; unlock rules treat absent as false.
   completed?: boolean
+  // Due for review by the server's one rule; see ConceptProgressSchema.
+  due?: boolean
 }
 
 // oxlint-disable-next-line anti-slop/no-unknown-parameters -- catch value: unknown is the correct error contract

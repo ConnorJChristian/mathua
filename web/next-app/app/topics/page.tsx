@@ -13,7 +13,7 @@ import { getCourseCatalog, getProgress, getTranscript, setActiveCourses, type Co
 import { getUserInfo } from '../../lib/auth'
 import { concepts, type ConceptRecord } from '../../lib/conceptData'
 import { domainLabel } from '../../lib/domains'
-import { masteryState, type MasteryState } from '../../lib/progress'
+import { isDueForReview, masteryState, type MasteryState } from '../../lib/progress'
 import { learnConceptPath, studyConceptPath } from '../../lib/learnReturn'
 
 // Fork change: the topic library. Every topic in the install, searchable and
@@ -55,10 +55,13 @@ function planPath(plan: string[]): string[] {
   return out
 }
 
-function stateWord(s: MasteryState): string {
+// Due is the server's word (`due` on the row, the one rule); decaying is
+// the pacing notion and reads "fading", never "due".
+function stateWord(s: MasteryState, due: boolean): string {
+  if (due) return 'Due a review'
   switch (s) {
     case 'mastered': return 'Mastered'
-    case 'decaying': return 'Due a review'
+    case 'decaying': return 'Fading'
     case 'practicing':
     case 'learning': return 'In progress'
     default: return ''
@@ -293,6 +296,7 @@ function TopicsContent() {
           <ol className="border border-mathua-border divide-y divide-mathua-border bg-mathua-surface">
             {rows.slice(0, limit).map(({ c, planned }, n) => {
               const st = masteryState(progress[c.id])
+              const word = stateWord(st, isDueForReview(progress[c.id]))
               const showDomainHead = !plan && c.domain !== lastDomain
               lastDomain = c.domain
               return (
@@ -314,8 +318,8 @@ function TopicsContent() {
                         </Link>
                         <div className="font-mono text-[10px] text-mathua-muted">
                           {plan ? domainLabel(c.domain) : ''}
-                          {plan && stateWord(st) ? ' · ' : ''}
-                          {stateWord(st) && <span className={st === 'mastered' ? 'text-mathua-blue' : ''}>{stateWord(st)}</span>}
+                          {plan && word ? ' · ' : ''}
+                          {word && <span className={st === 'mastered' ? 'text-mathua-blue' : ''}>{word}</span>}
                         </div>
                       </div>
                     </div>

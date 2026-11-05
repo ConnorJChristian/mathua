@@ -77,7 +77,9 @@ function prereqStateFromStatus(status: string | undefined): string {
     case 'MASTERED':
       return 'mastered'
     case 'DECAYING':
-      return 'due_for_review'
+      // The pacing notion, not due-ness: only the server's eligibility
+      // verdict (the `prerequisites` payload) says `due_for_review`.
+      return 'fading'
     default:
       return ''
   }

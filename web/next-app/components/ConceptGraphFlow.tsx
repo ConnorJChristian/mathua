@@ -40,6 +40,8 @@ interface ConceptGraphFlowProps {
   concepts: GraphConcept[]
   conceptStatuses?: Record<string, GraphStatus>
   conceptProgress?: Record<string, number>
+  /** Due for review by the server's rule (`due` on the progress row); never derived from `decaying`. */
+  conceptDue?: Record<string, boolean>
   theme?: 'dark' | 'light'
   onPathNodes?: string[]
   selectedId?: string | null
@@ -64,9 +66,13 @@ const STATUS_COLORS: Record<GraphStatus, string> = {
   locked: 'var(--status-locked)',
 }
 
+// `decaying` is the pacing notion (a fortnight since the last review), not
+// due-ness: a topic with a long interval can be decaying and not due. The
+// label says "fading"; "Due for review" is said only when the server's rule
+// says so (`conceptDue`).
 const STATUS_LABELS: Record<GraphStatus, string> = {
   mastered: 'Mastered',
-  decaying: 'Due for review',
+  decaying: 'Fading',
   practicing: 'Practicing',
   learning: 'Learning',
   unseen: 'Unseen',
@@ -87,6 +93,8 @@ type ConceptNodeData = {
   domain: string
   status: GraphStatus
   progress?: number
+  /** Due for review by the server's rule; independent of `status`. */
+  due?: boolean
   onPath: boolean
   dimmed: boolean
   selected: boolean
@@ -105,7 +113,11 @@ const ConceptNode = memo(function ConceptNode({ id, data }: NodeProps<ConceptFlo
         : ''
   const progressPct =
     typeof data.progress === 'number' ? Math.round(data.progress * 100) : null
-  const ariaLabel = `${data.label}, ${data.domain.replace(/_/g, ' ')} domain, ${STATUS_LABELS[data.status] ?? data.status}${progressPct !== null ? `, ${progressPct}% toward mastery` : ''}`
+  // What is outstanding: "Due for review" is the server's word (the one due
+  // rule), "Fading" is the pacing status. A due topic says due whatever its
+  // decay reads; a fading one that is not due never says due.
+  const outstanding = data.due ? 'Due for review' : data.status === 'decaying' ? 'Fading' : null
+  const ariaLabel = `${data.label}, ${data.domain.replace(/_/g, ' ')} domain, ${STATUS_LABELS[data.status] ?? data.status}${data.due ? ', due for review' : ''}${progressPct !== null ? `, ${progressPct}% toward mastery` : ''}`
   return (
     <div
       className={`concept-node${pulseClass}`}
@@ -195,8 +207,8 @@ const ConceptNode = memo(function ConceptNode({ id, data }: NodeProps<ConceptFlo
           padding: '3px 8px',
         }}
       >
-        {data.status === 'decaying'
-          ? 'Due for review'
+        {outstanding !== null
+          ? outstanding
           : progressPct !== null
             ? `${progressPct}% toward mastery`
             : 'Not started'}
@@ -651,6 +663,7 @@ function GraphInner({
   concepts,
   conceptStatuses,
   conceptProgress,
+  conceptDue,
   theme = 'light',
   onPathNodes,
   selectedId,
@@ -896,12 +909,13 @@ function GraphInner({
         domain: c.domain,
         status: conceptStatuses?.[c.id] ?? 'unseen',
         progress: conceptProgress?.[c.id],
+        due: conceptDue?.[c.id] ?? false,
         onPath: onPathSet?.has(c.id) ?? false,
         dimmed: !inNeighborhood,
         selected: c.id === effectiveSelected,
         onSelect: select,
       }
-      const key = `${position.x},${position.y}|${data.status}|${data.progress ?? ''}|${data.onPath ? 1 : 0}|${data.dimmed ? 1 : 0}|${data.selected ? 1 : 0}`
+      const key = `${position.x},${position.y}|${data.status}|${data.progress ?? ''}|${data.due ? 1 : 0}|${data.onPath ? 1 : 0}|${data.dimmed ? 1 : 0}|${data.selected ? 1 : 0}`
       const prev = cache.get(c.id)
       const node: ConceptFlowNode =
         prev && prev.key === key
@@ -912,7 +926,7 @@ function GraphInner({
     }
     prevNodesRef.current = next
     return out
-  }, [concepts, conceptStatuses, conceptProgress, mountedIds, onPathSet, neighborhood, effectiveSelected, layout, select])
+  }, [concepts, conceptStatuses, conceptProgress, conceptDue, mountedIds, onPathSet, neighborhood, effectiveSelected, layout, select])
 
   const knownIds = useMemo(() => new Set(concepts.map(c => c.id)), [concepts])
 

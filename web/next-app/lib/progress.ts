@@ -16,7 +16,7 @@ import type { ConceptProgress } from './api'
 // The shape the predicates need: anything with a status. The API record, the
 // graph's looser input and a test fixture all satisfy it, so no caller widens
 // its own type just to ask a question about mastery.
-type MaybeProgress = { status?: string | undefined } | undefined | null
+type MaybeProgress = { status?: string | undefined; due?: boolean | undefined } | undefined | null
 
 /**
  * The learner's-facing mastery state.
@@ -55,10 +55,20 @@ export function countsAsMastered(p: MaybeProgress): boolean {
   return status === 'MASTERED' || status === 'DECAYING'
 }
 
+// isDueForReview is whether the server says the topic is due for review: the
+// `due` field of the progress payload, which is the one rule (review.IsDue,
+// floor and credit-only exclusions applied) every server surface reads. It is
+// not derived from the status: `decaying` is the pacing notion (a fortnight
+// since the last review) and a topic can be decaying with a future date, or
+// due while fresh. The client never decides due-ness itself; it reads it.
+export function isDueForReview(p: MaybeProgress): boolean {
+  return p?.due === true
+}
+
 // masteryState is the display state: the stored status with DECAYING preserved
 // as itself, so a colour or label can distinguish "learned and fresh" from
-// "learned, due for review". Anything unrecognised reads as `unseen`, which is
-// what a missing or unusable progress row means everywhere else.
+// "learned, fading". Anything unrecognised reads as `unseen`, which is what a
+// missing or unusable progress row means everywhere else.
 export function masteryState(p: MaybeProgress): MasteryState {
   switch ((p?.status ?? '').toUpperCase()) {
     case 'MASTERED':
@@ -104,8 +114,10 @@ export interface DomainCounts {
    * *showing* the review debt instead of by shrinking the word "mastered".
    */
   mastered: number
-  /** Previously mastered, past the decay window: retrieval confidence may have weakened. */
+  /** Due for review by the server's rule (`due` on the row), not a count of decayed rows. */
   dueForReview: number
+  /** Previously mastered, past the decay window: retrieval confidence may have weakened. Pacing, not due-ness. */
+  fading: number
   learning: number
   completed: number
   /** Prerequisites not yet satisfied, so the concept cannot be started. */
@@ -131,10 +143,11 @@ export function countByDomain(
 ): Map<string, Omit<DomainCounts, 'domain'>> {
   const byDomain = new Map<string, Omit<DomainCounts, 'domain'>>()
   for (const c of catalogue) {
-    const entry = byDomain.get(c.domain) ?? { total: 0, mastered: 0, dueForReview: 0, learning: 0, completed: 0, locked: 0 }
+    const entry = byDomain.get(c.domain) ?? { total: 0, mastered: 0, dueForReview: 0, fading: 0, learning: 0, completed: 0, locked: 0 }
     entry.total++
     const p = progress[c.id]
-    if (masteryState(p) === 'decaying') entry.dueForReview++
+    if (isDueForReview(p)) entry.dueForReview++
+    if (masteryState(p) === 'decaying') entry.fading++
     if (countsAsMastered(p)) {
       entry.mastered++
     } else if (p?.completed === true) {
@@ -154,11 +167,12 @@ export function countOverall(
   catalogue: readonly CatalogueConcept[],
   progress: Record<string, ConceptProgress>,
 ): OverallCounts {
-  const totals = { total: 0, mastered: 0, dueForReview: 0, learning: 0, completed: 0, locked: 0 }
+  const totals = { total: 0, mastered: 0, dueForReview: 0, fading: 0, learning: 0, completed: 0, locked: 0 }
   for (const c of catalogue) {
     totals.total++
     const p = progress[c.id]
-    if (masteryState(p) === 'decaying') totals.dueForReview++
+    if (isDueForReview(p)) totals.dueForReview++
+    if (masteryState(p) === 'decaying') totals.fading++
     if (countsAsMastered(p)) {
       totals.mastered++
     } else if (p?.completed === true) {

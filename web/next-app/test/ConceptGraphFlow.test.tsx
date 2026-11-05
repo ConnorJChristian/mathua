@@ -150,16 +150,44 @@ describe('ConceptGraphFlow', () => {
       c.querySelector('.concept-node[aria-label*="Addition"] [data-progress]') as HTMLElement
     expect(trackOf(freshC).getAttribute('style')).toBe(trackOf(staleC).getAttribute('style'))
 
-    // Same words about attainment, different words about what is outstanding.
+    // Same words about attainment, different words about what is outstanding. Decay is
+    // the pacing notion and reads "Fading": it is not due-ness (a topic with a long
+    // interval is decaying and not due), so the node never says "due" from the status.
     const tipOf = (c: HTMLElement) =>
       c.querySelector('.concept-node[aria-label*="Addition"] .node-progress-tip')!.textContent
     expect(tipOf(freshC)).toBe('100% toward mastery')
-    expect(tipOf(staleC)).toBe('Due for review')
+    expect(tipOf(staleC)).toBe('Fading')
 
     // And the accessible label distinguishes them, so the state is not colour-only for
     // anyone who cannot see the hue.
     expect(staleC.querySelector('.concept-node[aria-label*="Addition"]')!.getAttribute('aria-label'))
-      .toContain('Due for review')
+      .toContain('Fading')
+    expect(staleC.querySelector('.concept-node[aria-label*="Addition"]')!.getAttribute('aria-label'))
+      .not.toContain('ue for review')
+  })
+
+  it('says "Due for review" only from the server\'s due flag, whatever the decay reads', () => {
+    // The one due rule lives on the server (review.IsDue, exclusions applied) and arrives
+    // as `due` on the progress row; the graph used to say "Due for review" for every
+    // decaying node (FSRS Phase 0 review, F1).
+    const { container: dueFresh } = render(
+      <ConceptGraphFlow concepts={concepts} conceptStatuses={{ add: 'mastered' }} conceptProgress={{ add: 1 }} conceptDue={{ add: true }} />,
+    )
+    const { container: dueStale } = render(
+      <ConceptGraphFlow concepts={concepts} conceptStatuses={{ add: 'decaying' }} conceptProgress={{ add: 1 }} conceptDue={{ add: true }} />,
+    )
+    const { container: staleNotDue } = render(
+      <ConceptGraphFlow concepts={concepts} conceptStatuses={{ add: 'decaying' }} conceptProgress={{ add: 1 }} conceptDue={{ add: false }} />,
+    )
+    const tipOf = (c: HTMLElement) =>
+      c.querySelector('.concept-node[aria-label*="Addition"] .node-progress-tip')!.textContent
+    const labelOf = (c: HTMLElement) =>
+      c.querySelector('.concept-node[aria-label*="Addition"]')!.getAttribute('aria-label') ?? ''
+    expect(tipOf(dueFresh)).toBe('Due for review')
+    expect(labelOf(dueFresh)).toContain('due for review')
+    expect(tipOf(dueStale)).toBe('Due for review')
+    expect(tipOf(staleNotDue)).toBe('Fading')
+    expect(labelOf(staleNotDue)).not.toContain('due for review')
   })
 
   it('derives locked statuses that flow into node colors', () => {

@@ -45,17 +45,35 @@ describe('ProfileHeader', () => {
   })
 
   it('reports the review debt separately, with a way to act on it', () => {
+    // Due is the server's `due` flag (the one rule), not the DECAYING status.
     render(
       <ProfileHeader
         name="Tester"
         scores={scores}
         catalogue={catalogue}
-        progress={{ a: { status: 'DECAYING', streak: 3 }, b: { status: 'MASTERED', streak: 3 } }}
+        progress={{ a: { status: 'MASTERED', streak: 3, due: true }, b: { status: 'MASTERED', streak: 3 } }}
       />,
     )
     expect(screen.getByText(/1 due for review/i)).toBeTruthy()
     expect(screen.getByText(/still learned/i)).toBeTruthy()
     expect(screen.getByRole('link', { name: /review/i }).getAttribute('href')).toBe('/review')
+  })
+
+  it('calls a decayed topic that is not due "fading", never "due for review"', () => {
+    // A mastered topic with a long interval reviewed over a fortnight ago is DECAYING for
+    // pacing and not due; the header used to count it as due and link to /review, where
+    // nothing would be waiting (FSRS Phase 0 review, F1).
+    render(
+      <ProfileHeader
+        name="Tester"
+        scores={scores}
+        catalogue={catalogue}
+        progress={{ a: { status: 'DECAYING', streak: 3, due: false }, b: { status: 'MASTERED', streak: 3 } }}
+      />,
+    )
+    expect(screen.queryByText(/\d+ due for review/i)).toBeNull()
+    expect(screen.getByText(/1 fading/i)).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /^review/i })).toBeNull()
   })
 
   it('renders folded actions when provided', () => {

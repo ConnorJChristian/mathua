@@ -79,6 +79,11 @@ export default function ProfileHeader({
               </Link>
             </p>
           )}
+          {counts.dueForReview === 0 && counts.fading > 0 && (
+            <p className="mt-1.5 font-mono text-[11px] text-mathua-muted">
+              {counts.fading} fading — learned a while ago, not yet due for review.
+            </p>
+          )}
         </section>
       </div>
       {footer && (

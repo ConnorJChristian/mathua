@@ -15,6 +15,7 @@ import { getScores, getGraph, getProgress, getWeaknesses, healthCheck, type Grap
 import { getUserInfo } from '../../lib/auth'
 import { useAuthState } from '../../hooks/useAuthState'
 import { deriveStatuses } from '../../lib/graphStatus'
+import { isDueForReview } from '../../lib/progress'
 import { allDomainOrder, domainLabel } from '../../lib/domains'
 import { createInflightCache, createSessionCache } from '../../lib/requestCache'
 import Loading from '../../components/Loading'
@@ -159,6 +160,16 @@ function GraphContent() {
     return out
   }, [rawProgress, conceptStatuses])
 
+  // Due for review, straight from the server's `due` (the one rule). Never derived from
+  // `decaying`, which is the pacing notion and reads "fading" on the node.
+  const conceptDue = useMemo(() => {
+    const out: Record<string, boolean> = {}
+    for (const [id, p] of Object.entries(rawProgress)) {
+      if (isDueForReview(p)) out[id] = true
+    }
+    return out
+  }, [rawProgress])
+
   const handleSelectionChange = useCallback((id: string | null) => {
     setSelectedId(id)
     if (id) {
@@ -285,6 +296,7 @@ function GraphContent() {
           concepts={concepts.length > 0 ? concepts : fallbackConcepts}
           conceptStatuses={conceptStatuses}
           conceptProgress={conceptProgress}
+          conceptDue={conceptDue}
           theme={theme}
           onPathNodes={onPathNodes}
           selectedId={selectedId}

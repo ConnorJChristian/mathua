@@ -489,6 +489,12 @@ Decay for pacing, plan order, the readiness gate and the progress bar
 (`mastery.EffectiveStatus`, DECAYING 14 days after the last review
 whatever the date says) is a separate notion and unchanged: with a long
 interval a topic can be decayed for pacing before it is due for review.
+The web never infers due-ness from that status: `/api/progress` carries
+`due` per topic from the one rule, and the graph, Topics, Domains, the
+profile header and the Learn prerequisite panel say "Due for review" only
+when it is set; a decayed topic that is not due reads "Fading". The plan
+editor's "Review passes (pacing)" is the estimator's own count (decayed
+or past the date, no exclusions), not the due count.
 `scripts/replay_audit` reads every surface each session and flags a
 disagreement ("surfaces disagree on due"); `TestDueSurfacesAgree` holds it
 for 30 days on three learners.

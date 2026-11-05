@@ -2069,7 +2069,14 @@ func (e *Engine) GetProgress(studentID string) (map[string]*storage.ConceptProgr
 	if err != nil {
 		return nil, err
 	}
-	now := time.Now().UTC()
+	applyDecay(progress, time.Now().UTC())
+	return progress, nil
+}
+
+// applyDecay rewrites each mastered row's status with the read-time decay
+// (DECAYING DecayDays after the last review). Pacing and display read this;
+// due-ness does not (review.IsDue reads the stored status).
+func applyDecay(progress map[string]*storage.ConceptProgress, now time.Time) {
 	for _, p := range progress {
 		if mastery.Status(p.Status) != mastery.StatusMastered {
 			continue
@@ -2082,7 +2089,6 @@ func (e *Engine) GetProgress(studentID string) (map[string]*storage.ConceptProgr
 		}
 		p.Status = string(mastery.EffectiveStatus(mastery.StatusMastered, days, mastery.DecayDays))
 	}
-	return progress, nil
 }
 
 // ProgressWithMasteryPct is GetProgress plus the one derived number the client used to
@@ -2097,10 +2103,15 @@ func (e *Engine) GetProgress(studentID string) (map[string]*storage.ConceptProgr
 // from `streak` and a *bundled* copy of the corpus, which is a second source of truth
 // that silently disagrees with the server's whenever the corpus is rebuilt.
 func (e *Engine) ProgressWithMasteryPct(studentID string) (map[string]ProgressView, error) {
-	progress, err := e.GetProgress(studentID)
+	progress, err := e.repo.GetAllProgress(studentID)
 	if err != nil {
 		return nil, err
 	}
+	// The due rule reads the stored status (only MASTERED can be due), so it
+	// runs before decay rewrites the status for display.
+	now := time.Now().UTC()
+	due := e.DueReviewSet(studentID, progress, now)
+	applyDecay(progress, now)
 	out := make(map[string]ProgressView, len(progress))
 	for id, p := range progress {
 		reqStreak := 0
@@ -2110,6 +2121,7 @@ func (e *Engine) ProgressWithMasteryPct(studentID string) (map[string]ProgressVi
 		out[id] = ProgressView{
 			ConceptProgress: p,
 			MasteryPct:      mastery.MasteryPct(mastery.Status(p.Status), p.Streak, reqStreak),
+			Due:             due[id],
 		}
 	}
 	return out, nil

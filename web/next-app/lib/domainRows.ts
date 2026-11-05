@@ -1,4 +1,4 @@
-import { countByDomain, masteryState, prereqMet } from './progress'
+import { countByDomain, isDueForReview, masteryState, prereqMet } from './progress'
 import { allDomainOrder, domainLabel } from './domains'
 import type { ConceptRecord } from './conceptData'
 import type { ConceptProgress } from './api'
@@ -14,7 +14,7 @@ import type { ConceptProgress } from './api'
 // `precalculus` too — 50 concepts that no surface showed, with nothing on screen to say so.
 // test/domainAuthority.test.ts fails if a partial list appears again.
 
-export type DomainConceptStatus = 'mastered' | 'dueForReview' | 'inProgress' | 'unseen'
+export type DomainConceptStatus = 'mastered' | 'dueForReview' | 'fading' | 'inProgress' | 'unseen'
 
 export interface DomainConcept {
   id: string
@@ -38,6 +38,7 @@ export interface DomainRow {
 export const DOMAIN_STATUS_LABEL: Record<DomainConceptStatus, string> = {
   mastered: 'Mastered',
   dueForReview: 'Due for review',
+  fading: 'Fading',
   inProgress: 'In progress',
   unseen: 'Not started',
 }
@@ -45,17 +46,23 @@ export const DOMAIN_STATUS_LABEL: Record<DomainConceptStatus, string> = {
 export const DOMAIN_STATUS_ORDER: DomainConceptStatus[] = [
   'mastered',
   'dueForReview',
+  'fading',
   'inProgress',
   'unseen',
 ]
 
+// Due comes from the server's rule (`due` on the row), never from the
+// status: DECAYING is the pacing notion ("fading"), and a topic can be
+// decaying with a future review date. A due topic is due whatever its
+// decay reads.
 function statusOf(p: ConceptProgress | undefined, unlocked: boolean): DomainConceptStatus {
   if (!unlocked) return 'unseen'
+  if (isDueForReview(p)) return 'dueForReview'
   switch (masteryState(p)) {
     case 'mastered':
       return 'mastered'
     case 'decaying':
-      return 'dueForReview'
+      return 'fading'
     case 'practicing':
     case 'learning':
       return 'inProgress'
