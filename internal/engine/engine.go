@@ -2684,6 +2684,9 @@ func ptrTime(t time.Time) *time.Time {
 // rejected instead of being graded against the session's current question.
 func newAttemptID() string {
 	b := make([]byte, 16)
+	if deterministicAttemptBytes(b) {
+		return hex.EncodeToString(b)
+	}
 	if _, err := rand.Read(b); err != nil {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}

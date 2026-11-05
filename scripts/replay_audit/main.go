@@ -261,6 +261,10 @@ func openWith(dbPath, sid string, seed int64, mods *modules.Set) (*replay, error
 	if ds, err := planning.LoadDestinations(filepath.Join(root, "data", "destinations.json"), mods.DestinationFiles()...); err == nil {
 		planner.SetDestinations(ds)
 	}
+	// One seed fixes every random source the engine draws from (attempt
+	// ids that seed the generators, scheduler tie-breaks, the global
+	// math/rand stream), so a same-seed replay is repeatable.
+	engine.SetDeterministicSeed(seed)
 	eng := engine.New(store, dag, reg, nil, planner)
 	eng.SetModules(mods)
 	tr, err := pytrack.Default()

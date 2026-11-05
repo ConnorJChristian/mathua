@@ -2,7 +2,6 @@ package scheduler
 
 import (
 	"math"
-	"math/rand"
 	"sort"
 	"time"
 
@@ -379,8 +378,7 @@ func (s *Scheduler) NextReviewSkipping(
 		same++
 	}
 	// Shuffle among equal-priority candidates with per-call seeded rand.
-	r := rand.New(rand.NewSource(time.Now().UnixNano() ^ int64(same)))
-	return &NextConcept{Concept: reviews[r.Intn(same)].Concept, IsReview: true}
+	return &NextConcept{Concept: reviews[tieBreak(int64(same), same)].Concept, IsReview: true}
 }
 
 // ReviewCandidates is every topic the review session could serve at now,
@@ -426,8 +424,7 @@ func selectWithBalance(candidates []Candidate, reviewCount, newCount int) Candid
 	for same < len(candidates) && candidates[same].Priority == topPriority {
 		same++
 	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano() ^ int64(len(candidates)) ^ int64(reviewCount+newCount)))
-	return candidates[r.Intn(same)]
+	return candidates[tieBreak(int64(len(candidates))^int64(reviewCount+newCount), same)]
 }
 
 func daysSince(t time.Time) float64 {

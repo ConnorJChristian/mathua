@@ -145,3 +145,22 @@ func TestEligibilityWithDue_ReadsTheDueSet(t *testing.T) {
 		t.Errorf("practising topic in the due set: state %s, want %s", st, StateInProgress)
 	}
 }
+
+// SetTieBreakSeed makes the equal-priority pick a repeatable sequence.
+func TestSetTieBreakSeed_Repeats(t *testing.T) {
+	defer SetTieBreakSeed(0)
+	draw := func() []int {
+		SetTieBreakSeed(7)
+		out := make([]int, 20)
+		for i := range out {
+			out[i] = tieBreak(int64(i), 5)
+		}
+		return out
+	}
+	a, b := draw(), draw()
+	for i := range a {
+		if a[i] != b[i] || a[i] < 0 || a[i] >= 5 {
+			t.Fatalf("tie-break %d: %d then %d", i, a[i], b[i])
+		}
+	}
+}
