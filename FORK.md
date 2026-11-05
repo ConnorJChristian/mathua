@@ -890,6 +890,80 @@ cards and grades each card's own back, which should pass, and a wrong
 answer the model writes against the card's scheme, which should fail. It
 prints the confusion matrix (false-fail and false-pass rates) and the cost.
 
+## FSRS (phase 1)
+
+The fork is moving its review scheduling from SM-2 plus the 14-day decay
+to FSRS-6, in phases (`local-data/qa/FSRS_PORT_PLAN.md`). Phase 1 is the
+core and the storage; it changes no behaviour. What exists:
+
+**The flag.** `MATHUA_FSRS=off|shadow|active`, read once at startup,
+logged (`fsrs: mode off`) and shown as `fsrs_mode` on `GET /api/config`.
+`off` is the default: SM-2 and the one due rule above decide everything,
+and nothing FSRS is read or written. `shadow` (phase 2) will compute the
+FSRS update on every scheduling event and write it without reading it for
+a decision; `active` (phase 3) will make "due" read FSRS. In phase 1 both
+are accepted and do nothing. An unknown value is `off` with a warning, so
+a typo never turns scheduling on. Rollback at any phase is
+`MATHUA_FSRS=off`; stored state stays. `MATHUA_TZ` (default
+`America/Los_Angeles`) is the learner's zone for the daily cap and the
+one-raise-per-day rule of later phases (`internal/review/day.go`);
+timestamps are stored in UTC.
+
+**The model.** `internal/fsrs` is upstream's pure FSRS-6 package, copied
+byte-for-byte (so upstream fixes cherry-pick), with its 115 values pinned
+against py-fsrs 6.3.2 (`tools/fsrs-reference`). `internal/review/fsrs.go`
+composes it the way the reference scheduler does, which upstream's own
+engine integration does not (`FSRS_UPSTREAM_ANALYSIS.md`, items 3-5):
+
+- The first review sets S = w[rating-1], D = D0(rating), as the reference
+  does for a new card (first Good: S 2.31, 2 days). Upstream seeds S from
+  the SM-2 interval it has just written and updates on top, giving S 1
+  and 1 day.
+- A review under a whole day after the last uses the FSRS-6 short-term
+  formula (w17..w19), not the long-term formula at elapsed 0, where a
+  right answer adds nothing and each miss cuts S by 5%.
+- Elapsed time is whole days, as the reference reads it.
+- Parameters: the FSRS-6 default 21 weights, desired retention 0.9, a
+  maximum interval of 365 days (upstream: 36,500; a degree has a two-year
+  horizon), no fuzz. SM-2 is not composed with it: there is no
+  `max(FSRS, SM-2)` due date.
+
+These are pinned against the reference scheduler end to end
+(`tools/fsrs-reference/generate_review_vectors.py`, fork-owned: 27
+sequences, 94 reviews, including the first review, same-day reviews,
+lapses, gaps over a year, the weights at the reference's bounds) and by
+property tests (S > 0, 1 <= D <= 10, Again never raises S, interval
+monotone in S, R falling in t, R(S, S) = 0.9).
+
+**The schema.** `concept_progress` carries `fsrs_stability`,
+`fsrs_difficulty`, `fsrs_last_review`, `fsrs_reps`, `fsrs_lapses`,
+`fsrs_state` (`none`, `review`, `relearning`) and `fsrs_seed` (how the
+state was first set: `mastery`, `anki`, `credit`, `placement`), NULL
+stability meaning no state. `review_log` holds one row per scheduling
+event (`source`, `rating`, `elapsed_days`, S and D before and after, R at
+the review, item, level, response time, a unique `idempotency_key`,
+`engine_mode`): the replay and fitting dataset and the audit trail.
+Migrations run on SQLite and Postgres alike. Every progress write path
+keeps the columns, including the three whole-row batch rewrites
+(weakness propagation, prerequisite credit, placement) and `mathua
+repair`, which rebuilds a row from attempts but copies the FSRS state;
+`fsrs_roundtrip_test.go` in `internal/storage` (both stores) and
+`internal/engine` holds each path. Reset and account deletion drop the
+log with the rows.
+
+**Replay and the doctor.** `review.Replay(log)` rebuilds a topic's state
+from its log and must reproduce the stored row exactly.
+`scripts/fsrs_doctor -db <path> [-student id] [-json]` (read-only, on a
+copy) reports orphaned state, S <= 0 or NaN, D out of range, a state
+without a log or a log without a row, a topic the review session would
+serve that the due rule excludes (or the reverse), and a stored state
+that differs from its replay; exit 1 on findings. The daily QA run calls
+it. `MATHUA_ROOT` must name the install.
+
+```bash
+MATHUA_ROOT=$PWD go run ./scripts/fsrs_doctor -db snapshot.db
+```
+
 ## Learning reports
 
 `scripts/learning_report.py` reads a copy of the app's database and writes a
