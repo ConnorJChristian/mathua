@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"math"
 	"strings"
 	"time"
@@ -169,7 +170,7 @@ func (e *Engine) explainRecommendations(res *scheduler.RecommendationResponse, s
 // review session.
 func (e *Engine) questionReason(studentID, conceptID string, isReview bool, progress map[string]*storage.ConceptProgress) string {
 	if isReview {
-		return reviewDueReason(progress[conceptID], time.Now())
+		return reviewDueReason(progress[conceptID], clock.Now())
 	}
 	for _, p := range e.Pins(studentID) {
 		if p.Concept == conceptID {

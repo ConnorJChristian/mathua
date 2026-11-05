@@ -2,8 +2,8 @@ package engine
 
 import (
 	"encoding/json"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"sort"
-	"time"
 )
 
 // Fork change: this week's pins. C picks the present week's topics by hand
@@ -58,7 +58,7 @@ func (e *Engine) SetPins(studentID string, concepts []string) ([]Pin, error) {
 	for _, p := range e.Pins(studentID) {
 		since[p.Concept] = p.Since
 	}
-	today := time.Now().Format("2006-01-02")
+	today := clock.Now().Format("2006-01-02")
 	var pins []Pin
 	seen := map[string]bool{}
 	for _, id := range concepts {

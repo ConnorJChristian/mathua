@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"github.com/chuma-beep/mathua/internal/clock"
 	"math"
 	"sort"
 	"time"
@@ -74,7 +75,7 @@ func (s *Scheduler) Next(
 	prevConceptID string,
 	sessionReviewCount, sessionNewCount int,
 ) *NextConcept {
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 
 	candidates := buildCandidates(s.dag, snapshots, now, prevConceptID)
 	if len(candidates) == 0 && prevConceptID != "" {
@@ -126,7 +127,7 @@ func (s *Scheduler) NextSmartPlanned(
 	skip map[string]bool,
 	rank map[string]int,
 ) []NextConcept {
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	candidates := buildCandidatesAdvanced(s.dag, snapshots, now, prevConceptIDs, weakness, skip)
 	if len(rank) > 0 {
 		n := float64(len(rank) + 1)
@@ -352,7 +353,7 @@ func (s *Scheduler) NextReviewSkipping(
 	prevConceptID string,
 	skip map[string]bool,
 ) *NextConcept {
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	candidates := buildCandidates(s.dag, snapshots, now, prevConceptID)
 	if len(candidates) == 0 && prevConceptID != "" {
 		candidates = buildCandidates(s.dag, snapshots, now, "")
@@ -431,5 +432,5 @@ func daysSince(t time.Time) float64 {
 	if t.IsZero() {
 		return 999
 	}
-	return time.Since(t).Hours() / 24
+	return clock.Since(t).Hours() / 24
 }

@@ -18,6 +18,20 @@
 // onboarding diagnostic for the followed courses on a throwaway copy; -json
 // writes every serve as a JSON line to the named file; -seed fixes the
 // learner's luck. MATHUA_REVIEW_FLOOR_DOMAINS applies as it does in the server.
+//
+// The replay is deterministic (FSRS Phase 2): -seed fixes every random
+// source, and the engine reads a simulated clock (internal/clock) that
+// stands at -now at the start of every session and moves a fixed step
+// before each answer; between sessions the copy is aged one day. Two runs
+// with the same snapshot, seed and -now print the same report and write the
+// same -json, -surfaces and -dump files, byte for byte. -fsrs off|shadow
+// runs the engine in that FSRS mode (default: MATHUA_FSRS); -surfaces
+// writes, per session, what every surface shows (the review queue, the due
+// count, Up next and its reasons, the mixed session, pacing, plan order,
+// the gate, the mastery check's picks, XP and the progress view);
+// -dump writes the final database as sorted text (-dump-fsrs=false leaves
+// out the fsrs_* columns and review_log, for comparing off with shadow);
+// -out-db keeps the replayed copy.
 package main
 
 import (
@@ -34,6 +48,7 @@ import (
 	"time"
 
 	"github.com/chuma-beep/mathua/internal/books"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/diagnostic"
 	"github.com/chuma-beep/mathua/internal/engine"
@@ -43,6 +58,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/planning"
 	"github.com/chuma-beep/mathua/internal/pytrack"
+	"github.com/chuma-beep/mathua/internal/review"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/storage"
 )
@@ -81,6 +97,13 @@ type replay struct {
 	missed   map[string]bool            // topics missed on the last mastery check
 	serves   []Serve
 	logw     io.Writer
+	surfw    io.Writer // -surfaces: one JSON line per session, or nil
+
+	// sim is the simulated clock (nil: the wall clock, as the tests use):
+	// it stands at base when a session starts and moves answerStep before
+	// each answer.
+	sim  *clock.Sim
+	base time.Time
 
 	// The served-order check (FORK.md, "The order of practice inside a
 	// topic"): lessons checked and out of order.
@@ -145,21 +168,87 @@ func main() {
 	orderCourse := flag.String("order-course", "", "with -order-topics: the course the lessons are opened from (default: the followed courses that list the topic)")
 	orderRounds := flag.Int("order-rounds", 8, "with -order-topics: lesson batches of 3 per topic")
 	coverage := flag.String("coverage", "", "write a Markdown report of each course's topics with parallel-book items, and from which books, here")
+	nowFlag := flag.String("now", "", "the simulated time each session starts at (RFC3339; default: 17:00 UTC on the day after the learner's last attempt)")
+	fsrsFlag := flag.String("fsrs", "", "FSRS mode for the replay: off, shadow or active (default: MATHUA_FSRS)")
+	surfaces := flag.String("surfaces", "", "write what every surface shows, one JSON line per session, here")
+	dump := flag.String("dump", "", "write the final database as sorted text here")
+	dumpFSRS := flag.Bool("dump-fsrs", true, "with -dump: include the fsrs_* columns and review_log")
+	outDB := flag.String("out-db", "", "keep the replayed database copy here")
+	fresh := flag.String("fresh", "", "replay a fresh learner placed into these courses (comma-separated ids) on an empty database instead of -db/-student")
 	flag.Parse()
-	if *dbPath == "" || *sid == "" {
-		fmt.Fprintln(os.Stderr, "usage: replay_audit -db copy.db -student ID [-sessions N]")
+	if (*dbPath == "" || *sid == "") && *fresh == "" {
+		fmt.Fprintln(os.Stderr, "usage: replay_audit -db copy.db -student ID [-sessions N] | -fresh course[,course]")
 		os.Exit(2)
 	}
-	work, err := freshCopy(*dbPath)
+	var work string
+	var err error
+	if *fresh != "" {
+		// A fresh learner, created under the seed and the clock so the run
+		// repeats: placed into the courses (placement and the onboarding
+		// diagnostic), then the sessions.
+		engine.SetDeterministicSeed(*seed)
+		at := freshStart
+		if *nowFlag != "" {
+			if at, err = time.Parse(time.RFC3339, *nowFlag); err != nil {
+				fmt.Fprintln(os.Stderr, "-now:", err)
+				os.Exit(2)
+			}
+		}
+		restore := clock.NewSim(at).Install()
+		work, *sid, err = freshLearner()
+		restore()
+		*placement = true
+	} else {
+		work, err = freshCopy(*dbPath)
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	defer os.RemoveAll(filepath.Dir(work))
-	r, err := open(work, *sid, *seed)
+	base, err := startTime(work, *sid, *nowFlag)
+	if *fresh != "" && *nowFlag == "" {
+		base = freshStart
+	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+	// The clock is installed before the engine is built: nothing the
+	// replay does reads the wall clock.
+	sim := clock.NewSim(base)
+	defer sim.Install()()
+	mode, merr := review.CurrentMode()
+	if *fsrsFlag != "" {
+		mode, merr = review.ParseMode(*fsrsFlag)
+	}
+	if merr != nil {
+		fmt.Fprintln(os.Stderr, merr)
+		os.Exit(2)
+	}
+	r, err := open(work, *sid, *seed)
+	if err == nil && *fresh != "" {
+		// Follow the courses, then reopen with them followed (own topics,
+		// floor), as the fresh-learner test does.
+		if _, err = r.eng.SetActiveCourses(*sid, strings.Split(*fresh, ",")); err == nil {
+			r, err = open(work, *sid, *seed)
+		}
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	r.sim, r.base = sim, base
+	r.eng.SetFSRSMode(mode)
+	fmt.Printf("clock %s, fsrs %s\n", base.Format(time.RFC3339), mode)
+	if *surfaces != "" {
+		f, err := os.Create(*surfaces)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		r.surfw = f
 	}
 	if *jsonOut != "" {
 		f, err := os.Create(*jsonOut)
@@ -187,14 +276,106 @@ func main() {
 	if *placement {
 		r.replayPlacement()
 	}
-	for s := 1; s <= *n; s++ {
-		r.session(s)
-		if err := r.ageOneDay(); err != nil {
-			fmt.Fprintln(os.Stderr, "age:", err)
+	if err := r.runSessions(*n); err != nil {
+		fmt.Fprintln(os.Stderr, "age:", err)
+		os.Exit(1)
+	}
+	r.report()
+	if *dump != "" {
+		if err := dumpDB(r.db, *dump, *dumpFSRS); err != nil {
+			fmt.Fprintln(os.Stderr, "dump:", err)
 			os.Exit(1)
 		}
 	}
-	r.report()
+	if *outDB != "" {
+		os.Remove(*outDB)
+		if _, err := r.db.Exec("VACUUM INTO ?", *outDB); err != nil {
+			fmt.Fprintln(os.Stderr, "out-db:", err)
+			os.Exit(1)
+		}
+	}
+}
+
+// answerStep is how far the simulated clock moves before each answer.
+const answerStep = 20 * time.Second
+
+// tick moves the simulated clock one answer on (nothing on the wall clock).
+func (r *replay) tick() {
+	if r.sim != nil {
+		r.sim.Advance(answerStep)
+	}
+}
+
+// runSessions replays n sessions, one a day: each starts with the clock at
+// base, and the copy is aged a day after it, so the next is tomorrow.
+func (r *replay) runSessions(n int) error {
+	for s := 1; s <= n; s++ {
+		if r.sim != nil {
+			r.sim.Set(r.base)
+		}
+		r.session(s)
+		if err := r.ageOneDay(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// freshStart is when a -fresh learner is created and placed.
+var freshStart = time.Date(2026, 11, 5, 17, 0, 0, 0, time.UTC)
+
+// freshLearner creates an empty database in a new temporary directory with
+// one learner, and returns its path and the id; main has the engine set the
+// courses (SetActiveCourses) and reopens.
+func freshLearner() (string, string, error) {
+	dir, err := os.MkdirTemp("", "replay_audit-")
+	if err != nil {
+		return "", "", err
+	}
+	db := filepath.Join(dir, "replay.db")
+	store, err := storage.NewSQLiteStore(db)
+	if err != nil {
+		return "", "", err
+	}
+	defer store.Close()
+	st, err := store.CreateStudent("fresh")
+	if err != nil {
+		return "", "", err
+	}
+	return db, st.ID, nil
+}
+
+// startTime is the simulated time sessions start at: -now when given, else
+// 17:00 UTC (morning in the learner's zone) on the day after the learner's
+// last attempt, so a snapshot replays from where it stopped and the run
+// does not depend on the day it is made.
+func startTime(dbPath, sid, flagNow string) (time.Time, error) {
+	if flagNow != "" {
+		t, err := time.Parse(time.RFC3339, flagNow)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("-now: %w", err)
+		}
+		return t.UTC(), nil
+	}
+	db, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return time.Time{}, err
+	}
+	defer db.Close()
+	var last sql.NullString
+	if err := db.QueryRow(`select max(timestamp) from attempts where student_id = ?`, sid).Scan(&last); err != nil {
+		return time.Time{}, fmt.Errorf("last attempt: %w", err)
+	}
+	day := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	if last.Valid && last.String != "" {
+		for _, layout := range []string{time.RFC3339Nano, "2006-01-02 15:04:05"} {
+			if t, err := time.Parse(layout, last.String); err == nil {
+				day = t.UTC().Truncate(24 * time.Hour)
+				break
+			}
+		}
+	}
+	return day.Add(24*time.Hour + 17*time.Hour), nil
 }
 
 // freshCopy copies a snapshot into a new temporary directory. A snapshot is
@@ -351,13 +532,15 @@ func (r *replay) session(n int) {
 
 	// What is due, read from every surface (surfaces.go): a disagreement
 	// is a bad serve of its own.
-	if rep := r.dueSurfaces(); len(rep.Disagreements) > 0 {
+	rep := r.dueSurfaces()
+	if len(rep.Disagreements) > 0 {
 		cid := ""
 		if len(rep.Due) > 0 {
 			cid = rep.Due[0]
 		}
 		note(Serve{Surface: "due", Concept: cid, Why: rep.String(), Flags: []string{"surfaces disagree on due: " + strings.Join(rep.Disagreements, "; ")}})
 	}
+	r.writeSurfaces(n, rep)
 
 	// Up next: the Study queue.
 	rec, err := r.eng.RecommendNext(r.sid, nil)
@@ -412,6 +595,7 @@ func (r *replay) session(n int) {
 				} else {
 					misses = 0
 				}
+				r.tick()
 				r.eng.SubmitStudyAnswer(r.sid, cid, r.answerFor(p.Answer, ok), 20, p.Question)
 			}
 		}
@@ -469,6 +653,7 @@ func (r *replay) session(n int) {
 					r.missed[c.ID] = true
 				}
 				d := 0.8
+				r.tick()
 				r.eng.SubmitQuizAnswer(r.sid, c.ID, r.answerFor(p.Answer, ok), p.Answer, 20, p.Question, &d)
 			}
 			r.eng.RecordQuizCompletion(r.sid)
@@ -522,6 +707,7 @@ func (r *replay) answerSession(sessionID string, q *engine.Question, correct boo
 	if !ok {
 		return
 	}
+	r.tick()
 	r.eng.SubmitAnswer(sessionID, r.sid, q.AttemptID, r.answerFor(key, correct), 15)
 }
 
@@ -626,6 +812,7 @@ func (r *replay) runDiagnostic(sess *diagnostic.Session, q *engine.Question, sur
 		if c != nil {
 			thresh = c.MasteryThreshold.AvgTimeSeconds
 		}
+		r.tick()
 		r.eng.SubmitDiagnosticAnswerTimed(sess, q.ConceptID, true, thresh/2, thresh)
 		if r.eng.IsDiagnosticComplete(sess) {
 			break
@@ -756,7 +943,7 @@ func (r *replay) prereqsMet(c *concepts.Concept, progress map[string]*storage.Co
 		}
 		days := 999.0
 		if p.LastReviewed != nil {
-			days = time.Since(*p.LastReviewed).Hours() / 24
+			days = clock.Since(*p.LastReviewed).Hours() / 24
 		}
 		st := mastery.EffectiveStatus(mastery.Status(p.Status), days, mastery.DecayDays)
 		if st != mastery.StatusMastered && st != "DECAYING" {

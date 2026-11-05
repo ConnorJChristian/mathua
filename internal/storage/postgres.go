@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"log"
 	"sort"
 	"strings"
@@ -580,7 +581,7 @@ func (s *PostgresStore) Close() error {
 
 func (s *PostgresStore) CreateStudent(name string) (*Student, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO students (id, name, settings, created_at) VALUES ($1, $2, '{}', $3)",
 		id, name, now.Format(time.RFC3339),
@@ -599,7 +600,7 @@ func (s *PostgresStore) ClaimGuestStudent(id, name string) (*Student, error) {
 	if name == "" {
 		name = "Guest"
 	}
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO students (id, name, settings, created_at) VALUES ($1, $2, '{}', $3) ON CONFLICT (id) DO NOTHING",
 		id, name, now.Format(time.RFC3339),
@@ -619,7 +620,7 @@ func (s *PostgresStore) ClaimGuestStudent(id, name string) (*Student, error) {
 
 func (s *PostgresStore) CreateUser(name, username, passwordHash string) (*Student, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO students (id, name, username, password_hash, settings, created_at) VALUES ($1, $2, $3, $4, '{}', $5)",
 		id, name, username, passwordHash, now.Format(time.RFC3339),
@@ -660,7 +661,7 @@ func (s *PostgresStore) FindByEmail(email string) (*Student, error) {
 
 func (s *PostgresStore) CreateGoogleUser(name, email, googleID, avatarURL string) (*Student, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO students (id, name, email, email_verified, google_id, avatar_url, settings, created_at) VALUES ($1, $2, $3, 1, $4, $5, '{}', $6)",
 		id, name, email, googleID, avatarURL, now.Format(time.RFC3339),
@@ -810,7 +811,7 @@ func (s *PostgresStore) SetAvatarURL(studentID, avatarURL string) error {
 
 func (s *PostgresStore) CreateOAuthUser(provider, providerID, name, email string, emailVerified bool, avatarURL string) (*Student, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	ev := 0
 	if emailVerified {
 		ev = 1
@@ -866,7 +867,7 @@ func (s *PostgresStore) AwardXP(studentID string, amount int, reason, eventKey s
 		INSERT INTO xp_events (student_id, amount, reason, event_key, created_at)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (student_id, event_key) DO NOTHING
-	`, studentID, amount, reason, eventKey, time.Now().UTC().UnixNano())
+	`, studentID, amount, reason, eventKey, clock.Now().UTC().UnixNano())
 	if err != nil {
 		return fmt.Errorf("award xp: insert event: %w", err)
 	}
@@ -874,7 +875,7 @@ func (s *PostgresStore) AwardXP(studentID string, amount int, reason, eventKey s
 		return tx.Commit()
 	}
 
-	today := time.Now().UTC().Format("2006-01-02")
+	today := clock.Now().UTC().Format("2006-01-02")
 	if _, err := tx.Exec(`
 		UPDATE students
 		SET xp_total = GREATEST(0, xp_total + $1),
@@ -923,7 +924,7 @@ func (s *PostgresStore) GetXP(studentID string) (int, int, error) {
 		}
 		return 0, 0, fmt.Errorf("get xp: %w", err)
 	}
-	if xpDate.String != time.Now().UTC().Format("2006-01-02") {
+	if xpDate.String != clock.Now().UTC().Format("2006-01-02") {
 		today.Int64 = 0
 	}
 	return int(total.Int64), int(today.Int64), nil
@@ -932,7 +933,7 @@ func (s *PostgresStore) GetXP(studentID string) (int, int, error) {
 func (s *PostgresStore) SetDiagnosticCompleted(studentID string) error {
 	_, err := s.db.Exec(
 		"UPDATE students SET diagnostic_completed = 1, diagnostic_completed_at = CASE WHEN diagnostic_completed_at = '' THEN $1 ELSE diagnostic_completed_at END WHERE id = $2",
-		time.Now().UTC().Format(time.RFC3339), studentID,
+		clock.Now().UTC().Format(time.RFC3339), studentID,
 	)
 	if err != nil {
 		return fmt.Errorf("set diagnostic_completed: %w", err)
@@ -1257,7 +1258,7 @@ func (s *PostgresStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 
 func (s *PostgresStore) CreateSession(studentID string) (*Session, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO sessions (id, student_id, started_at) VALUES ($1, $2, $3)",
 		id, studentID, now.Format(time.RFC3339),
@@ -1305,12 +1306,12 @@ func (s *PostgresStore) EnsureSession(id, studentID string) error {
 func (s *PostgresStore) UpsertServerSession(kind, key, value, expiresAt string) error {
 	_, err := s.db.Exec(`
 		INSERT INTO server_sessions (kind, key, value, expires_at, updated_at)
-		VALUES ($1, $2, $3, $4, now()::text)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT(kind, key) DO UPDATE SET
 			value = EXCLUDED.value,
 			expires_at = EXCLUDED.expires_at,
-			updated_at = now()::text
-	`, kind, key, value, expiresAt)
+			updated_at = EXCLUDED.updated_at
+	`, kind, key, value, expiresAt, pgNow())
 	if err != nil {
 		return fmt.Errorf("upsert server session: %w", err)
 	}
@@ -1405,7 +1406,7 @@ func (s *PostgresStore) SweepServerSessions() error {
 	defer rows.Close()
 	type entry struct{ kind, key string }
 	var expired []entry
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	for rows.Next() {
 		var k, key, exp string
 		if err := rows.Scan(&k, &key, &exp); err != nil {
@@ -1456,7 +1457,7 @@ func (s *PostgresStore) GetActiveSession(sessionID string) (*ActiveSession, erro
 }
 
 func (s *PostgresStore) UpsertActiveSession(a *ActiveSession) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := clock.Now().UTC().Format(time.RFC3339)
 	_, err := s.db.Exec(`
 		INSERT INTO active_sessions
 			(session_id, student_id, concept_id, concept_name, expected_answer,
@@ -1855,7 +1856,7 @@ func (s *PostgresStore) PurgeGeneratedQuestions(conceptIDs map[string]bool) (int
 // Leaderboard
 
 func (s *PostgresStore) GetWeeklyLeaderboard() ([]LeaderboardRow, error) {
-	monday := weekStart(time.Now().UTC())
+	monday := weekStart(clock.Now().UTC())
 	rows, err := s.db.Query(`
 		SELECT s.id, s.name, s.username, s.avatar_url, s.settings,
 			COUNT(CASE WHEN cp.status = 'MASTERED' THEN 1 END),
@@ -1888,17 +1889,17 @@ func (s *PostgresStore) GetWeeklyLeaderboard() ([]LeaderboardRow, error) {
 // DailyActivity
 
 func (s *PostgresStore) GetDailyActivity(studentID string, days int) ([]DailyActivity, error) {
-	// For postgres, use now() - interval
+	// The window is the clock's (internal/clock), not the database's now().
 	rows, err := s.db.Query(`
 		SELECT date(timestamp::timestamptz)::text as day,
 		       COUNT(*) as total,
 		       COALESCE(SUM(correct), 0) as correct_count,
 		       COALESCE(STRING_AGG(DISTINCT concept_id, ','), '') as concepts
 		FROM attempts
-		WHERE student_id = $1 AND timestamp::timestamptz >= now() - ($2 || ' days')::interval
+		WHERE student_id = $1 AND timestamp::timestamptz >= $2::timestamptz
 		GROUP BY day
 		ORDER BY day
-	`, studentID, fmt.Sprintf("%d", days))
+	`, studentID, clock.Now().UTC().AddDate(0, 0, -days).Format(time.RFC3339))
 	if err != nil {
 		return nil, fmt.Errorf("get daily activity: %w", err)
 	}
@@ -1969,14 +1970,14 @@ func (s *PostgresStore) UpsertTopicSpeed(ts *TopicSpeed) error {
 	}
 	_, err := s.db.Exec(`
 		INSERT INTO student_topic_speed (student_id, concept_id, efactor, interval, repetitions, learning_speed, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, now()::text)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			efactor = EXCLUDED.efactor,
 			interval = EXCLUDED.interval,
 			repetitions = EXCLUDED.repetitions,
 			learning_speed = EXCLUDED.learning_speed,
-			updated_at = now()::text
-	`, ts.StudentID, ts.ConceptID, ts.EFactor, ts.Interval, ts.Repetitions, ts.LearningSpeed)
+			updated_at = EXCLUDED.updated_at
+	`, ts.StudentID, ts.ConceptID, ts.EFactor, ts.Interval, ts.Repetitions, ts.LearningSpeed, pgNow())
 	if err != nil {
 		return fmt.Errorf("upsert topic speed: %w", err)
 	}
@@ -1985,8 +1986,12 @@ func (s *PostgresStore) UpsertTopicSpeed(ts *TopicSpeed) error {
 
 // Batch 1: Quiz 150 XP gate completions.
 
+// pgNow is the clock (internal/clock) in the form now()::text gives with a
+// UTC session, for the rows that used now()::text (sqliteNow's twin).
+func pgNow() string { return clock.Now().UTC().Format("2006-01-02 15:04:05.999999-07") }
+
 func (s *PostgresStore) RecordQuizCompletion(studentID string, xpTotal int) error {
-	if _, err := s.db.Exec(`INSERT INTO quiz_completions (student_id, completed_at, xp_total) VALUES ($1, now()::text, $2)`, studentID, xpTotal); err != nil {
+	if _, err := s.db.Exec(`INSERT INTO quiz_completions (student_id, completed_at, xp_total) VALUES ($1, $2, $3)`, studentID, pgNow(), xpTotal); err != nil {
 		return fmt.Errorf("record quiz completion: %w", err)
 	}
 	return nil
@@ -2014,7 +2019,7 @@ func (s *PostgresStore) CreateReport(r QuestionReport) (int64, error) {
 	}
 	created := r.CreatedAt.UTC().Format(time.RFC3339)
 	if r.CreatedAt.IsZero() {
-		created = time.Now().UTC().Format(time.RFC3339)
+		created = clock.Now().UTC().Format(time.RFC3339)
 	}
 	var id int64
 	err := s.db.QueryRow(`
@@ -2049,7 +2054,7 @@ func (s *PostgresStore) ImportReport(originID string, r QuestionReport) (bool, e
 	}
 	created := r.CreatedAt.UTC().Format(time.RFC3339)
 	if r.CreatedAt.IsZero() {
-		created = time.Now().UTC().Format(time.RFC3339)
+		created = clock.Now().UTC().Format(time.RFC3339)
 	}
 	res, err := s.db.Exec(`
 		INSERT INTO question_reports
@@ -2387,7 +2392,7 @@ func (s *PostgresStore) SetRoleAudited(actorID, studentID string, role Role) (Ro
 		`INSERT INTO admin_audit (actor_id, action, entity_type, entity_id, before_json, after_json, created_at)
 		 VALUES ($1, $2, 'user', $3, $4, $5, $6)`,
 		actorID, action, studentID, string(beforeJSON), string(afterJSON),
-		time.Now().UTC().Format(time.RFC3339)); err != nil {
+		clock.Now().UTC().Format(time.RFC3339)); err != nil {
 		return RoleChange{}, fmt.Errorf("record audit: %w", err)
 	}
 
@@ -2411,7 +2416,7 @@ func (s *PostgresStore) RecordXPEvent(studentID string, amount int, reason, even
 	res, err := s.db.Exec(`INSERT INTO xp_events (student_id, amount, reason, event_key, created_at)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (student_id, event_key) DO NOTHING`,
-		studentID, amount, reason, eventKey, time.Now().UTC().UnixNano())
+		studentID, amount, reason, eventKey, clock.Now().UTC().UnixNano())
 	if err != nil {
 		return false, fmt.Errorf("record xp event: %w", err)
 	}
@@ -2456,7 +2461,7 @@ func (s *PostgresStore) RecordDiagnosticAttempt(attemptID, response string) erro
 	_, err := s.db.Exec(
 		`INSERT INTO diagnostic_answers (attempt_id, response, created_at) VALUES ($1, $2, $3)
 		 ON CONFLICT (attempt_id) DO NOTHING`,
-		attemptID, response, time.Now().UTC().UnixNano())
+		attemptID, response, clock.Now().UTC().UnixNano())
 	if err != nil {
 		return fmt.Errorf("record diagnostic attempt: %w", err)
 	}

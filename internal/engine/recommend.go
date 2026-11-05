@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"sort"
 	"strings"
 	"time"
@@ -94,7 +95,7 @@ func (e *Engine) ReviewsDueTrack(studentID, track string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("load progress: %w", err)
 	}
-	return len(e.DueReviewIDs(studentID, track, progress, time.Now())), nil
+	return len(e.DueReviewIDs(studentID, track, progress, clock.Now())), nil
 }
 
 // DueReviewIDs is the one answer to "what is due for review" (fork change,
@@ -181,7 +182,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	sched := e.offerScheduler(track)
 	if studentID == "" {
 		return sched.Recommend(scheduler.RecommendInput{
-			Now: time.Now(), Weakness: map[string]float64{},
+			Now: clock.Now(), Weakness: map[string]float64{},
 			DiagnosticCompleted: noPlacement,
 		}), nil
 	}
@@ -191,7 +192,7 @@ func (e *Engine) RecommendNextTrack(studentID string, exclude []string, track st
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
 	weakness := e.weaknessMapFromProgress(progress)
-	now := time.Now()
+	now := clock.Now()
 	dueIDs := e.DueReviewIDs(studentID, track, progress, now)
 	due := len(dueIDs)
 	dueSet := make(map[string]bool, due)
@@ -315,7 +316,7 @@ func (e *Engine) pacedOrder(studentID string, progress map[string]*storage.Conce
 		p := progress[id]
 		return p != nil && mastery.EffectiveStatus(mastery.Status(p.Status), daysSinceReview(p.LastReviewed), mastery.DecayDays) == mastery.StatusMastered
 	}
-	return e.planner.PlansOrderPaced(ActiveCourses(st.CourseID), done, time.Now())
+	return e.planner.PlansOrderPaced(ActiveCourses(st.CourseID), done, clock.Now())
 }
 
 // courseShortName drops the ": study plan" a course name ends with.
@@ -448,7 +449,7 @@ func daysSinceReview(t *time.Time) float64 {
 	if t == nil || t.IsZero() {
 		return 999
 	}
-	return time.Since(*t).Hours() / 24
+	return clock.Since(*t).Hours() / 24
 }
 
 // RecommendPaused is what a paused learner is told. Reviews are hidden while paused (ADR-022
@@ -472,6 +473,6 @@ func (e *Engine) RecommendPaused(studentID string) scheduler.RecommendationRespo
 			CTA:    "Change or resume →",
 		},
 		Alternatives: []scheduler.Recommendation{},
-		GeneratedAt:  time.Now().UTC(),
+		GeneratedAt:  clock.Now().UTC(),
 	}
 }

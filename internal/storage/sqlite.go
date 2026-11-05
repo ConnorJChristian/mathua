@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"log"
 	"sort"
 	"strings"
@@ -253,7 +254,7 @@ func (s *SQLiteStore) Close() error {
 
 func (s *SQLiteStore) CreateStudent(name string) (*Student, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO students (id, name, settings, created_at) VALUES (?, ?, '{}', ?)",
 		id, name, now.Format(time.RFC3339),
@@ -272,7 +273,7 @@ func (s *SQLiteStore) ClaimGuestStudent(id, name string) (*Student, error) {
 	if name == "" {
 		name = "Guest"
 	}
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT OR IGNORE INTO students (id, name, settings, created_at) VALUES (?, ?, '{}', ?)",
 		id, name, now.Format(time.RFC3339),
@@ -292,7 +293,7 @@ func (s *SQLiteStore) ClaimGuestStudent(id, name string) (*Student, error) {
 
 func (s *SQLiteStore) CreateUser(name, username, passwordHash string) (*Student, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO students (id, name, username, password_hash, settings, created_at) VALUES (?, ?, ?, ?, '{}', ?)",
 		id, name, username, passwordHash, now.Format(time.RFC3339),
@@ -351,7 +352,7 @@ func scanStudent(row interface{ Scan(...interface{}) error }) (*Student, error) 
 	if createdAt != "" {
 		st.CreatedAt, err = time.Parse(time.RFC3339, createdAt)
 		if err != nil {
-			st.CreatedAt = time.Now()
+			st.CreatedAt = clock.Now()
 		}
 	}
 	return &st, nil
@@ -387,7 +388,7 @@ func (s *SQLiteStore) FindByEmail(email string) (*Student, error) {
 
 func (s *SQLiteStore) CreateGoogleUser(name, email, googleID, avatarURL string) (*Student, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO students (id, name, email, email_verified, google_id, avatar_url, settings, created_at) VALUES (?, ?, ?, 1, ?, ?, '{}', ?)",
 		id, name, email, googleID, avatarURL, now.Format(time.RFC3339),
@@ -542,7 +543,7 @@ func (s *SQLiteStore) SetAvatarURL(studentID, avatarURL string) error {
 
 func (s *SQLiteStore) CreateOAuthUser(provider, providerID, name, email string, emailVerified bool, avatarURL string) (*Student, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	ev := 0
 	if emailVerified {
 		ev = 1
@@ -600,7 +601,7 @@ func (s *SQLiteStore) AwardXP(studentID string, amount int, reason, eventKey str
 		INSERT INTO xp_events (student_id, amount, reason, event_key, created_at)
 		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(student_id, event_key) DO NOTHING
-	`, studentID, amount, reason, eventKey, time.Now().UTC().UnixNano())
+	`, studentID, amount, reason, eventKey, clock.Now().UTC().UnixNano())
 	if err != nil {
 		return fmt.Errorf("award xp: insert event: %w", err)
 	}
@@ -610,7 +611,7 @@ func (s *SQLiteStore) AwardXP(studentID string, amount int, reason, eventKey str
 		return tx.Commit()
 	}
 
-	today := time.Now().UTC().Format("2006-01-02")
+	today := clock.Now().UTC().Format("2006-01-02")
 	if _, err := tx.Exec(`
 		UPDATE students
 		SET xp_total = MAX(0, xp_total + ?),
@@ -659,7 +660,7 @@ func (s *SQLiteStore) GetXP(studentID string) (int, int, error) {
 		}
 		return 0, 0, fmt.Errorf("get xp: %w", err)
 	}
-	if xpDate.String != time.Now().UTC().Format("2006-01-02") {
+	if xpDate.String != clock.Now().UTC().Format("2006-01-02") {
 		today.Int64 = 0
 	}
 	return int(total.Int64), int(today.Int64), nil
@@ -668,7 +669,7 @@ func (s *SQLiteStore) GetXP(studentID string) (int, int, error) {
 func (s *SQLiteStore) SetDiagnosticCompleted(studentID string) error {
 	_, err := s.db.Exec(
 		"UPDATE students SET diagnostic_completed = 1, diagnostic_completed_at = CASE WHEN diagnostic_completed_at = '' THEN ? ELSE diagnostic_completed_at END WHERE id = ?",
-		time.Now().UTC().Format(time.RFC3339), studentID,
+		clock.Now().UTC().Format(time.RFC3339), studentID,
 	)
 	if err != nil {
 		return fmt.Errorf("set diagnostic_completed: %w", err)
@@ -994,7 +995,7 @@ func (s *SQLiteStore) UpsertProgressBatch(ps []*ConceptProgress) error {
 
 func (s *SQLiteStore) CreateSession(studentID string) (*Session, error) {
 	id := newUUID()
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	_, err := s.db.Exec(
 		"INSERT INTO sessions (id, student_id, started_at) VALUES (?, ?, ?)",
 		id, studentID, now.Format(time.RFC3339),
@@ -1028,7 +1029,7 @@ func (s *SQLiteStore) GetSession(id string) (*Session, error) {
 func (s *SQLiteStore) EnsureSession(id, studentID string) error {
 	_, err := s.db.Exec(
 		"INSERT OR IGNORE INTO sessions (id, student_id, started_at) VALUES (?, ?, ?)",
-		id, studentID, time.Now().UTC().Format(time.RFC3339),
+		id, studentID, clock.Now().UTC().Format(time.RFC3339),
 	)
 	if err != nil {
 		return fmt.Errorf("ensure session: %w", err)
@@ -1041,12 +1042,12 @@ func (s *SQLiteStore) EnsureSession(id, studentID string) error {
 func (s *SQLiteStore) UpsertServerSession(kind, key, value, expiresAt string) error {
 	_, err := s.db.Exec(`
 		INSERT INTO server_sessions (kind, key, value, expires_at, updated_at)
-		VALUES (?, ?, ?, ?, datetime('now'))
+		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(kind, key) DO UPDATE SET
 			value = excluded.value,
 			expires_at = excluded.expires_at,
-			updated_at = datetime('now')
-	`, kind, key, value, expiresAt)
+			updated_at = excluded.updated_at
+	`, kind, key, value, expiresAt, sqliteNow())
 	if err != nil {
 		return fmt.Errorf("upsert server session: %w", err)
 	}
@@ -1131,7 +1132,7 @@ func (s *SQLiteStore) SweepServerSessions() error {
 	defer rows.Close()
 	type entry struct{ kind, key string }
 	var expired []entry
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	for rows.Next() {
 		var k, key, exp string
 		if err := rows.Scan(&k, &key, &exp); err != nil {
@@ -1199,7 +1200,7 @@ func (s *SQLiteStore) GetActiveSession(sessionID string) (*ActiveSession, error)
 }
 
 func (s *SQLiteStore) UpsertActiveSession(a *ActiveSession) error {
-	now := time.Now().UTC().Format(time.RFC3339)
+	now := clock.Now().UTC().Format(time.RFC3339)
 	_, err := s.db.Exec(`
 		INSERT INTO active_sessions
 			(session_id, student_id, concept_id, concept_name, expected_answer,
@@ -1571,7 +1572,7 @@ func (s *SQLiteStore) ImportQuestions(qs []Question) error {
 // Leaderboard
 
 func (s *SQLiteStore) GetWeeklyLeaderboard() ([]LeaderboardRow, error) {
-	monday := weekStart(time.Now().UTC())
+	monday := weekStart(clock.Now().UTC())
 	// Single scan: aggregate per student in one GROUP BY instead of two
 	// correlated COUNT subqueries per row.
 	rows, err := s.db.Query(`
@@ -1606,17 +1607,16 @@ func (s *SQLiteStore) GetWeeklyLeaderboard() ([]LeaderboardRow, error) {
 // DailyActivity
 
 func (s *SQLiteStore) GetDailyActivity(studentID string, days int) ([]DailyActivity, error) {
-	limit := fmt.Sprintf("-%d days", days)
 	rows, err := s.db.Query(`
 		SELECT date(timestamp) as day,
 		       COUNT(*) as total,
 		       COALESCE(SUM(correct), 0) as correct_count,
 		       COALESCE(GROUP_CONCAT(DISTINCT concept_id), '') as concepts
 		FROM attempts
-		WHERE student_id = ? AND timestamp >= datetime('now', ?)
+		WHERE student_id = ? AND timestamp >= ?
 		GROUP BY day
 		ORDER BY day
-	`, studentID, limit)
+	`, studentID, clock.Now().UTC().AddDate(0, 0, -days).Format("2006-01-02 15:04:05"))
 	if err != nil {
 		return nil, fmt.Errorf("get daily activity: %w", err)
 	}
@@ -1687,14 +1687,14 @@ func (s *SQLiteStore) UpsertTopicSpeed(ts *TopicSpeed) error {
 	}
 	_, err := s.db.Exec(`
 		INSERT INTO student_topic_speed (student_id, concept_id, efactor, interval, repetitions, learning_speed, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(student_id, concept_id) DO UPDATE SET
 			efactor = excluded.efactor,
 			interval = excluded.interval,
 			repetitions = excluded.repetitions,
 			learning_speed = excluded.learning_speed,
-			updated_at = datetime('now')
-	`, ts.StudentID, ts.ConceptID, ts.EFactor, ts.Interval, ts.Repetitions, ts.LearningSpeed)
+			updated_at = excluded.updated_at
+	`, ts.StudentID, ts.ConceptID, ts.EFactor, ts.Interval, ts.Repetitions, ts.LearningSpeed, sqliteNow())
 	if err != nil {
 		return fmt.Errorf("upsert topic speed: %w", err)
 	}
@@ -1703,8 +1703,13 @@ func (s *SQLiteStore) UpsertTopicSpeed(ts *TopicSpeed) error {
 
 // Batch 1: Quiz 150 XP gate completions.
 
+// sqliteNow is the clock (internal/clock) in SQLite's datetime('now') form,
+// "YYYY-MM-DD HH:MM:SS" UTC: rows that used datetime('now') bind it instead,
+// so a replay on a simulated clock writes the same rows every run.
+func sqliteNow() string { return clock.Now().UTC().Format("2006-01-02 15:04:05") }
+
 func (s *SQLiteStore) RecordQuizCompletion(studentID string, xpTotal int) error {
-	if _, err := s.db.Exec(`INSERT INTO quiz_completions (student_id, completed_at, xp_total) VALUES (?, datetime('now'), ?)`, studentID, xpTotal); err != nil {
+	if _, err := s.db.Exec(`INSERT INTO quiz_completions (student_id, completed_at, xp_total) VALUES (?, ?, ?)`, studentID, sqliteNow(), xpTotal); err != nil {
 		return fmt.Errorf("record quiz completion: %w", err)
 	}
 	return nil
@@ -1981,7 +1986,7 @@ func (s *SQLiteStore) UpdateReportStatus(id int64, status string) error {
 
 func formatReportTime(t time.Time) string {
 	if t.IsZero() {
-		return time.Now().UTC().Format(time.RFC3339)
+		return clock.Now().UTC().Format(time.RFC3339)
 	}
 	return t.UTC().Format(time.RFC3339)
 }
@@ -2276,7 +2281,7 @@ func (s *SQLiteStore) SetRoleAudited(actorID, studentID string, role Role) (Role
 		`INSERT INTO admin_audit (actor_id, action, entity_type, entity_id, before_json, after_json, created_at)
 		 VALUES (?, ?, 'user', ?, ?, ?, ?)`,
 		actorID, action, studentID, string(beforeJSON), string(afterJSON),
-		time.Now().UTC().Format(time.RFC3339)); err != nil {
+		clock.Now().UTC().Format(time.RFC3339)); err != nil {
 		return RoleChange{}, fmt.Errorf("record audit: %w", err)
 	}
 
@@ -2301,7 +2306,7 @@ func (s *SQLiteStore) RecordXPEvent(studentID string, amount int, reason, eventK
 	res, err := s.db.Exec(`INSERT INTO xp_events (student_id, amount, reason, event_key, created_at)
 		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(student_id, event_key) DO NOTHING`,
-		studentID, amount, reason, eventKey, time.Now().UTC().UnixNano())
+		studentID, amount, reason, eventKey, clock.Now().UTC().UnixNano())
 	if err != nil {
 		return false, fmt.Errorf("record xp event: %w", err)
 	}
@@ -2350,7 +2355,7 @@ func (s *SQLiteStore) RecordDiagnosticAttempt(attemptID, response string) error 
 	_, err := s.db.Exec(
 		`INSERT INTO diagnostic_answers (attempt_id, response, created_at) VALUES (?, ?, ?)
 		 ON CONFLICT(attempt_id) DO NOTHING`,
-		attemptID, response, time.Now().UTC().UnixNano())
+		attemptID, response, clock.Now().UTC().UnixNano())
 	if err != nil {
 		return fmt.Errorf("record diagnostic attempt: %w", err)
 	}

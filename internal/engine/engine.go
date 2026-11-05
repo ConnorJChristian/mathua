@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"hash/fnv"
 	"log"
 	"math"
@@ -23,6 +24,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/lessons"
 	"github.com/chuma-beep/mathua/internal/mastery"
 	"github.com/chuma-beep/mathua/internal/planning"
+	"github.com/chuma-beep/mathua/internal/review"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/scoring"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -131,7 +133,7 @@ func isFutureRFC3339(exp string) bool {
 	if err != nil {
 		return false
 	}
-	return t.After(time.Now().UTC())
+	return t.After(clock.Now().UTC())
 }
 
 type Question struct {
@@ -258,6 +260,12 @@ type Engine struct {
 	// answer graded across a reset is refused instead of resurrecting wiped
 	// progress (the write-time half of the ADR-026 guarantee).
 	resetGen map[string]uint64
+
+	// fsrsMode is MATHUA_FSRS (review.CurrentMode) unless SetFSRSMode set
+	// another; fsrsRules says which events move FSRS in shadow and active
+	// mode (fsrs_shadow.go). Off writes nothing FSRS.
+	fsrsMode  review.Mode
+	fsrsRules review.Rules
 }
 
 // QuizGateXP is the mastery-check interval. It delegates so there is one definition: the
@@ -290,6 +298,8 @@ func New(repo storage.Repository, dag *concepts.DAG, reg *generator.Registry, ll
 		quizRemedial:  make(map[string][]string),
 		resetGen:      make(map[string]uint64),
 	}
+	e.fsrsMode, _ = review.CurrentMode()
+	e.fsrsRules, _ = review.CurrentRules()
 	attachCards(dag, reg)
 	attachProofs(dag, reg)
 	return e
@@ -395,7 +405,7 @@ func (e *Engine) SetStudyAnchorBatch(studentID, conceptID string, byQuestion map
 	e.mu.Unlock()
 
 	if e.repo != nil {
-		exp := time.Now().UTC().Add(studyAnchorTTL).Format(time.RFC3339)
+		exp := clock.Now().UTC().Add(studyAnchorTTL).Format(time.RFC3339)
 		if err := e.repo.UpsertServerSession(serverSessionStudyExpected, key, string(blob), exp); err != nil {
 			log.Printf("warning: persist study anchor %s: %v", key, err)
 		}
@@ -657,7 +667,7 @@ func (e *Engine) NextQuestion(sessionID, studentID string) (*Question, error) {
 	// come most overdue first across every course and book), as the review
 	// session serves it and the count counts it.
 	if path := e.activePath[studentID]; len(path) > 0 {
-		now := time.Now()
+		now := clock.Now()
 		for cid, snap := range snapshots {
 			if !path[cid] && !(snap.IsDue(now) && !skip[cid]) {
 				skip[cid] = true
@@ -1889,7 +1899,7 @@ func (e *Engine) QuizDue(studentID string) (bool, error) {
 			return true, nil
 		}
 	}
-	if time.Since(lastAt) < quizGateGap() {
+	if clock.Since(lastAt) < quizGateGap() {
 		return false, nil
 	}
 	attempts, err := e.repo.GetAttemptsForStudent(studentID)
@@ -2081,7 +2091,7 @@ func (e *Engine) GetProgress(studentID string) (map[string]*storage.ConceptProgr
 	if err != nil {
 		return nil, err
 	}
-	applyDecay(progress, time.Now().UTC())
+	applyDecay(progress, clock.Now().UTC())
 	return progress, nil
 }
 
@@ -2121,7 +2131,7 @@ func (e *Engine) ProgressWithMasteryPct(studentID string) (map[string]ProgressVi
 	}
 	// The due rule reads the stored status (only MASTERED can be due), so it
 	// runs before decay rewrites the status for display.
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	due := e.DueReviewSet(studentID, progress, now)
 	applyDecay(progress, now)
 	out := make(map[string]ProgressView, len(progress))
@@ -2373,7 +2383,7 @@ func (e *Engine) ApplyGoalResults(studentID string, session *diagnostic.Session)
 	copy(attempts, session.Attempts)
 	session.Unlock()
 	batch := make([]*storage.ConceptProgress, 0, len(attempts))
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	// Fork fix: a correct answer places the learner above everything the
 	// concept rests on, so its prerequisite closure is seeded too (as
 	// reachability only, like the concept itself). The diagnostic tests a
@@ -2825,7 +2835,7 @@ func (e *Engine) GetCurrentQuestion(sessionID, studentID string) (*Question, err
 }
 
 func nowUTC() time.Time {
-	return time.Now().UTC()
+	return clock.Now().UTC()
 }
 
 func (e *Engine) Close() {

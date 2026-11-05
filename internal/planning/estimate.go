@@ -1,6 +1,7 @@
 package planning
 
 import (
+	"github.com/chuma-beep/mathua/internal/clock"
 	"math"
 	"sort"
 	"time"
@@ -131,7 +132,7 @@ func EstimateWorkload(path *Path, progress map[string]*storage.ConceptProgress, 
 	if decay <= 0 {
 		decay = defaultDecayDays
 	}
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	est.DiagnosticMin = opts.DiagnosticMin
 
 	for _, c := range path.Concepts {

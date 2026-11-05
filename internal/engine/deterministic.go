@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/chuma-beep/mathua/internal/scheduler"
+	"github.com/chuma-beep/mathua/internal/storage"
 )
 
 // Deterministic mode, for scripts/replay_audit and tests only (FSRS Phase 1
@@ -12,7 +13,9 @@ import (
 // run to run: the attempt id (crypto/rand) that seeds each generated
 // question, the scheduler's clock-seeded tie-break, and the global
 // math/rand stream the card, proof and scaffold pickers draw from.
-// SetDeterministicSeed fixes all three from one seed. The server never
+// SetDeterministicSeed fixes all three from one seed, and the store's
+// session ids (storage.SetDeterministicIDs, Phase 2: they are part of a
+// review_log idempotency key). The server never
 // calls it: attempt ids stay unguessable crypto/rand tokens there.
 
 var (
@@ -33,6 +36,7 @@ func SetDeterministicSeed(seed int64) {
 	}
 	detMu.Unlock()
 	scheduler.SetTieBreakSeed(seed)
+	storage.SetDeterministicIDs(seed)
 	if seed != 0 {
 		mathrand.Seed(seed) //nolint:staticcheck // effective under godebug randseednop=0
 	}

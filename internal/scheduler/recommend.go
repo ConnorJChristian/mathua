@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"sort"
 	"time"
 
@@ -224,7 +225,7 @@ const (
 func (s *Scheduler) Recommend(in RecommendInput) RecommendationResponse {
 	now := in.Now
 	if now.IsZero() {
-		now = time.Now()
+		now = clock.Now()
 	}
 	resp := RecommendationResponse{Alternatives: []Recommendation{}, GeneratedAt: now}
 

@@ -2,7 +2,7 @@ package engine
 
 import (
 	"fmt"
-	"time"
+	"github.com/chuma-beep/mathua/internal/clock"
 
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/scheduler"
@@ -52,7 +52,7 @@ func (e *Engine) CurriculumDomainsTrack(studentID, track string) ([]DomainSummar
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
 	dag := e.TrackDAG(track)
-	now := time.Now()
+	now := clock.Now()
 	due := e.DueReviewSet(studentID, progress, now)
 	byID := make(map[string]*DomainSummary, len(dag.Domains()))
 	mods := e.Modules()
@@ -91,7 +91,7 @@ func (e *Engine) CurriculumDomain(studentID, domainID string) (*DomainCurriculum
 		return nil, err
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
-	now := time.Now()
+	now := clock.Now()
 	// "Due for review" is the one due rule (DueReviewSet), so this list
 	// agrees with the page's counts and the review session (M1).
 	due := e.DueReviewSet(studentID, progress, now)

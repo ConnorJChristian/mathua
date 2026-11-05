@@ -2,7 +2,7 @@ package engine
 
 import (
 	"fmt"
-	"time"
+	"github.com/chuma-beep/mathua/internal/clock"
 
 	"github.com/chuma-beep/mathua/internal/scheduler"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -46,7 +46,7 @@ func (e *Engine) EligibilityFor(studentID, conceptID string) (*ConceptEligibilit
 		}
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
-	now := time.Now()
+	now := clock.Now()
 	// "Due a check" is the one due rule's answer (DueReviewSet, with the
 	// floor and credit-only exclusions), not the snapshot's IsDue alone.
 	due := e.DueReviewSet(studentID, progress, now)

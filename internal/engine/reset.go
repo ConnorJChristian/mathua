@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"strings"
 	"time"
 )
@@ -92,7 +93,7 @@ func (e *Engine) ResetAccountProgress(studentID, phrase string) error {
 	if prefs == nil {
 		prefs = &StudyPlanPrefs{}
 	}
-	prefs.ResetAt = time.Now().UTC().Format(time.RFC3339)
+	prefs.ResetAt = clock.Now().UTC().Format(time.RFC3339)
 	return e.savePlanPrefs(studentID, prefs)
 }
 

@@ -3,6 +3,7 @@ package diagnostic
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"math"
 	"sort"
 	"sync"
@@ -739,7 +740,7 @@ func (e *Engine) recordTimed(s *Session, conceptID string, correct bool, elapsed
 		Correct:        correct,
 		Fast:           fast,
 		ElapsedSeconds: elapsed,
-		Timestamp:      time.Now().UTC(),
+		Timestamp:      clock.Now().UTC(),
 		DontKnow:       dontKnow,
 		BeliefSnapshot: snapshot,
 	})

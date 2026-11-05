@@ -2,6 +2,7 @@ package scoring
 
 import (
 	"encoding/json"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"math"
 	"time"
 
@@ -52,7 +53,7 @@ func (u *Updater) Compute(studentID string) (*Scores, error) {
 	if err != nil {
 		return nil, err
 	}
-	monday := weekStart(time.Now().UTC())
+	monday := weekStart(clock.Now().UTC())
 
 	mastered := 0
 	weeklyCount := 0
@@ -143,7 +144,7 @@ func pausedUntil(u *Updater, studentID string) string {
 		return ""
 	}
 	t, err := time.Parse("2006-01-02", cfg.PauseUntil)
-	if err != nil || t.Before(time.Now().UTC()) {
+	if err != nil || t.Before(clock.Now().UTC()) {
 		return ""
 	}
 	return cfg.PauseUntil
@@ -162,7 +163,7 @@ func computeSpeedBonus(p *storage.ConceptProgress) float64 {
 
 func computeCurrentStreak(progress map[string]*storage.ConceptProgress) int {
 	streak := 0
-	now := time.Now().UTC()
+	now := clock.Now().UTC()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	check := today
 	for {

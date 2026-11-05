@@ -3,6 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"log"
 	"time"
 
@@ -223,13 +224,13 @@ func (e *Engine) SavePlan(studentID, destID string, dailyGoal, deadlineDays, res
 	snap := &StudyPlanSnapshot{
 		Destination: destID,
 		XPRemaining: resp.Estimate.XPRemaining,
-		Created:     time.Now().UTC().Format(time.RFC3339),
+		Created:     clock.Now().UTC().Format(time.RFC3339),
 	}
 	blob, err := json.Marshal(snap)
 	if err != nil {
 		return nil, err
 	}
-	exp := time.Now().UTC().Add(planSnapshotTTL).Format(time.RFC3339)
+	exp := clock.Now().UTC().Add(planSnapshotTTL).Format(time.RFC3339)
 	if err := e.repo.UpsertServerSession(serverSessionStudyPlan, studentID, string(blob), exp); err != nil {
 		return nil, err
 	}
@@ -242,7 +243,7 @@ func (e *Engine) savePlanPrefs(studentID string, prefs *StudyPlanPrefs) error {
 	if err != nil {
 		return err
 	}
-	exp := time.Now().UTC().Add(planPrefsTTL).Format(time.RFC3339)
+	exp := clock.Now().UTC().Add(planPrefsTTL).Format(time.RFC3339)
 	return e.repo.UpsertServerSession(serverSessionStudyPlanPrefs, studentID, string(blob), exp)
 }
 

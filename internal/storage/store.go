@@ -958,7 +958,9 @@ type Repository interface {
 
 func newUUID() string {
 	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
+	if deterministicIDBytes(b) {
+		// replay_audit's seeded sequence (deterministic.go)
+	} else if _, err := rand.Read(b); err != nil {
 		return fmt.Sprintf("uuid-%x", time.Now().UnixNano())
 	}
 	b[6] = (b[6] & 0x0f) | 0x40

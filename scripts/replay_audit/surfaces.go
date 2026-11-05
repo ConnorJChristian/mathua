@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/chuma-beep/mathua/internal/clock"
 	"github.com/chuma-beep/mathua/internal/scheduler"
 )
 
@@ -45,7 +45,7 @@ func (r *replay) dueSurfaces() dueReport {
 		rep.Disagreements = append(rep.Disagreements, "progress: "+err.Error())
 		return rep
 	}
-	now := time.Now()
+	now := clock.Now()
 	rep.Due = r.eng.DueReviewIDs(r.sid, "", progress, now)
 	rep.Count, _ = r.eng.ReviewsDue(r.sid)
 	dueSet := map[string]bool{}
