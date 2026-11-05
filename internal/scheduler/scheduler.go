@@ -383,6 +383,30 @@ func (s *Scheduler) NextReviewSkipping(
 	return &NextConcept{Concept: reviews[r.Intn(same)].Concept, IsReview: true}
 }
 
+// ReviewCandidates is every topic the review session could serve at now,
+// in its order (most overdue first), with the caller's skip applied: what
+// NextReviewSkipping chooses among, read without serving. fsrs_doctor
+// compares it with the due rule's set.
+func (s *Scheduler) ReviewCandidates(snapshots map[string]*ConceptSnapshot, now time.Time, skip map[string]bool) []string {
+	var reviews []Candidate
+	for _, c := range buildCandidates(s.dag, snapshots, now, "") {
+		if c.IsReview && !skip[c.Concept.ID] {
+			reviews = append(reviews, c)
+		}
+	}
+	sort.Slice(reviews, func(i, j int) bool {
+		if reviews[i].Priority != reviews[j].Priority {
+			return reviews[i].Priority > reviews[j].Priority
+		}
+		return reviews[i].Concept.ID < reviews[j].Concept.ID
+	})
+	out := make([]string, len(reviews))
+	for i, c := range reviews {
+		out[i] = c.Concept.ID
+	}
+	return out
+}
+
 func selectWithBalance(candidates []Candidate, reviewCount, newCount int) Candidate {
 	targetReviewRatio := 0.3
 	total := reviewCount + newCount + 1

@@ -136,6 +136,14 @@ func (e *Engine) DueReviewIDs(studentID, track string, progress map[string]*stor
 	return ids
 }
 
+// ReviewCandidates is what the review session could serve at now (the
+// scheduler's review candidates minus notReviewed), read without a
+// session. It must equal DueReviewIDs(track ""); fsrs_doctor checks it.
+func (e *Engine) ReviewCandidates(studentID string, progress map[string]*storage.ConceptProgress, now time.Time) []string {
+	snapshots := e.conceptSnapshotsFrom(studentID, progress)
+	return e.trackScheduler("").ReviewCandidates(snapshots, now, e.notReviewed(studentID, progress))
+}
+
 // DueReviewSet is DueReviewIDs as a set, for surfaces that mark topics.
 func (e *Engine) DueReviewSet(studentID string, progress map[string]*storage.ConceptProgress, now time.Time) map[string]bool {
 	out := map[string]bool{}
