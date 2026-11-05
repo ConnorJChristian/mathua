@@ -70,6 +70,9 @@ func (r *Registry) explain(conceptID string, p Problem) string {
 // generator's own, so they cannot drift from the key; a one-sentence
 // explanation stays the reason.
 func ownSteps(explanation string) string {
+	if walkthrough.HasSteps(explanation) {
+		return explanation // the generator wrote its own steps block
+	}
 	steps := walkthrough.WorkedSteps(explanation)
 	if len(steps) == 0 {
 		return explanation
