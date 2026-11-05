@@ -111,17 +111,40 @@ func fsrsItemID(expected string) string {
 }
 
 // fsrsSeedOf is how a stateless mastered row's first state is labelled
-// (fsrs_seed): its own attempts, placement or credit.
+// (fsrs_seed): its own attempts ("mastery"), else credit (implicit or
+// encompasses credit, which also sets PlacementSeeded) or placement.
 func fsrsSeedOf(p *storage.ConceptProgress, demonstrated bool) string {
 	switch {
 	case demonstrated:
 		return "mastery"
-	case p.PlacementSeeded:
-		return "placement"
 	case p.ImplicitCredit > 0:
 		return "credit"
+	case p.PlacementSeeded:
+		return "placement"
 	}
-	return "mastery"
+	return "credit"
+}
+
+// masteringAttempt is the index in atts (own attempts, time order) of the
+// answer that took the row to MASTERED: the last correct one at or before
+// MasteredAt (to the second). It is -1 when the row's mastery is not its
+// own: MasteredAt is set only when an answer makes the transition, so a
+// credited or placed row has none, and a right answer given after the
+// credit does not make it demonstrated (FSRS Phase 2 review, L1).
+func masteringAttempt(p *storage.ConceptProgress, atts []storage.AttemptEntry) int {
+	if p.MasteredAt == nil {
+		return -1
+	}
+	idx := -1
+	for i, a := range atts {
+		if a.Timestamp.After(p.MasteredAt.Add(time.Second)) {
+			break
+		}
+		if a.Correct {
+			idx = i
+		}
+	}
+	return idx
 }
 
 // raisedOn reports an applied, stability-raising log row for the topic on
@@ -208,32 +231,22 @@ func (e *Engine) ownAttempts(sid, cid string, until time.Time) ([]storage.Attemp
 // says (a review or mastery-check answer, right Good and wrong Again; a
 // practice miss as a lapse under the threshold; a practice right answer, a
 // self-graded card and an ungraded item nothing), under the daily cap. The
-// keys are "seed:a<attempt id>" (or "seed:<learner>:<topic>:mastery" when
-// no attempt marks the mastery), so seeding twice writes nothing. It
-// reports false when the row has no attempts of its own (credited or
-// placed only: no state, plan 3.4).
+// keys are "seed:a<attempt id>", so seeding twice writes nothing. The
+// first Good is at MasteredAt, keyed by the mastering answer
+// (masteringAttempt). It reports false, writing nothing, when the row's
+// mastery is not its own (credited or placed: no state until its first
+// event initialises it; plan 3.4, review L1).
 func (e *Engine) seedFromAttempts(r *fsrsRun, p *storage.ConceptProgress, until time.Time) (bool, error) {
 	atts, err := e.ownAttempts(p.StudentID, p.ConceptID, until)
-	if err != nil || len(atts) == 0 {
+	if err != nil {
 		return false, err
 	}
-	at := until
-	if p.MasteredAt != nil {
-		at = *p.MasteredAt
-	} else if p.LastReviewed != nil {
-		at = *p.LastReviewed
+	initIdx := masteringAttempt(p, atts)
+	if initIdx < 0 {
+		return false, nil
 	}
-	// The attempt that mastered it: the last correct own answer at or
-	// before the mastery time.
-	initKey, initIdx := fmt.Sprintf("seed:%s:%s:mastery", p.StudentID, p.ConceptID), -1
-	for i, a := range atts {
-		if a.Timestamp.After(at.Add(time.Second)) {
-			break
-		}
-		if a.Correct {
-			initKey, initIdx = fmt.Sprintf("seed:a%d", a.ID), i
-		}
-	}
+	at := *p.MasteredAt
+	initKey := fmt.Sprintf("seed:a%d", atts[initIdx].ID)
 	if err := r.step(fsrsLogFirstMastery, fsrs.Good, at, false, initKey, "", 0); err != nil {
 		return false, err
 	}
@@ -320,16 +333,19 @@ func (e *Engine) fsrsCommit(before, after *storage.ConceptProgress, o gradedAtte
 	if mem.IsZero() {
 		seed = "mastery"
 		if source != fsrsLogFirstMastery {
-			// A mastered row with no state: seed it from its own attempts
-			// at this first touch, or (credited, placed) let this answer
-			// create its state.
+			// A mastered row with no state. Demonstrated (its own answer
+			// mastered it): seed it from its own attempts at this first
+			// touch. Credited or placed, one rule (review L1): this first
+			// event initialises it from the reference first review for its
+			// own rating, with no lapse threshold, labelled credit (or
+			// placement for a placement-only row).
 			demonstrated := false
 			if rules.SeedOnTouch {
 				if demonstrated, err = e.seedFromAttempts(r, before, at.Add(-time.Nanosecond)); err != nil {
 					return nil, err
 				}
 			} else if own, err := e.ownAttempts(before.StudentID, before.ConceptID, at.Add(-time.Nanosecond)); err == nil {
-				demonstrated = len(own) > 0
+				demonstrated = masteringAttempt(before, own) >= 0
 			}
 			seed = fsrsSeedOf(before, demonstrated)
 		}
@@ -404,10 +420,11 @@ type FSRSSeed struct {
 }
 
 // FSRSSeedPlan lists, for one learner, what seeding would do: a seed for
-// each MASTERED row with no FSRS state and attempts of its own (the same
-// replay as the first-touch seed, SeedOnTouch), and the ids of the mastered
-// rows it leaves without state (credited or placed only: plan 3.4). It
-// writes nothing.
+// each MASTERED row with no FSRS state that the learner's own answer
+// mastered (the same replay as the first-touch seed, SeedOnTouch), and the
+// ids of the mastered rows it leaves without state (credited or placed:
+// plan 3.4; their first event initialises them, review L1). It writes
+// nothing.
 func (e *Engine) FSRSSeedPlan(studentID string, now time.Time) (seeds []FSRSSeed, none []string, err error) {
 	progress, err := e.repo.GetAllProgress(studentID)
 	if err != nil {

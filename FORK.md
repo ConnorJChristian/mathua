@@ -1067,11 +1067,20 @@ nothing is writing. A seed that does land while the app serves no longer
 costs an answer: a seed row already stored is skipped on its own, and only
 the answer's own key makes a commit a retry.
 
-Both run the same replay. Credited and placement-only rows (mastered with
-no attempts of their own) get no state, so FSRS never calls them due; their
-first real answer creates it, labelled `fsrs_seed = credit` or
-`placement`. On C's 2026-10-29 snapshot: 11 topics to seed, 44 left
-without state.
+Both run the same replay. Credited and placement-only rows (mastered, but
+not by the learner's own answer: `mastered_at` is set only when an answer
+takes a row to MASTERED) get no state, so FSRS never calls them due. One
+rule then applies, whatever right practice answers came after the credit:
+**the first FSRS event on a credited row with no state initialises it from
+the reference first review for that event's rating** (a miss gives the
+first Again, S = w[0] = 0.21 days, `relearning`; a right review the first
+Good, S = w[2]), with no lapse threshold (a stateless row has no R), and
+labels it `fsrs_seed = credit` (`placement` for a placement-only row). It
+is never dated at the credit, and it does not seed from attempts.
+*C to confirm before Phase 3* (review L1): the alternative is to give
+credited rows a first Good at the credit time. On C's 2026-10-29 snapshot:
+11 topics to seed, 44 left without state (the same 11 seeds as before the
+rule, byte for byte).
 
 **One commit per answer.** `Repository.CommitAnswer` writes the progress
 row, the attempt and, in shadow, the `review_log` rows and the `fsrs_*`

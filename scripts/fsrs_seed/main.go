@@ -7,8 +7,10 @@
 // when an event first touches such a row (Rules.SeedOnTouch), so seeding
 // first or letting shadow seed on touch gives the same state.
 //
-// Credited and placement-only rows (no attempts of their own) get no state:
-// their first real answer creates it.
+// Credited and placement-only rows (mastered, but not by the learner's own
+// answer: no MasteredAt) get no state, even with right answers after the
+// credit: their first FSRS event initialises it from the reference first
+// review for its rating, labelled credit (FSRS Phase 2 review, L1).
 //
 // It is a dry run by default: it prints what it would write and changes
 // nothing. -apply writes it, one transaction per topic; rerunning is a
@@ -185,7 +187,7 @@ func run(dbPath, only string, apply, force bool, out *os.File) error {
 		}
 		for _, id := range none {
 			left++
-			fmt.Fprintf(out, "no state %s %s: mastered with no attempts of its own (credited or placed)\n", sid, id)
+			fmt.Fprintf(out, "no state %s %s: mastered, not by its own answer (credited or placed): its first event initialises it\n", sid, id)
 		}
 	}
 	fmt.Fprintf(out, "fsrs_seed: %d topics to seed, %d written, %d mastered rows left without state\n", total, wrote, left)

@@ -368,12 +368,11 @@ func TestReview2_RuleTable(t *testing.T) {
 		}
 	})
 
-	// A credited row (mastered, no attempts of its own) has no state. Two
-	// histories that differ by one right practice answer end far apart
-	// (reviewer finding L-credit): a miss with no own answer before it
-	// creates an Again state (seed "credit", no R threshold); a right
-	// answer and then a miss seeds a first-mastery Good dated at the
-	// credit (LastReviewed), labelled "mastery", and holds the miss.
+	// A credited row (mastered, no attempts of its own) has no state. The
+	// reviewer's finding L1 was that two histories differing by one right
+	// practice answer ended far apart. Fixed: one rule, the first FSRS event
+	// on a credited row initialises it from the reference first review for
+	// that event's rating, labelled "credit" (fsrs_review_fixes_test.go).
 	t.Run("credited row: first practice miss creates an Again state", func(t *testing.T) {
 		e, sid, sim := rvEngine(t, review.ModeShadow, rvMonday)
 		now := clock.Now()
@@ -391,7 +390,7 @@ func TestReview2_RuleTable(t *testing.T) {
 		}
 		t.Logf("credited, miss 2 min after credit: S %.4f state %s seed %s", *p.FSRSStability, p.FSRSState, p.FSRSSeed)
 	})
-	t.Run("credited row: one right answer then a miss seeds a mastery at the credit time", func(t *testing.T) {
+	t.Run("credited row: one right answer then a miss is the same first Again (L1 fixed)", func(t *testing.T) {
 		e, sid, sim := rvEngine(t, review.ModeShadow, rvMonday)
 		credit := clock.Now()
 		if err := e.repo.UpsertProgress(&storage.ConceptProgress{StudentID: sid, ConceptID: "a", Status: string(mastery.StatusMastered),
@@ -409,7 +408,8 @@ func TestReview2_RuleTable(t *testing.T) {
 		mustOK(t)(e.SubmitStudyAnswer(sid, "a", "7", 5, ""))
 		l := rvLog(t, e, sid, "a")
 		p := rvRow(t, e, sid, "a")
-		if len(l) != 2 || l[0].Source != "first_mastery" || !l[0].At.Equal(credit) || l[1].Held != review.HeldLapseRHigh || p.FSRSSeed != "mastery" || *p.FSRSStability != refFirstGoodS {
+		again := review.DefaultParams().Initial(fsrs.Again)
+		if len(l) != 1 || l[0].Source != "practice_lapse" || l[0].Rating != int(fsrs.Again) || l[0].Held != "" || p.FSRSSeed != "credit" || *p.FSRSStability != again.Stability {
 			t.Fatalf("log %+v row %+v", l, p)
 		}
 	})
