@@ -504,6 +504,10 @@ func pgAuthMigrate(db *sql.DB) error {
 			return err
 		}
 	}
+	// Fork-owned data migrations (versions from 1001; see review_log.go).
+	if err := runOncePostgres(db, forkDataMigrationReviewLogAt, []string{reviewLogAtFixedWidthSQL}); err != nil {
+		return err
+	}
 	// Back the app-level one-email-one-account 409s with a partial unique
 	// index (case-insensitive, legacy '' rows excluded). Retried each boot
 	// until clean so dirty databases still start; see the SQLite twin.

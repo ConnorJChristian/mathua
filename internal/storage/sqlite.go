@@ -186,6 +186,10 @@ func authMigrate(db *sql.DB) error {
 			return err
 		}
 	}
+	// Fork-owned data migrations (versions from 1001; see review_log.go).
+	if err := runOnceSQLite(db, forkDataMigrationReviewLogAt, []string{reviewLogAtFixedWidthSQL}); err != nil {
+		return err
+	}
 	return nil
 }
 

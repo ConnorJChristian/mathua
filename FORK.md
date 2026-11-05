@@ -946,6 +946,12 @@ stability meaning no state. `review_log` holds one row per scheduling
 event (`source`, `rating`, `elapsed_days`, S and D before and after, R at
 the review, item, level, response time, a unique `idempotency_key`,
 `engine_mode`): the replay and fitting dataset and the audit trail.
+`at` is UTC text with exactly nine fractional digits
+(`2006-01-02T15:04:05.000000000Z`), so it sorts in time order as text on
+both stores; reads order by `at, id`, so events at one instant keep their
+insertion order. Fork data migration 1001 rewrites rows in the older
+RFC3339Nano form (fork-owned data migrations number from 1001 so they
+cannot collide with upstream's 1..n).
 Migrations run on SQLite and Postgres alike. Every progress write path
 keeps the columns, including the three whole-row batch rewrites
 (weakness propagation, prerequisite credit, placement) and `mathua
