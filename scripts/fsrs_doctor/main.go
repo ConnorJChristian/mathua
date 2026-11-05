@@ -13,7 +13,9 @@
 //   - unlogged: a progress row with FSRS state and no review_log rows, or
 //     log rows for a row with no state;
 //   - replay: a stored state that differs from replaying its log
-//     (review.Replay), the event-sourcing check.
+//     (review.ReplayLast: held rows are logged and skipped), or an
+//     fsrs_last_review that is not the last applied row's time, the
+//     event-sourcing check.
 //
 // Usage: MATHUA_ROOT=<install> go run ./scripts/fsrs_doctor -db <path>
 // [-student <id>] [-json]. Exit 1 on any finding, 2 on a usage error.
@@ -147,6 +149,9 @@ func Run(dbPath, onlyStudent string) ([]Finding, map[string]int, error) {
 			}
 			// A review row's rating must be Again..Easy; a seed row sets
 			// the state outright and carries no rating of its own.
+			if e.Held != "" && e.Held != review.HeldDailyCap && e.Held != review.HeldLapseRHigh {
+				findings = append(findings, Finding{"invalid", sid, e.ConceptID, fmt.Sprintf("review_log row %d: held %q is not a known reason", e.ID, e.Held)})
+			}
 			if e.Source != "seed" {
 				if err := review.CheckRating(fsrs.Rating(e.Rating)); err != nil {
 					findings = append(findings, Finding{"invalid", sid, e.ConceptID, fmt.Sprintf("review_log row %d (%s): %v", e.ID, e.Source, err)})
@@ -175,13 +180,17 @@ func Run(dbPath, onlyStudent string) ([]Finding, map[string]int, error) {
 			if hasState && len(entries) > 0 {
 				events := make([]review.Event, len(entries))
 				for i, e := range entries {
-					events[i] = review.Event{At: e.At, Rating: fsrs.Rating(e.Rating), ElapsedDays: e.ElapsedDays, Source: e.Source, SAfter: e.SAfter, DAfter: e.DAfter}
+					events[i] = review.Event{At: e.At, Rating: fsrs.Rating(e.Rating), ElapsedDays: e.ElapsedDays, Source: e.Source, SAfter: e.SAfter, DAfter: e.DAfter, Held: e.Held}
 				}
-				if d := review.Diff(m, review.Replay(params, events)); d != "" {
+				replayed, last, _ := review.ReplayLast(params, events)
+				if d := review.Diff(m, replayed); d != "" {
 					findings = append(findings, Finding{"replay", sid, cid, d})
 				}
-				if last := entries[len(entries)-1]; p.FSRSLastReview == nil || !p.FSRSLastReview.Truncate(time.Second).Equal(last.At.Truncate(time.Second)) {
-					findings = append(findings, Finding{"replay", sid, cid, fmt.Sprintf("fsrs_last_review %v is not the last log row's at %v", p.FSRSLastReview, last.At)})
+				// fsrs_last_review is the last event that changed the state:
+				// a held event (daily cap, a practice miss at high R) is
+				// logged without moving it.
+				if p.FSRSLastReview == nil || !p.FSRSLastReview.Truncate(time.Second).Equal(last.Truncate(time.Second)) {
+					findings = append(findings, Finding{"replay", sid, cid, fmt.Sprintf("fsrs_last_review %v is not the last applied log row's at %v", p.FSRSLastReview, last)})
 				}
 			}
 		}

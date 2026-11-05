@@ -12,8 +12,10 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/clock"
 	"github.com/chuma-beep/mathua/internal/engine"
+	"github.com/chuma-beep/mathua/internal/fsrs"
 	"github.com/chuma-beep/mathua/internal/modules"
 	"github.com/chuma-beep/mathua/internal/review"
+	"github.com/chuma-beep/mathua/internal/storage"
 )
 
 // replayRun is everything one replay produced: the serves (the -json
@@ -168,5 +170,104 @@ func TestReplayWritesOnlyClockTimes(t *testing.T) {
 		if n != 0 {
 			t.Errorf("%s: %d rows carry the wall date %s", q, n, wall)
 		}
+	}
+}
+
+// Shadow mode reads nothing it writes (FSRS Phase 2, gate 4): the same
+// replay in off and in shadow serves the same topics with the same reasons,
+// shows the same surfaces every session (the review queue, the due count,
+// Up next, the mixed session, pacing, plan order, the gate, the mastery
+// check's picks, XP, the progress view) and leaves the same database but
+// for the fsrs_* columns and review_log. Shadow did write: the log is not
+// empty, and every stored state is the replay of its log.
+func TestShadowEqualsOff(t *testing.T) {
+	if testing.Short() {
+		t.Skip("replays sessions")
+	}
+	off := replayFresh(t, review.ModeOff, 5, 10)
+	sh := replayFresh(t, review.ModeShadow, 5, 10)
+	if off.serves != sh.serves {
+		t.Errorf("serves differ: %s", firstDiff(off.serves, sh.serves))
+	}
+	if off.surfaces != sh.surfaces {
+		t.Errorf("surfaces differ: %s", firstDiff(off.surfaces, sh.surfaces))
+	}
+	if off.dumpNoFSRS != sh.dumpNoFSRS {
+		t.Errorf("databases differ outside FSRS: %s", firstDiff(off.dumpNoFSRS, sh.dumpNoFSRS))
+	}
+	if off.dump == sh.dump {
+		t.Error("shadow wrote nothing: the comparison proves nothing")
+	}
+	store, err := storage.NewSQLiteStore(sh.db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	db, _ := sql.Open("sqlite3", sh.db)
+	defer db.Close()
+	var sid string
+	db.QueryRow(`select id from students limit 1`).Scan(&sid)
+	all, _ := store.GetAllProgress(sid)
+	log, _ := store.ReviewLogFor(sid, "")
+	if len(log) == 0 {
+		t.Fatal("shadow wrote no review_log rows")
+	}
+	byTopic := map[string][]review.Event{}
+	for _, e := range log {
+		byTopic[e.ConceptID] = append(byTopic[e.ConceptID], review.Event{At: e.At, Rating: fsrs.Rating(e.Rating), ElapsedDays: e.ElapsedDays, Source: e.Source, SAfter: e.SAfter, DAfter: e.DAfter, Held: e.Held})
+	}
+	states := 0
+	for cid, p := range all {
+		m, last := engine.FSRSMemory(p)
+		if m.IsZero() {
+			if len(byTopic[cid]) > 0 {
+				t.Errorf("%s: %d log rows, no state", cid, len(byTopic[cid]))
+			}
+			continue
+		}
+		states++
+		got, gotLast, err := review.ReplayLast(review.DefaultParams(), byTopic[cid])
+		if d := review.Diff(m, got); d != "" || err != nil || !gotLast.Truncate(time.Second).Equal(last.Truncate(time.Second)) {
+			t.Errorf("%s: replay %s %v; last %v vs %v", cid, d, err, gotLast, last)
+		}
+	}
+	t.Logf("shadow: %d review_log rows, %d topics with state", len(log), states)
+}
+
+// The one-day aging moves the FSRS state too (plan 4.9): fsrs_last_review
+// and review_log.at go back exactly a day, the log keeps its fixed width.
+func TestAgeOneDayShiftsFSRS(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "age.db")
+	store, err := storage.NewSQLiteStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, _ := store.CreateStudent("age")
+	last := time.Date(2026, 11, 1, 8, 30, 0, 0, time.UTC) // the DST day in the learner's zone
+	s, d := 2.3065, 2.1
+	p := &storage.ConceptProgress{StudentID: st.ID, ConceptID: "x", Status: "MASTERED", LastReviewed: &last, SM2EFactor: 2.5}
+	store.UpsertProgress(p)
+	p.FSRSStability, p.FSRSDifficulty, p.FSRSLastReview, p.FSRSReps, p.FSRSState = &s, &d, &last, 1, "review"
+	if err := store.WriteFSRSState(p); err != nil {
+		t.Fatal(err)
+	}
+	at := last.Add(123456789 * time.Nanosecond)
+	store.InsertReviewLog(storage.ReviewLogEntry{StudentID: st.ID, ConceptID: "x", At: at, Source: "review", Rating: 3, IdempotencyKey: "k", EngineMode: "shadow"})
+	store.Close()
+	db, _ := sql.Open("sqlite3", path)
+	defer db.Close()
+	r := &replay{db: db, sid: st.ID}
+	if err := r.ageOneDay(); err != nil {
+		t.Fatal(err)
+	}
+	var lr, la string
+	db.QueryRow(`select fsrs_last_review from concept_progress where student_id = ?`, st.ID).Scan(&lr)
+	db.QueryRow(`select at from review_log where student_id = ?`, st.ID).Scan(&la)
+	if lr != "2026-10-31T08:30:00Z" {
+		t.Errorf("fsrs_last_review %q", lr)
+	}
+	if want := at.AddDate(0, 0, -1).UTC().Format(storage.ReviewLogAtLayout); la != want {
+		t.Errorf("review_log.at %q, want %q", la, want)
 	}
 }

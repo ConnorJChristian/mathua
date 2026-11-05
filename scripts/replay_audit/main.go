@@ -957,22 +957,33 @@ func (r *replay) prereqsMet(c *concepts.Concept, progress map[string]*storage.Co
 
 // ageOneDay moves every timestamp of the learner's record one day into the
 // past, so the next session is tomorrow: reviews fall due and mastery decays.
+// The FSRS state moves with it (plan 4.9): fsrs_last_review and
+// review_log.at shift by the same day, so the next event's elapsed time,
+// the log's time order and the doctor's replay check stay right. The log
+// keeps its fixed-width nine-digit form (storage.ReviewLogAtLayout); the
+// elapsed_days a row recorded is what it read and does not change.
 func (r *replay) ageOneDay() error {
-	for _, stmt := range []string{
-		`update concept_progress set
-		   last_attempted = case when last_attempted is null or last_attempted='' then last_attempted else strftime('%Y-%m-%dT%H:%M:%SZ', last_attempted, '-1 day') end,
-		   last_reviewed = case when last_reviewed is null or last_reviewed='' then last_reviewed else strftime('%Y-%m-%dT%H:%M:%SZ', last_reviewed, '-1 day') end,
-		   next_review_due = case when next_review_due is null or next_review_due='' then next_review_due else strftime('%Y-%m-%dT%H:%M:%SZ', next_review_due, '-1 day') end,
-		   mastered_at = case when mastered_at is null or mastered_at='' then mastered_at else strftime('%Y-%m-%dT%H:%M:%SZ', mastered_at, '-1 day') end
-		 where student_id = ?`,
-		`update attempts set timestamp = strftime('%Y-%m-%dT%H:%M:%SZ', timestamp, '-1 day') where student_id = ?`,
-		`update quiz_completions set completed_at = strftime('%Y-%m-%d %H:%M:%S', completed_at, '-1 day') where student_id = ?`,
-	} {
+	for _, stmt := range ageStatements {
 		if _, err := r.db.Exec(stmt, r.sid); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// ageStatements shift one learner's record a day into the past (the daily
+// QA playbook runs the same statements on its copy: PLAYBOOK_ADDENDUM_FSRS_SHADOW.md).
+var ageStatements = []string{
+	`update concept_progress set
+		   last_attempted = case when last_attempted is null or last_attempted='' then last_attempted else strftime('%Y-%m-%dT%H:%M:%SZ', last_attempted, '-1 day') end,
+		   last_reviewed = case when last_reviewed is null or last_reviewed='' then last_reviewed else strftime('%Y-%m-%dT%H:%M:%SZ', last_reviewed, '-1 day') end,
+		   next_review_due = case when next_review_due is null or next_review_due='' then next_review_due else strftime('%Y-%m-%dT%H:%M:%SZ', next_review_due, '-1 day') end,
+		   mastered_at = case when mastered_at is null or mastered_at='' then mastered_at else strftime('%Y-%m-%dT%H:%M:%SZ', mastered_at, '-1 day') end,
+		   fsrs_last_review = case when fsrs_last_review is null or fsrs_last_review='' then fsrs_last_review else strftime('%Y-%m-%dT%H:%M:%SZ', fsrs_last_review, '-1 day') end
+		 where student_id = ?`,
+	`update review_log set at = substr(strftime('%Y-%m-%dT%H:%M:%S', at, '-1 day'), 1, 19) || substr(at, 20) where student_id = ?`,
+	`update attempts set timestamp = strftime('%Y-%m-%dT%H:%M:%SZ', timestamp, '-1 day') where student_id = ?`,
+	`update quiz_completions set completed_at = strftime('%Y-%m-%d %H:%M:%S', completed_at, '-1 day') where student_id = ?`,
 }
 
 // ---- report ----
