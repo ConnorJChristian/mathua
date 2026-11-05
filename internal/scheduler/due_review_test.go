@@ -119,3 +119,29 @@ func TestSchedulerReview_MixedSessionPrefersDueReview(t *testing.T) {
 		t.Fatalf("mixed session offered a (mastered, decayed, date in 10 days) as review=%v", next.IsReview)
 	}
 }
+
+// EligibilityWithDue takes the review question from the engine's due set
+// (FSRS Phase 1 review, M1): a mastered, past-date topic the set excludes
+// (below the floor, credit-only) is "mastered"; one it includes is
+// "due_for_review"; a non-mastered topic is never due, whatever the set says.
+func TestEligibilityWithDue_ReadsTheDueSet(t *testing.T) {
+	d := miniDAG(t)
+	now := time.Now()
+	past := now.AddDate(0, 0, -1)
+	snaps := map[string]*ConceptSnapshot{
+		"a": {Status: mastery.StatusMastered, LastReviewed: past, LastAttempted: past, NextReviewDue: tp(past), Attempts: 9},
+	}
+	if st := EligibilityOf(snaps, now, d.Concept("a")).State; st != StateDueForReview {
+		t.Fatalf("setup: IsDue-only state = %s, want %s", st, StateDueForReview)
+	}
+	if st := EligibilityWithDue(snaps, now, d.Concept("a"), map[string]bool{}).State; st != StateMastered {
+		t.Errorf("excluded from the due set: state %s, want %s", st, StateMastered)
+	}
+	if st := EligibilityWithDue(snaps, now, d.Concept("a"), map[string]bool{"a": true}).State; st != StateDueForReview {
+		t.Errorf("in the due set: state %s, want %s", st, StateDueForReview)
+	}
+	snaps["a"].Status = mastery.StatusPracticing
+	if st := EligibilityWithDue(snaps, now, d.Concept("a"), map[string]bool{"a": true}).State; st != StateInProgress {
+		t.Errorf("practising topic in the due set: state %s, want %s", st, StateInProgress)
+	}
+}

@@ -47,7 +47,10 @@ func (e *Engine) EligibilityFor(studentID, conceptID string) (*ConceptEligibilit
 	}
 	snapshots := e.conceptSnapshotsFrom(studentID, progress)
 	now := time.Now()
-	el := scheduler.EligibilityOf(snapshots, now, c)
+	// "Due a check" is the one due rule's answer (DueReviewSet, with the
+	// floor and credit-only exclusions), not the snapshot's IsDue alone.
+	due := e.DueReviewSet(studentID, progress, now)
+	el := scheduler.EligibilityWithDue(snapshots, now, c, due)
 
 	missing := make(map[string]bool, len(el.Missing))
 	for _, id := range el.Missing {
@@ -68,7 +71,7 @@ func (e *Engine) EligibilityFor(studentID, conceptID string) (*ConceptEligibilit
 		state := ""
 		if pre != nil {
 			title = pre.Label
-			state = scheduler.EligibilityOf(snapshots, now, pre).State
+			state = scheduler.EligibilityWithDue(snapshots, now, pre, due).State
 		}
 		out.Prerequisites = append(out.Prerequisites, EligibilityPrereq{
 			ConceptID: pid,

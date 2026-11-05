@@ -492,7 +492,10 @@ interval a topic can be decayed for pacing before it is due for review.
 The web never infers due-ness from that status: `/api/progress` carries
 `due` per topic from the one rule, and the graph, Topics, Domains, the
 profile header and the Learn prerequisite panel say "Due for review" only
-when it is set; a decayed topic that is not due reads "Fading". The plan
+when it is set. The server's own states agree: the Domains topic list and
+the readiness payload (`scheduler.EligibilityWithDue` with
+`engine.DueReviewSet`) call a topic `due_for_review` only when it is in
+the due set; a decayed topic that is not due reads "Fading". The plan
 editor's "Review passes (pacing)" is the estimator's own count (decayed
 or past the date, no exclusions), not the due count.
 `scripts/replay_audit` reads every surface each session and flags a

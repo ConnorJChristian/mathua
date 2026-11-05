@@ -271,7 +271,7 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		// course topic is due 14 days after its credit. A learning topic's
 		// next_review_due is a practice date, not a review.
 		t.Due = dueSet[cid]
-		el := scheduler.EligibilityOf(snaps, now, cc)
+		el := scheduler.EligibilityWithDue(snaps, now, cc, dueSet)
 		t.Locked = !el.Eligible
 		opts := s.readingOptions(cid)
 		if len(opts) > 0 {

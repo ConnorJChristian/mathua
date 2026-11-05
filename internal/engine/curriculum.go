@@ -46,12 +46,14 @@ func (e *Engine) CurriculumDomains(studentID string) ([]DomainSummary, error) {
 
 // CurriculumDomainsTrack lists the domains of one track ("" is the Math track).
 func (e *Engine) CurriculumDomainsTrack(studentID, track string) ([]DomainSummary, error) {
-	snapshots, err := e.learnerSnapshots(studentID)
+	progress, err := e.learnerProgress(studentID)
 	if err != nil {
 		return nil, err
 	}
+	snapshots := e.conceptSnapshotsFrom(studentID, progress)
 	dag := e.TrackDAG(track)
 	now := time.Now()
+	due := e.DueReviewSet(studentID, progress, now)
 	byID := make(map[string]*DomainSummary, len(dag.Domains()))
 	mods := e.Modules()
 	for _, id := range dag.Domains() {
@@ -66,7 +68,7 @@ func (e *Engine) CurriculumDomainsTrack(studentID, track string) ([]DomainSummar
 			continue
 		}
 		d.ConceptCount++
-		switch scheduler.EligibilityOf(snapshots, now, c).State {
+		switch scheduler.EligibilityWithDue(snapshots, now, c, due).State {
 		case scheduler.StateMastered, scheduler.StateDueForReview:
 			d.MasteredCount++
 		case scheduler.StateInProgress:
@@ -84,11 +86,15 @@ func (e *Engine) CurriculumDomainsTrack(studentID, track string) ([]DomainSummar
 
 // CurriculumDomain lists one domain's concepts with their state and depth.
 func (e *Engine) CurriculumDomain(studentID, domainID string) (*DomainCurriculum, error) {
-	snapshots, err := e.learnerSnapshots(studentID)
+	progress, err := e.learnerProgress(studentID)
 	if err != nil {
 		return nil, err
 	}
+	snapshots := e.conceptSnapshotsFrom(studentID, progress)
 	now := time.Now()
+	// "Due for review" is the one due rule (DueReviewSet), so this list
+	// agrees with the page's counts and the review session (M1).
+	due := e.DueReviewSet(studentID, progress, now)
 	depths := conceptDepths(e.dag)
 	out := &DomainCurriculum{Domain: domainID, Topics: []TopicSummary{}}
 	for _, c := range e.dag.Order() {
@@ -98,7 +104,7 @@ func (e *Engine) CurriculumDomain(studentID, domainID string) (*DomainCurriculum
 		out.Topics = append(out.Topics, TopicSummary{
 			ConceptID: c.ID,
 			Title:     c.Label,
-			State:     scheduler.EligibilityOf(snapshots, now, c).State,
+			State:     scheduler.EligibilityWithDue(snapshots, now, c, due).State,
 			Depth:     depths[c.ID],
 		})
 	}
@@ -108,18 +114,17 @@ func (e *Engine) CurriculumDomain(studentID, domainID string) (*DomainCurriculum
 	return out, nil
 }
 
-// learnerSnapshots is the shared load: progress plus the scheduler's view of it.
-// An empty student id (anonymous) yields all-unseen snapshots.
-func (e *Engine) learnerSnapshots(studentID string) (map[string]*scheduler.ConceptSnapshot, error) {
-	var progress map[string]*storage.ConceptProgress
-	if studentID != "" {
-		p, err := e.repo.GetAllProgress(studentID)
-		if err != nil {
-			return nil, fmt.Errorf("load progress: %w", err)
-		}
-		progress = p
+// learnerProgress is the shared load: the learner's stored rows, nil for an
+// anonymous learner (whose snapshots are then all unseen).
+func (e *Engine) learnerProgress(studentID string) (map[string]*storage.ConceptProgress, error) {
+	if studentID == "" {
+		return nil, nil
 	}
-	return e.conceptSnapshotsFrom(studentID, progress), nil
+	p, err := e.repo.GetAllProgress(studentID)
+	if err != nil {
+		return nil, fmt.Errorf("load progress: %w", err)
+	}
+	return p, nil
 }
 
 // conceptDepths is the longest prerequisite chain length ending at each concept,

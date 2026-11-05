@@ -40,7 +40,22 @@ type Eligibility struct {
 // EligibilityOf decides whether c's prerequisites are met and renders the
 // learner-facing state. Placement-seeded prerequisites count as reachability,
 // not mastery.
+//
+// Its "due_for_review" reads the snapshot's IsDue alone, without the
+// engine's exclusions (credit-only off-course, below the review floor), so a
+// learner-facing surface must use EligibilityWithDue with the engine's one
+// due rule (engine.DueReviewSet) instead. EligibilityOf is kept for callers
+// that read only Eligible/Missing and for the scheduler's own tests.
 func EligibilityOf(snapshots map[string]*ConceptSnapshot, now time.Time, c *concepts.Concept) Eligibility {
+	return EligibilityWithDue(snapshots, now, c, nil)
+}
+
+// EligibilityWithDue is EligibilityOf with the review question answered by
+// due: a mastered concept is "due_for_review" exactly when due[c.ID] is set.
+// The engine passes DueReviewSet (the one due rule, with its exclusions), so
+// the Domains topic list, the readiness payload and the review count agree
+// (FSRS Phase 1 review, M1). A nil map falls back to the snapshot's IsDue.
+func EligibilityWithDue(snapshots map[string]*ConceptSnapshot, now time.Time, c *concepts.Concept, due map[string]bool) Eligibility {
 	snap := snapshots[c.ID]
 
 	met := true
@@ -70,7 +85,11 @@ func EligibilityOf(snapshots map[string]*ConceptSnapshot, now time.Time, c *conc
 	switch {
 	case snap != nil && snap.Status == mastery.StatusMastered:
 		// Decay is a review question, not a teaching one (ADR-037).
-		if _, isReview := effectiveState(snap, now); isReview {
+		isReview := due[c.ID]
+		if due == nil {
+			_, isReview = effectiveState(snap, now)
+		}
+		if isReview {
 			state = StateDueForReview
 		} else {
 			state = StateMastered
