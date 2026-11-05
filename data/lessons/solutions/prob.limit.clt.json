@@ -1,0 +1,15 @@
+{
+  "concept": "prob.limit.clt",
+  "setup": "By the central limit theorem the sum of \\(n = [[n]]\\) copies is approximately normal with mean \\(n\\mu\\) and standard deviation \\(\\sigma\\sqrt{n}\\); standardise \\(x = [[x]]\\).",
+  "steps": [
+    {
+      "fact": "nmu",
+      "say": "The mean of the sum: \\(n\\mu = [[n]] \\cdot [[mu]] = [[nmu]]\\), so \\(x - n\\mu = [[x]] - [[nmu]] = [[dev]]\\)."
+    },
+    {
+      "fact": "se",
+      "say": "Its standard deviation: \\(\\sigma\\sqrt{n} = [[sigma]] \\cdot \\sqrt{[[n]]} = [[sigma]] \\cdot [[sqrt_n]] = [[se]]\\)."
+    }
+  ],
+  "answer": "Divide: \\(z = [[dev]] / [[se]] = [[answer]]\\)."
+}

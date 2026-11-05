@@ -1,0 +1,15 @@
+{
+  "concept": "prob.cond.total_probability",
+  "setup": "The law of total probability: \\(P(E) = P(E \\mid B_1)P(B_1) + P(E \\mid B_2)P(B_2)\\), an average of the conditional probabilities weighted by how likely each box is.",
+  "steps": [
+    {
+      "fact": "p1",
+      "say": "The boxes' probabilities: \\(P(B_1) = [[w1]]/[[total]] = [[p1]]\\) and \\(P(B_2) = [[w2]]/[[total]] = [[p2]]\\)."
+    },
+    {
+      "fact": "term1",
+      "say": "Weight each conditional probability: box one gives \\([[p1]] \\cdot [[c1]] = [[term1]]\\), box two \\([[p2]] \\cdot [[c2]] = [[term2]]\\)."
+    }
+  ],
+  "answer": "Add them: \\([[term1]] + [[term2]] = [[answer]]\\)."
+}

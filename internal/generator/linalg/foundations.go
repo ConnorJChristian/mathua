@@ -93,7 +93,8 @@ func (g *inverse2x2Gen) Generate(ctx generator.GeneratorContext) generator.Probl
 		Answer:   fmt.Sprintf("%d", d),
 		Explanation: fmt.Sprintf("For a two-by-two matrix the inverse is the transpose of the cofactor matrix divided by the determinant: the swap of the diagonal entries and the sign change of the other two, all over %d. The first-row first-column entry is therefore %d.",
 			det, d),
-		Facts: map[string]string{"entry": fmt.Sprintf("%d", d), "determinant": fmt.Sprintf("%d", det)},
+		Facts: map[string]string{"entry": fmt.Sprintf("%d", d), "determinant": fmt.Sprintf("%d", det),
+			"a": fmt.Sprintf("%d", a), "b": fmt.Sprintf("%d", b), "c": fmt.Sprintf("%d", c), "d": fmt.Sprintf("%d", d)},
 	}
 }
 

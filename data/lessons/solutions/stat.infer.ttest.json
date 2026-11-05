@@ -1,0 +1,15 @@
+{
+  "concept": "stat.infer.ttest",
+  "setup": "The t statistic compares the gap between the sample mean and the null mean with the standard error: \\(t = (\\bar{x} - \\mu)/(s/\\sqrt{n})\\).",
+  "steps": [
+    {
+      "fact": "dev",
+      "say": "The gap: \\(\\bar{x} - \\mu = [[xbar]] - [[mu]] = [[dev]]\\)."
+    },
+    {
+      "fact": "se",
+      "say": "The standard error: \\(s/\\sqrt{n} = [[s]]/\\sqrt{[[n]]} = [[s]]/[[sqrt_n]] = [[se]]\\)."
+    }
+  ],
+  "answer": "Divide: \\(t = [[dev]] / [[se]] = [[answer]]\\)."
+}

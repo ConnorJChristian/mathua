@@ -9,6 +9,7 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/latex"
 	"github.com/chuma-beep/mathua/internal/solutions"
+	"github.com/chuma-beep/mathua/internal/walkthrough"
 )
 
 type Registry struct {
@@ -42,7 +43,7 @@ func (r *Registry) explain(conceptID string, p Problem) string {
 	loader := r.solutions
 	r.mu.RUnlock()
 	if loader == nil {
-		return latex.Canonicalize(p.Explanation, latex.Generators)
+		return ownSteps(latex.Canonicalize(p.Explanation, latex.Generators))
 	}
 	// Copy: the generator owns p.Facts and reuse of a Problem must not see
 	// the always-present entries we add below.
@@ -53,7 +54,30 @@ func (r *Registry) explain(conceptID string, p Problem) string {
 	// The graded answer is a fact every schema may reference, so an authored
 	// explanation never has to restate it in prose to close.
 	facts["answer"] = p.Answer
-	return latex.Canonicalize(loader.Assemble(conceptID, facts, p.Explanation), latex.Generators)
+	// Fork change: a schema's steps travel with the explanation as a steps
+	// block (internal/walkthrough), so every surface's feedback can show
+	// them one by one. Canonicalisation keeps the markers: they are HTML
+	// comments, which the scanner passes through.
+	if parts, ok := loader.AssembleParts(conceptID, facts); ok {
+		return latex.Canonicalize(walkthrough.Encode(parts.Explain, parts.Steps), latex.Generators)
+	}
+	return ownSteps(latex.Canonicalize(p.Explanation, latex.Generators))
+}
+
+// ownSteps reads the steps off a generator's own explanation when no schema
+// covers the instance (fork change): its sentences, in order, when at least
+// two carry working (walkthrough.WorkedSteps). The numbers are the
+// generator's own, so they cannot drift from the key; a one-sentence
+// explanation stays the reason.
+func ownSteps(explanation string) string {
+	if walkthrough.HasSteps(explanation) {
+		return explanation // the generator wrote its own steps block
+	}
+	steps := walkthrough.WorkedSteps(explanation)
+	if len(steps) == 0 {
+		return explanation
+	}
+	return walkthrough.Encode(walkthrough.TrimCovered(explanation, steps), steps)
 }
 
 func (r *Registry) Register(conceptID string, gen Generator) error {

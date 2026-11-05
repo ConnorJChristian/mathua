@@ -57,7 +57,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([1, 2, 3], [4, 1, 5])\nax.plot([1, 2, 3], [2, 2, 2])\nprint(len(fig.axes), len(ax.lines))",
      "explain": "Both `plot` calls draw into the same axes, so there is one axes holding two lines.",
-     "expected": "1 2"
+     "expected": "1 2",
+     "steps": [
+      "Line 5, `print(len(fig.axes), len(ax.lines))`, prints `1 2`."
+     ]
     },
     {
      "id": "o2",
@@ -66,7 +69,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nplt.plot([0, 1], [0, 1])\nplt.figure()\nplt.plot([0, 1], [1, 0])\nplt.plot([0, 1], [0.5, 0.5])\nprint(len(plt.get_fignums()), len(plt.gca().lines))",
      "explain": "The first `plt.plot` creates figure 1. `plt.figure()` makes figure 2 current, so the next two lines go there. `plt.gca()` is figure 2's axes.",
-     "expected": "2 2"
+     "expected": "2 2",
+     "steps": [
+      "Line 6, `print(len(plt.get_fignums()), len(plt.gca().lines))`, prints `2 2`."
+     ]
     },
     {
      "id": "c1",
@@ -145,7 +151,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nline, = ax.plot([1, 2, 3], [2, 4, 3], \"g:\")\nprint(line.get_color(), line.get_linestyle())",
      "explain": "The format string `g:` sets the color to `g` (green) and the line style to dotted, `:`.",
-     "expected": "g :"
+     "expected": "g :",
+     "steps": [
+      "Line 4, `print(line.get_color(), line.get_linestyle())`, prints `g :`."
+     ]
     },
     {
      "id": "o2",
@@ -154,7 +163,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nfrom matplotlib.colors import to_hex\nfor k in range(4):\n    ax.plot([0, 1], [k, k + 1])\nax.plot([0, 1], [5, 5], color=\"C1\")\nprint(len({to_hex(ln.get_color()) for ln in ax.lines}))",
      "explain": "The four unstyled lines take `C0` to `C3`, four different colors. The fifth line asks for `C1`, which repeats the second color, so there are four distinct colors in total.",
-     "expected": "4"
+     "expected": "4",
+     "steps": [
+      "Line 7, `print(len({to_hex(ln.get_color()) for ln in ax.lines}))`, prints `4`."
+     ]
     },
     {
      "id": "c1",
@@ -237,7 +249,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 4], [1, 3])\nax.set(xlim=(-2, 6), xlabel=\"Tax rate\")\nlo, hi = ax.get_xlim()\nprint(lo, hi, ax.get_xlabel())",
      "explain": "The explicit limits replace the automatic ones; `get_xlabel` returns the label text.",
-     "expected": "-2.0 6.0 Tax rate"
+     "expected": "-2.0 6.0 Tax rate",
+     "steps": [
+      "Line 6, `print(lo, hi, ax.get_xlabel())`, prints `-2.0 6.0 Tax rate`."
+     ]
     },
     {
      "id": "o2",
@@ -246,7 +261,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 10], [0, 5])\nax.set_xlim(10, 0)\nprint(ax.xaxis_inverted())",
      "explain": "A larger left limit than right limit inverts the x axis.",
-     "expected": "True"
+     "expected": "True",
+     "steps": [
+      "Line 5, `print(ax.xaxis_inverted())`, prints `True`."
+     ]
     },
     {
      "id": "c1",
@@ -325,7 +343,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([1, 2, 3], [3, 1, 2], \"o\")\nax.scatter([1, 2, 3], [1, 2, 3])\nprint(len(ax.lines), len(ax.collections))",
      "explain": "The marker plot is a line object (with no line drawn); the scatter is a collection.",
-     "expected": "1 1"
+     "expected": "1 1",
+     "steps": [
+      "Line 5, `print(len(ax.lines), len(ax.collections))`, prints `1 1`."
+     ]
     },
     {
      "id": "o2",
@@ -334,7 +355,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\npts = ax.scatter([1, 2, 3, 4], [4, 3, 2, 1], s=[10, 40, 90, 160])\nprint(pts.get_sizes(), len(pts.get_offsets()))",
      "explain": "Sizes are stored per point; the offsets are the four (x, y) positions.",
-     "expected": "[ 10  40  90 160] 4"
+     "expected": "[ 10  40  90 160] 4",
+     "steps": [
+      "Line 4, `print(pts.get_sizes(), len(pts.get_offsets()))`, prints `[ 10  40  90 160] 4`."
+     ]
     },
     {
      "id": "c1",
@@ -413,7 +437,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nout = ax.errorbar([1, 2, 3], [0.4, 0.1, 0.6], yerr=0.2, fmt=\"o\")\nprint(type(out).__name__, len(ax.containers))",
      "explain": "`errorbar` returns an `ErrorbarContainer` that groups the marker line and the bar collection, and registers it in `ax.containers`.",
-     "expected": "ErrorbarContainer 1"
+     "expected": "ErrorbarContainer 1",
+     "steps": [
+      "Line 4, `print(type(out).__name__, len(ax.containers))`, prints `ErrorbarContainer 1`."
+     ]
     },
     {
      "id": "c1",
@@ -512,7 +539,11 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nX, Y = np.meshgrid(np.arange(3), np.arange(2))\nprint(X)\nprint(Y)",
      "explain": "`X` repeats the x values down the rows; `Y` repeats the y values across the columns.",
-     "expected": "[[0 1 2]\n [0 1 2]]\n[[0 0 0]\n [1 1 1]]"
+     "expected": "[[0 1 2]\n [0 1 2]]\n[[0 0 0]\n [1 1 1]]",
+     "steps": [
+      "Line 3, `print(X)`, prints:\n\n```text\n[[0 1 2]\n [0 1 2]]\n```",
+      "Line 4, `print(Y)`, prints:\n\n```text\n[[0 0 0]\n [1 1 1]]\n```"
+     ]
     },
     {
      "id": "o2",
@@ -521,7 +552,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nimport matplotlib.pyplot as plt\nx = np.linspace(0, 1, 20)\nX, Y = np.meshgrid(x, x)\nfig, ax = plt.subplots()\ncs = ax.contour(X, Y, X + Y, levels=[0.5, 1.0, 1.5])\nprint(cs.levels)",
      "explain": "When you pass a list of levels, the contour set uses exactly those.",
-     "expected": "[0.5 1.  1.5]"
+     "expected": "[0.5 1.  1.5]",
+     "steps": [
+      "Line 7, `print(cs.levels)`, prints `[0.5 1.  1.5]`."
+     ]
     },
     {
      "id": "c1",
@@ -617,7 +651,11 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\ncounts, edges = np.histogram([2, 3, 3, 5, 8, 9, 9, 9], bins=4, range=(0, 12))\nprint(counts)\nprint(edges)",
      "explain": "Four bins of width 3 from 0 to 12: [0,3), [3,6), [6,9), [9,12]. The last bin includes its right edge.",
-     "expected": "[1 3 1 3]\n[ 0.  3.  6.  9. 12.]"
+     "expected": "[1 3 1 3]\n[ 0.  3.  6.  9. 12.]",
+     "steps": [
+      "Line 3, `print(counts)`, prints `[1 3 1 3]`.",
+      "Line 4, `print(edges)`, prints `[ 0.  3.  6.  9. 12.]`."
+     ]
     },
     {
      "id": "o2",
@@ -626,7 +664,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\ncounts, edges, bars = ax.hist([1, 1, 2, 4, 4, 4], bins=[0, 2, 4, 6])\nprint(counts, len(ax.patches))",
      "explain": "Edges 0, 2, 4, 6 make three bins. 4 sits on an inner edge, so it goes to the bin starting at 4.",
-     "expected": "[2. 1. 3.] 3"
+     "expected": "[2. 1. 3.] 3",
+     "steps": [
+      "Line 4, `print(counts, len(ax.patches))`, prints `[2. 1. 3.] 3`."
+     ]
     },
     {
      "id": "c1",
@@ -705,7 +746,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 1], [1, 2], label=\"Urban\")\nax.plot([0, 1], [2, 1], label=\"_Rural\")\nax.plot([0, 1], [1, 1])\nleg = ax.legend()\nprint([t.get_text() for t in leg.get_texts()])",
      "explain": "The underscored label and the unlabelled line are both left out.",
-     "expected": "['Urban']"
+     "expected": "['Urban']",
+     "steps": [
+      "Line 7, `print([t.get_text() for t in leg.get_texts()])`, prints `['Urban']`."
+     ]
     },
     {
      "id": "c1",
@@ -817,7 +861,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\ncmap = plt.get_cmap(\"Blues\", 4)\nprint(cmap.N, cmap.name)",
      "explain": "Asking for 4 colors gives a discrete colormap with `N == 4`.",
-     "expected": "4 Blues"
+     "expected": "4 Blues",
+     "steps": [
+      "Line 3, `print(cmap.N, cmap.name)`, prints `4 Blues`."
+     ]
     },
     {
      "id": "o2",
@@ -826,7 +873,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nimport matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nim = ax.imshow(np.arange(12).reshape(3, 4))\nfig.colorbar(im)\nprint(len(fig.axes), im.get_clim())",
      "explain": "The colorbar lives in its own axes. The color limits default to the data range, 0 to 11.",
-     "expected": "2 (0, 11)"
+     "expected": "2 (0, 11)",
+     "steps": [
+      "Line 6, `print(len(fig.axes), im.get_clim())`, prints `2 (0, 11)`."
+     ]
     },
     {
      "id": "c1",
@@ -918,7 +968,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, axs = plt.subplots(1, 4)\nprint(axs.shape, len(fig.axes))",
      "explain": "A single row gives a 1D array of four axes.",
-     "expected": "(4,) 4"
+     "expected": "(4,) 4",
+     "steps": [
+      "Line 3, `print(axs.shape, len(fig.axes))`, prints `(4,) 4`."
+     ]
     },
     {
      "id": "o2",
@@ -927,7 +980,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, axs = plt.subplots(2, 2, sharex=True)\naxs[0, 0].set_xlim(0, 50)\nlo, hi = axs[1, 1].get_xlim()\nprint(lo, hi)",
      "explain": "With `sharex=True`, setting one panel's x limits sets all of them.",
-     "expected": "0.0 50.0"
+     "expected": "0.0 50.0",
+     "steps": [
+      "Line 5, `print(lo, hi)`, prints `0.0 50.0`."
+     ]
     },
     {
      "id": "c1",
@@ -1026,7 +1082,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 10], [0, 10])\nax.text(5, 5, \"mid\")\nax.text(0.5, 0.9, \"note\", transform=ax.transAxes)\nax.annotate(\"end\", xy=(10, 10), xytext=(6, 9), arrowprops=dict(arrowstyle=\"->\"))\nprint(len(ax.texts))",
      "explain": "Text objects and annotations are both stored in `ax.texts`.",
-     "expected": "3"
+     "expected": "3",
+     "steps": [
+      "Line 7, `print(len(ax.texts))`, prints `3`."
+     ]
     },
     {
      "id": "c1",
@@ -1094,7 +1153,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 10], [0, 10])\nnote = ax.text(0.5, 0.5, \"centre\", transform=ax.transAxes)\nax.set_xlim(0, 100)\nprint(note.get_position(), note.get_transform() == ax.transAxes)",
      "explain": "A text object keeps the position you gave it, in the coordinate system of its transform. Changing the data limits does not touch a position measured in axes fractions.",
-     "expected": "(0.5, 0.5) True"
+     "expected": "(0.5, 0.5) True",
+     "steps": [
+      "Line 6, `print(note.get_position(), note.get_transform() == ax.transAxes)`, prints `(0.5, 0.5) True`."
+     ]
     },
     {
      "id": "c2",
@@ -1177,7 +1239,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 10], [0, 1])\nax.set_xlim(0, 10)\nax.xaxis.set_major_locator(plt.MultipleLocator(4))\nprint([float(v) for v in ax.get_xticks()])",
      "explain": "The locator returns multiples of 4 that cover the view, including one just beyond each end (Matplotlib only draws those inside the limits).",
-     "expected": "[-4.0, 0.0, 4.0, 8.0, 12.0]"
+     "expected": "[-4.0, 0.0, 4.0, 8.0, 12.0]",
+     "steps": [
+      "Line 6, `print([float(v) for v in ax.get_xticks()])`, prints `[-4.0, 0.0, 4.0, 8.0, 12.0]`."
+     ]
     },
     {
      "id": "o2",
@@ -1186,7 +1251,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig, ax = plt.subplots()\nax.plot([0, 1], [0, 1])\nax.set_xticks([0, 0.5, 1])\nax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, pos: f\"{v:.0%}\"))\nfig.canvas.draw()\nprint([t.get_text() for t in ax.get_xticklabels()])",
      "explain": "The formatter turns each tick value into a percentage string.",
-     "expected": "['0%', '50%', '100%']"
+     "expected": "['0%', '50%', '100%']",
+     "steps": [
+      "Line 7, `print([t.get_text() for t in ax.get_xticklabels()])`, prints `['0%', '50%', '100%']`."
+     ]
     },
     {
      "id": "c1",
@@ -1269,7 +1337,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nwith plt.style.context({\"lines.linewidth\": 4}):\n    fig, ax = plt.subplots()\n    a, = ax.plot([0, 1])\nb, = ax.plot([1, 0])\nprint(a.get_linewidth(), b.get_linewidth())",
      "explain": "A dict works as a style too. Inside the block the default width is 4; after it, the default 1.5 is back, even on the same axes.",
-     "expected": "4.0 1.5"
+     "expected": "4.0 1.5",
+     "steps": [
+      "Line 6, `print(a.get_linewidth(), b.get_linewidth())`, prints `4.0 1.5`."
+     ]
     },
     {
      "id": "o2",
@@ -1278,7 +1349,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nplt.rcParams.update({\"figure.figsize\": (5, 2)})\nfig = plt.figure()\nprint(fig.get_size_inches())",
      "explain": "New figures take their size from `figure.figsize`, in inches.",
-     "expected": "[5. 2.]"
+     "expected": "[5. 2.]",
+     "steps": [
+      "Line 4, `print(fig.get_size_inches())`, prints `[5. 2.]`."
+     ]
     },
     {
      "id": "c1",
@@ -1357,7 +1431,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nimport matplotlib.pyplot as plt\nfig = plt.figure()\nax = fig.add_subplot(projection=\"3d\")\nax.plot3D([0, 1, 2], [0, 1, 0], [0, 2, 4])\nax.scatter3D([1], [1], [1])\nprint(ax.name, len(ax.lines), len(ax.collections))",
      "explain": "A 3D axes reports the name `3d`. The path is a line and the scatter a collection.",
-     "expected": "3d 1 1"
+     "expected": "3d 1 1",
+     "steps": [
+      "Line 7, `print(ax.name, len(ax.lines), len(ax.collections))`, prints `3d 1 1`."
+     ]
     },
     {
      "id": "c1",
@@ -1425,7 +1502,10 @@
      "prompt": "What does this print?",
      "code": "import matplotlib.pyplot as plt\nfig = plt.figure()\nax = fig.add_subplot(projection=\"3d\")\nax.view_init(elev=20, azim=45)\nprint(ax.name, ax.elev, ax.azim)",
      "explain": "A 3D axes is named `3d` and stores the camera angles set by `view_init`.",
-     "expected": "3d 20 45"
+     "expected": "3d 20 45",
+     "steps": [
+      "Line 5, `print(ax.name, ax.elev, ax.azim)`, prints `3d 20 45`."
+     ]
     },
     {
      "id": "c2",
@@ -1521,7 +1601,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\nimport matplotlib.pyplot as plt\ndf = pd.DataFrame({\"educ\": [10, 12, 12, 16, 18, 14],\n                   \"exper\": [20, 5, 12, 8, 3, 10],\n                   \"wage\": [15, 17, 21, 30, 34, 22]})\naxs = pd.plotting.scatter_matrix(df)\nprint(axs.shape, len(plt.gcf().axes))",
      "explain": "Three columns give a 3 x 3 grid; all nine axes live in the current figure.",
-     "expected": "(3, 3) 9"
+     "expected": "(3, 3) 9",
+     "steps": [
+      "Line 7, `print(axs.shape, len(plt.gcf().axes))`, prints `(3, 3) 9`."
+     ]
     },
     {
      "id": "o2",
@@ -1530,7 +1613,10 @@
      "prompt": "What does this print?",
      "code": "import pandas as pd\ndf = pd.DataFrame({\"wage\": [12, 14, 15, 15, 18, 22, 25, 31]})\nax = df[\"wage\"].plot.hist(bins=4)\nprint(len(ax.patches), [int(p.get_height()) for p in ax.patches])",
      "explain": "Four equal-width bins from 12 to 31 (edges about 12, 16.75, 21.5, 26.25, 31) hold 4, 1, 2 and 1 values.",
-     "expected": "4 [4, 1, 2, 1]"
+     "expected": "4 [4, 1, 2, 1]",
+     "steps": [
+      "Line 4, `print(len(ax.patches), [int(p.get_height()) for p in ax.patches])`, prints `4 [4, 1, 2, 1]`."
+     ]
     }
    ]
   }

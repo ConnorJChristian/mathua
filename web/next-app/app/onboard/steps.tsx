@@ -9,6 +9,7 @@ import ReportButton from '../../components/ReportButton'
 import BriefingCard, { DIAGNOSTIC_BRIEFING } from '../../components/BriefingCard'
 import SubmitErrorBlock, { type SubmitError } from '../../components/SubmitErrorBlock'
 import DiagnosticResults from '../../components/DiagnosticResults'
+import PlacementWalkthroughs from '../../components/PlacementWalkthroughs'
 import Loading from '../../components/Loading'
 import type { DiagnosticProgress, GoalPlanRes } from '../../lib/api'
 import type { AnswerFormat } from '../../lib/answerFormat'
@@ -483,6 +484,11 @@ export function ResultsStep({ plan, onStartPractice, demo, courseId }: { plan: G
       <div className="mt-6 min-w-0 overflow-hidden">
         <DiagnosticResults plan={plan} onStartPractice={onStartPractice} />
       </div>
+      {plan.questions && plan.questions.length > 0 && (
+        <div className="mt-6 min-w-0 overflow-hidden">
+          <PlacementWalkthroughs questions={plan.questions} />
+        </div>
+      )}
     </div>
   )
 }

@@ -1,0 +1,15 @@
+{
+  "concept": "calc.deriv.marginal_analysis",
+  "setup": "Marginal cost is the derivative of the cost function \\(C(x) = [[a]]x^{2} + [[b]]x + [[c]]\\), evaluated at \\(x = [[x0]]\\).",
+  "steps": [
+    {
+      "fact": "a",
+      "say": "Differentiate term by term: the derivative of \\([[a]]x^{2}\\) is \\(2 \\cdot [[a]] x = [[two_a]]x\\), of \\([[b]]x\\) is \\([[b]]\\), and the constant [[c]] drops out, so \\(C'(x) = [[two_a]]x + [[b]]\\)."
+    },
+    {
+      "fact": "x0",
+      "say": "Substitute \\(x = [[x0]]\\): \\(C'([[x0]]) = [[two_a]] \\cdot [[x0]] + [[b]] = [[marginal]]\\)."
+    }
+  ],
+  "answer": "So the marginal cost at \\(x = [[x0]]\\) is [[marginal]]: the cost of one more unit there."
+}

@@ -70,7 +70,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nrent = np.array([900.0, 1450.0, 1200.0, 700.0, 1600.0])\npricey = (rent > 1000).astype(int)\nprint(pricey, pricey.sum())",
      "explain": "Thresholding a continuous variable turns a regression target into a two-class classification target: 1 where rent exceeds 1000.",
-     "expected": "[0 1 1 0 1] 3"
+     "expected": "[0 1 1 0 1] 3",
+     "steps": [
+      "Line 4, `print(pricey, pricey.sum())`, prints `[0 1 1 0 1] 3`."
+     ]
     },
     {
      "id": "c1",
@@ -149,7 +152,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\nx = np.array([8, 10, 12, 14, 16])\nwage = 3 + 1.5 * x\nmodel = LinearRegression().fit(x[:, None], wage)\nprint(round(model.coef_[0], 3), round(model.intercept_, 3))",
      "explain": "The data lie exactly on wage = 3 + 1.5 x, so least squares recovers slope 1.5 and intercept 3.",
-     "expected": "1.5 3.0"
+     "expected": "1.5 3.0",
+     "steps": [
+      "Line 6, `print(round(model.coef_[0], 3), round(model.intercept_, 3))`, prints `1.5 3.0`."
+     ]
     },
     {
      "id": "o2",
@@ -158,7 +164,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import load_wine\nfrom sklearn.decomposition import PCA\nX, y = load_wine(return_X_y=True)\nZ = PCA(n_components=2).fit_transform(X)\nprint(X.shape, y.shape, Z.shape)",
      "explain": "The wine data has 178 rows and 13 features. PCA is unsupervised: it ignores `y` and maps every row to 2 new columns.",
-     "expected": "(178, 13) (178,) (178, 2)"
+     "expected": "(178, 13) (178,) (178, 2)",
+     "steps": [
+      "Line 5, `print(X.shape, y.shape, Z.shape)`, prints `(178, 13) (178,) (178, 2)`."
+     ]
     },
     {
      "id": "c1",
@@ -257,7 +266,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import load_breast_cancer\nfrom sklearn.neighbors import KNeighborsClassifier\nX, y = load_breast_cancer(return_X_y=True)\nknn = KNeighborsClassifier(n_neighbors=1).fit(X, y)\nprint(knn.score(X, y))",
      "explain": "With one neighbour, every training row is classified by itself, so in-sample accuracy is perfect. It says nothing about new patients.",
-     "expected": "1.0"
+     "expected": "1.0",
+     "steps": [
+      "Line 5, `print(knn.score(X, y))`, prints `1.0`."
+     ]
     },
     {
      "id": "o2",
@@ -266,7 +278,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.model_selection import train_test_split\nX = np.zeros((120, 4))\ny = np.zeros(120)\nX_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.25, random_state=0)\nprint(X_tr.shape, X_te.shape, y_te.shape)",
      "explain": "A quarter of 120 rows (30) goes to the test set and 90 stay for training.",
-     "expected": "(90, 4) (30, 4) (30,)"
+     "expected": "(90, 4) (30, 4) (30,)",
+     "steps": [
+      "Line 6, `print(X_tr.shape, X_te.shape, y_te.shape)`, prints `(90, 4) (30, 4) (30,)`."
+     ]
     },
     {
      "id": "o3",
@@ -275,7 +290,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import load_iris\nfrom sklearn.naive_bayes import GaussianNB\nfrom sklearn.model_selection import cross_val_score\nX, y = load_iris(return_X_y=True)\nscores = cross_val_score(GaussianNB(), X, y, cv=4)\nprint(len(scores), round(scores.mean(), 2))",
      "explain": "`cv=4` gives one accuracy per fold, four in all; the mean is the usual summary.",
-     "expected": "4 0.95"
+     "expected": "4 0.95",
+     "steps": [
+      "Line 6, `print(len(scores), round(scores.mean(), 2))`, prints `4 0.95`."
+     ]
     },
     {
      "id": "c1",
@@ -383,7 +401,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.linear_model import Ridge\nfrom sklearn.model_selection import validation_curve\nrng = np.random.default_rng(0)\nX = rng.normal(size=(60, 3))\ny = X @ [1.0, -2.0, 0.5] + rng.normal(size=60)\ntrain, valid = validation_curve(Ridge(), X, y, param_name=\"alpha\",\n                                param_range=[0.1, 1, 10, 100], cv=3)\nprint(train.shape, valid.shape)",
      "explain": "One row per hyperparameter value (4) and one column per fold (3), for both the training and the validation scores.",
-     "expected": "(4, 3) (4, 3)"
+     "expected": "(4, 3) (4, 3)",
+     "steps": [
+      "Line 9, `print(train.shape, valid.shape)`, prints `(4, 3) (4, 3)`."
+     ]
     },
     {
      "id": "o2",
@@ -392,7 +413,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.pipeline import make_pipeline\nfrom sklearn.preprocessing import PolynomialFeatures\nfrom sklearn.linear_model import LinearRegression\nfrom sklearn.model_selection import GridSearchCV\nrng = np.random.default_rng(1)\nx = rng.uniform(-3, 3, 80)\ny = 0.5 * x**3 - x + rng.normal(0, 1, 80)\npipe = make_pipeline(PolynomialFeatures(), LinearRegression())\ngrid = GridSearchCV(pipe, {\"polynomialfeatures__degree\": [1, 2, 3]}, cv=5)\ngrid.fit(x[:, None], y)\nprint(grid.best_params_)",
      "explain": "The data come from a cubic, so degree 3 has the best cross-validated score among degrees 1 to 3.",
-     "expected": "{'polynomialfeatures__degree': 3}"
+     "expected": "{'polynomialfeatures__degree': 3}",
+     "steps": [
+      "Line 12, `print(grid.best_params_)`, prints `{'polynomialfeatures__degree': 3}`."
+     ]
     },
     {
      "id": "c1",
@@ -495,7 +519,11 @@
      "prompt": "What does this print?",
      "code": "from sklearn.feature_extraction import DictVectorizer\nrows = [{\"state\": \"NV\", \"beds\": 120}, {\"state\": \"UT\", \"beds\": 80}, {\"state\": \"NV\", \"beds\": 45}]\ndv = DictVectorizer(sparse=False)\nM = dv.fit_transform(rows)\nprint(dv.get_feature_names_out())\nprint(M.shape)",
      "explain": "Numeric values pass through as one column; each string value becomes its own `key=value` column. Names are sorted alphabetically.",
-     "expected": "['beds' 'state=NV' 'state=UT']\n(3, 3)"
+     "expected": "['beds' 'state=NV' 'state=UT']\n(3, 3)",
+     "steps": [
+      "Line 5, `print(dv.get_feature_names_out())`, prints `['beds' 'state=NV' 'state=UT']`.",
+      "Line 6, `print(M.shape)`, prints `(3, 3)`."
+     ]
     },
     {
      "id": "o2",
@@ -504,7 +532,11 @@
      "prompt": "What does this print?",
      "code": "from sklearn.feature_extraction.text import CountVectorizer\ndocs = [\"rates rise\", \"rates fall then rates rise\"]\ncv = CountVectorizer()\nM = cv.fit_transform(docs)\nprint(cv.get_feature_names_out())\nprint(M.toarray())",
      "explain": "The vocabulary is sorted. The second document mentions 'rates' twice, so its count in that column is 2.",
-     "expected": "['fall' 'rates' 'rise' 'then']\n[[0 1 1 0]\n [1 2 1 1]]"
+     "expected": "['fall' 'rates' 'rise' 'then']\n[[0 1 1 0]\n [1 2 1 1]]",
+     "steps": [
+      "Line 5, `print(cv.get_feature_names_out())`, prints `['fall' 'rates' 'rise' 'then']`.",
+      "Line 6, `print(M.toarray())`, prints:\n\n```text\n[[0 1 1 0]\n [1 2 1 1]]\n```"
+     ]
     },
     {
      "id": "c1",
@@ -607,7 +639,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.preprocessing import PolynomialFeatures\nprint(PolynomialFeatures(degree=3).fit_transform([[2]]))",
      "explain": "The bias column 1, then 2, 2 squared and 2 cubed.",
-     "expected": "[[1. 2. 4. 8.]]"
+     "expected": "[[1. 2. 4. 8.]]",
+     "steps": [
+      "Line 2, `print(PolynomialFeatures(degree=3).fit_transform([[2]]))`, prints `[[1. 2. 4. 8.]]`."
+     ]
     },
     {
      "id": "o2",
@@ -616,7 +651,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.impute import SimpleImputer\nX = np.array([[1.0, 10.0], [np.nan, 20.0], [3.0, np.nan], [8.0, 30.0]])\nprint(SimpleImputer(strategy=\"median\").fit_transform(X))",
      "explain": "Each NaN is replaced by its column's median of the observed values: 3 for the first column (of 1, 3, 8) and 20 for the second.",
-     "expected": "[[ 1. 10.]\n [ 3. 20.]\n [ 3. 20.]\n [ 8. 30.]]"
+     "expected": "[[ 1. 10.]\n [ 3. 20.]\n [ 3. 20.]\n [ 8. 30.]]",
+     "steps": [
+      "Line 4, `print(SimpleImputer(strategy=\"median\").fit_transform(X))`, prints:\n\n```text\n[[ 1. 10.]\n [ 3. 20.]\n [ 3. 20.]\n [ 8. 30.]]\n```"
+     ]
     },
     {
      "id": "o3",
@@ -625,7 +663,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.pipeline import make_pipeline\nfrom sklearn.impute import SimpleImputer\nfrom sklearn.linear_model import LinearRegression\npipe = make_pipeline(SimpleImputer(), LinearRegression())\nprint([name for name, step in pipe.steps])",
      "explain": "`make_pipeline` names each step after its class, in lowercase.",
-     "expected": "['simpleimputer', 'linearregression']"
+     "expected": "['simpleimputer', 'linearregression']",
+     "steps": [
+      "Line 5, `print([name for name, step in pipe.steps])`, prints `['simpleimputer', 'linearregression']`."
+     ]
     },
     {
      "id": "c1",
@@ -724,7 +765,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.naive_bayes import GaussianNB\nX = np.array([[1.0], [1.5], [2.0], [8.0], [8.5], [9.0]])\ny = np.array([0, 0, 0, 1, 1, 1])\ngnb = GaussianNB().fit(X, y)\nprint(gnb.predict([[1.2], [5.6], [10.0]]))",
      "explain": "Class 0 is centred at 1.5 and class 1 at 8.5 with equal spread, so the boundary sits near 5: 5.6 goes to class 1.",
-     "expected": "[0 1 1]"
+     "expected": "[0 1 1]",
+     "steps": [
+      "Line 6, `print(gnb.predict([[1.2], [5.6], [10.0]]))`, prints `[0 1 1]`."
+     ]
     },
     {
      "id": "o2",
@@ -733,7 +777,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.pipeline import make_pipeline\nfrom sklearn.feature_extraction.text import CountVectorizer\nfrom sklearn.naive_bayes import MultinomialNB\ndocs = [\"late payment fee\", \"fee for late rent\", \"great service fast\", \"fast friendly service\"]\nlabels = [\"complaint\", \"complaint\", \"praise\", \"praise\"]\nclf = make_pipeline(CountVectorizer(), MultinomialNB()).fit(docs, labels)\nprint(clf.predict([\"rent fee\", \"friendly and fast\"]))",
      "explain": "'rent' and 'fee' were only seen in complaints; 'friendly' and 'fast' only in praise.",
-     "expected": "['complaint' 'praise']"
+     "expected": "['complaint' 'praise']",
+     "steps": [
+      "Line 7, `print(clf.predict([\"rent fee\", \"friendly and fast\"]))`, prints `['complaint' 'praise']`."
+     ]
     },
     {
      "id": "c1",
@@ -832,7 +879,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\nrng = np.random.default_rng(0)\nX = rng.uniform(0, 10, size=(30, 3))\ny = 4 + X @ [2.0, -1.0, 0.5]\nmodel = LinearRegression().fit(X, y)\nprint(np.round(model.coef_, 2), round(model.intercept_, 2))",
      "explain": "With no noise, least squares recovers the true coefficients and intercept exactly.",
-     "expected": "[ 2.  -1.   0.5] 4.0"
+     "expected": "[ 2.  -1.   0.5] 4.0",
+     "steps": [
+      "Line 7, `print(np.round(model.coef_, 2), round(model.intercept_, 2))`, prints `[ 2.  -1.   0.5] 4.0`."
+     ]
     },
     {
      "id": "o2",
@@ -841,7 +891,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nx = np.array([0.0, 2.0, 5.0])\ncentres = np.array([0.0, 5.0])\nB = np.exp(-((x[:, None] - centres) ** 2) / 2)\nprint(B.shape, np.round(B[:, 1], 2))",
      "explain": "One row per x value and one column per centre. The second column is 1 at x = 5, small at 2, and essentially 0 at 0.",
-     "expected": "(3, 2) [0.   0.01 1.  ]"
+     "expected": "(3, 2) [0.   0.01 1.  ]",
+     "steps": [
+      "Line 5, `print(B.shape, np.round(B[:, 1], 2))`, prints `(3, 2) [0.   0.01 1.  ]`."
+     ]
     },
     {
      "id": "c1",
@@ -957,7 +1010,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.linear_model import Lasso\nrng = np.random.default_rng(0)\nX = rng.normal(size=(100, 8))\ny = 3 * X[:, 0] - 2 * X[:, 4] + rng.normal(size=100)\nlasso = Lasso(alpha=0.3).fit(X, y)\nprint(np.flatnonzero(lasso.coef_))",
      "explain": "Only columns 0 and 4 carry signal. The lasso penalty zeroes the other six coefficients.",
-     "expected": "[0 4]"
+     "expected": "[0 4]",
+     "steps": [
+      "Line 7, `print(np.flatnonzero(lasso.coef_))`, prints `[0 4]`."
+     ]
     },
     {
      "id": "o2",
@@ -966,7 +1022,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.linear_model import Ridge\nrng = np.random.default_rng(1)\nX = rng.normal(size=(50, 5))\ny = X @ [1.0, 2.0, -1.0, 0.5, 0.0] + rng.normal(size=50)\nsizes = [np.abs(Ridge(alpha=a).fit(X, y).coef_).sum() for a in [0.1, 10, 1000]]\nprint([round(float(s), 2) for s in sizes])",
      "explain": "The total size of the coefficients falls as alpha grows.",
-     "expected": "[4.19, 3.49, 0.22]"
+     "expected": "[4.19, 3.49, 0.22]",
+     "steps": [
+      "Line 7, `print([round(float(s), 2) for s in sizes])`, prints `[4.19, 3.49, 0.22]`."
+     ]
     },
     {
      "id": "c1",
@@ -1065,7 +1124,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.svm import SVC\nX = np.array([[0, 0], [0, 1], [1, 0], [3, 3], [3, 4], [4, 3]], dtype=float)\ny = np.array([0, 0, 0, 1, 1, 1])\nclf = SVC(kernel=\"linear\", C=100).fit(X, y)\nprint(len(clf.support_vectors_), clf.predict([[1, 1], [3.5, 3.5]]))",
      "explain": "Only the points nearest the gap between the groups become support vectors; the rest do not affect the boundary.",
-     "expected": "3 [0 1]"
+     "expected": "3 [0 1]",
+     "steps": [
+      "Line 6, `print(len(clf.support_vectors_), clf.predict([[1, 1], [3.5, 3.5]]))`, prints `3 [0 1]`."
+     ]
     },
     {
      "id": "o2",
@@ -1074,7 +1136,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import make_circles\nfrom sklearn.svm import SVC\nX, y = make_circles(n_samples=200, factor=0.4, noise=0.05, random_state=0)\nlin = SVC(kernel=\"linear\").fit(X, y).score(X, y)\nrbf = SVC(kernel=\"rbf\").fit(X, y).score(X, y)\nprint(lin < 0.8, rbf > 0.95)",
      "explain": "A line cannot separate an inner ring from an outer one; the RBF kernel can.",
-     "expected": "True True"
+     "expected": "True True",
+     "steps": [
+      "Line 6, `print(lin < 0.8, rbf > 0.95)`, prints `True True`."
+     ]
     },
     {
      "id": "c1",
@@ -1169,7 +1234,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import load_breast_cancer\nfrom sklearn.tree import DecisionTreeClassifier\nX, y = load_breast_cancer(return_X_y=True)\nfor depth in [1, None]:\n    tree = DecisionTreeClassifier(max_depth=depth, random_state=0).fit(X, y)\n    print(depth, round(tree.score(X, y), 3))",
      "explain": "A single split (a 'stump') gets most rows right; an unlimited tree fits every training row.",
-     "expected": "1 0.923\nNone 1.0"
+     "expected": "1 0.923\nNone 1.0",
+     "steps": [
+      "Line 6, `print(depth, round(tree.score(X, y), 3))`, runs 2 times and prints, in order: `1 0.923`, `None 1.0`."
+     ]
     },
     {
      "id": "o2",
@@ -1178,7 +1246,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import make_classification\nfrom sklearn.ensemble import RandomForestClassifier\nX, y = make_classification(n_samples=100, n_features=4, random_state=0)\nrf = RandomForestClassifier(n_estimators=25, random_state=0).fit(X, y)\nprint(len(rf.estimators_), round(rf.feature_importances_.sum(), 3))",
      "explain": "The forest stores one fitted tree per estimator, and importances are normalised to sum to 1.",
-     "expected": "25 1.0"
+     "expected": "25 1.0",
+     "steps": [
+      "Line 5, `print(len(rf.estimators_), round(rf.feature_importances_.sum(), 3))`, prints `25 1.0`."
+     ]
     },
     {
      "id": "c1",
@@ -1277,7 +1348,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.decomposition import PCA\nrng = np.random.default_rng(0)\nt = rng.normal(size=200)\nX = np.column_stack([t, 2 * t, -t])\nprint(np.round(PCA().fit(X).explained_variance_ratio_, 3))",
      "explain": "All three columns are multiples of one variable, so the data lie on a line: the first component explains everything.",
-     "expected": "[1. 0. 0.]"
+     "expected": "[1. 0. 0.]",
+     "steps": [
+      "Line 6, `print(np.round(PCA().fit(X).explained_variance_ratio_, 3))`, prints `[1. 0. 0.]`."
+     ]
     },
     {
      "id": "o2",
@@ -1286,7 +1360,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import load_digits\nfrom sklearn.decomposition import PCA\nX, _ = load_digits(return_X_y=True)\npca = PCA(n_components=0.9).fit(X)\nprint(X.shape[1], pca.n_components_)",
      "explain": "The 64 pixel columns are highly correlated, so far fewer components cover 90% of the variance.",
-     "expected": "64 21"
+     "expected": "64 21",
+     "steps": [
+      "Line 5, `print(X.shape[1], pca.n_components_)`, prints `64 21`."
+     ]
     },
     {
      "id": "c1",
@@ -1389,7 +1466,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import make_s_curve\nfrom sklearn.manifold import Isomap\nX, t = make_s_curve(n_samples=300, random_state=0)\nZ = Isomap(n_neighbors=10, n_components=2).fit_transform(X)\nprint(X.shape, Z.shape)",
      "explain": "Isomap maps each 3-D point to 2 coordinates on the unrolled sheet.",
-     "expected": "(300, 3) (300, 2)"
+     "expected": "(300, 3) (300, 2)",
+     "steps": [
+      "Line 5, `print(X.shape, Z.shape)`, prints `(300, 3) (300, 2)`."
+     ]
     },
     {
      "id": "o2",
@@ -1398,7 +1478,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom scipy.spatial.distance import pdist\nfrom sklearn.manifold import MDS\nrng = np.random.default_rng(0)\nP = rng.normal(size=(8, 2)) @ np.array([[1.0, 0.0, 2.0], [0.0, 1.0, 1.0]])\nZ = MDS(n_components=2, init=\"classical_mds\", random_state=0).fit_transform(P)\nprint(Z.shape, round(float(np.abs(pdist(Z) - pdist(P)).max()), 3))",
      "explain": "These 3-D points lie exactly on a plane, so a 2-D layout can match every pairwise distance: the largest error is 0.",
-     "expected": "(8, 2) 0.0"
+     "expected": "(8, 2) 0.0",
+     "steps": [
+      "Line 7, `print(Z.shape, round(float(np.abs(pdist(Z) - pdist(P)).max()), 3))`, prints `(8, 2) 0.0`."
+     ]
     },
     {
      "id": "c1",
@@ -1477,7 +1560,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.datasets import make_blobs\nfrom sklearn.cluster import KMeans\nX, _ = make_blobs(n_samples=[50, 30, 20], random_state=4, cluster_std=0.6)\nkm = KMeans(n_clusters=3, random_state=0).fit(X)\nprint(sorted(np.bincount(km.labels_).tolist()))",
      "explain": "The three well-separated blobs have 50, 30 and 20 points; sorting the counts hides the arbitrary label numbers.",
-     "expected": "[20, 30, 50]"
+     "expected": "[20, 30, 50]",
+     "steps": [
+      "Line 6, `print(sorted(np.bincount(km.labels_).tolist()))`, prints `[20, 30, 50]`."
+     ]
     },
     {
      "id": "o2",
@@ -1486,7 +1572,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import make_blobs\nfrom sklearn.cluster import KMeans\nX, _ = make_blobs(n_samples=150, centers=3, random_state=1)\ninertia = [KMeans(n_clusters=k, random_state=0).fit(X).inertia_ for k in range(1, 6)]\nprint(all(a > b for a, b in zip(inertia, inertia[1:])))",
      "explain": "Adding a centre can only bring points closer, so inertia falls with every k.",
-     "expected": "True"
+     "expected": "True",
+     "steps": [
+      "Line 5, `print(all(a > b for a, b in zip(inertia, inertia[1:])))`, prints `True`."
+     ]
     },
     {
      "id": "c1",
@@ -1589,7 +1678,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.mixture import GaussianMixture\nrng = np.random.default_rng(0)\nX = np.concatenate([rng.normal(0, 1, 300), rng.normal(6, 1, 100)])[:, None]\ngmm = GaussianMixture(n_components=2, random_state=0).fit(X)\nprint(np.round(np.sort(gmm.weights_), 2), np.round(np.sort(gmm.means_.ravel()), 1) + 0.0)",
      "explain": "Three quarters of the draws come from the component at 0 and one quarter from the one at 6. Sorting hides the arbitrary component order.",
-     "expected": "[0.25 0.75] [0. 6.]"
+     "expected": "[0.25 0.75] [0. 6.]",
+     "steps": [
+      "Line 6, `print(np.round(np.sort(gmm.weights_), 2), np.round(np.sort(gmm.means_.ravel()), 1) + 0.0)`, prints `[0.25 0.75] [0. 6.]`."
+     ]
     },
     {
      "id": "o2",
@@ -1598,7 +1690,10 @@
      "prompt": "What does this print?",
      "code": "from sklearn.datasets import make_blobs\nfrom sklearn.mixture import GaussianMixture\nX, _ = make_blobs(n_samples=300, centers=3, cluster_std=0.8, random_state=2)\nbic = [GaussianMixture(n_components=k, random_state=0).fit(X).bic(X) for k in range(1, 6)]\nprint(bic.index(min(bic)) + 1)",
      "explain": "BIC is lowest at the true number of components, 3.",
-     "expected": "3"
+     "expected": "3",
+     "steps": [
+      "Line 5, `print(bic.index(min(bic)) + 1)`, prints `3`."
+     ]
     },
     {
      "id": "c1",
@@ -1705,7 +1800,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nrng = np.random.default_rng(0)\nx = rng.normal(0, 1, 200)\nkde = KernelDensity(bandwidth=0.4).fit(x[:, None])\ngrid = np.linspace(-6, 6, 1201)\ndens = np.exp(kde.score_samples(grid[:, None]))\nprint(round(dens.sum() * (grid[1] - grid[0]), 3))",
      "explain": "A density integrates to 1; the Riemann sum over a wide grid confirms it.",
-     "expected": "1.0"
+     "expected": "1.0",
+     "steps": [
+      "Line 8, `print(round(dens.sum() * (grid[1] - grid[0]), 3))`, prints `1.0`."
+     ]
     },
     {
      "id": "o2",
@@ -1714,7 +1812,10 @@
      "prompt": "What does this print?",
      "code": "import numpy as np\nfrom sklearn.neighbors import KernelDensity\nx = np.array([0.0, 0.0, 4.0])[:, None]\nkde = KernelDensity(bandwidth=0.5).fit(x)\nd = np.exp(kde.score_samples([[0.0], [4.0], [2.0]]))\nprint(d[0] > d[1] > d[2])",
      "explain": "Two bumps sit at 0 and one at 4, so the density is highest at 0, lower at 4, and near zero halfway between.",
-     "expected": "True"
+     "expected": "True",
+     "steps": [
+      "Line 6, `print(d[0] > d[1] > d[2])`, prints `True`."
+     ]
     },
     {
      "id": "c1",

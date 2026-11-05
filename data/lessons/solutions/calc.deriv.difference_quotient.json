@@ -1,0 +1,10 @@
+{
+  "concept": "calc.deriv.difference_quotient",
+  "setup": "The difference quotient \\(\\frac{f([[x0]]+h) - f([[x0]])}{h}\\) is the slope of the secant through \\(x = [[x0]]\\) and \\(x = [[x0]] + h\\) on \\(f(x) = x^{2}\\).",
+  "steps": [
+    {"fact": "fx0h", "say": "With \\(h = [[h]]\\): \\(f([[x0]] + [[h]]) = [[x0h]]^{2} = [[fx0h]]\\) and \\(f([[x0]]) = [[x0]]^{2} = [[fx0]]\\)."},
+    {"fact": "diff", "say": "Subtract: \\([[fx0h]] - [[fx0]] = [[diff]]\\)."},
+    {"fact": "two_x0", "say": "Divide by \\(h = [[h]]\\): \\([[diff]] / [[h]] = [[answer]]\\). In general \\(\\frac{([[x0]]+h)^{2} - [[x0]]^{2}}{h} = [[two_x0]] + h\\), which at \\(h = [[h]]\\) is the same [[answer]]."}
+  ],
+  "answer": "So the difference quotient is [[answer]]."
+}

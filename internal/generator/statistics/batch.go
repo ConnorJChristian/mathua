@@ -23,6 +23,7 @@ package statistics
 // count) instead of comparing a string with itself.
 
 import (
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -215,6 +216,9 @@ func (g *tTestGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			"mu":   strconv.FormatFloat(c.mu, 'g', -1, 64),
 			"s":    strconv.FormatFloat(c.s, 'g', -1, 64),
 			"n":    strconv.Itoa(c.n), "answer": c.answer,
+			"dev":    strconv.FormatFloat(c.xbar-c.mu, 'g', -1, 64),
+			"sqrt_n": strconv.FormatFloat(math.Sqrt(float64(c.n)), 'g', -1, 64),
+			"se":     strconv.FormatFloat(c.s/math.Sqrt(float64(c.n)), 'g', -1, 64),
 		},
 	}
 }

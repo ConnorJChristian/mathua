@@ -33,6 +33,7 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/generator"
 	"github.com/chuma-beep/mathua/internal/grader"
+	"github.com/chuma-beep/mathua/internal/walkthrough"
 )
 
 // Marker is placed in a served proof question, after the statement. Every
@@ -343,10 +344,21 @@ func Served(p *Problem) generator.Problem {
 	if p.Source != "" {
 		exp += "\n\nSource: " + p.Source
 	}
+	// Fork change (internal/walkthrough): the marking scheme's milestones,
+	// in order, are the walkthrough of a proof or a piece of writing: the
+	// outline of what a full answer establishes, one step each, with the
+	// reference answer as the explanation. The scheme's points and caps
+	// stay on the server.
+	var steps []string
+	for _, m := range p.Milestones {
+		if d := strings.TrimSpace(m.Desc); d != "" {
+			steps = append(steps, d)
+		}
+	}
 	return generator.Problem{
 		Question:    q.String(),
 		Answer:      grader.ProofPrefix + p.ID,
-		Explanation: exp,
+		Explanation: walkthrough.Encode(exp, steps),
 		Raw:         true,
 	}
 }

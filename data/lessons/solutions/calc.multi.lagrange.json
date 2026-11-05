@@ -1,0 +1,19 @@
+{
+  "concept": "calc.multi.lagrange",
+  "setup": "Lagrange's method: at a constrained optimum \\(\\nabla f = \\lambda \\nabla g\\), here with \\(f = xy\\) and \\(g = x + y - [[s]]\\).",
+  "steps": [
+    {
+      "fact": "s",
+      "say": "Set up the conditions: \\(f_x = \\lambda g_x\\) gives \\(y = \\lambda\\), and \\(f_y = \\lambda g_y\\) gives \\(x = \\lambda\\)."
+    },
+    {
+      "fact": "half",
+      "say": "So \\(x = y\\); the constraint \\(x + y = [[s]]\\) then gives \\(x = y = [[s]]/2 = [[half]]\\)."
+    },
+    {
+      "fact": "maximum",
+      "say": "The product there is \\([[half]] \\cdot [[half]] = [[maximum]]\\); a product with a fixed sum is largest when the factors are equal."
+    }
+  ],
+  "answer": "So the largest value is [[maximum]]."
+}

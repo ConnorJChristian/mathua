@@ -1,0 +1,15 @@
+{
+  "concept": "stat.sampling.se",
+  "setup": "The standard error of the mean is the standard deviation divided by the square root of the sample size: \\(\\mathrm{SE} = s/\\sqrt{n}\\).",
+  "steps": [
+    {
+      "fact": "root",
+      "say": "The square root of the sample size: \\(\\sqrt{[[size]]} = [[root]]\\)."
+    },
+    {
+      "fact": "sd",
+      "say": "Divide the standard deviation by it: \\([[sd]] / [[root]] = [[standard_error]]\\)."
+    }
+  ],
+  "answer": "So the standard error is [[standard_error]]: more data makes the estimate of the mean more precise, which the division by the root expresses."
+}

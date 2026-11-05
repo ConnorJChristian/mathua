@@ -21,6 +21,7 @@ import (
 
 	"github.com/chuma-beep/mathua/internal/books"
 	"github.com/chuma-beep/mathua/internal/generator"
+	"github.com/chuma-beep/mathua/internal/walkthrough"
 )
 
 // Book points a concept at the matching section of the Python Data Science
@@ -127,6 +128,13 @@ type Item struct {
 	SourceBook string `json:"source_book,omitempty"`
 
 	Explain string `json:"explain"`
+	// Steps is the worked path to the key, in order, in the item's own
+	// notation (fork change, internal/walkthrough): what the feedback shows
+	// under "Show the steps" after a miss. The bank build writes them from
+	// the values the authoring file computed the key from
+	// (scripts/python_bank.py, steps=), so they cannot drift from the key.
+	// Empty for an item with no working: a definition, a term, a flashcard.
+	Steps []string `json:"steps,omitempty"`
 }
 
 // Concept is the bank entry for one concept in the graph.
@@ -354,6 +362,14 @@ func validateConcept(c *Concept) error {
 		}
 		if it.Grading != "" && it.Kind != KindRecall {
 			return fmt.Errorf("%s: only a recall card takes a grading override", where)
+		}
+		for i, st := range it.Steps {
+			if strings.TrimSpace(st) == "" {
+				return fmt.Errorf("%s: step %d is empty", where, i+1)
+			}
+			if strings.Contains(st, walkthrough.StepsMarker) || strings.Contains(st, walkthrough.StepMarker) {
+				return fmt.Errorf("%s: step %d contains a steps marker", where, i+1)
+			}
 		}
 		switch it.Kind {
 		case KindChoice:

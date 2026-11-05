@@ -1,0 +1,19 @@
+{
+  "concept": "calc.deriv.implicit",
+  "setup": "Differentiate both sides of \\(x^{2} + y^{2} = [[rr]]\\) with respect to \\(x\\), treating \\(y\\) as a function of \\(x\\).",
+  "steps": [
+    {
+      "fact": "rr",
+      "say": "The chain rule on \\(y^{2}\\) brings out \\(dy/dx\\): \\(2x + 2y\\,\\frac{dy}{dx} = 0\\)."
+    },
+    {
+      "fact": "x0",
+      "say": "Solve for the derivative: \\(\\frac{dy}{dx} = -\\frac{x}{y}\\)."
+    },
+    {
+      "fact": "y0",
+      "say": "Substitute the point \\(([[x0]], [[y0]])\\): \\(\\frac{dy}{dx} = -\\frac{[[x0]]}{[[y0]]} = [[answer]]\\)."
+    }
+  ],
+  "answer": "So \\(dy/dx = [[answer]]\\) at \\(([[x0]], [[y0]])\\)."
+}

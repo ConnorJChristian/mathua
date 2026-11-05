@@ -367,10 +367,18 @@ func (g *matrixMultGen) Generate(ctx generator.GeneratorContext) generator.Probl
 	c[0][1] = a[0][0]*b[0][1] + a[0][1]*b[1][1]
 	c[1][0] = a[1][0]*b[0][0] + a[1][1]*b[1][0]
 	c[1][1] = a[1][0]*b[0][1] + a[1][1]*b[1][1]
+	// Each entry of the product as the row-times-column sum it is (fork
+	// change, for the walkthrough): "(2)(1) + (-3)(4) = -10".
+	cell := func(i, j int) string {
+		return fmt.Sprintf("%s\\cdot %s + %s\\cdot %s = %d", parenInt(a[i][0]), parenInt(b[0][j]), parenInt(a[i][1]), parenInt(b[1][j]), c[i][j])
+	}
 	return generator.Problem{
 		Question:    fmt.Sprintf("Multiply matrices: \\(%s \\times %s =\\) ?", formatMatrix(a), formatMatrix(b)),
 		Answer:      formatMatrix(c),
 		Explanation: fmt.Sprintf("%s × %s = %s", formatMatrix(a), formatMatrix(b), formatMatrix(c)),
+		Facts: map[string]string{
+			"c11": cell(0, 0), "c12": cell(0, 1), "c21": cell(1, 0), "c22": cell(1, 1), "product": formatMatrix(c),
+		},
 	}
 }
 
@@ -449,6 +457,9 @@ func (g *det2x2Gen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		Question:    fmt.Sprintf("Find the determinant of \\(%s\\).", formatMatrix2([][]int{{a, b}, {c, d}})),
 		Answer:      fmt.Sprintf("%d", det),
 		Explanation: fmt.Sprintf("det = %d*%d - %d*%d = %d-%d = %d", a, d, b, c, a*d, b*c, det),
+		Facts: map[string]string{
+			"a": parenInt(a), "b": parenInt(b), "c": parenInt(c), "d": parenInt(d), "ad": strconv.Itoa(a * d), "bc": parenInt(b * c),
+		},
 	}
 }
 
@@ -476,6 +487,13 @@ func (g *det3x3Gen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			parenInt(b), parenInt(d), parenInt(i), parenInt(f), parenInt(gVal),
 			parenInt(c), parenInt(d), parenInt(h), parenInt(e), parenInt(gVal),
 			parenInt(a), parenInt(e*i-f*h), parenInt(b), parenInt(d*i-f*gVal), parenInt(c), parenInt(d*h-e*gVal), det),
+		Facts: map[string]string{
+			"a": parenInt(a), "b": parenInt(b), "c": parenInt(c),
+			"m1": fmt.Sprintf("%s\\cdot %s - %s\\cdot %s", parenInt(e), parenInt(i), parenInt(f), parenInt(h)), "v1": parenInt(e*i - f*h),
+			"m2": fmt.Sprintf("%s\\cdot %s - %s\\cdot %s", parenInt(d), parenInt(i), parenInt(f), parenInt(gVal)), "v2": parenInt(d*i - f*gVal),
+			"m3": fmt.Sprintf("%s\\cdot %s - %s\\cdot %s", parenInt(d), parenInt(h), parenInt(e), parenInt(gVal)), "v3": parenInt(d*h - e*gVal),
+			"t1": strconv.Itoa(a * (e*i - f*h)), "t2": strconv.Itoa(b * (d*i - f*gVal)), "t3": strconv.Itoa(c * (d*h - e*gVal)),
+		},
 	}
 }
 
@@ -514,10 +532,21 @@ func (g *systemsMatrixGen) Generate(ctx generator.GeneratorContext) generator.Pr
 	a, b, c, d := randomMatrixCoefficients(scale)
 	e1 := a*x + b*y
 	e2 := c*x + d*y
+	det := a*d - b*c
+	// The walkthrough (fork change) solves by Cramer's rule, which is the
+	// matrix method a two-by-two system invites: x = det(A_x)/det(A).
+	detX := e1*d - b*e2
+	detY := a*e2 - e1*c
 	return generator.Problem{
 		Question:    fmt.Sprintf("Solve the linear system using matrices: \\(%dx + %dy = %d\\), \\(%dx + %dy = %d\\)", a, b, e1, c, d, e2),
 		Answer:      fmt.Sprintf("(%d,%d)", x, y),
 		Explanation: fmt.Sprintf("The solution is x=%d, y=%d.", x, y),
+		Facts: map[string]string{
+			"a": strconv.Itoa(a), "b": strconv.Itoa(b), "c": strconv.Itoa(c), "d": strconv.Itoa(d), "e1": strconv.Itoa(e1), "e2": strconv.Itoa(e2),
+			"a_p": parenInt(a), "b_p": parenInt(b), "c_p": parenInt(c), "d_p": parenInt(d), "e1_p": parenInt(e1), "e2_p": parenInt(e2),
+			"det": strconv.Itoa(det), "detx": strconv.Itoa(detX), "dety": strconv.Itoa(detY), "x": strconv.Itoa(x), "y": strconv.Itoa(y),
+			"x_p": parenInt(x), "y_p": parenInt(y), "det_p": parenInt(det),
+		},
 	}
 }
 
@@ -527,22 +556,13 @@ func (g *cramerGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 	scale := int(1 + ctx.Difficulty*5)
 	x := rand.Intn(max(1, scale*2)) - scale
 	y := rand.Intn(max(1, scale*2)) - scale
-	a, b := rand.Intn(max(1, scale*2))-scale, rand.Intn(max(1, scale*2))-scale
-	c, d := rand.Intn(max(1, scale*2))-scale, rand.Intn(max(1, scale*2))-scale
-	if a == 0 && c == 0 {
-		a = 1
-		c = 2
-	}
-	if b == 0 && d == 0 {
-		b = 1
-		d = 3
-	}
+	// An invertible coefficient matrix (fork fix): the determinant used to
+	// be forced to 1 when it came out zero, which served a singular system
+	// with a made-up quotient, and the walkthrough showed the working.
+	a, b, c, d := randomMatrixCoefficients(scale)
 	e1 := a*x + b*y
 	e2 := c*x + d*y
 	det := a*d - b*c
-	if det == 0 {
-		det = 1
-	}
 	askX := rand.Intn(2) == 0
 	if askX {
 		detX := e1*d - b*e2
@@ -551,6 +571,11 @@ func (g *cramerGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 			Question:    fmt.Sprintf("Use Cramer's rule to find \\(x\\): \\(%dx + %dy = %d\\), \\(%dx + %dy = %d\\)", a, b, e1, c, d, e2),
 			Answer:      fmt.Sprintf("%d", valX),
 			Explanation: fmt.Sprintf("x = det([[%d,%d],[%d,%d]]) / det([[%d,%d],[%d,%d]]) = (%d*%d-%d*%d)/(%d*%d-%d*%d) = %d/%d = %d", e1, b, e2, d, a, b, c, d, e1, d, b, e2, a, d, b, c, detX, det, valX),
+			Facts: map[string]string{
+				"var": "x", "a": parenInt(a), "b": parenInt(b), "c": parenInt(c), "d": parenInt(d), "det": strconv.Itoa(det),
+				"col": "first", "replaced": fmt.Sprintf("\\begin{pmatrix} %d & %d \\\\ %d & %d \\end{pmatrix}", e1, b, e2, d),
+				"numer": fmt.Sprintf("%s\\cdot %s - %s\\cdot %s", parenInt(e1), parenInt(d), parenInt(b), parenInt(e2)), "detv": strconv.Itoa(detX),
+			},
 		}
 	}
 	detY := a*e2 - e1*c
@@ -559,6 +584,11 @@ func (g *cramerGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		Question:    fmt.Sprintf("Use Cramer's rule to find \\(y\\): \\(%dx + %dy = %d\\), \\(%dx + %dy = %d\\)", a, b, e1, c, d, e2),
 		Answer:      fmt.Sprintf("%d", valY),
 		Explanation: fmt.Sprintf("y = det([[%d,%d],[%d,%d]]) / det([[%d,%d],[%d,%d]]) = (%d*%d-%d*%d)/(%d*%d-%d*%d) = %d/%d = %d", a, e1, c, e2, a, b, c, d, a, e2, e1, c, a, d, b, c, detY, det, valY),
+		Facts: map[string]string{
+			"var": "y", "a": parenInt(a), "b": parenInt(b), "c": parenInt(c), "d": parenInt(d), "det": strconv.Itoa(det),
+			"col": "second", "replaced": fmt.Sprintf("\\begin{pmatrix} %d & %d \\\\ %d & %d \\end{pmatrix}", a, e1, c, e2),
+			"numer": fmt.Sprintf("%s\\cdot %s - %s\\cdot %s", parenInt(a), parenInt(e2), parenInt(e1), parenInt(c)), "detv": strconv.Itoa(detY),
+		},
 	}
 }
 
@@ -614,6 +644,9 @@ func (g *eigenComputeGen) Generate(ctx generator.GeneratorContext) generator.Pro
 		Question:    fmt.Sprintf("Find the eigenvalues of the triangular matrix \\(%s\\).", formatMatrix2([][]int{{a, c}, {0, d}})),
 		Answer:      fmt.Sprintf("%d,%d", a, d),
 		Explanation: fmt.Sprintf("For a triangular matrix, eigenvalues are the diagonal entries: λ₁=%d, λ₂=%d.", a, d),
+		Facts: map[string]string{
+			"a": strconv.Itoa(a), "c": strconv.Itoa(c), "d": strconv.Itoa(d), "a_p": parenInt(a), "d_p": parenInt(d),
+		},
 	}
 }
 

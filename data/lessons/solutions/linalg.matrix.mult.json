@@ -1,0 +1,23 @@
+{
+  "concept": "linalg.matrix.mult",
+  "setup": "Each entry of a product is a row of the first matrix dotted with a column of the second: entry \\((i, j)\\) is row \\(i\\) times column \\(j\\).",
+  "steps": [
+    {
+      "fact": "c11",
+      "say": "Row 1 times column 1: \\([[c11]]\\)."
+    },
+    {
+      "fact": "c12",
+      "say": "Row 1 times column 2: \\([[c12]]\\)."
+    },
+    {
+      "fact": "c21",
+      "say": "Row 2 times column 1: \\([[c21]]\\)."
+    },
+    {
+      "fact": "c22",
+      "say": "Row 2 times column 2: \\([[c22]]\\)."
+    }
+  ],
+  "answer": "So the product is [[product]]."
+}

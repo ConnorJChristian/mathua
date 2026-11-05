@@ -20,10 +20,12 @@ Request (JSON object on stdin):
     max_output    characters of captured stdout to keep
     figures       true to return open matplotlib figures as base64 PNG
     deny_paths    absolute path prefixes the learner's code may not open
+    trace         true to record each print the code makes, with the line of
+                  the code it came from (the bank build's output walkthrough)
 
 Result (one line on stdout: nonce + JSON):
     stdout, stdout_truncated, error, tests[{name, passed, message}], passed,
-    figures[]
+    figures[], prints[{line, text}] (trace only)
 
 Limits are layered. The server runs this process as an unprivileged user when
 it is itself root (the Docker image), in its own process group, with a wall
@@ -178,6 +180,36 @@ def _format_user_error(exc):
     return "\n".join(lines)
 
 
+def _tracing_print(prints):
+    """A print that also records what it printed and from which line of the
+    learner's code it was called, as (line, text). Output to a file other
+    than stdout is printed and not recorded."""
+    def traced(*args, sep=" ", end="\n", file=None, flush=False):
+        builtins.print(*args, sep=sep, end=end, file=file, flush=flush)
+        if file is not None and file is not sys.stdout:
+            return
+        line = 0
+        f = sys._getframe(1)
+        while f is not None:
+            if f.f_code.co_filename == USER_FILENAME:
+                line = f.f_lineno
+                break
+            f = f.f_back
+        text = (sep if sep is not None else " ").join(str(a) for a in args) + (end if end is not None else "\n")
+        # One record per printed line, so a print ending without a newline
+        # joins the next print's text, as it does on screen.
+        if prints and not prints[-1]["raw"].endswith("\n"):
+            prints[-1]["raw"] += text
+        else:
+            prints.append({"line": line, "raw": text})
+    return traced
+
+
+def _finish_prints(prints):
+    """The trace as (line, text): each record's text without its newline."""
+    return [{"line": p["line"], "text": p["raw"][:-1] if p["raw"].endswith("\n") else p["raw"]} for p in prints]
+
+
 def _helpers(ns, source):
     """Names available to hidden tests. Tests see these plus the learner's names."""
 
@@ -297,6 +329,9 @@ def main():
     ns = {"__name__": "__main__", "__builtins__": builtins}
     error = None
     setup_error = None
+    prints = []
+    if req.get("trace"):
+        ns["print"] = _tracing_print(prints)
 
     try:
         if setup:
@@ -335,6 +370,8 @@ def main():
         "passed": passed,
         "figures": figures,
     }
+    if req.get("trace"):
+        out["prints"] = _finish_prints(prints)
     line = (nonce + json.dumps(out) + "\n").encode("utf-8")
     view = memoryview(line)
     while view:

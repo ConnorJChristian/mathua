@@ -1,0 +1,19 @@
+{
+  "concept": "calc.multi.taylor2",
+  "setup": "The second-order Taylor approximation adds to \\(f\\) a linear part, \\(f_x\\,dx + f_y\\,dy\\), and a Hessian part, \\(\\tfrac12(f_{xx}\\,dx^{2} + 2f_{xy}\\,dx\\,dy + f_{yy}\\,dy^{2})\\).",
+  "steps": [
+    {
+      "fact": "lin",
+      "say": "The linear part: \\([[fx]] \\cdot [[dx]] + [[fy]] \\cdot [[dy]] = [[lin]]\\)."
+    },
+    {
+      "fact": "dx2",
+      "say": "The squares and the cross term: \\(dx^{2} = [[dx2]]\\), \\(dx\\,dy = [[dxdy]]\\), \\(dy^{2} = [[dy2]]\\)."
+    },
+    {
+      "fact": "hess",
+      "say": "The Hessian part: \\(\\tfrac12([[fxx]] \\cdot [[dx2]] + 2 \\cdot [[fxy]] \\cdot [[dxdy]] + [[fyy]] \\cdot [[dy2]]) = [[hess]]\\)."
+    }
+  ],
+  "answer": "Add them to \\(f = [[f0]]\\): \\([[f0]] + [[lin]] + [[hess]] = [[answer]]\\)."
+}

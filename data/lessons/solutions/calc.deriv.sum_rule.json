@@ -1,0 +1,9 @@
+{
+  "concept": "calc.deriv.sum_rule",
+  "setup": "The derivative of a sum is the sum of the derivatives, so differentiate \\([[a]]x^{[[n]]}\\) and \\([[b]]x^{[[m]]}\\) separately.",
+  "steps": [
+    {"fact": "d1", "say": "Power rule on the first term: \\(\\frac{d}{dx}[[a]]x^{[[n]]} = [[a]] \\cdot [[n]] x^{[[exp1]]} = [[d1]]\\)."},
+    {"fact": "d2", "say": "Power rule on the second: \\(\\frac{d}{dx}[[b]]x^{[[m]]} = [[b]] \\cdot [[m]] x^{[[exp2]]} = [[d2]]\\)."}
+  ],
+  "answer": "Add them: \\(f'(x) = [[answer]]\\)."
+}

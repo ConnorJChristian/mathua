@@ -1,0 +1,10 @@
+{
+  "concept": "calc.deriv.differential",
+  "setup": "The differential \\(dy = f'(x)\\,dx\\) estimates the change in \\(y = x^{2}\\) from \\(x = [[x0]]\\) when \\(x\\) moves by \\(dx = [[dx]]\\).",
+  "steps": [
+    {"fact": "fpx", "say": "Differentiate: \\(f'(x) = 2x\\), so at \\(x = [[x0]]\\) the slope is \\(f'([[x0]]) = [[fpx]]\\)."},
+    {"fact": "dy", "say": "Multiply the slope by the step: \\(dy = [[fpx]] \\cdot [[dx]] = [[dy]]\\)."},
+    {"fact": "exact", "say": "For comparison, the exact change is \\(\\Delta y = ([[x1]])^{2} - [[x0]]^{2} = [[fx1]] - [[fx0]] = [[exact]]\\): the differential is the linear estimate, close but not equal."}
+  ],
+  "answer": "So \\(dy = [[dy]]\\)."
+}

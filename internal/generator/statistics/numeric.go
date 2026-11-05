@@ -137,7 +137,7 @@ func (g *zscoreGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		Answer:   strconv.Itoa(k),
 		Explanation: fmt.Sprintf("A z-score is the signed distance from the mean measured in standard deviations: (%d - %d) / %d = %d. A positive value is above the mean and a negative one below, and the size says how unusual it is.",
 			x, mean, sd, k),
-		Facts: map[string]string{"z": strconv.Itoa(k)},
+		Facts: map[string]string{"z": strconv.Itoa(k), "mean": strconv.Itoa(mean), "sd": strconv.Itoa(sd), "x": strconv.Itoa(x), "dev": strconv.Itoa(x - mean)},
 	}
 }
 
@@ -157,7 +157,7 @@ func (g *standardErrorGen) Generate(ctx generator.GeneratorContext) generator.Pr
 		Answer:   strconv.Itoa(s / root),
 		Explanation: fmt.Sprintf("The standard error is the standard deviation divided by the square root of the sample size: %d / sqrt(%d) = %d / %d = %d. Estimating the mean from more data is more precise, which is what the division by the root expresses.",
 			s, n, s, root, s/root),
-		Facts: map[string]string{"standard_error": strconv.Itoa(s / root), "size": strconv.Itoa(n)},
+		Facts: map[string]string{"standard_error": strconv.Itoa(s / root), "size": strconv.Itoa(n), "sd": strconv.Itoa(s), "root": strconv.Itoa(root)},
 	}
 }
 
@@ -194,8 +194,18 @@ func (g *conditionalGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		Answer:   fmt.Sprintf("%d/%d", num, den),
 		Explanation: fmt.Sprintf("Conditioning on B restricts attention to the cases where B happened, so the probability is the chance both happen over the chance B does: (%d/%d) / (%d/%d) = %d/%d.",
 			both, d, b, d, num, den),
-		Facts: map[string]string{"out_num": strconv.Itoa(num), "out_den": strconv.Itoa(den)},
+		Facts: conditionalFacts(num, den, both, b, d),
 	}
+}
+
+// conditionalFacts publishes the walkthrough's values; "reduced" is set only
+// when both/b reduces, so the schema's reduction step applies only then.
+func conditionalFacts(num, den, both, b, d int) map[string]string {
+	f := map[string]string{"out_num": strconv.Itoa(num), "out_den": strconv.Itoa(den), "both": strconv.Itoa(both), "b": strconv.Itoa(b), "d": strconv.Itoa(d)}
+	if num != both {
+		f["reduced"] = strconv.Itoa(num) + "/" + strconv.Itoa(den)
+	}
+	return f
 }
 
 // joinInts renders a slice of integers for a question's data set.

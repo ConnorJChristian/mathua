@@ -24,17 +24,24 @@ import (
 	"github.com/chuma-beep/mathua/internal/generator/discrete"
 	"github.com/chuma-beep/mathua/internal/generator/fractions"
 	"github.com/chuma-beep/mathua/internal/generator/geometry"
+	"github.com/chuma-beep/mathua/internal/generator/graphtheory"
 	"github.com/chuma-beep/mathua/internal/generator/linalg"
 	"github.com/chuma-beep/mathua/internal/generator/machinelearning"
+	"github.com/chuma-beep/mathua/internal/generator/numerical"
 	"github.com/chuma-beep/mathua/internal/generator/numtheory"
 	"github.com/chuma-beep/mathua/internal/generator/odes"
 	"github.com/chuma-beep/mathua/internal/generator/prealgebra"
 	"github.com/chuma-beep/mathua/internal/generator/precalculus"
+	"github.com/chuma-beep/mathua/internal/generator/probability"
+	"github.com/chuma-beep/mathua/internal/generator/realanalysis"
 	"github.com/chuma-beep/mathua/internal/generator/statistics"
 	"github.com/chuma-beep/mathua/internal/generator/topology"
 	"github.com/chuma-beep/mathua/internal/generator/trigonometry"
 )
 
+// Every domain all.Register wires (fork change: probability, real
+// analysis, numerical methods and graph theory were missing, so a schema
+// for one of their concepts could never be checked against its generator).
 func registerAllDomains(reg *generator.Registry) {
 	abstract.Register(reg)
 	algebra.Register(reg)
@@ -45,12 +52,16 @@ func registerAllDomains(reg *generator.Registry) {
 	discrete.Register(reg)
 	fractions.Register(reg)
 	geometry.Register(reg)
+	graphtheory.Register(reg)
 	linalg.Register(reg)
 	machinelearning.Register(reg)
+	numerical.Register(reg)
 	numtheory.Register(reg)
 	odes.Register(reg)
 	prealgebra.Register(reg)
 	precalculus.Register(reg)
+	probability.Register(reg)
+	realanalysis.Register(reg)
 	statistics.Register(reg)
 	topology.Register(reg)
 	trigonometry.Register(reg)

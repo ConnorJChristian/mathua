@@ -1,0 +1,15 @@
+{
+  "concept": "calc.deriv.power_rule",
+  "setup": "The power rule: \\(\\frac{d}{dx} x^{n} = n x^{n-1}\\), and a constant factor stays in front.",
+  "steps": [
+    {
+      "fact": "n",
+      "say": "Bring the power down and lower it by one: \\(\\frac{d}{dx} x^{[[n]]} = [[n]] x^{[[exp]]}\\)."
+    },
+    {
+      "fact": "coef",
+      "say": "Multiply by the constant \\([[a]]\\): \\([[a]] \\cdot [[n]] = [[coef]]\\), so \\(f'(x) = [[coef]] x^{[[exp]]}\\)."
+    }
+  ],
+  "answer": "So \\(f'(x) = [[answer]]\\)."
+}

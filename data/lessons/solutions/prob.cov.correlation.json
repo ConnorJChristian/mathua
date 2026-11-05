@@ -1,0 +1,15 @@
+{
+  "concept": "prob.cov.correlation",
+  "setup": "Correlation scales the covariance by both standard deviations: \\(\\rho = \\mathrm{Cov}(X, Y) / (\\sigma_X \\sigma_Y)\\).",
+  "steps": [
+    {
+      "fact": "sxsy",
+      "say": "The product of the standard deviations: \\([[sx]] \\cdot [[sy]] = [[sxsy]]\\)."
+    },
+    {
+      "fact": "cov",
+      "say": "Divide the covariance by it: \\([[cov]] / [[sxsy]] = [[answer]]\\)."
+    }
+  ],
+  "answer": "So \\(\\rho = [[answer]]\\), a number between \\(-1\\) and \\(1\\)."
+}

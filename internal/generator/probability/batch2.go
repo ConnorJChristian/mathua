@@ -184,6 +184,7 @@ func (g *conditionalGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		Explanation: "Conditioning on Y fixes a column of the table, and the conditional mean is the weighted average of X within it; " + c.reason,
 		Facts: map[string]string{
 			"weights": strings.Join(parts, ","), "y": strconv.Itoa(c.y), "answer": answer,
+			"w0": strconv.Itoa(c.weights[c.y]), "w1": strconv.Itoa(num), "col": strconv.Itoa(den),
 		},
 	}
 }
@@ -291,6 +292,9 @@ func (g *covarianceGen) Generate(ctx generator.GeneratorContext) generator.Probl
 	for i, w := range c.weights {
 		parts[i] = strconv.Itoa(w)
 	}
+	exy := decimal6(float64(w11) / float64(total))
+	ex := decimal6(float64(w10+w11) / float64(total))
+	ey := decimal6(float64(w01+w11) / float64(total))
 	return generator.Problem{
 		Question: "A joint mass function on the four pairs (0,0), (0,1), (1,0) and (1,1) is proportional to the weights " +
 			strings.Join(parts, ", ") + " in that order. What is Cov(X, Y) = E[XY] − E[X]E[Y]? (enter a decimal)",
@@ -298,6 +302,8 @@ func (g *covarianceGen) Generate(ctx generator.GeneratorContext) generator.Probl
 		Explanation: "Only the pair (1,1) contributes to E[XY], and the two means come from the margins; " + c.reason,
 		Facts: map[string]string{
 			"weights": strings.Join(parts, ","), "total": strconv.Itoa(total), "answer": answer,
+			"w11": strconv.Itoa(w11), "wx": strconv.Itoa(w10 + w11), "wy": strconv.Itoa(w01 + w11),
+			"exy": exy, "ex": ex, "ey": ey, "exey": decimal6(float64((w10+w11)*(w01+w11)) / float64(total*total)),
 		},
 	}
 }
@@ -330,6 +336,7 @@ func (g *correlationGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		Explanation: "Correlation is the covariance divided by the product of the standard deviations; " + c.reason,
 		Facts: map[string]string{
 			"cov": strconv.Itoa(c.cov), "sx": strconv.Itoa(c.sx), "sy": strconv.Itoa(c.sy), "answer": answer,
+			"sxsy": strconv.Itoa(c.sx * c.sy),
 		},
 	}
 }

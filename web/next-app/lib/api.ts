@@ -2,6 +2,7 @@ import { API_BASE } from './apiBase'
 import { getAuthHeaders, authedFetch } from './auth'
 import { z } from 'zod'
 import { isProofQuestion } from './pythonQuestion'
+import type { Walkthrough } from './walkthrough'
 
 export { API_BASE }
 
@@ -160,6 +161,8 @@ export interface AnswerResult {
   diagnosis?: string
   /** The grade of a written proof (internal/proof); absent for other questions. */
   proof?: ProofReport
+  /** The feedback contract (fork change, lib/walkthrough): key, steps, reason, reading. */
+  walkthrough?: Walkthrough
 }
 
 /** One marking-scheme milestone with the judge's verdict on it. */
@@ -770,6 +773,19 @@ export interface GoalPlanRes {
   frontier_id?: string
   /** A course placement: the course's own pace, in place of the XP completion estimate. */
   course_pace?: { due?: string; days_left?: number; topics_left: number; per_week?: number }
+  /** Fork change: every answered question with its walkthrough, once the run is over. */
+  questions?: PlacementQuestion[]
+}
+
+/** One answered placement question on the results page (server placementQuestion). */
+export interface PlacementQuestion {
+  concept_id: string
+  concept_name: string
+  question: string
+  answer: string
+  correct: boolean
+  dont_know: boolean
+  walkthrough: Walkthrough
 }
 
 /**
@@ -1558,6 +1574,8 @@ export interface StudyAnswerRes {
 	diagnosis?: string
 	/** The grade of a written proof; absent for other questions. */
 	proof?: ProofReport
+	/** The feedback contract (fork change, lib/walkthrough): key, steps, reason, reading. */
+	walkthrough?: Walkthrough
 	/**
 	 * Authoritative mastery evidence score for this concept, 0..1, from the same
 	 * `BuildEvidence` the ladder decides on.
@@ -1714,6 +1732,11 @@ export interface QuizAnswerRes {
   // solution: a test measures knowledge and does not teach, so the response carries no
   // explanation and no answer-revealing diagnosis. Instruction is reached through /learn.
   feedback?: string
+  /**
+   * Fork change: the walkthrough of the question just graded (never the next
+   * one), so a miss on a mastery check or course test shows the way to the key.
+   */
+  walkthrough?: Walkthrough
   xp?: number
   new_status?: string
   /**

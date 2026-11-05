@@ -520,6 +520,11 @@ func (g *taylor2Gen) Generate(ctx generator.GeneratorContext) generator.Problem 
 		c = taylor2Claim()
 	}
 	format := func(v float64) string { return strconv.FormatFloat(v, 'g', -1, 64) }
+	// The two parts of the approximation, rounded to the six places the key
+	// is written at, for the walkthrough (fork change).
+	round6 := func(v float64) string { return strconv.FormatFloat(math.Round(v*1e6)/1e6, 'f', -1, 64) }
+	lin := c.fx*c.dx + c.fy*c.dy
+	hess := 0.5 * (c.fxx*c.dx*c.dx + 2*c.fxy*c.dx*c.dy + c.fyy*c.dy*c.dy)
 	return generator.Problem{
 		Question:    c.question,
 		Answer:      c.answer,
@@ -528,6 +533,7 @@ func (g *taylor2Gen) Generate(ctx generator.GeneratorContext) generator.Problem 
 			"f0": format(c.f0), "fx": format(c.fx), "fy": format(c.fy),
 			"fxx": format(c.fxx), "fxy": format(c.fxy), "fyy": format(c.fyy),
 			"dx": format(c.dx), "dy": format(c.dy), "answer": c.answer,
+			"lin": round6(lin), "hess": round6(hess), "dx2": round6(c.dx * c.dx), "dxdy": round6(c.dx * c.dy), "dy2": round6(c.dy * c.dy),
 		},
 	}
 }

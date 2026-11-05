@@ -1,0 +1,15 @@
+{
+  "concept": "prob.expect.conditional",
+  "setup": "Conditioning on \\(Y = [[y]]\\) keeps only the pairs with that \\(Y\\): \\((0,[[y]])\\) with weight [[w0]] and \\((1,[[y]])\\) with weight [[w1]].",
+  "steps": [
+    {
+      "fact": "col",
+      "say": "Renormalise within that column: the weights add to \\([[w0]] + [[w1]] = [[col]]\\)."
+    },
+    {
+      "fact": "w1",
+      "say": "\\(X\\) is 0 or 1, so \\(E[X \\mid Y = [[y]]] = P(X = 1 \\mid Y = [[y]]) = [[w1]]/[[col]]\\)."
+    }
+  ],
+  "answer": "So \\(E[X \\mid Y = [[y]]] = [[answer]]\\)."
+}

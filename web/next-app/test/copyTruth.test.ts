@@ -147,7 +147,9 @@ describe('navigation labels name where they actually go', () => {
     const host = read(join('app', 'review', 'ReviewHost.tsx'))
     // "Incorrect" above the working is noise; the explanation is the body and
     // feedback is only the fallback when there is no explanation.
-    expect(host).toMatch(/explanation \? \(/)
+    // Fork change: the explanation is read as the walkthrough contract
+    // (components/Walkthrough); the feedback token is still only the fallback.
+    expect(host).toMatch(/explanation \|\| reviewLastResult\.walkthrough \? \(/)
     expect(host).not.toMatch(/text-mathua-muted text-xs mt-2/)
   })
 })

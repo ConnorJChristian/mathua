@@ -57,7 +57,11 @@
      "prompt": "What does this print?",
      "code": "import inspect\n\ndef growth(old, new, periods=1):\n    \"\"\"Average growth rate per period.\"\"\"\n    return (new / old) ** (1 / periods) - 1\n\nprint(inspect.signature(growth))\nprint(growth.__doc__)",
      "explain": "`inspect.signature` gives the parameter list exactly as IPython shows it on the first line of `growth?`, and `__doc__` is the docstring.",
-     "expected": "(old, new, periods=1)\nAverage growth rate per period."
+     "expected": "(old, new, periods=1)\nAverage growth rate per period.",
+     "steps": [
+      "Line 7, `print(inspect.signature(growth))`, prints `(old, new, periods=1)`.",
+      "Line 8, `print(growth.__doc__)`, prints `Average growth rate per period.`."
+     ]
     },
     {
      "id": "o2",
@@ -66,7 +70,10 @@
      "prompt": "What does this print?",
      "code": "def tariff(price, rate):\n    # applies an import tariff\n    return price * (1 + rate)\n\nprint(tariff.__doc__)",
      "explain": "A comment is not a docstring. With no string literal as the first statement, `__doc__` is `None`, so `tariff?` would show no documentation at all.",
-     "expected": "None"
+     "expected": "None",
+     "steps": [
+      "Line 5, `print(tariff.__doc__)`, prints `None`."
+     ]
     },
     {
      "id": "o3",
@@ -75,7 +82,10 @@
      "prompt": "What does this print?",
      "code": "import inspect\n\ndef spread(bid, ask):\n    return ask - bid\n\nprint(inspect.getsource(spread).splitlines()[1].strip())",
      "explain": "`inspect.getsource` returns the function's source text, which is what `spread??` displays. Line 1 of that text (counting from 0) is the body.",
-     "expected": "return ask - bid"
+     "expected": "return ask - bid",
+     "steps": [
+      "Line 6, `print(inspect.getsource(spread).splitlines()[1].strip())`, prints `return ask - bid`."
+     ]
     },
     {
      "id": "c1",
@@ -178,7 +188,10 @@
      "prompt": "What does this print?",
      "code": "import fnmatch\nprint(fnmatch.filter(dir(str), \"*find*\"))",
      "explain": "`dir(str)` is alphabetical, and two methods contain `find`. This is the list `str.*find*?` shows in IPython.",
-     "expected": "['find', 'rfind']"
+     "expected": "['find', 'rfind']",
+     "steps": [
+      "Line 2, `print(fnmatch.filter(dir(str), \"*find*\"))`, prints `['find', 'rfind']`."
+     ]
     },
     {
      "id": "o2",
@@ -187,7 +200,10 @@
      "prompt": "What does this print?",
      "code": "public = [n for n in dir(list) if not n.startswith(\"_\")]\nprint(public)",
      "explain": "These are the names IPython offers after `some_list.` and Tab. The many underscore names in `dir(list)` are hidden by default.",
-     "expected": "['append', 'clear', 'copy', 'count', 'extend', 'index', 'insert', 'pop', 'remove', 'reverse', 'sort']"
+     "expected": "['append', 'clear', 'copy', 'count', 'extend', 'index', 'insert', 'pop', 'remove', 'reverse', 'sort']",
+     "steps": [
+      "Line 2, `print(public)`, prints `['append', 'clear', 'copy', 'count', 'extend', 'index', 'insert', 'pop', 'remove', 'reverse', 'sort']`."
+     ]
     },
     {
      "id": "c1",
@@ -279,7 +295,10 @@
      "prompt": "This loop mimics Ctrl-r: it scans the history from the newest command backwards. What does it print?",
      "code": "history = [\n    \"import pandas as pd\",\n    \"wages = pd.read_csv('wages.csv')\",\n    \"wages.mean()\",\n    \"wages.median()\",\n    \"wages['hourly'].mean()\",\n]\nquery = \"mean\"\nprint(next(cmd for cmd in reversed(history) if query in cmd))",
      "explain": "`reversed` starts from the last entry, and the first one that contains `mean` wins, just as Ctrl-r shows the most recent match first.",
-     "expected": "wages['hourly'].mean()"
+     "expected": "wages['hourly'].mean()",
+     "steps": [
+      "Line 9, `print(next(cmd for cmd in reversed(history) if query in cmd))`, prints `wages['hourly'].mean()`."
+     ]
     }
    ]
   },
@@ -351,7 +370,10 @@
      "prompt": "What does this print?",
      "code": "import runpy\n\nwith open(\"demo.py\", \"w\") as f:\n    f.write(\"rate = 0.05\\n\")\n    f.write(\"years = 3\\n\")\n    f.write(\"growth = round((1 + rate) ** years, 4)\\n\")\n\nns = runpy.run_path(\"demo.py\")\nprint(ns[\"growth\"], \"years\" in ns)",
      "explain": "`run_path` executes the file and returns its top-level names, the same names `%run demo.py` would leave in your IPython session. 1.05 cubed is 1.157625, rounded to four places.",
-     "expected": "1.1576 True"
+     "expected": "1.1576 True",
+     "steps": [
+      "Line 9, `print(ns[\"growth\"], \"years\" in ns)`, prints `1.1576 True`."
+     ]
     },
     {
      "id": "c1",
@@ -447,7 +469,10 @@
      "prompt": "This runs as a script, not in IPython. What does it print?",
      "code": "price = 80\nprice * 1.25\nprint(\"done\")",
      "explain": "In a script, a bare expression is computed and discarded; only an interactive shell shows its value. The only output is from `print`.",
-     "expected": "done"
+     "expected": "done",
+     "steps": [
+      "Line 3, `print(\"done\")`, prints `done`."
+     ]
     },
     {
      "id": "o2",
@@ -535,7 +560,10 @@
      "prompt": "What does this print?",
      "code": "import os\nstart = os.getcwd()\nos.makedirs(\"reports/2024\", exist_ok=True)\nos.chdir(\"reports/2024\")\nprint(os.path.relpath(os.getcwd(), start))",
      "explain": "`os.chdir` changes the current process's directory and it stays changed, which is what `%cd` does for IPython. `relpath` shows the new location relative to where we started.",
-     "expected": "reports/2024"
+     "expected": "reports/2024",
+     "steps": [
+      "Line 5, `print(os.path.relpath(os.getcwd(), start))`, prints `reports/2024`."
+     ]
     },
     {
      "id": "o2",
@@ -544,7 +572,10 @@
      "prompt": "What does this print?",
      "code": "listing = \"wages.csv\\nprices.csv\\nnotes.txt\\n\"   # what `!ls` might return\nlines = listing.splitlines()\nprint(len(lines), [n for n in lines if n.endswith(\".csv\")])",
      "explain": "Captured shell output is split into one string per line, so filtering it is ordinary list work.",
-     "expected": "3 ['wages.csv', 'prices.csv']"
+     "expected": "3 ['wages.csv', 'prices.csv']",
+     "steps": [
+      "Line 3, `print(len(lines), [n for n in lines if n.endswith(\".csv\")])`, prints `3 ['wages.csv', 'prices.csv']`."
+     ]
     },
     {
      "id": "c1",
@@ -652,7 +683,11 @@
      "prompt": "What does this print?",
      "code": "import traceback\n\ndef share(part, total):\n    return part / total\n\ntry:\n    share(3, 0)\nexcept ZeroDivisionError as e:\n    print(type(e).__name__)\n    print(traceback.format_exception_only(e)[-1].strip())",
      "explain": "`format_exception_only` gives the final line of a traceback, which is all `%xmode Minimal` shows.",
-     "expected": "ZeroDivisionError\nZeroDivisionError: division by zero"
+     "expected": "ZeroDivisionError\nZeroDivisionError: division by zero",
+     "steps": [
+      "Line 9, `print(type(e).__name__)`, prints `ZeroDivisionError`.",
+      "Line 10, `print(traceback.format_exception_only(e)[-1].strip())`, prints `ZeroDivisionError: division by zero`."
+     ]
     },
     {
      "id": "o2",
@@ -661,7 +696,10 @@
      "prompt": "What does this print?",
      "code": "import traceback\n\ndef unit_cost(total, units):\n    return total / units\n\ndef report(rows):\n    out = []\n    for t, u in rows:\n        out.append(unit_cost(t, u))\n    return out\n\ntry:\n    report([(100, 4), (50, 0)])\nexcept ZeroDivisionError as e:\n    frames = traceback.extract_tb(e.__traceback__)\n    print([f.name for f in frames])",
      "explain": "The traceback lists frames from the outermost call inward: the module itself, then `report`, then `unit_cost`, where the division failed. `up` in the debugger walks this list backwards.",
-     "expected": "['<module>', 'report', 'unit_cost']"
+     "expected": "['<module>', 'report', 'unit_cost']",
+     "steps": [
+      "Line 16, `print([f.name for f in frames])`, prints `['<module>', 'report', 'unit_cost']`."
+     ]
     },
     {
      "id": "c1",
@@ -760,7 +798,10 @@
      "prompt": "What does this print?",
      "code": "import timeit\ntimes = timeit.repeat(\"sorted(range(200))\", number=50, repeat=4)\nprint(len(times), type(times[0]).__name__, all(t > 0 for t in times))",
      "explain": "`repeat` gives one total per repeat, each a float number of seconds. The values themselves change from run to run, which is why the question asks only about their shape.",
-     "expected": "4 float True"
+     "expected": "4 float True",
+     "steps": [
+      "Line 3, `print(len(times), type(times[0]).__name__, all(t > 0 for t in times))`, prints `4 float True`."
+     ]
     },
     {
      "id": "c1",
@@ -880,7 +921,10 @@
      "prompt": "What does this print?",
      "code": "import cProfile, pstats\n\ndef tax(income):\n    return 0.2 * income\n\ndef payroll(n):\n    return sum(tax(w) for w in range(n))\n\nprof = cProfile.Profile()\nprof.enable()\npayroll(25)\nprof.disable()\n\nstats = pstats.Stats(prof).stats\nfor (filename, line, func), (cc, ncalls, tt, ct, callers) in stats.items():\n    if func == \"tax\":\n        print(ncalls)",
      "explain": "The profiler counts every call. `tax` runs once per worker, the same number `%prun payroll(25)` shows in its `ncalls` column.",
-     "expected": "25"
+     "expected": "25",
+     "steps": [
+      "Line 17, `print(ncalls)`, prints `25`."
+     ]
     },
     {
      "id": "c1",

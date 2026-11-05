@@ -34,6 +34,13 @@ import (
 // in the response body" is a real question and not a restatement of "is the key
 // called explanation". A future handler that smuggles the solution out under a
 // different key fails these tests, which key-name assertions would not catch.
+//
+// Fork change (FSRS_PORT_PLAN 0c): a mastery check or course test verdict
+// carries the walkthrough of the question just graded under `walkthrough`,
+// and only there (server.go, "The fork's assessment rule"). The quiz tests
+// below assert that: the solution crosses under that one key, never under
+// `explanation` or `diagnosis`, and never for the next question. The
+// placement test is unchanged: no verdict carries a solution.
 
 const (
 	servedAnswer       = "4"
@@ -114,6 +121,38 @@ func assertNoSolution(t *testing.T, what, body string) {
 	}
 }
 
+// assertWalkthroughOnly is the fork's rule for a quiz verdict: the served
+// solution is there, under `walkthrough` and under no other key, and it is
+// the answered question's (the key the learner was graded against).
+func assertWalkthroughOnly(t *testing.T, what, body string) {
+	t.Helper()
+	var decoded map[string]interface{}
+	if err := json.Unmarshal([]byte(body), &decoded); err != nil {
+		t.Fatalf("%s: decode: %v", what, err)
+	}
+	for _, k := range []string{"explanation", "diagnosis"} {
+		if _, ok := decoded[k]; ok {
+			t.Errorf("%s: response has a %s key: %s", what, k, body)
+		}
+	}
+	w, _ := decoded["walkthrough"].(map[string]interface{})
+	if w == nil {
+		t.Fatalf("%s: no walkthrough: %s", what, body)
+	}
+	if w["answer"] != servedAnswer || w["explain"] != servedExplanation {
+		t.Errorf("%s: walkthrough is not the graded question's: %v", what, w)
+	}
+	// The solution appears exactly where the walkthrough carries it.
+	if strings.Count(body, servedExplanation) != 1 {
+		t.Errorf("%s: the solution must cross once, under walkthrough: %s", what, body)
+	}
+	if strings.Contains(body, derivedDiagnosis) {
+		if r, _ := w["diverged_at"].(map[string]interface{}); r == nil || strings.Count(body, derivedDiagnosis) != 1 {
+			t.Errorf("%s: a diagnosis belongs to the walkthrough's diverged_at only: %s", what, body)
+		}
+	}
+}
+
 // startDiagnostic opens a diagnostic over both concepts and returns the session
 // and first concept id.
 func startDiagnostic(t *testing.T, mux *http.ServeMux) (sessionID, conceptID string) {
@@ -163,9 +202,10 @@ func TestDiagnosticBoundary_CorrectAnswerCarriesNoSolution(t *testing.T) {
 	assertNoSolution(t, "diagnostic correct answer", body)
 }
 
-// 3. wrong quiz answer, mid-assessment (done:false) → no explanation.
-// The two-concept quiz serves "a" then "b", so the first answer is not the last.
-func TestQuizBoundary_WrongMidFlightCarriesNoSolution(t *testing.T) {
+// 3. wrong quiz answer, mid-assessment (done:false) → the graded question's
+// walkthrough, and nothing else. The two-concept quiz serves "a" then "b", so
+// the first answer is not the last.
+func TestQuizBoundary_WrongMidFlightCarriesWalkthroughOnly(t *testing.T) {
 	mux, token := assessmentServer(t)
 	sess := quizPost(t, mux, "/api/quiz/session", `{}`, token)
 
@@ -179,11 +219,11 @@ func TestQuizBoundary_WrongMidFlightCarriesNoSolution(t *testing.T) {
 	if done, _ := decoded["done"].(bool); done {
 		t.Fatalf("expected a mid-flight quiz verdict, got done:true: %s", body)
 	}
-	assertNoSolution(t, "quiz wrong mid-flight", body)
+	assertWalkthroughOnly(t, "quiz wrong mid-flight", body)
 }
 
-// 4. correct quiz answer, mid-assessment → no explanation.
-func TestQuizBoundary_CorrectMidFlightCarriesNoSolution(t *testing.T) {
+// 4. correct quiz answer, mid-assessment → the graded question's walkthrough.
+func TestQuizBoundary_CorrectMidFlightCarriesWalkthroughOnly(t *testing.T) {
 	mux, token := assessmentServer(t)
 	sess := quizPost(t, mux, "/api/quiz/session", `{}`, token)
 
@@ -197,14 +237,13 @@ func TestQuizBoundary_CorrectMidFlightCarriesNoSolution(t *testing.T) {
 	if done, _ := decoded["done"].(bool); done {
 		t.Fatalf("expected a mid-flight quiz verdict, got done:true: %s", body)
 	}
-	assertNoSolution(t, "quiz correct mid-flight", body)
+	assertWalkthroughOnly(t, "quiz correct mid-flight", body)
 }
 
-// 5 and 6. The final quiz answer, right and wrong. `done:true` ends the
-// assessment; it does not begin the lesson. This is the case a rule phrased as
-// "reveal once finished" would get wrong, and it is why the boundary is stated
-// per handler rather than tied to the flag.
-func TestQuizBoundary_FinalVerdictCarriesNoSolution(t *testing.T) {
+// 5 and 6. The final quiz answer, right and wrong: the same rule as
+// mid-flight, the graded question's walkthrough and nothing else. The rule
+// is stated per handler, not tied to `done`.
+func TestQuizBoundary_FinalVerdictCarriesWalkthroughOnly(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		answer string
@@ -244,7 +283,7 @@ func TestQuizBoundary_FinalVerdictCarriesNoSolution(t *testing.T) {
 			if got, _ := decoded["correct"].(bool); got == tc.wrong {
 				t.Fatalf("correct = %v, want wrong = %v: %s", got, tc.wrong, body)
 			}
-			assertNoSolution(t, "quiz final verdict", body)
+			assertWalkthroughOnly(t, "quiz final verdict", body)
 
 			// And the solution is still on the session, because the boundary strips it on the
 			// way out and not on the way in: the attempts transcript and grading are untouched.
@@ -255,10 +294,9 @@ func TestQuizBoundary_FinalVerdictCarriesNoSolution(t *testing.T) {
 	}
 }
 
-// 7. The granular feedback a learner is allowed: a verdict, and nothing that
-// reconstructs the answer. This asserts the allowed half of the contract so the
-// boundary cannot be "satisfied" by blanking every response.
-func TestAssessmentBoundary_KeepsVerdictDropsDerivation(t *testing.T) {
+// 7. The verdict survives, and the diagnosis reaches the learner only as
+// the walkthrough's `diverged_at` reason (fork change), never as its own key.
+func TestAssessmentBoundary_KeepsVerdictDiagnosisInWalkthroughOnly(t *testing.T) {
 	mux, token := assessmentServer(t)
 	sess := quizPost(t, mux, "/api/quiz/session", `{}`, token)
 
@@ -269,9 +307,22 @@ func TestAssessmentBoundary_KeepsVerdictDropsDerivation(t *testing.T) {
 	if !strings.Contains(body, `"correct":false`) {
 		t.Errorf("the verdict must still cross the boundary: %s", body)
 	}
-	// The diagnosis that would follow from it must not.
-	if strings.Contains(body, "one away") || strings.Contains(body, "off by one") {
-		t.Errorf("derivation-based diagnosis crossed the boundary: %s", body)
+	var decoded map[string]interface{}
+	_ = json.Unmarshal([]byte(body), &decoded)
+	if _, ok := decoded["diagnosis"]; ok {
+		t.Errorf("diagnosis crossed as its own key: %s", body)
+	}
+	w, _ := decoded["walkthrough"].(map[string]interface{})
+	if w == nil {
+		t.Fatalf("no walkthrough: %s", body)
+	}
+	// When a diagnosis is derivable at all, it is the walkthrough's
+	// diverged_at reason and appears nowhere else.
+	if strings.Contains(body, "one away") {
+		d, _ := w["diverged_at"].(map[string]interface{})
+		if d == nil || !strings.Contains(d["reason"].(string), "one away") || strings.Count(body, "one away") != 1 {
+			t.Errorf("the diagnosis belongs in the walkthrough's diverged_at only: %s", body)
+		}
 	}
 }
 

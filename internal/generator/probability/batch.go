@@ -553,9 +553,15 @@ func (g *expectationGen) Generate(ctx generator.GeneratorContext) generator.Prob
 	answer := decimal6(float64(sum) / float64(c.den))
 	vals := make([]string, len(c.values))
 	wts := make([]string, len(c.weights))
+	// The walkthrough's working (fork change): each probability, and each
+	// term x²·p(x), computed here rather than read from the reason.
+	probs := make([]string, len(c.values))
+	terms := make([]string, len(c.values))
 	for i := range c.values {
 		vals[i] = strconv.Itoa(c.values[i])
 		wts[i] = strconv.Itoa(c.weights[i])
+		probs[i] = decimal6(float64(c.weights[i]) / float64(c.den))
+		terms[i] = strconv.Itoa(c.values[i]*c.values[i]) + "·" + probs[i]
 	}
 	return generator.Problem{
 		Question: "A discrete random variable X takes the values " + strings.Join(vals, ", ") +
@@ -567,6 +573,7 @@ func (g *expectationGen) Generate(ctx generator.GeneratorContext) generator.Prob
 		Facts: map[string]string{
 			"values": strings.Join(vals, ","), "weights": strings.Join(wts, ","),
 			"den": strconv.Itoa(c.den), "answer": answer,
+			"probs": strings.Join(probs, ", "), "terms": strings.Join(terms, " + "),
 		},
 	}
 }
@@ -603,10 +610,16 @@ func (g *varianceGen) Generate(ctx generator.GeneratorContext) generator.Problem
 	answer := decimal6(float64(num) / float64(c.den*c.den))
 	vals := make([]string, len(c.values))
 	wts := make([]string, len(c.weights))
+	meanTerms := make([]string, len(c.values))
+	sqTerms := make([]string, len(c.values))
 	for i := range c.values {
 		vals[i] = strconv.Itoa(c.values[i])
 		wts[i] = strconv.Itoa(c.weights[i])
+		prob := decimal6(float64(c.weights[i]) / float64(c.den))
+		meanTerms[i] = vals[i] + "·" + prob
+		sqTerms[i] = strconv.Itoa(c.values[i]*c.values[i]) + "·" + prob
 	}
+	mean := float64(sw) / float64(c.den)
 	return generator.Problem{
 		Question: "A discrete random variable X takes the values " + strings.Join(vals, ", ") +
 			" with probabilities proportional to the weights " + strings.Join(wts, ", ") +
@@ -616,6 +629,9 @@ func (g *varianceGen) Generate(ctx generator.GeneratorContext) generator.Problem
 		Facts: map[string]string{
 			"values": strings.Join(vals, ","), "weights": strings.Join(wts, ","),
 			"den": strconv.Itoa(c.den), "answer": answer,
+			"mean_terms": strings.Join(meanTerms, " + "), "mean": decimal6(mean),
+			"sq_terms": strings.Join(sqTerms, " + "), "second": decimal6(float64(sw2) / float64(c.den)),
+			"mean_sq": decimal6(mean * mean),
 		},
 	}
 }
@@ -872,6 +888,8 @@ func (g *cltGen) Generate(ctx generator.GeneratorContext) generator.Problem {
 		Facts: map[string]string{
 			"n": strconv.Itoa(c.n), "mu": strconv.Itoa(c.mu), "sigma": strconv.Itoa(c.sigma),
 			"x": strconv.Itoa(c.x), "answer": answer,
+			"nmu": strconv.Itoa(c.n * c.mu), "dev": strconv.Itoa(c.x - c.n*c.mu), "sqrt_n": decimal6(sqrtInt(c.n)),
+			"se": decimal6(float64(c.sigma) * sqrtInt(c.n)),
 		},
 	}
 }
@@ -922,7 +940,11 @@ func (g *totalProbabilityGen) Generate(ctx generator.GeneratorContext) generator
 		Facts: map[string]string{
 			"w1": strconv.Itoa(c.w1), "a1": strconv.Itoa(c.a1), "t1": strconv.Itoa(c.t1),
 			"w2": strconv.Itoa(c.w2), "a2": strconv.Itoa(c.a2), "t2": strconv.Itoa(c.t2),
-			"answer": answer,
+			"answer": answer, "total": strconv.Itoa(total),
+			"p1": decimal6(float64(c.w1) / float64(total)), "p2": decimal6(float64(c.w2) / float64(total)),
+			"c1": decimal6(float64(c.a1) / float64(c.t1)), "c2": decimal6(float64(c.a2) / float64(c.t2)),
+			"term1": decimal6(float64(c.w1) / float64(total) * float64(c.a1) / float64(c.t1)),
+			"term2": decimal6(float64(c.w2) / float64(total) * float64(c.a2) / float64(c.t2)),
 		},
 	}
 }

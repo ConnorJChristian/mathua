@@ -1,0 +1,9 @@
+{
+  "concept": "calc.integral.power_rule",
+  "setup": "The power rule for integration raises the power by one and divides by the new power: \\(\\int x^{n}\\,dx = \\frac{x^{n+1}}{n+1} + C\\).",
+  "steps": [
+    {"fact": "n1", "say": "Raise the power: \\(x^{[[n]]}\\) becomes \\(x^{[[n1]]}\\), divided by the new power [[n1]]."},
+    {"fact": "coef", "say": "Keep the constant factor: \\([[a]] \\cdot \\frac{x^{[[n1]]}}{[[n1]]} = [[coef]]x^{[[n1]]}\\)."}
+  ],
+  "answer": "So \\(\\int [[a]]x^{[[n]]}\\,dx = [[answer]] + C\\). Check by differentiating: \\(\\frac{d}{dx}([[answer]]) = [[a]]x^{[[n]]}\\)."
+}

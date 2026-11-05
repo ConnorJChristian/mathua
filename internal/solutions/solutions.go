@@ -165,6 +165,84 @@ func (l *Loader) Assemble(conceptID string, facts map[string]string, fallback st
 	return plainNumbers(rendered)
 }
 
+// Parts is a schema rendered as the feedback contract reads it (fork change,
+// internal/walkthrough): the steps in order, with the setup first when there
+// are steps, and the closing answer line as the one-line explanation.
+type Parts struct {
+	Explain string
+	Steps   []string
+}
+
+// AssembleParts is Assemble with the schema kept apart into steps and the
+// answer line. ok is false when the concept has no usable schema, and the
+// caller keeps the generator's own explanation.
+func (l *Loader) AssembleParts(conceptID string, facts map[string]string) (Parts, bool) {
+	if l == nil {
+		return Parts{}, false
+	}
+	s, ok := l.byConcept[conceptID]
+	if !ok {
+		return Parts{}, false
+	}
+	setup, steps, answer, missing := renderParts(s, facts)
+	if len(missing) > 0 {
+		log.Printf("solutions: %q schema skipped, unresolved %v", conceptID, missing)
+		return Parts{}, false
+	}
+	p := Parts{Explain: plainNumbers(answer)}
+	if len(steps) == 0 {
+		// Every step skipped: the instance is a shape the schema does not
+		// cover (a generator's fixed-table draw beside its parameterised
+		// variant), and the generator's own explanation says more than the
+		// answer line would.
+		if len(s.Steps) > 0 {
+			return Parts{}, false
+		}
+		if setup != "" {
+			p.Explain = plainNumbers(setup + " " + answer)
+		}
+		return p, true
+	}
+	if setup != "" {
+		p.Steps = append(p.Steps, plainNumbers(setup))
+	}
+	for _, st := range steps {
+		p.Steps = append(p.Steps, plainNumbers(st))
+	}
+	return p, true
+}
+
+// renderParts renders a schema as its parts: the setup, each rendered step
+// and the answer line, with the placeholders and required facts it could not
+// resolve. Render is this joined with blank lines.
+func renderParts(s *Schema, facts map[string]string) (setup string, steps []string, answer string, missing []string) {
+	seen := map[string]bool{}
+	note := func(name string) {
+		if !seen[name] {
+			seen[name] = true
+			missing = append(missing, name)
+		}
+	}
+	if s.Setup != "" {
+		setup = lookup(s.Setup, facts, note)
+	}
+	for _, step := range s.Steps {
+		if step.Fact != "" {
+			if _, ok := facts[step.Fact]; !ok {
+				continue
+			}
+		}
+		if say := lookup(step.Say, facts, note); say != "" {
+			steps = append(steps, say)
+		}
+	}
+	answer = lookup(s.Answer, facts, note)
+	if answer == "" {
+		missing = append(missing, "<answer>")
+	}
+	return setup, steps, answer, missing
+}
+
 // loneNumberMathRe matches an inline math span that holds only an unsigned
 // number once its facts are in: "\\(3\\)".
 var loneNumberMathRe = regexp.MustCompile(`\\\(\s*([0-9][0-9.,]*)\s*\\\)`)

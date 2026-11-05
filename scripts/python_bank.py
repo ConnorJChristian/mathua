@@ -36,6 +36,7 @@ import concurrent.futures as cf
 import glob
 import json
 import os
+import re
 import runpy
 import secrets
 import subprocess
@@ -96,32 +97,162 @@ def topic(id, label, prereqs, subdomain, source, intro, items):
     }
 
 
-def mc(id, prompt, correct, wrong, explain, level=2):
-    return {"id": id, "kind": "mc", "level": level, "prompt": reflow(dedent(prompt)),
-            "correct": correct, "wrong": list(wrong), "explain": reflow(dedent(explain))}
+def mc(id, prompt, correct, wrong, explain, level=2, steps=None):
+    """A choice. `steps` is the worked path to the key, one string each
+    (fork change, task 0c); left out, it is read off the explanation when the
+    explanation works through several steps (worked_steps)."""
+    return with_steps({"id": id, "kind": "mc", "level": level, "prompt": reflow(dedent(prompt)),
+                       "correct": correct, "wrong": list(wrong), "explain": reflow(dedent(explain))}, steps)
 
 
-def out(id, prompt, code, explain, level=2, expected=None, setup=""):
+def out(id, prompt, code, explain, level=2, expected=None, setup="", steps=None):
     """An output question. `setup` is hidden code run before `code` when the
     bank is built (fixtures the snippet reads, as a task's setup); it is not
     stored, so the prompt or the concept's intro must describe what it
-    defines. The learner never runs the snippet: they predict its output."""
+    defines. The learner never runs the snippet: they predict its output.
+
+    `steps` (fork change, task 0c) is the walkthrough; left out, the build
+    traces the snippet and writes one step per print: which line printed
+    what, in order (trace_steps)."""
     item = {"id": id, "kind": "output", "level": level, "prompt": reflow(dedent(prompt)),
             "code": dedent(code), "explain": reflow(dedent(explain))}
     if expected is not None:
         item["expected"] = expected
     if setup:
         item["_setup"] = dedent(setup)
+    if steps is not None:
+        item["steps"] = [dedent(s) for s in steps if dedent(s)]
     return item
 
 
-def task(id, prompt, solution, tests, explain, starter="", setup="", level=2, starter_may_pass=False):
+def task(id, prompt, solution, tests, explain, starter="", setup="", level=2, starter_may_pass=False, steps=None):
+    """A code task. `steps` (fork change, task 0c) walks the reference
+    solution: one string per line or block, saying what it does and why.
+    There is no default: a solution's why is the author's."""
     item = {"id": id, "kind": "code", "level": level, "prompt": reflow(dedent(prompt)),
             "starter": dedent(starter), "setup": dedent(setup), "solution": dedent(solution),
             "tests": tests, "explain": reflow(dedent(explain))}
     if starter_may_pass:
         item["_starter_may_pass"] = True
+    if steps is not None:
+        item["steps"] = [dedent(s) for s in steps if dedent(s)]
     return item
+
+
+# ---------------------------------------------------------------- steps (0c)
+
+# An abbreviation a sentence does not end on.
+_ABBREV = re.compile(r"(?:\b(?:e\.g|i\.e|cf|vs|approx|eq|Eq|fig|Fig|ch|Ch|sec|Sec|p|pp|no|No|Prof|Dr|Thm|Def|Prop|Cor|Lem|Ex|resp)|\b[A-Z])\.$")
+# A sentence works something out: an equals sign or a comparison, an
+# operator between two numbers, or a power. A year or a count on its own is
+# prose, not working, so a two-sentence reason about history stays a reason.
+_WORKING = re.compile(r"[=≈→⇒≤≥<>∂∫∑√^]|\d\s*[-+*/−×·±]\s*\d|\d\s*[a-zA-Zα-ωπλ]\b|:\s*[-−(\\]{0,2}\d")
+
+
+_ASSIGN = re.compile(r"^[$\\(]*[A-Za-z][A-Za-z0-9_{}^']*(?:\([^()]*\))?\s*=")
+
+
+_MATH = re.compile(r"\\\[.*?\\\]|\\\(.*?\\\)|\$\$.*?\$\$|\$[^$\n]*\$", re.S)
+
+
+def split_sentences(text):
+    """A paragraph's sentences. A full stop, question or exclamation mark
+    followed by white space ends one unless it closes an abbreviation or an
+    initial. A sentence whose clauses are joined by semicolons and each work
+    something out ("x₁ = ±2; x₂ = 2") is one step per clause. Mathematics is
+    never split: each span is masked while the boundaries are found."""
+    spans = []
+
+    def mask(m):
+        spans.append(m.group(0))
+        return "\x00%d\x01" % (len(spans) - 1)
+
+    def restore(s):
+        return re.sub("\x00(\\d+)\x01", lambda m: spans[int(m.group(1))], s)
+
+    text = _MATH.sub(mask, text.strip())
+    out = []
+    for chunk in re.split(r"(?<=[.!?])\s+", text):
+        if not chunk:
+            continue
+        if out and _ABBREV.search(out[-1]):
+            out[-1] += " " + chunk
+        else:
+            out.append(chunk)
+    steps = []
+    for sent in out:
+        clauses = re.split(r";\s+", sent)
+        if not (len(clauses) > 1 and all(_WORKING.search(restore(c)) for c in clauses)):
+            # A chain of assignments, "a_2 = 3, a_3 = 5, a_4 = 7": one step
+            # each, when every clause opens as an assignment.
+            clauses = re.split(r",\s+", sent)
+            if not (len(clauses) > 1 and all(_ASSIGN.match(restore(c)) for c in clauses)):
+                clauses = [sent]
+        steps.extend(restore(c.rstrip(";,")) for c in clauses)
+    return steps
+
+
+def worked_steps(text, min_working=2):
+    """The steps a worked solution works through: its sentences, in order,
+    without a closing "Source:" paragraph, when at least `min_working` of
+    them carry working (an operator or a number). A one-sentence reason, or
+    prose with no working, gives no steps: it is shown whole as the reason.
+
+    The steps are read off the text the builder wrote from its computed
+    values, so they carry exactly the numbers the key was built from."""
+    steps = []
+    text = re.sub(r"(?i)(?:<br\s*/?>\s*){2,}", "\n\n", dedent(text or ""))
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+    for para in re.split(r"\n\s*\n", text):
+        para = " ".join(para.split())
+        if not para or para.startswith("Source:") or para.startswith("```"):
+            continue
+        steps.extend(split_sentences(para))
+    # A source written into the last sentence is the item's citation, not a step.
+    steps = [s for s in steps if not s.startswith(("Source:", "Read more:"))]
+    if len(steps) < 2 or sum(1 for s in steps if _WORKING.search(s)) < min_working:
+        return []
+    return steps
+
+
+def with_steps(item, steps=None, text=None):
+    """Attach `steps` to an item: the author's when given, else the ones read
+    off `text` (the item's explanation by default). No steps leaves the
+    field out."""
+    if steps is None:
+        steps = worked_steps(item.get("explain", "") if text is None else text)
+    steps = [dedent(s) for s in steps if dedent(s)]
+    if steps:
+        item["steps"] = steps
+    else:
+        item.pop("steps", None)
+    return item
+
+
+def trace_steps(code, prints):
+    """Steps for an output item from a traced run: for each print, the line
+    of code that ran and what it printed. A line that prints several times
+    (a loop) is one step listing its prints in order."""
+    lines = code.split("\n")
+    steps, order = [], []
+    by_line = {}
+    for p in prints:
+        n = p.get("line") or 0
+        if n not in by_line:
+            by_line[n] = []
+            order.append(n)
+        by_line[n].append(p.get("text", ""))
+    for n in order:
+        src = lines[n - 1].strip() if 1 <= n <= len(lines) else ""
+        texts = by_line[n]
+        where = "Line %d" % n + (", `%s`," % src if src and "`" not in src else ",")
+        if len(texts) == 1 and "\n" not in texts[0]:
+            steps.append("%s prints `%s`." % (where, texts[0]) if texts[0] != "" else "%s prints an empty line." % where)
+        elif all("\n" not in t for t in texts):
+            steps.append("%s runs %d times and prints, in order: %s." % (where, len(texts), ", ".join("`%s`" % t if t else "an empty line" for t in texts)))
+        else:
+            steps.append("%s prints:\n\n```text\n%s\n```" % (where, "\n".join(texts).rstrip("\n")))
+    return steps
 
 
 def book_ref(file, module, page, label, printed_page=None, end_page=None):
@@ -193,7 +324,7 @@ def reflow(md):
 
 
 HELPERS = {"concept": concept, "topic": topic, "mc": mc, "out": out, "task": task, "check": check,
-           "book_ref": book_ref}
+           "book_ref": book_ref, "worked_steps": worked_steps, "with_steps": with_steps}
 
 
 def check_gating(cid, items):
@@ -230,10 +361,11 @@ def check_gating(cid, items):
 
 # ---------------------------------------------------------------- running
 
-def run(mode, code, setup="", tests=None, cpu=20):
+def run(mode, code, setup="", tests=None, cpu=20, trace=False):
     nonce = "B" + secrets.token_hex(8) + ":"
     req = {"nonce": nonce, "mode": mode, "code": code, "setup": setup,
-           "tests": tests or [], "cpu_seconds": cpu, "memory_mb": 2048, "max_output": 200000}
+           "tests": tests or [], "cpu_seconds": cpu, "memory_mb": 2048, "max_output": 200000,
+           "trace": trace}
     env = {
         "PATH": os.environ.get("PATH", ""), "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
         "MPLBACKEND": "Agg", "OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1",
@@ -272,7 +404,7 @@ def check_item(cid, item):
         if len(set(labels)) != len(labels):
             errs.append("%s: two parts share a label" % where)
     if item["kind"] == "output":
-        res = run("run", item["code"], item.pop("_setup", ""))
+        res = run("run", item["code"], item.pop("_setup", ""), trace=True)
         if res["error"]:
             errs.append("%s: snippet raised %s" % (where, res["error"].splitlines()[-1]))
             return item, errs
@@ -282,6 +414,15 @@ def check_item(cid, item):
         if "expected" in item and item["expected"].rstrip("\n") != got:
             errs.append("%s: authored expected %r but the code prints %r" % (where, item["expected"], got))
         item["expected"] = got
+        # The walkthrough of an output item is its trace: which line printed
+        # what (fork change, task 0c). Only when the trace accounts for the
+        # whole output; output written past print (sys.stdout, a display
+        # hook) gets no steps rather than a partial story.
+        if "steps" not in item:
+            prints = res.get("prints") or []
+            traced = "".join(p.get("text", "") + "\n" for p in prints).rstrip("\n")
+            if prints and traced == got:
+                item["steps"] = trace_steps(item["code"], prints)
     elif item["kind"] == "code":
         res = run("grade", item["solution"], item["setup"], item["tests"])
         if not res["passed"]:
@@ -296,6 +437,13 @@ def check_item(cid, item):
     for field in ("prompt", "explain", "code", "starter", "solution", "correct"):
         if "$" in item.get(field, ""):
             errs.append("%s: '$' in %s would be rendered as math" % (where, field))
+    # Mirrors bank.go: a step is non-empty and never carries the markers the
+    # server joins steps with.
+    for i, st in enumerate(item.get("steps") or []):
+        if not st.strip():
+            errs.append("%s: step %d is empty" % (where, i + 1))
+        if "<!--steps-->" in st or "<!--step-->" in st:
+            errs.append("%s: step %d contains a steps marker" % (where, i + 1))
     return item, errs
 
 
@@ -376,16 +524,41 @@ def check_prereqs(chapters, nodes):
     return errs
 
 
+def default_steps(item):
+    """The walkthrough of an item its author gave none (fork change, task
+    0c): the steps its worked solution works through (worked_steps), read
+    off the text the builder wrote from its computed values. A typed-math
+    or recall item's is its back (and any explanation after it); a choice
+    or term item's is its explanation. An output item's comes from its
+    trace (check_item) and a code task's only from its author."""
+    if "steps" in item or item["kind"] in ("output", "code"):
+        return item
+    if item["kind"] in ("math", "recall"):
+        text = "\n\n".join(t for t in (item.get("back", ""), item.get("explain", "")) if t.strip())
+    else:
+        text = item.get("explain", "")
+    return with_steps(item, None, text)
+
+
 def build_chapter(path):
     ns = runpy.run_path(path, init_globals=dict(HELPERS))
     chapter = ns["CHAPTER"]
+    # STEPS (fork change, task 0c): an authoring file may keep its items'
+    # walkthroughs in a table keyed "<concept>#<item>", one string per
+    # step, beside the items (or in a shared module), for tasks whose
+    # steps are a line-by-line why of the reference solution.
+    table = ns.get("STEPS") or {}
     errors = []
     jobs = []
     with cf.ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as pool:
         for c in chapter["concepts"]:
             errors.extend(check_gating(c["id"], c["items"]))
+            for item in c["items"]:
+                key = c["id"] + "#" + item["id"]
+                if key in table and "steps" not in item:
+                    with_steps(item, table[key])
             for idx, item in enumerate(c["items"]):
-                jobs.append((c, idx, pool.submit(check_item, c["id"], item)))
+                jobs.append((c, idx, pool.submit(check_item, c["id"], default_steps(item))))
         for c, idx, fut in jobs:
             item, errs = fut.result()
             c["items"][idx] = item
