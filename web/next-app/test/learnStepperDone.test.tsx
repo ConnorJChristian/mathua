@@ -355,7 +355,10 @@ describe('Prerequisites section and decay', () => {
     expect(link.getAttribute('href')).toContain('/study?concept=frac.add.word')
   })
 
-  it('shows an already-learned prerequisite as a check due, still openable', async () => {
+  it('shows a fading prerequisite as already learned, without claiming a check is due', async () => {
+    // DECAYING is the pacing notion (14 days since the last review), not
+    // due-ness: only the server's eligibility verdict says due_for_review
+    // (the one due rule, FSRS Phase 0; review F1).
     vi.mocked(getLessonReadiness).mockResolvedValue({
       concept_id: CID,
       ready: false,
@@ -365,6 +368,22 @@ describe('Prerequisites section and decay', () => {
     render(<LearnStepper conceptId={CID} />)
     const panel = await screen.findByRole('note', { name: 'Prerequisites' })
     // "Before you start" would be false here: the learner did start, and finished.
+    expect(panel.textContent).toMatch(/already learned/i)
+    expect(panel.textContent).not.toMatch(/short check is due/i)
+    const link = within(panel).getByRole('link', { name: /Study →/ })
+    expect(link.getAttribute('href')).toContain('/study?concept=frac.add.word')
+  })
+
+  it('shows a prerequisite the server calls due as a check due, still openable', async () => {
+    vi.mocked(getLessonReadiness).mockResolvedValue({
+      concept_id: CID,
+      ready: false,
+      weak: [],
+      missing: [],
+      prerequisites: [{ conceptId: 'frac.add.word', title: 'Adding fractions in word problems', state: 'due_for_review', met: true }],
+    } as never)
+    render(<LearnStepper conceptId={CID} />)
+    const panel = await screen.findByRole('note', { name: 'Prerequisites' })
     expect(panel.textContent).toMatch(/already learned/i)
     expect(panel.textContent).toMatch(/short check is due/i)
     const link = within(panel).getByRole('link', { name: /Study →/ })
