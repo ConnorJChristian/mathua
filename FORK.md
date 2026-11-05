@@ -1054,8 +1054,18 @@ all at once with
 
 ```bash
 MATHUA_ROOT=$PWD go run ./scripts/fsrs_seed -db mathua.db           # dry run: prints what it would write
+docker compose stop mathua                                         # stop the app first
 MATHUA_ROOT=$PWD go run ./scripts/fsrs_seed -db mathua.db -apply    # writes it; rerunning is a no-op
+docker compose start mathua
 ```
+
+**Stop the app before `fsrs_seed -apply`.** `-apply` refuses while the
+database has a `-wal` or `-shm` file beside it (SQLite keeps them while any
+connection is open and removes them on a clean close), so a running app, or
+one that crashed, stops it with a message; `-force` overrides when you know
+nothing is writing. A seed that does land while the app serves no longer
+costs an answer: a seed row already stored is skipped on its own, and only
+the answer's own key makes a commit a retry.
 
 Both run the same replay. Credited and placement-only rows (mastered with
 no attempts of their own) get no state, so FSRS never calls them due; their
@@ -1068,8 +1078,12 @@ row, the attempt and, in shadow, the `review_log` rows and the `fsrs_*`
 columns in one transaction; a failure anywhere rolls all of it back. Each
 event's `idempotency_key` is `<session>:<attempt id>` for a practice or
 review-session answer and `<session>:a<attempt row id>` for Learn and quiz
-answers (seeded rows: `seed:a<attempt row id>`); a key already stored makes
-the submission a retry, and nothing of it is written. A shadow write that
+answers (seeded rows: `seed:a<attempt row id>`); the answer's own key
+already stored makes the submission a retry, and nothing of it is written.
+A seed row (`seed:` key) already stored is skipped alone and never makes the
+answer a retry; a commit of seed rows only (`fsrs_seed -apply`) is a
+duplicate on any stored key, so a seed never overwrites a state an answer
+wrote meanwhile. A shadow write that
 fails never costs the learner the answer: it is logged
 (`fsrs: shadow event ... not written`) and the answer is committed without
 it. Off writes nothing FSRS.

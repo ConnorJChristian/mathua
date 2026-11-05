@@ -37,11 +37,26 @@ type FSRSCommit struct {
 type CommitResult struct {
 	// AttemptID is the new attempt row's id (0 when none was written).
 	AttemptID int64
-	// Duplicate is true when a review_log idempotency key was already
+	// Duplicate is true when the answer's own review_log key was already
 	// stored: the answer was committed before (a retry), and nothing was
-	// written this time, the progress and the attempt included.
+	// written this time, the progress and the attempt included. For a
+	// commit of seed rows only (scripts/fsrs_seed), any stored key is a
+	// duplicate.
 	Duplicate bool
+	// SkippedSeedRows counts the seed rows ("seed:..." keys) of an answer's
+	// commit that were already stored, by scripts/fsrs_seed -apply or an
+	// earlier first-touch seed. They are skipped one by one; they never
+	// make the answer a retry (FSRS Phase 2 review, M1).
+	SkippedSeedRows int
 }
+
+// SeedKeyPrefix starts the idempotency key of every row a seed replay
+// writes (the first-touch seed and scripts/fsrs_seed): "seed:a<attempt
+// id>" or "seed:<learner>:<topic>:mastery".
+const SeedKeyPrefix = "seed:"
+
+// IsSeedKey reports whether a review_log key is a seed row's.
+func IsSeedKey(key string) bool { return strings.HasPrefix(key, SeedKeyPrefix) }
 
 // errDuplicateKey unwinds a commit whose log key is already stored.
 var errDuplicateKey = errors.New("duplicate review_log key")
@@ -159,6 +174,15 @@ func commitAnswer(db *sql.DB, d commitDialect, c AnswerCommit) (CommitResult, er
 		}
 	}
 	if c.FSRS != nil {
+		// The answer's own rows are the ones without a seed key. A commit
+		// with none (a seed alone) is a duplicate on any stored key, so a
+		// seed never overwrites a state an answer wrote meanwhile.
+		seedOnly := true
+		for _, e := range c.FSRS.Log {
+			if !IsSeedKey(e.IdempotencyKey) {
+				seedOnly = false
+			}
+		}
 		for _, e := range c.FSRS.Log {
 			if e.IdempotencyKey == "" {
 				if c.Attempt == nil {
@@ -171,7 +195,13 @@ func commitAnswer(db *sql.DB, d commitDialect, c AnswerCommit) (CommitResult, er
 				return CommitResult{}, fmt.Errorf("commit answer: review_log: %w", err)
 			}
 			if n, _ := r.RowsAffected(); n == 0 {
-				// Already committed: a retry. Nothing of this one lands.
+				if IsSeedKey(e.IdempotencyKey) && !seedOnly {
+					// The same seed row, already stored (fsrs_seed -apply
+					// ran meanwhile): skip it, keep the answer.
+					res.SkippedSeedRows++
+					continue
+				}
+				// The answer's own key: a retry. Nothing of this one lands.
 				return CommitResult{Duplicate: true}, nil
 			}
 			if err := hook("log"); err != nil {

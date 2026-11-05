@@ -180,3 +180,47 @@ func TestReviewLog_HeldRoundTrips(t *testing.T) {
 		}
 	}
 }
+
+// FSRS Phase 2 review, M1: a seed row already stored (scripts/fsrs_seed
+// -apply ran between the engine's read and its commit) is skipped on its
+// own; the answer, whose own key is new, commits in full. A commit of seed
+// rows alone stays all-or-nothing: any stored key makes it a duplicate.
+func TestCommitAnswer_StoredSeedRowIsSkippedNotARetry(t *testing.T) {
+	for name, repo := range fsrsStores(t) {
+		sid := commitFixture(t, repo)
+		sess, err := repo.CreateSession(sid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c := shadowCommit(sid, sess.ID, sess.ID+":attempt-1")
+		seed := c.FSRS.Log[0]
+		seed.IdempotencyKey = "seed:a17"
+		seed.At = seed.At.Add(-time.Hour)
+		// The script's commit: the seed row alone.
+		if res, err := repo.CommitAnswer(AnswerCommit{FSRS: &FSRSCommit{Log: []ReviewLogEntry{seed}}}); err != nil || res.Duplicate {
+			t.Fatalf("[%s] seed commit: %+v %v", name, res, err)
+		}
+		// The engine's commit carries the same seed row, then the answer's.
+		c.FSRS.Log = append([]ReviewLogEntry{seed}, c.FSRS.Log...)
+		res, err := repo.CommitAnswer(c)
+		if err != nil || res.Duplicate || res.AttemptID == 0 || res.SkippedSeedRows != 1 {
+			t.Fatalf("[%s] answer after the seed: %+v %v; want committed with 1 seed row skipped", name, res, err)
+		}
+		if p, a, l, st := counts(t, repo, sid); p != 1 || a != 1 || l != 2 || st != "review" {
+			t.Errorf("[%s] after: %d rows, %d attempts, %d log, state %q", name, p, a, l, st)
+		}
+		// The seed again on its own: a duplicate, nothing written.
+		res, err = repo.CommitAnswer(AnswerCommit{FSRS: &FSRSCommit{Log: []ReviewLogEntry{seed}, State: c.FSRS.State}})
+		if err != nil || !res.Duplicate {
+			t.Errorf("[%s] seed-only recommit: %+v %v, want Duplicate", name, res, err)
+		}
+		// The answer's own key again: a retry.
+		res, err = repo.CommitAnswer(c)
+		if err != nil || !res.Duplicate {
+			t.Errorf("[%s] answer retry: %+v %v, want Duplicate", name, res, err)
+		}
+		if _, a, l, _ := counts(t, repo, sid); a != 1 || l != 2 {
+			t.Errorf("[%s] retries wrote: %d attempts, %d log", name, a, l)
+		}
+	}
+}

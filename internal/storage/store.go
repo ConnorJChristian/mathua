@@ -626,8 +626,9 @@ type Repository interface {
 	InsertReviewLog(e ReviewLogEntry) (bool, error)
 	// CommitAnswer writes one graded answer's progress row, attempt and, in
 	// shadow or active mode, its review_log rows and fsrs_* columns in one
-	// transaction (answer_commit.go). A review_log key already stored makes
-	// it a retry: nothing is written and Duplicate is set.
+	// transaction (answer_commit.go). The answer's own review_log key
+	// already stored makes it a retry: nothing is written and Duplicate is
+	// set. A seed row ("seed:" key) already stored is skipped alone.
 	CommitAnswer(c AnswerCommit) (CommitResult, error)
 	// ReviewLogFor returns a learner's log entries, one topic's or all of
 	// them ("" for conceptID), oldest first (At, then ID).
