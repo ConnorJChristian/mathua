@@ -103,6 +103,7 @@ func authMigrate(db *sql.DB) error {
 		"ALTER TABLE concept_progress ADD COLUMN fsrs_lapses INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE concept_progress ADD COLUMN fsrs_state TEXT NOT NULL DEFAULT 'none'",
 		"ALTER TABLE concept_progress ADD COLUMN fsrs_seed TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE review_log ADD COLUMN held TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE active_sessions ADD COLUMN last_concept_id TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE active_sessions ADD COLUMN session_review INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE active_sessions ADD COLUMN session_new INTEGER NOT NULL DEFAULT 0",

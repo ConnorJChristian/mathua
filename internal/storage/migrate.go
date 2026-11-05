@@ -124,7 +124,8 @@ CREATE TABLE IF NOT EXISTS review_log (
     level           INTEGER NOT NULL DEFAULT 0,
     response_ms     INTEGER NOT NULL DEFAULT 0,
     idempotency_key TEXT    NOT NULL UNIQUE,
-    engine_mode     TEXT    NOT NULL DEFAULT 'shadow'
+    engine_mode     TEXT    NOT NULL DEFAULT 'shadow',
+    held            TEXT    NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_review_log_topic ON review_log(student_id, concept_id, at);
 

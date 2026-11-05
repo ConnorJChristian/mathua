@@ -38,13 +38,13 @@ const reviewLogOrder = ` ORDER BY at, id`
 
 const reviewLogColumns = `id, student_id, concept_id, at, source, rating, elapsed_days,
 	s_before, s_after, d_before, d_after, r_at_review, item_id, level, response_ms,
-	idempotency_key, engine_mode`
+	idempotency_key, engine_mode, held`
 
 func reviewLogArgs(e ReviewLogEntry) []interface{} {
 	return []interface{}{
 		e.StudentID, e.ConceptID, e.At.UTC().Format(ReviewLogAtLayout), e.Source, e.Rating, e.ElapsedDays,
 		e.SBefore, e.SAfter, e.DBefore, e.DAfter, e.RAtReview, e.ItemID, e.Level, e.ResponseMS,
-		e.IdempotencyKey, e.EngineMode,
+		e.IdempotencyKey, e.EngineMode, e.Held,
 	}
 }
 
@@ -56,7 +56,7 @@ func scanReviewLog(rows *sql.Rows) ([]ReviewLogEntry, error) {
 		var at string
 		if err := rows.Scan(&e.ID, &e.StudentID, &e.ConceptID, &at, &e.Source, &e.Rating, &e.ElapsedDays,
 			&e.SBefore, &e.SAfter, &e.DBefore, &e.DAfter, &e.RAtReview, &e.ItemID, &e.Level, &e.ResponseMS,
-			&e.IdempotencyKey, &e.EngineMode); err != nil {
+			&e.IdempotencyKey, &e.EngineMode, &e.Held); err != nil {
 			return nil, fmt.Errorf("scan review_log: %w", err)
 		}
 		t, err := time.Parse(time.RFC3339Nano, at)
@@ -74,8 +74,8 @@ func (s *SQLiteStore) InsertReviewLog(e ReviewLogEntry) (bool, error) {
 		return false, fmt.Errorf("insert review_log: empty idempotency key")
 	}
 	res, err := s.db.Exec(`INSERT INTO review_log (student_id, concept_id, at, source, rating, elapsed_days,
-		s_before, s_after, d_before, d_after, r_at_review, item_id, level, response_ms, idempotency_key, engine_mode)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		s_before, s_after, d_before, d_after, r_at_review, item_id, level, response_ms, idempotency_key, engine_mode, held)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(idempotency_key) DO NOTHING`, reviewLogArgs(e)...)
 	if err != nil {
 		return false, fmt.Errorf("insert review_log: %w", err)
@@ -103,8 +103,8 @@ func (s *PostgresStore) InsertReviewLog(e ReviewLogEntry) (bool, error) {
 		return false, fmt.Errorf("insert review_log: empty idempotency key")
 	}
 	res, err := s.db.Exec(`INSERT INTO review_log (student_id, concept_id, at, source, rating, elapsed_days,
-		s_before, s_after, d_before, d_after, r_at_review, item_id, level, response_ms, idempotency_key, engine_mode)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		s_before, s_after, d_before, d_after, r_at_review, item_id, level, response_ms, idempotency_key, engine_mode, held)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		ON CONFLICT(idempotency_key) DO NOTHING`, reviewLogArgs(e)...)
 	if err != nil {
 		return false, fmt.Errorf("insert review_log: %w", err)

@@ -123,6 +123,12 @@ type ReviewLogEntry struct {
 	IdempotencyKey string
 	// EngineMode is shadow or active: which MATHUA_FSRS mode wrote it.
 	EngineMode string
+	// Held is why the event was logged without changing the state, or ""
+	// when it was applied (FSRS Phase 2): "daily_cap" (a second
+	// stability-raising event for the topic on one learner-local day) or
+	// "lapse_r_high" (a practice miss on a mastered topic while R was at or
+	// above the lapse threshold). Replay skips held events.
+	Held string
 }
 
 type Session struct {
@@ -618,6 +624,11 @@ type Repository interface {
 	// InsertReviewLog appends one FSRS event. It returns false, nil when an
 	// entry with the same idempotency key already exists (nothing written).
 	InsertReviewLog(e ReviewLogEntry) (bool, error)
+	// CommitAnswer writes one graded answer's progress row, attempt and, in
+	// shadow or active mode, its review_log rows and fsrs_* columns in one
+	// transaction (answer_commit.go). A review_log key already stored makes
+	// it a retry: nothing is written and Duplicate is set.
+	CommitAnswer(c AnswerCommit) (CommitResult, error)
 	// ReviewLogFor returns a learner's log entries, one topic's or all of
 	// them ("" for conceptID), oldest first (At, then ID).
 	ReviewLogFor(studentID, conceptID string) ([]ReviewLogEntry, error)
