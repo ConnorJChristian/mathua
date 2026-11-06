@@ -16,11 +16,10 @@
 // nothing. -apply writes it, one transaction per topic; rerunning is a
 // no-op (the log keys are the attempts' own).
 //
-// Stop the app before -apply. -apply refuses while the database has a
-// "-wal" or "-shm" file beside it: SQLite keeps those exactly while a
-// connection is open (they go when the last one closes cleanly), so they
-// mean the app or another process has the file open, or one crashed.
-// -force overrides when you know nothing is writing. (A seed committed
+// Stop the app before -apply. -apply refuses while another connection has
+// the database open (liveWriter: on Linux, a connection's shared lock on
+// the -shm file; elsewhere, a -wal or -shm file beside it). -force
+// overrides when you know nothing is writing. (A seed committed
 // while the app serves is safe since the review's M1 fix, an answer
 // skips seed rows already stored, but the app should not be serving
 // while its database is rewritten underneath it.)
@@ -64,27 +63,14 @@ func main() {
 	}
 }
 
-// liveWriter names the -wal or -shm file beside dbPath, "" when neither
-// exists. SQLite creates them when a connection first reads a WAL database
-// and removes them when the last connection closes cleanly, so either one
-// means the database is open (the app is running) or a process crashed.
-func liveWriter(dbPath string) string {
-	for _, suffix := range []string{"-wal", "-shm"} {
-		if _, err := os.Stat(dbPath + suffix); err == nil {
-			return dbPath + suffix
-		}
-	}
-	return ""
-}
-
 func run(dbPath, only string, apply, force bool, out *os.File) error {
 	if _, err := os.Stat(dbPath); err != nil {
 		return err
 	}
 	if apply && !force {
-		if f := liveWriter(dbPath); f != "" {
-			return fmt.Errorf("%s exists: the database is open (is the app running?) or a process crashed. "+
-				"Stop the app first (docker compose stop mathua) and run again; pass -force only if you know nothing is writing", f)
+		if why := liveWriter(dbPath); why != "" {
+			return fmt.Errorf("%s: the database is open (is the app running?). "+
+				"Stop the app first (docker compose stop mathua) and run again; pass -force only if you know nothing is writing", why)
 		}
 	}
 	root := os.Getenv("MATHUA_ROOT")

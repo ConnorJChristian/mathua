@@ -1085,11 +1085,12 @@ MATHUA_ROOT=$PWD go run ./scripts/fsrs_seed -db mathua.db -apply    # writes it;
 docker compose start mathua
 ```
 
-**Stop the app before `fsrs_seed -apply`.** `-apply` refuses while the
-database has a `-wal` or `-shm` file beside it (SQLite keeps them while any
-connection is open and removes them on a clean close), so a running app, or
-one that crashed, stops it with a message; `-force` overrides when you know
-nothing is writing. A seed that does land while the app serves no longer
+**Stop the app before `fsrs_seed -apply`.** `-apply` refuses while another
+process has the database open: on Linux (the container) it checks for a
+live connection's lock on the `-shm` file, so `-wal`/`-shm` files left by a
+read-only reader (the dry run itself, the doctor, the report) or a crash do
+not stop it; on other systems it refuses while either file exists. It says
+so with a message; `-force` overrides when you know nothing is writing. A seed that does land while the app serves no longer
 costs an answer: a seed row already stored is skipped on its own, and only
 the answer's own key makes a commit a retry.
 
