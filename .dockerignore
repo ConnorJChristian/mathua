@@ -15,3 +15,7 @@ fly.toml
 *.exe
 *.log
 *.db
+
+# Local-only folders the image never uses (backups, QA reports, sync drops).
+local-data
+_to_delete
