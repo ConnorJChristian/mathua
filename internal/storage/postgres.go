@@ -1303,9 +1303,9 @@ func (s *PostgresStore) GetSession(id string) (*Session, error) {
 // diagnostic/quiz UUIDs (attempts.session_id references sessions(id)).
 func (s *PostgresStore) EnsureSession(id, studentID string) error {
 	_, err := s.db.Exec(
-		`INSERT INTO sessions (id, student_id, started_at) VALUES ($1, $2, now()::text)
+		`INSERT INTO sessions (id, student_id, started_at) VALUES ($1, $2, $3)
 		 ON CONFLICT (id) DO NOTHING`,
-		id, studentID,
+		id, studentID, clock.Now().UTC().Format(time.RFC3339),
 	)
 	if err != nil {
 		return fmt.Errorf("ensure session: %w", err)

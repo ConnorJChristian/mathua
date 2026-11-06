@@ -1108,7 +1108,10 @@ prints the `fsrs_errors` count; the Phase 3 gate is "0 rows over 14 days".
 Off writes nothing FSRS.
 
 **The clock.** The engine, scheduler, planner and store read the time
-through `internal/clock` (the wall clock in the server). `replay_audit`
+through `internal/clock` (the wall clock in the server), and so do the
+server's scheduling surfaces: the course page's due set and "days left",
+the readiness banner's decay, the diagnostic attempt's timestamp (UTC) and
+`EnsureSession`'s `started_at` on both stores. `replay_audit`
 runs on a simulated clock, so the same snapshot, `-seed` and `-now` give
 byte-identical output: `-fsrs off|shadow`, `-surfaces` (every surface per
 session), `-dump` (the final database as text; `-dump-fsrs=false` leaves

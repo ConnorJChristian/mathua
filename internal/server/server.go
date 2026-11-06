@@ -23,6 +23,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/ai"
 	"github.com/chuma-beep/mathua/internal/auth"
 	"github.com/chuma-beep/mathua/internal/books"
+	"github.com/chuma-beep/mathua/internal/clock"
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/diagnostic"
 	"github.com/chuma-beep/mathua/internal/engine"
@@ -1178,7 +1179,7 @@ func (s *Server) handleGoalDiagnosticAnswer(w http.ResponseWriter, r *http.Reque
 			Expected:       expected,
 			Correct:        correct,
 			ElapsedSeconds: req.Elapsed,
-			Timestamp:      time.Now(),
+			Timestamp:      clock.Now().UTC(),
 			Question:       questionText,
 			Source:         "diagnostic",
 			Explanation:    expExplanation,
@@ -2048,7 +2049,7 @@ func (s *Server) handleLessonConcept(w http.ResponseWriter, r *http.Request) {
 			if rp, ok := rawProgress[p.ID]; ok && rp != nil {
 				days := 999.0
 				if rp.LastReviewed != nil {
-					days = time.Since(*rp.LastReviewed).Hours() / 24
+					days = clock.Since(*rp.LastReviewed).Hours() / 24
 				}
 				status = string(mastery.EffectiveStatus(mastery.Status(rp.Status), days, mastery.DecayDays))
 			}

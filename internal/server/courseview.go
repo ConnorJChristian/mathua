@@ -6,10 +6,10 @@ import (
 	"path"
 	"sort"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/chuma-beep/mathua/internal/clock"
 	"github.com/chuma-beep/mathua/internal/concepts"
 	"github.com/chuma-beep/mathua/internal/engine"
 	"github.com/chuma-beep/mathua/internal/mastery"
@@ -238,7 +238,7 @@ func (s *Server) courseView(studentID, courseID string) (*courseView, error) {
 		}
 	}
 	snaps := s.eng.ConceptSnapshots(studentID, progress)
-	now := time.Now()
+	now := clock.Now()
 	dueSet := s.eng.DueReviewSet(studentID, progress, now)
 	mods := s.eng.Modules()
 	decks := s.deckCounts()
