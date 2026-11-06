@@ -19,8 +19,9 @@
 //
 // Usage: MATHUA_ROOT=<install> go run ./scripts/fsrs_shadow_report -db <path>
 // [-student id] [-now RFC3339] [-days 30] [-out file.md]. -now defaults to
-// 17:00 UTC on the day after the last review_log row (for a replayed copy,
-// the next session's time), else the wall clock.
+// the current time (the clock: the wall clock when run by hand), which is
+// what a report on C's live copy is about. For a replayed copy pass -now
+// (for example the next session's time) so the report is reproducible.
 package main
 
 import (
@@ -56,7 +57,7 @@ const DailyCap = 25
 func main() {
 	dbPath := flag.String("db", "", "SQLite database (read through a copy)")
 	student := flag.String("student", "", "one learner (default: every learner with a review_log)")
-	nowFlag := flag.String("now", "", "the report's now (RFC3339)")
+	nowFlag := flag.String("now", "", "the report's now (RFC3339; default the current time)")
 	days := flag.Int("days", 30, "forecast horizon in days")
 	out := flag.String("out", "", "write the Markdown here (default stdout)")
 	flag.Parse()
@@ -115,7 +116,7 @@ func run(w io.Writer, dbPath, only, nowFlag string, days int) error {
 		return err
 	}
 	defer db.Close()
-	now, err := reportNow(db, nowFlag)
+	now, err := reportNow(nowFlag)
 	if err != nil {
 		return err
 	}
@@ -160,20 +161,16 @@ func run(w io.Writer, dbPath, only, nowFlag string, days int) error {
 	return nil
 }
 
-// reportNow is -now, else 17:00 UTC the day after the last review_log row,
-// else the wall clock.
-func reportNow(db *sql.DB, flagNow string) (time.Time, error) {
+// reportNow is -now, else the current time from the clock (the wall clock
+// unless a caller installed a simulated one). The old default, 17:00 UTC the
+// day after the last review_log row, put a live copy's report days in the
+// past or in the future (FSRS Phase 2 review, L3).
+func reportNow(flagNow string) (time.Time, error) {
 	if flagNow != "" {
 		t, err := time.Parse(time.RFC3339, flagNow)
 		return t.UTC(), err
 	}
-	var last sql.NullString
-	if err := db.QueryRow(`select max(at) from review_log`).Scan(&last); err == nil && last.Valid {
-		if t, err := time.Parse(time.RFC3339Nano, last.String); err == nil {
-			return t.UTC().Truncate(24 * time.Hour).Add(24*time.Hour + 17*time.Hour), nil
-		}
-	}
-	return time.Now().UTC(), nil
+	return clock.Now().UTC(), nil
 }
 
 func (r *report) students(only string) ([]string, error) {
@@ -456,11 +453,16 @@ func (r *report) calibration(log []storage.ReviewLogEntry) {
 		}
 		fmt.Fprintf(w, "| %d-%d%% | %d | %.3f | %.3f |\n", i*10, i*10+10, b.n, b.sumR/float64(b.n), float64(b.right)/float64(b.n))
 	}
+	if nDay == 0 {
+		// Every event came less than a day after the previous one: each
+		// predicts R = 1, so a log loss would only count same-day misses
+		// (9.2 nats each with the clipping), not calibration.
+		fmt.Fprintf(w, "\nNot enough between-day reviews to calibrate: all %d events came less than a day after the topic's previous review, where FSRS predicts R = 1 by construction.\n\n", n)
+		return
+	}
 	fmt.Fprintf(w, "\n| | Events | Log loss | Brier |\n|---|---|---|---|\n")
 	fmt.Fprintf(w, "| All | %d | %.4f | %.4f |\n", n, ll/float64(n), brier/float64(n))
-	if nDay > 0 {
-		fmt.Fprintf(w, "| A day or more after the last review | %d | %.4f | %.4f |\n", nDay, llDay/float64(nDay), brierDay/float64(nDay))
-	}
+	fmt.Fprintf(w, "| A day or more after the last review | %d | %.4f | %.4f |\n", nDay, llDay/float64(nDay), brierDay/float64(nDay))
 	fmt.Fprintf(w, "\nSame-day events predict R = 1 by construction; the second row leaves them out. With predictions clipped to [0.0001, 0.9999], a same-day miss costs 9.2 nats of log loss.\n\n")
 }
 

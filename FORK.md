@@ -1122,8 +1122,10 @@ Markdown) gives, per learner: the first-day backlog if FSRS were switched
 on (the number Phase 3's cap and spreading must absorb), per day what the
 review sessions served against what FSRS would have served (R < 0.9 with
 the due rule's exclusions), the calibration of the logged R against the
-outcomes (10% bins, log loss, Brier) and a 30-day workload forecast under
-both rules.
+outcomes (10% bins, log loss, Brier; when every event so far is same-day
+it says "not enough between-day reviews to calibrate" instead) and a 30-day
+workload forecast under both rules. Its "now" is the current time; pass
+`-now RFC3339` for a replayed copy, so the report is reproducible.
 
 **One elapsed-time rule.** Every FSRS reading of R counts whole 24-hour
 periods since the last applied review (`review.ElapsedWholeDays`), as the

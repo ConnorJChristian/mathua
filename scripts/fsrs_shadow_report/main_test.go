@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chuma-beep/mathua/internal/clock"
 	"github.com/chuma-beep/mathua/internal/fsrs"
 	"github.com/chuma-beep/mathua/internal/review"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -70,5 +71,61 @@ func TestShadowReport(t *testing.T) {
 	}
 	if after, _ := os.ReadFile(db); string(after) != string(before) {
 		t.Error("the report changed the database")
+	}
+}
+
+// L3: without -now the report is about the current time (the clock), not
+// the day after the last log row; and when every event is same-day it says
+// there is nothing to calibrate instead of printing a log loss.
+func TestShadowReport_NowAndSameDayCalibration(t *testing.T) {
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MATHUA_ROOT", root)
+	t.Setenv("MATHUA_PUBLIC_MODULES_ONLY", "1")
+	db := filepath.Join(t.TempDir(), "report.db")
+	store, err := storage.NewSQLiteStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, _ := store.CreateStudent("sameday")
+	p := review.DefaultParams()
+	t0 := time.Date(2026, 10, 20, 17, 0, 0, 0, time.UTC)
+	m0 := p.Initial(fsrs.Good)
+	cid := "calc.deriv.power_rule"
+	store.InsertReviewLog(storage.ReviewLogEntry{StudentID: st.ID, ConceptID: cid, At: t0, Source: "first_mastery", Rating: 3, SAfter: m0.Stability, DAfter: m0.Difficulty, IdempotencyKey: "k0", EngineMode: "shadow"})
+	// A practice miss 2 minutes later, held at R = 1.
+	store.InsertReviewLog(storage.ReviewLogEntry{StudentID: st.ID, ConceptID: cid, At: t0.Add(2 * time.Minute), Source: "practice_lapse", Rating: 1, SBefore: m0.Stability, SAfter: m0.Stability,
+		DBefore: m0.Difficulty, DAfter: m0.Difficulty, RAtReview: 1, IdempotencyKey: "k1", EngineMode: "shadow", Held: review.HeldLapseRHigh})
+	s, d := m0.Stability, m0.Difficulty
+	row := &storage.ConceptProgress{StudentID: st.ID, ConceptID: cid, Status: "MASTERED", Attempts: 5, LastReviewed: &t0, LastAttempted: &t0, MasteredAt: &t0, SM2EFactor: 2.5}
+	store.UpsertProgress(row)
+	row.FSRSStability, row.FSRSDifficulty, row.FSRSLastReview, row.FSRSReps, row.FSRSState, row.FSRSSeed = &s, &d, &t0, 1, "review", "mastery"
+	if err := store.WriteFSRSState(row); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+
+	now := time.Date(2026, 11, 5, 21, 13, 0, 0, time.UTC) // "the current time"
+	defer clock.NewSim(now).Install()()
+	var b strings.Builder
+	if err := run(&b, db, "", "", 5); err != nil {
+		t.Fatal(err)
+	}
+	md := b.String()
+	if !strings.Contains(md, "Now: 2026-11-05T21:13:00Z") {
+		t.Errorf("default now is not the clock's time:\n%s", md)
+	}
+	if !strings.Contains(md, "Not enough between-day reviews to calibrate") || strings.Contains(md, "Log loss") {
+		t.Errorf("same-day-only calibration:\n%s", md)
+	}
+	// -now still overrides.
+	b.Reset()
+	if err := run(&b, db, "", "2026-10-25T17:00:00Z", 5); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "Now: 2026-10-25T17:00:00Z") {
+		t.Errorf("-now ignored")
 	}
 }
