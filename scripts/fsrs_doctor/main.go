@@ -13,9 +13,10 @@
 //   - unlogged: a progress row with FSRS state and no review_log rows, or
 //     log rows for a row with no state;
 //   - replay: a stored state that differs from replaying its log
-//     (review.ReplayLast: held rows are logged and skipped), or an
-//     fsrs_last_review that is not the last applied row's time, the
-//     event-sourcing check;
+//     (review.ReplayLast: held rows are logged and skipped), an
+//     fsrs_last_review that is not the last applied row's time, or a log
+//     row whose before/after values or elapsed days are not the running
+//     replay's (rowChain), the event-sourcing check;
 //   - error: an fsrs_errors row, an event the app dropped (not computed
 //     or not written) while committing its answer without it;
 //   - missing: an answer that should have written an event and has no
@@ -203,6 +204,9 @@ func Run(dbPath, onlyStudent string) ([]Finding, map[string]int, error) {
 				if d := review.Diff(m, replayed); d != "" {
 					findings = append(findings, Finding{"replay", sid, cid, d})
 				}
+				for _, d := range rowChain(params, entries, events) {
+					findings = append(findings, Finding{"replay", sid, cid, d})
+				}
 				// fsrs_last_review is the last event that changed the state:
 				// a held event (daily cap, a practice miss at high R) is
 				// logged without moving it.
@@ -255,6 +259,40 @@ func Run(dbPath, onlyStudent string) ([]Finding, map[string]int, error) {
 		return a.Concept < b.Concept
 	})
 	return findings, counts, nil
+}
+
+// rowChain replays the log one row at a time and checks every row against
+// the running state (FSRS Phase 2 review, I7): its s_before and d_before are
+// the state before it, its elapsed_days the whole days since the last
+// applied row (0 for a topic's first), and its s_after and d_after the
+// state after it (the same as before for a held row). The final-state
+// check alone missed a tampered s_before, a moved row with its elapsed
+// kept, and a held row edited into another. A seed row (Anki) sets the
+// state and is not checked; a row with an invalid rating is reported as
+// invalid and skipped.
+func rowChain(p review.Params, entries []storage.ReviewLogEntry, events []review.Event) []string {
+	var out []string
+	same := func(a, b float64) bool { return math.Abs(a-b) <= 1e-12*math.Max(1, math.Abs(b)) }
+	for i, e := range entries {
+		if e.Source == "seed" || review.CheckRating(fsrs.Rating(e.Rating)) != nil {
+			continue
+		}
+		before, last, _ := review.ReplayLast(p, events[:i])
+		after, _, _ := review.ReplayLast(p, events[:i+1])
+		wantEl := 0.0
+		if !before.IsZero() && !last.IsZero() {
+			wantEl = math.Max(0, review.ElapsedWholeDays(last, e.At))
+		}
+		switch {
+		case !same(e.SBefore, before.Stability) || !same(e.DBefore, before.Difficulty):
+			out = append(out, fmt.Sprintf("review_log row %d: s_before/d_before %.6g/%.6g, the replay before it %.6g/%.6g", e.ID, e.SBefore, e.DBefore, before.Stability, before.Difficulty))
+		case e.ElapsedDays != wantEl:
+			out = append(out, fmt.Sprintf("review_log row %d: elapsed_days %v, %v whole days since the last applied row", e.ID, e.ElapsedDays, wantEl))
+		case !same(e.SAfter, after.Stability) || !same(e.DAfter, after.Difficulty):
+			out = append(out, fmt.Sprintf("review_log row %d (held %q): s_after/d_after %.6g/%.6g, the replay after it %.6g/%.6g", e.ID, e.Held, e.SAfter, e.DAfter, after.Stability, after.Difficulty))
+		}
+	}
+	return out
 }
 
 // needsEvent reports whether an attempt, under the rules in force, must

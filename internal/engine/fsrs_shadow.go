@@ -147,11 +147,12 @@ func masteringAttempt(p *storage.ConceptProgress, atts []storage.AttemptEntry) i
 	return idx
 }
 
-// raisedOn reports an applied, stability-raising log row for the topic on
-// at's learner-local day.
+// raisedOn reports an applied log row for the topic on at's learner-local
+// day that counts against the daily cap (review.Applied.Capped): it raised
+// stability or was a correct answer.
 func raisedOn(log []storage.ReviewLogEntry, at time.Time, loc *time.Location) bool {
 	for _, e := range log {
-		if e.Held == "" && e.Source != "seed" && e.SAfter > e.SBefore && review.SameLocalDay(e.At, at, loc) {
+		if e.Held == "" && e.Source != "seed" && (e.SAfter > e.SBefore || e.Rating > int(fsrs.Again)) && review.SameLocalDay(e.At, at, loc) {
 			return true
 		}
 	}

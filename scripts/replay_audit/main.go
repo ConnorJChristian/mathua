@@ -222,6 +222,9 @@ func main() {
 	if *fsrsFlag != "" {
 		mode, merr = review.ParseMode(*fsrsFlag)
 	}
+	if merr == nil {
+		merr = review.CheckBuilt(mode)
+	}
 	if merr != nil {
 		fmt.Fprintln(os.Stderr, merr)
 		os.Exit(2)

@@ -27,6 +27,7 @@ import (
 	"github.com/chuma-beep/mathua/internal/pytrack"
 	"github.com/chuma-beep/mathua/internal/recallproof"
 	"github.com/chuma-beep/mathua/internal/repair"
+	"github.com/chuma-beep/mathua/internal/review"
 	"github.com/chuma-beep/mathua/internal/server"
 	"github.com/chuma-beep/mathua/internal/solutions"
 	"github.com/chuma-beep/mathua/internal/storage"
@@ -193,6 +194,12 @@ func main() {
 			fmt.Fprintf(os.Stderr, "unknown command %q. Available: admin, issues, proof\n", flag.Arg(0))
 			os.Exit(2)
 		}
+	}
+
+	// MATHUA_FSRS=active is Phase 3: refuse it before anything starts,
+	// rather than run shadow under an "active" label.
+	if mode, _ := review.CurrentMode(); review.CheckBuilt(mode) != nil {
+		log.Fatalf("%v", review.CheckBuilt(mode))
 	}
 
 	// The base corpus plus every enabled module's concepts (internal/modules).

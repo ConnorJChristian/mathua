@@ -96,7 +96,7 @@ func TestApply_ReplayReproducesWithHeldEvents(t *testing.T) {
 			log = append(log, Event{At: at, Rating: rating, ElapsedDays: a.ElapsedDays, Source: "review", SAfter: a.Next.Stability, DAfter: a.Next.Difficulty, Held: a.Held})
 			if a.Held == "" {
 				m, last = a.Next, at
-				if a.Raised {
+				if a.Capped {
 					raisedDay = day
 				}
 			}
@@ -108,5 +108,26 @@ func TestApply_ReplayReproducesWithHeldEvents(t *testing.T) {
 		if d := Diff(m, got); d != "" || !gotLast.Equal(last) {
 			t.Fatalf("trial %d: %s; last %v vs %v", trial, d, gotLast, last)
 		}
+	}
+}
+
+// FSRS Phase 2 review, I2: with large S the short-term formula raises
+// nothing, but a second correct answer the same day is still held whole:
+// S, D, reps and the last review stay. A miss is never held by the cap.
+func TestApply_DailyCapHoldsASecondCorrectWhole(t *testing.T) {
+	p := DefaultParams()
+	t0 := time.Date(2026, 11, 9, 17, 0, 0, 0, time.UTC)
+	m := Memory{Stability: 7.32, Difficulty: 2.1112, Reps: 2, Phase: PhaseReview}
+	second, err := p.Apply(m, t0, Step{Rating: fsrs.Good, At: t0.Add(2 * time.Hour), Cap: true, RaisedToday: true})
+	if err != nil || second.Held != HeldDailyCap || second.Next != m {
+		t.Errorf("second same-day Good with large S: %+v %v; want held, memory unchanged", second, err)
+	}
+	first, _ := p.Apply(m, t0, Step{Rating: fsrs.Good, At: t0.Add(2 * time.Hour), Cap: true})
+	if first.Held != "" || !first.Capped || first.Raised || first.Next.Reps != 3 {
+		t.Errorf("the day's first Good: %+v; want applied, capped, not raising", first)
+	}
+	miss, _ := p.Apply(m, t0, Step{Rating: fsrs.Again, At: t0.Add(2 * time.Hour), Cap: true, RaisedToday: true})
+	if miss.Held != "" || miss.Capped {
+		t.Errorf("a same-day miss: %+v; never held by the cap", miss)
 	}
 }

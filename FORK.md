@@ -996,9 +996,24 @@ With `MATHUA_FSRS=shadow` every scheduling event writes its FSRS update,
 and nothing reads it for a decision: the review queue, the due counts, Up
 next and its reasons, the mixed session, pacing, plan order, the gate, the
 mastery check's picks and XP are exactly what `off` gives. Only the
-`fsrs_*` columns and `review_log` differ (and `/api/progress` shows the
-columns, as it shows every progress column). Rollback is `MATHUA_FSRS=off`;
-what shadow wrote stays and is ignored.
+`fsrs_*` columns, `review_log` and `fsrs_errors` differ (and
+`/api/progress` shows the columns, as it shows every progress column).
+Rollback is `MATHUA_FSRS=off`; what shadow wrote stays and is ignored.
+
+**The one exception: a crash-window retry.** If the process dies after an
+answer's commit and before its session is cleared, the client's retry
+reaches the grader again. Off records that answer a second time; shadow
+finds the answer's own `review_log` key already stored and refuses it
+(`answer already recorded`, nothing written). That is the only place
+shadow decides something off does not (pinned by
+`TestReview2_CrashWindowRetry_ShadowRefusesOffRecords`). A retry within
+the same process returns the cached result in both modes.
+
+**`MATHUA_FSRS=active` is refused** until Phase 3 exists: the server exits
+at startup with `MATHUA_FSRS=active: FSRS active scheduling is Phase 3 and
+is not built in this version; set MATHUA_FSRS=shadow ... or off`, rather
+than run shadow under an "active" label. `replay_audit -fsrs active` is
+refused the same way.
 
 **Turning it on (Docker).** Add one line under the `mathua` service in
 your `docker-compose.override.yml` and restart:
@@ -1011,7 +1026,11 @@ services:
 ```
 
 The log then says `fsrs: mode shadow` and `fsrs: rules ...`. Run
-`scripts/fsrs_doctor` on a snapshot each day (it should report 0 findings)
+`scripts/fsrs_doctor` on a snapshot each day (it should report 0 findings;
+its `replay` check replays every log row, so each row's before and after
+values and elapsed days must be the running replay's, not only the final
+state; a deleted held `daily_cap` row shows as `missing`, a deleted held
+`lapse_r_high` practice row cannot be seen)
 and `scripts/fsrs_shadow_report` weekly; the Phase 3 gate wants 14 days of
 shadow with no errors.
 
@@ -1032,9 +1051,16 @@ know" means Again; Hard and Easy are not used.
 
 A topic that is not mastered and has no state is not yet in the memory
 model: its answers write nothing. A review less than a day after the last
-uses the FSRS-6 short-term formula. At most one stability-raising event
-per topic per learner-local day (`MATHUA_TZ`) changes the state; a later
-one the same day is logged with `held = daily_cap` and changes nothing.
+uses the FSRS-6 short-term formula. The daily cap: once an event that
+raised stability or was a correct answer has been applied to a topic on a
+learner-local day (`MATHUA_TZ`, the calendar day, not 24 hours), a later
+raising or correct event that day is logged with `held = daily_cap` and
+changes nothing at all: not S, D, reps or the last review time (even with
+large S, where the short-term formula would raise nothing but D and reps
+would still have moved). A miss is never held by the cap. Across the DST
+change a review 24 h later can fall on the same local day (Nov 1 2026,
+25 hours long: 00:30 PDT + 24 h = 23:30 PST, held) or the next (01:30 PDT
++ 24 h = Nov 2 00:30 PST, applied).
 `held = lapse_r_high` marks a practice miss while R was still at or above
 the lapse threshold.
 

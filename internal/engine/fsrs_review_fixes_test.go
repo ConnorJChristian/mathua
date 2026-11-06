@@ -231,3 +231,62 @@ func TestFix_L5_FirstMasteryThroughAQuiz(t *testing.T) {
 		replayAgrees(t, e, sid)
 	}
 }
+
+// I2: a second right review the same learner-local day is held whole, even
+// with S large enough that the short-term formula raises nothing: no D,
+// reps or last-review movement.
+func TestFix_I2_SecondSameDayCorrectHeldWhole(t *testing.T) {
+	e, sid, sim := rvEngine(t, review.ModeShadow, rvMonday)
+	answerCorrectly(t, e, sid, 6)
+	sim.Advance(24 * time.Hour)
+	mustOK3(t)(rvReview(t, e, sid, "a", "42", "42", "r1")) // the day's raise: 2.31 -> 7.3
+	before := *rvRow(t, e, sid, "a")
+	sim.Advance(2 * time.Hour)
+	mustOK3(t)(rvReview(t, e, sid, "a", "42", "42", "r2"))
+	l := rvLog(t, e, sid, "a")
+	after := rvRow(t, e, sid, "a")
+	if len(l) != 3 || l[2].Held != review.HeldDailyCap || l[2].SAfter != l[2].SBefore || l[2].DAfter != l[2].DBefore {
+		t.Fatalf("log %+v", l)
+	}
+	if *after.FSRSStability != *before.FSRSStability || *after.FSRSDifficulty != *before.FSRSDifficulty ||
+		after.FSRSReps != before.FSRSReps || !after.FSRSLastReview.Equal(*before.FSRSLastReview) {
+		t.Errorf("the held event moved the state: %+v -> %+v", before, after)
+	}
+	// The next local day it applies.
+	sim.Advance(22 * time.Hour)
+	mustOK3(t)(rvReview(t, e, sid, "a", "42", "42", "r3"))
+	if l := rvLog(t, e, sid, "a"); l[3].Held != "" || rvRow(t, e, sid, "a").FSRSReps != before.FSRSReps+1 {
+		t.Errorf("next day: %+v", l[3])
+	}
+	replayAgrees(t, e, sid)
+}
+
+// I3: the daily cap counts the learner-local calendar day. Nov 1 2026 in
+// America/Los_Angeles is 25 hours long. A review 24 h after a first
+// mastery at 01:30 PDT (before the fall-back) lands at 00:30 PST on Nov 2,
+// the next local day: it is applied, not held. One at 00:30 PDT lands at
+// 23:30 PST the same Nov 1: held.
+func TestFix_I3_DailyCapByLearnerLocalDayAcrossDST(t *testing.T) {
+	if loc, _ := review.LearnerZone(); loc.String() != "America/Los_Angeles" {
+		t.Skip("learner zone is not America/Los_Angeles")
+	}
+	for _, tc := range []struct {
+		name    string
+		mastery time.Time
+		held    string
+	}{
+		{"01:30 PDT + 24 h = Nov 2 00:30 PST", time.Date(2026, 11, 1, 8, 30, 0, 0, time.UTC), ""},
+		{"00:30 PDT + 24 h = Nov 1 23:30 PST", time.Date(2026, 11, 1, 7, 30, 0, 0, time.UTC), review.HeldDailyCap},
+		{"Oct 31 23:30 PDT + 24 h = Nov 1 22:30 PST", time.Date(2026, 11, 1, 6, 30, 0, 0, time.UTC), ""},
+	} {
+		e, sid, sim := rvEngine(t, review.ModeShadow, tc.mastery)
+		answerCorrectly(t, e, sid, 6)
+		sim.Advance(24 * time.Hour)
+		mustOK3(t)(rvReview(t, e, sid, "a", "42", "42", "r1"))
+		l := rvLog(t, e, sid, "a")
+		if len(l) != 2 || l[1].ElapsedDays != 1 || l[1].Held != tc.held {
+			t.Errorf("%s: log %+v, want held %q", tc.name, l, tc.held)
+		}
+		replayAgrees(t, e, sid)
+	}
+}

@@ -53,6 +53,20 @@ func CurrentMode() (Mode, error) {
 	return mode, modeErr
 }
 
+// ErrActiveNotBuilt is MATHUA_FSRS=active before Phase 3 exists. The
+// server refuses to start with it (CheckBuilt) rather than run what would
+// silently be shadow under an "active" label (FSRS Phase 2 review, I5).
+var ErrActiveNotBuilt = fmt.Errorf("MATHUA_FSRS=active: FSRS active scheduling is Phase 3 and is not built in this version; set MATHUA_FSRS=shadow (writes FSRS, decides nothing) or off")
+
+// CheckBuilt reports an error for a mode this build cannot run: active
+// until Phase 3.
+func CheckBuilt(m Mode) error {
+	if m == ModeActive {
+		return ErrActiveNotBuilt
+	}
+	return nil
+}
+
 // Writes reports whether the mode writes FSRS state (shadow or active).
 func (m Mode) Writes() bool { return m == ModeShadow || m == ModeActive }
 
