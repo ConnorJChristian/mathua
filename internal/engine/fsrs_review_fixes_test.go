@@ -172,3 +172,62 @@ func TestFix_L2_DueUsesWholeDaysLikeTheReference(t *testing.T) {
 		}
 	}
 }
+
+// L5: the answer that first masters a topic creates its state wherever it
+// is given: a mastery check or a course review test gives the same
+// first_mastery row (the reference first Good, dated at that answer) as
+// practice. Reaching mastery is the event, so the quiz kinds' own rules do
+// not hold it; first_mastery=off does.
+func TestFix_L5_FirstMasteryThroughAQuiz(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		course bool
+		rules  func(*review.Rules)
+		want   bool
+	}{
+		{"mastery check", false, func(*review.Rules) {}, true},
+		{"course review test", true, func(*review.Rules) {}, true},
+		{"mastery check, mastery_check=off", false, func(r *review.Rules) { r.MasteryCheck = false }, true},
+		{"course test, course_tests=off", true, func(r *review.Rules) { r.CourseTests = false }, true},
+		{"mastery check, first_mastery=off", false, func(r *review.Rules) { r.FirstMastery = false }, false},
+	} {
+		e, sid, sim := rvEngine(t, review.ModeShadow, rvMonday)
+		r := review.DefaultRules()
+		tc.rules(&r)
+		e.SetFSRSRules(r)
+		var masteredAt time.Time
+		for i := 0; i < 12 && masteredAt.IsZero(); i++ {
+			sim.Advance(30 * time.Second)
+			var err error
+			if tc.course {
+				_, err = e.SubmitCourseTestAnswer(sid, "a", "42", "42", 5, "q", nil)
+			} else {
+				_, err = e.SubmitQuizAnswer(sid, "a", "42", "42", 5, "q", nil)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if p := rvRow(t, e, sid, "a"); p.Status == string(mastery.StatusMastered) {
+				masteredAt = clock.Now()
+			}
+		}
+		if masteredAt.IsZero() {
+			t.Fatalf("%s: never mastered", tc.name)
+		}
+		l := rvLog(t, e, sid, "a")
+		p := rvRow(t, e, sid, "a")
+		if !tc.want {
+			if len(l) != 0 || p.FSRSStability != nil {
+				t.Errorf("%s: log %+v", tc.name, l)
+			}
+			continue
+		}
+		if len(l) != 1 || l[0].Source != "first_mastery" || l[0].Rating != int(fsrs.Good) || !l[0].At.Equal(masteredAt) || l[0].SAfter != refFirstGoodS {
+			t.Errorf("%s: log %+v", tc.name, l)
+		}
+		if p.FSRSStability == nil || *p.FSRSStability != refFirstGoodS || p.FSRSSeed != "mastery" || p.FSRSReps != 1 {
+			t.Errorf("%s: row %+v", tc.name, p)
+		}
+		replayAgrees(t, e, sid)
+	}
+}

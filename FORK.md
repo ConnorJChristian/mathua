@@ -1025,7 +1025,7 @@ know" means Again; Hard and Easy are not used.
 | A course review test item | yes | `course_test` |
 | A practice miss on a MASTERED topic | a lapse when R < 0.95; logged and held at or above | `practice_lapse` |
 | A practice right answer on a MASTERED topic | no (evidence only) | |
-| The answer that first takes a topic to MASTERED | creates the state: the reference first Good, S = w[2] (2.31 days) | `first_mastery` |
+| The answer that first takes a topic to MASTERED (practice, a review, the mastery check or a course review test) | creates the state: the reference first Good, S = w[2] (2.31 days); only `first_mastery` governs it | `first_mastery` |
 | An LLM-graded proof or written card | Good if fully correct, else Again, only when it was graded (no key, a failed call: no event) | as its context |
 | A self-graded recall card | no | |
 | Placement, the onboarding diagnostic, implicit or encompasses credit | no | |

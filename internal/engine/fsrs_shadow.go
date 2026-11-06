@@ -293,13 +293,21 @@ func (e *Engine) fsrsCommit(before, after *storage.ConceptProgress, o gradedAtte
 		return nil, nil
 	}
 	a, rules := o.fsrs, e.fsrsRules
+	wasMastered := mastery.Status(before.Status) == mastery.StatusMastered
+	nowMastered := mastery.Status(after.Status) == mastery.StatusMastered
+	mem, _ := FSRSMemory(before)
+	// The answer that first takes a stateless topic to MASTERED, through
+	// any objective answer host: practice, a review, the mastery check or
+	// a course review test (review L5). Reaching mastery is the event, so
+	// only first_mastery governs it, not the quiz kind's own rule.
+	firstMastery := mem.IsZero() && !wasMastered && nowMastered && o.correct
 	switch {
 	case isSelfGraded(a.expected):
 		return nil, nil // a self-graded card is never a review
 	case grader.IsProofAnswer(a.expected) && (!rules.Judged || !a.graded):
 		return nil, nil // judged only when graded; a failed call is no event
-	case a.source == fsrsSrcMasteryCheck && !rules.MasteryCheck,
-		a.source == fsrsSrcCourseTest && !rules.CourseTests:
+	case !firstMastery && (a.source == fsrsSrcMasteryCheck && !rules.MasteryCheck ||
+		a.source == fsrsSrcCourseTest && !rules.CourseTests):
 		return nil, nil
 	}
 	at := o.attempt.Timestamp
@@ -307,13 +315,10 @@ func (e *Engine) fsrsCommit(before, after *storage.ConceptProgress, o gradedAtte
 	if o.correct {
 		rating = fsrs.Good
 	}
-	wasMastered := mastery.Status(before.Status) == mastery.StatusMastered
-	nowMastered := mastery.Status(after.Status) == mastery.StatusMastered
-	mem, _ := FSRSMemory(before)
 	practice := a.source == fsrsSrcPractice
 	source, lapse := a.source, false
 	switch {
-	case practice && mem.IsZero() && !wasMastered && nowMastered && o.correct:
+	case firstMastery:
 		if !rules.FirstMastery {
 			return nil, nil
 		}
