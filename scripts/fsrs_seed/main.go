@@ -167,7 +167,7 @@ func run(dbPath, only string, apply, force bool, out *os.File) error {
 			total++
 			fmt.Fprintf(out, "%s %s %s: %d events, S %.4f D %.4f reps %d lapses %d, last review %s, R now %.3f\n",
 				verb, sid, s.ConceptID, len(s.Log), s.State.Stability, s.State.Difficulty, s.State.Reps, s.State.Lapses,
-				s.Last.UTC().Format(time.RFC3339), review.Retrievability(s.State, clock.Since(s.Last).Hours()/24))
+				s.Last.UTC().Format(time.RFC3339), review.Retrievability(s.State, review.ElapsedWholeDays(s.Last, clock.Now())))
 			for _, e := range s.Log {
 				held := ""
 				if e.Held != "" {

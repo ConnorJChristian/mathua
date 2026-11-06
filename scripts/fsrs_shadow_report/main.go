@@ -287,9 +287,8 @@ func (r *report) headline(sid string, progress map[string]*storage.ConceptProgre
 				parts = append(parts, fmt.Sprintf("and %d more", len(after)-12))
 				break
 			}
-			p := seeded[id]
-			m, last := engine.FSRSMemory(p)
-			parts = append(parts, fmt.Sprintf("`%s` R %.2f", id, review.Retrievability(m, r.now.Sub(last).Hours()/24)))
+			rr, _ := engine.FSRSRetrievabilityAt(seeded[id], r.now)
+			parts = append(parts, fmt.Sprintf("`%s` R %.2f", id, rr))
 		}
 		fmt.Fprintf(w, "Lowest R first: %s.\n\n", strings.Join(parts, ", "))
 	}
@@ -372,7 +371,7 @@ func (r *report) perDay(sid string, progress map[string]*storage.ConceptProgress
 				}
 			}
 			m, last, _ := review.ReplayLast(r.params, eventsOf(upto))
-			if !m.IsZero() && r.params.Retrievability(m, t.Sub(last).Hours()/24) < r.params.Retention {
+			if !m.IsZero() && r.params.Retrievability(m, review.ElapsedWholeDays(last, t)) < r.params.Retention {
 				fsrsDue = append(fsrsDue, cid)
 			}
 		}
@@ -548,7 +547,7 @@ func simFSRS(p review.Params, row *storage.ConceptProgress, now time.Time, n int
 	}
 	for d := 0; d < n; d++ {
 		t := now.Add(time.Duration(d) * 24 * time.Hour)
-		if p.Retrievability(m, t.Sub(last).Hours()/24) < p.Retention {
+		if p.Retrievability(m, review.ElapsedWholeDays(last, t)) < p.Retention {
 			counts[d]++
 			m, _, _ = p.Review(m, fsrs.Good, last, t)
 			last = t

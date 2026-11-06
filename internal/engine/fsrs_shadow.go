@@ -488,9 +488,23 @@ func (e *Engine) ReviewExclusions(studentID string, progress map[string]*storage
 	return e.notReviewed(studentID, progress)
 }
 
+// FSRSRetrievabilityAt is a row's R at now, with the elapsed time counted
+// as the events count it and py-fsrs does (get_card_retrievability):
+// whole 24-hour periods since fsrs_last_review (review.ElapsedWholeDays),
+// never a fraction (FSRS Phase 2 review, L2). ok is false for a row with no
+// state.
+func FSRSRetrievabilityAt(p *storage.ConceptProgress, now time.Time) (r float64, ok bool) {
+	m, last := FSRSMemory(p)
+	if m.IsZero() || last.IsZero() {
+		return 0, false
+	}
+	return review.Retrievability(m, review.ElapsedWholeDays(last, now)), true
+}
+
 // FSRSDueIDs is what FSRS would serve at now: the topics with FSRS state
 // whose retrievability is below retention, minus ReviewExclusions and
-// topics the graph lacks, lowest R first. Nothing in the engine calls it
+// topics the graph lacks, lowest R first. R is FSRSRetrievabilityAt's
+// (whole days, as the events and py-fsrs). Nothing in the engine calls it
 // in Phase 2 (shadow decides nothing); scripts/fsrs_shadow_report does,
 // and Phase 3's "due" will be this rule.
 func (e *Engine) FSRSDueIDs(studentID string, progress map[string]*storage.ConceptProgress, now time.Time, retention float64) []string {
@@ -504,11 +518,7 @@ func (e *Engine) FSRSDueIDs(studentID string, progress map[string]*storage.Conce
 		if p == nil || skip[cid] || e.dag.Concept(cid) == nil {
 			continue
 		}
-		m, last := FSRSMemory(p)
-		if m.IsZero() || last.IsZero() {
-			continue
-		}
-		if r := review.Retrievability(m, now.Sub(last).Hours()/24); r < retention {
+		if r, ok := FSRSRetrievabilityAt(p, now); ok && r < retention {
 			out = append(out, due{cid, r})
 		}
 	}

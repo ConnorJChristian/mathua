@@ -1125,6 +1125,15 @@ the due rule's exclusions), the calibration of the logged R against the
 outcomes (10% bins, log loss, Brier) and a 30-day workload forecast under
 both rules.
 
+**One elapsed-time rule.** Every FSRS reading of R counts whole 24-hour
+periods since the last applied review (`review.ElapsedWholeDays`), as the
+events record it and as py-fsrs's `get_card_retrievability` does:
+`Engine.FSRSRetrievabilityAt`, and through it `FSRSDueIDs` (Phase 3's due
+rule), the report and `fsrs_seed`'s "R now". A fraction of a day never
+counts, so a topic with S 2.31 is not due 2 d 12 h after its first review
+(R 0.909) and is due at 3 d 1 h (R 0.881). The learner-local calendar day
+counts only for the daily cap and the report's per-day table.
+
 ## Learning reports
 
 `scripts/learning_report.py` reads a copy of the app's database and writes a
