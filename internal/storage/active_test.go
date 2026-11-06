@@ -68,8 +68,11 @@ func TestActiveLearnerCounts_SplitsGuestsAndWindows(t *testing.T) {
 			t.Fatalf("attempt %s: %v", key, err)
 		}
 	}
-	record(ada, now.Add(-time.Hour), "ada")
-	record(guest, now.Add(-time.Hour), "guest")
+	// "Earlier today" must stay inside the UTC day: an hour before now is
+	// yesterday when the test runs between 00:00 and 01:00 UTC.
+	earlierToday := dayStart.Add(now.Sub(dayStart) / 2)
+	record(ada, earlierToday, "ada")
+	record(guest, earlierToday, "guest")
 	record(bob, now.AddDate(0, 0, -1), "bob-yesterday")
 
 	activeNow, activeNowGuests, activeToday, activeTodayGuests, err :=
